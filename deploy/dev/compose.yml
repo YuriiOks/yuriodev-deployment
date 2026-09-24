@@ -1,0 +1,24 @@
+# dev.yuriodev.co.uk: runs the :dev images (every green master commit).
+# Service names are unique per environment on purpose: the service name becomes
+# a DNS alias on the shared network, and a second "frontend" would make Docker
+# round-robin between environments. The proxy addresses container_name.
+#   docker compose -f deploy/dev/compose.yml ps
+name: yuriodev-dev
+
+services:
+  frontend-dev:
+    image: ghcr.io/yuriioks/yuriodev-frontend:dev
+    container_name: yuriodev-dev-frontend
+    restart: unless-stopped
+
+  backend-dev:
+    image: ghcr.io/yuriioks/yuriodev-backend:dev
+    container_name: yuriodev-dev-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend.env   # gitignored; start from backend/.env.example
+
+networks:
+  default:
+    name: yuriodev-network
+    external: true

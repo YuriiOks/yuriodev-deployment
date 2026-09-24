@@ -41,6 +41,8 @@ yuriodev.html
 # Secrets and private material that must never be committed (this repo is public)
 certbot/
 certs/
+nginx-proxy/auth/
+deploy/*/*.env
 *.pem
 *.key
 *.tar.gz
