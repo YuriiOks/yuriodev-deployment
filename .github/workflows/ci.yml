@@ -30,11 +30,14 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test
       - name: Build
         run: npm run build
-      - name: Lint (non-blocking until the existing baseline is fixed)
-        continue-on-error: true
-        run: npm run lint
+      - name: No high-severity npm advisories
+        run: npm audit --audit-level=high
 
   backend:
     runs-on: ubuntu-24.04
@@ -49,17 +52,10 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: pip install -r requirements.txt httpx
-      - name: App imports and /health answers
-        run: |
-          python - <<'EOF'
-          from fastapi.testclient import TestClient
-          from src.main import app
-          r = TestClient(app).get("/health")
-          assert r.status_code == 200 and r.json().get("status") == "healthy", r.text
-          print("health ok:", r.json())
-          EOF
+          cache-dependency-path: backend/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Tests
+        run: python -m pytest -q
 
   guards:
     runs-on: ubuntu-24.04

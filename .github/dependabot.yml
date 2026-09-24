@@ -1,0 +1,51 @@
+# Weekly dependency updates. Every update PR runs CI (ci.yml has a pull_request
+# trigger); merging to master ships through the normal image/release pipeline.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # @vitejs/plugin-react 6 needs vite 8; move both majors together by hand.
+      - dependency-name: vite
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+
+  # Base images are pinned by digest in the Dockerfiles; this keeps the pins fresh.
+  - package-ecosystem: docker
+    directories: [/frontend, /backend]
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  # Actions are pinned to full commit SHAs (repo policy); Dependabot bumps the SHA and the version comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]

@@ -43,7 +43,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ event, index }) => {
   // Parse LinkedIn links and make them clickable
   const renderLinkedInLinks = (text: string) => {
     // Pattern: Name (LinkedIn: URL) - more precise matching
-    const linkedInPattern = /(\w+\s+\w+)\s*\(LinkedIn:\s*(https:\/\/[^\)]+)\)/g;
+    const linkedInPattern = /(\w+\s+\w+)\s*\(LinkedIn:\s*(https:\/\/[^)]+)\)/g;
     const parts: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
     let match;

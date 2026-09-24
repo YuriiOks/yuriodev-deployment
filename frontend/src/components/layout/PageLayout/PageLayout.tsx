@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../../context/ThemeContext';
+import { useTheme } from '../../../context/useTheme';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
 import LeftSidebar from '../LeftSidebar/LeftSidebar';

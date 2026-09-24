@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../../context/ThemeContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useTheme } from '../../../context/useTheme';
 import styles from './CommandPalette.module.css';
 
 function scrollToSection(selector:string) {
@@ -14,8 +14,8 @@ function scrollToSection(selector:string) {
 
 const CommandPalette: React.FC = () => {
     const { toggleTheme } = useTheme();
-    
-    const commands = [
+
+    const commands = useMemo(() => [
         { title: 'Go to Hero', action: () => scrollToSection('#hero'), shortcut: 'hero' },
         { title: 'Go to About', action: () => scrollToSection('#about'), shortcut: 'about' },
         { title: 'Go to Platform', action: () => scrollToSection('#platform'), shortcut: 'platform' },
@@ -29,7 +29,7 @@ const CommandPalette: React.FC = () => {
         { title: 'Send Email', action: () => window.location.href = 'mailto:yurii.oksamytnyi@yuriodev.co.uk', shortcut: 'email' },
         { title: 'View LinkedIn', action: () => window.open('https://www.linkedin.com/in/yurii-oksamytnyi/', '_blank'), shortcut: 'linkedin' },
         { title: 'View GitHub', action: () => window.open('https://github.com/YuriiOks', '_blank'), shortcut: 'github' }
-    ];
+    ], [toggleTheme]);
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [filteredCommands, setFilteredCommands] = useState(commands);
@@ -56,7 +56,7 @@ const CommandPalette: React.FC = () => {
             );
             setSelectedIndex(0);
         }
-    }, [inputValue, isOpen]);
+    }, [inputValue, isOpen, commands]);
 
 
     const handleCommandClick = (command: { title: string; action: () => void; shortcut: string; }) => {

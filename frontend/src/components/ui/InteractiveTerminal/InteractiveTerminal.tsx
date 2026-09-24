@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { terminalCommands } from '../../../services/terminalService';
+import { isHeaderEmojiLine } from '../../../utils/headerEmoji';
 import styles from './InteractiveTerminal.module.css';
 
 interface TerminalLine {
@@ -53,7 +54,7 @@ const InteractiveTerminal: React.FC = () => {
         lines.push({ content: line, type: 'comment' });
       }
       // Headers (lines with emojis or section titles)
-      else if (line.includes('━') || /^[🎓🤖💼📚🏗️☁️💻👨‍💻📧🔗💻🌐📍🚀📄🏠🐍]/.test(line)) {
+      else if (line.includes('━') || isHeaderEmojiLine(line)) {
         lines.push({ content: line, type: 'info' });
       }
       // Email, links, contact info
@@ -96,7 +97,7 @@ const InteractiveTerminal: React.FC = () => {
         ];
         
         // Execute command
-        const commandOutput = (terminalCommands as any)[command]?.();
+        const commandOutput = terminalCommands[command]?.();
         
         if (commandOutput === 'CLEAR_TERMINAL') {
           setOutput([]);

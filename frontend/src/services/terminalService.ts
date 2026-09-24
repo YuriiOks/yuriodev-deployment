@@ -1,4 +1,4 @@
-export const terminalCommands = {
+export const terminalCommands: Record<string, () => string> = {
     help: () => `Available commands:
 help       - Show this help message
 skills     - Display technical skills and expertise
