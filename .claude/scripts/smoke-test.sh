@@ -22,6 +22,9 @@ c=$(code "https://yuriodev.co.uk/" 10 -k --resolve yuriodev.co.uk:443:127.0.0.1)
 [ "$c" = 200 ] && row PASS "origin /" "$c" || row FAIL "origin /" "HTTP $c (expected 200)"
 c=$(code "http://yuriodev.co.uk/" 10 --resolve yuriodev.co.uk:80:127.0.0.1)
 [ "$c" = 301 ] && row PASS "origin http->https" "$c" || row WARN "origin http->https" "HTTP $c (expected 301)"
+# the proxy must reach the backend container itself (FastAPI answers 404 for /api/*; 5xx = proxy cannot reach it)
+c=$(code "https://yuriodev.co.uk/api/health" 10 -k --resolve yuriodev.co.uk:443:127.0.0.1)
+case "$c" in 5??|000) row FAIL "origin /api/ -> backend" "HTTP $c: proxy cannot reach the backend" ;; *) row PASS "origin /api/ -> backend" "$c (answered by the backend)" ;; esac
 
 # 3. Cloudflare edge (real DNS via DoH; plain DNS on this box points at the origin)
 c=$(code "https://yuriodev.co.uk/" 15 --doh-url https://1.1.1.1/dns-query)
@@ -33,7 +36,7 @@ case "$c" in
 esac
 
 # 4. internal health (read-only GETs from inside the proxy network)
-out=$(timeout 10 docker exec yuriodev-proxy wget -qO- -T 5 http://backend:8000/health 2>/dev/null)
+out=$(timeout 10 docker exec yuriodev-proxy wget -qO- -T 5 http://yuriodev-backend:8000/health 2>/dev/null)
 case "$out" in *healthy*) row PASS "backend /health" "ok" ;; *) row FAIL "backend /health" "no healthy response" ;; esac
 if timeout 10 docker exec yuriodev-proxy nginx -t >/dev/null 2>&1; then row PASS "proxy nginx -t" "config ok"
 else row FAIL "proxy nginx -t" "config test failed"; fi

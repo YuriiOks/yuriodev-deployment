@@ -9,6 +9,7 @@ paths:
 # Infra rules: compose, nginx proxy, Dockerfiles
 
 - `nginx-proxy/` is bind-mounted into the running `yuriodev-proxy` at `/etc/nginx/conf.d`: an edit there goes live at the next reload or restart. After each edit a hook runs `docker exec yuriodev-proxy nginx -t`; reload (`docker exec yuriodev-proxy nginx -s reload`) only with Yurii's OK. A failed reload keeps the old config; a proxy restart with a bad config is a full outage.
+- Upstreams are resolved per request (`resolver 127.0.0.11` + `set $var http://<container_name>:<port>; proxy_pass $var;`): recreating frontend/backend needs no proxy reload, and a stopped container only fails its own location. Keep this pattern for every new vhost and address containers by `container_name`, never by service name (service names can repeat across compose projects on `yuriodev-network`, and Docker would round-robin between them). Never add static `upstream {}` blocks.
 - `docker-compose.yml` edits take effect on the next `up` of the affected service; a hook validates them with `docker compose config --quiet`. Changing the proxy's ports or volumes needs `docker compose up -d --no-deps proxy` (a ~2 s full-site blip; ask).
 - Only the proxy publishes ports (80, 443). Never add `ports:` to other services.
 - Config drift: running containers can carry an older compose config hash than the file, so a bare `docker compose up -d` can recreate services unexpectedly. Always name services and add `--no-deps`; preview with `docker compose --dry-run up -d --no-deps <svc>`.
