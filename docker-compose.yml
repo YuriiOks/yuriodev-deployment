@@ -17,8 +17,11 @@ services:
       target: runtime
     container_name: yuriodev-backend
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
+    env_file:                             # public config first, then optional secrets
+      - path: ./env/prod.env
+        required: true
+      - path: ./env/prod.secrets.env      # gitignored
+        required: false
 
   proxy:
     image: nginx:stable-alpine
