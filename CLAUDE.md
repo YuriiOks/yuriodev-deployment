@@ -30,7 +30,7 @@ Compose project `yuriodev-deployment`, network `yuriodev-network`, every service
 5. Secrets: never read or print `backend/.env`; use `backend/.env.example` for variable names. Never `docker compose config` without `--quiet`, bare `docker inspect`, or `docker exec ... env`.*
 6. Origin TLS is a Cloudflare Origin CA certificate, `nginx-proxy/certs/origin.{pem,key}` (gitignored, valid to 2041-09-20, trusted only by Cloudflare Full (strict)). Never commit or print `origin.key`. `certbot/` is the root-owned legacy Let's Encrypt store; leave it alone. Diagnose with `/cert-status`.
 7. The host is small (4 vCPU, 7.6 GB RAM, no swap): one image build at a time, check `free -m` first (>= 1.5 GB available), no long-running dev servers.
-8. Git (this repo is PUBLIC on GitHub; `main` is the production branch): stage explicit paths only, never `-A` / `.` / `-u` / `-f`*; run `git diff --cached --stat` before any commit (the index can hold a large pre-existing batch); conventional commits; never force-push; nothing secret or private in tracked files.
+8. Git (this repo is PUBLIC on GitHub; `master` is the default/integration branch, `production` marks what runs live and only moves when a release is promoted; this working tree stays on `master`): stage explicit paths only, never `-A` / `.` / `-u` / `-f`*; run `git diff --cached --stat` before any commit (the index can hold a large pre-existing batch); conventional commits; never force-push; nothing secret or private in tracked files.
 
 ## Everyday commands (read-only unless noted)
 ```bash
