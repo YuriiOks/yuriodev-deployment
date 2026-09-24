@@ -25,9 +25,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# /health for the container HEALTHCHECK and the proxy network; /api/health is the
+# same payload through the public proxy route (/api/ -> backend), used by the
+# external monitor. Everything in it is non-secret.
 @app.get("/health")
+@app.get("/api/health")
 async def health_check():
     """Simple health check endpoint for monitoring."""
-    return {"status": "healthy", "service": "website-api-relay"}
+    return {
+        "status": "healthy",
+        "service": "website-api-relay",
+        "environment": settings.environment,
+        "revision": settings.revision,
+    }
 
 logger.info("✅ Website API Relay service initialized.")

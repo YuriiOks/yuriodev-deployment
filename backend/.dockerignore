@@ -14,9 +14,9 @@ venv
 # Runtime output
 logs
 
-# Tests and dev-only files never ship in the runtime image
+# Tests never ship in any image; requirements-dev.txt is needed in the
+# build context because the `dev` Dockerfile stage installs it.
 tests
-requirements-dev.txt
 
 # Editor, OS and VCS
 .vscode

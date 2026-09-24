@@ -18,7 +18,11 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = "INFO"
-    
+
+    # Deployment metadata (non-secret; surfaced via /health)
+    environment: str = "unknown"
+    revision: str = "unknown"
+
     class Config:
         env_file = ".env"
         extra = "ignore"

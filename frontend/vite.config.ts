@@ -12,12 +12,14 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Proxy requests from /api to your live backend
+      // Proxy requests from /api to the backend. Override via
+      // VITE_API_PROXY_TARGET (e.g. compose.local.yml points this at the
+      // local backend container); falls back to the live backend.
       '/api': {
-        target: 'https://api.yuriodev.co.uk',
+        target: process.env.VITE_API_PROXY_TARGET || 'https://api.yuriodev.co.uk',
         changeOrigin: true,
         // 'secure: false' is often not needed for valid certs, but doesn't hurt
-        secure: false, 
+        secure: false,
       }
     }
   }

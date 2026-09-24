@@ -51,6 +51,7 @@ jobs:
           target: runtime
           push: true
           provenance: false
+          build-args: GIT_SHA=${{ env.SHA }}
           tags: ${{ env.IMAGE }}:sha-${{ env.SHA }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}

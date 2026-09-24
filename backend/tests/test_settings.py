@@ -39,6 +39,8 @@ def test_defaults_when_env_unset(tmp_path, monkeypatch):
     monkeypatch.delenv("API_TITLE", raising=False)
     monkeypatch.delenv("API_VERSION", raising=False)
     monkeypatch.delenv("LOG_LEVEL", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("REVISION", raising=False)
 
     fresh_settings = Settings(_env_file=None)
 
@@ -49,3 +51,16 @@ def test_defaults_when_env_unset(tmp_path, monkeypatch):
     assert fresh_settings.api_title == "YuriODev Website API"
     assert fresh_settings.api_version == "0.1.0"
     assert fresh_settings.log_level == "INFO"
+    assert fresh_settings.environment == "unknown"
+    assert fresh_settings.revision == "unknown"
+
+
+def test_environment_and_revision_read_from_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "stage")
+    monkeypatch.setenv("REVISION", "abc1234")
+
+    fresh_settings = Settings(_env_file=None)
+
+    assert fresh_settings.environment == "stage"
+    assert fresh_settings.revision == "abc1234"
