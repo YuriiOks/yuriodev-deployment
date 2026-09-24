@@ -20,6 +20,12 @@ Append-only log of approaches that **didn't** work and the one that finally did,
 
 ---
 
+## 2026-09-24: Backend tests green in CI, red inside the environment containers
+**Task type:** backend / tests / local dev
+**What didn't work:** `test_cors.py` hard-coded `https://yuriodev.co.uk` as the allowed origin. CI has no env file, so the code default applied and the test passed; inside the local stack (and dev/stage) `CORS_ORIGINS` comes from `env/<env>.env` and the same test failed. Running the suite against a read-only bind mount also failed, because `src/utils/logging.py` creates `logs/` in the working directory at import.
+**What worked:** assert against the configured value (`settings.cors_origins[0]`) and build a fresh `Settings(_env_file=None)` for settings tests; run container tests on a writable scratch copy. The suite now passes with no env, `env/local.env` and `env/prod.env`.
+**Note for next time:** Any test that touches config must pass with every `env/<env>.env`, not just the code defaults; check with `docker run --env-file env/<env>.env ... pytest`.
+
 ## 2026-09-24: Building the tag-driven release pipeline (four GitHub gotchas)
 **Task type:** GitHub Actions / GHCR / rulesets
 **What didn't work:** (1) `docker buildx imagetools create --tag X img@digest` wraps a single source in a NEW index, so `:dev`/`:stage` got digests different from `sha-<commit>` and a "stage digest == release digest" gate can never match. (2) A dry-run tag on an older commit never ran the promote workflow: tag pushes run the workflow file as it exists AT the tagged commit. (3) A ruleset bypass for the GitHub Actions app on `production` was rejected (422): on a personal-account repo the Actions integration cannot be a bypass actor. (4) The manual `workflow_dispatch` rollback failed with "Branch master is not allowed to deploy to production": the environment only allowed `v*.*.*` tags.
