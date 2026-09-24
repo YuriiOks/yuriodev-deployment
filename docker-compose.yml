@@ -1,10 +1,15 @@
+# Production. frontend/backend run the :production images that the release
+# workflow promotes; the deploy agent pulls them. `build:` stays only for
+# break-glass on-box builds (pause the agent first: ~/.yuriodev-deploy-paused).
 services:
   frontend:
+    image: ghcr.io/yuriioks/yuriodev-frontend:production
     build: ./frontend
     container_name: yuriodev-frontend
     restart: unless-stopped
 
   backend:
+    image: ghcr.io/yuriioks/yuriodev-backend:production
     build: ./backend
     container_name: yuriodev-backend
     restart: unless-stopped

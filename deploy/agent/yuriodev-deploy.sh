@@ -30,15 +30,17 @@ compose_file() {
 
 # "service image container port" for every service of a compose file that runs a
 # registry image (prod's proxy uses nginx:stable-alpine and is managed by hand).
+# Reads the YAML itself: `docker compose config` would load the env_file secrets.
 services_of() {
-  docker compose -f "$1" config --format json 2>/dev/null | python3 -c '
-import json, sys
-for name, s in json.load(sys.stdin)["services"].items():
-    img = s.get("image", "")
+  python3 - "$1" <<'PY'
+import sys, yaml
+for name, s in (yaml.safe_load(open(sys.argv[1])) or {}).get("services", {}).items():
+    img = (s or {}).get("image", "")
     if not img.startswith("ghcr.io/"):
         continue
     port = "8000" if "backend" in name else "80"
-    print(name, img, s.get("container_name", ""), port)'
+    print(name, img, s.get("container_name", ""), port)
+PY
 }
 
 healthy() {  # container port -> 0 if it answers through the proxy network
