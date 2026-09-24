@@ -32,14 +32,18 @@ workflows only move registry tags.
 
 ## How to release
 
-1. **Land on `master`.** A push to `master` triggers `.github/workflows/ci.yml`
-   (frontend typecheck/build/lint, backend `/health` test, image build-only
-   checks). On green CI, `.github/workflows/images.yml` fires via
-   `workflow_run`, builds each service once, and pushes
-   `ghcr.io/yuriioks/yuriodev-{frontend,backend}:sha-<commit>`, then always
-   retags `:dev` to that digest. The deploy agent picks up `:dev` on its next
-   run (within a minute) and `dev.yuriodev.co.uk` updates itself — no manual
-   step.
+1. **Land on `master`.** A push to `master` triggers `.github/workflows/ci.yml`:
+   `frontend` (typecheck, lint at 0 problems, `npm run test`, build, `npm audit
+   --audit-level=high`), `backend` (`python -m pytest -q`), `guards`
+   (`scripts/check-compose.py` plus `docker compose ... config --quiet` on
+   every compose file) and `images` (build-only `runtime` + `dev` targets, no
+   push). On green CI, `.github/workflows/images.yml` fires via
+   `workflow_run`, builds each service's `runtime` target once, pushes
+   `ghcr.io/yuriioks/yuriodev-{frontend,backend}:sha-<commit>`, scans it with
+   Trivy (blocks on a fixable HIGH/CRITICAL CVE), and — only if that
+   passes — retags `:dev` to that digest. The deploy agent picks up `:dev` on
+   its next run (within a minute) and `dev.yuriodev.co.uk` updates itself —
+   no manual step.
 2. **Promote to stage** once you want a specific commit on
    `stage.yuriodev.co.uk`:
    ```bash
@@ -114,10 +118,15 @@ finds every service whose `image:` starts with `ghcr.io/`, pulls it
 anonymously (the GHCR packages are public; the server holds no registry
 credentials), and — only if the pulled image ID differs from what the
 running container has — recreates that one service with
-`docker compose up -d --no-deps <svc>`, then polls it through the proxy
+`docker compose up -d --no-deps <svc>`. It then waits for the new container
+to come healthy before logging it as deployed: both the frontend and backend
+images carry a Dockerfile `HEALTHCHECK`, so it polls `docker inspect`'s
+`.State.Health.Status` for up to ~90s; only an image without a `HEALTHCHECK`
+(an older, pre-hardening image) falls back to a request through the proxy
 container (`GET /` for frontends, `GET /health` for backends, up to 6 tries
-5s apart) before logging it as deployed. It never touches a service that
-isn't already updated, and it never builds anything.
+5s apart). It never touches a service that isn't already updated, and it
+never builds anything, and it never reacts to an `env/` file changing — only
+to a changed image ID (see "Environment config" below).
 
 - **Kill switch:** `touch ~/.yuriodev-deploy-paused` — the agent exits
   immediately on its next run without touching any container. Running
@@ -133,21 +142,84 @@ isn't already updated, and it never builds anything.
   `~/.local/state/yuriodev-deploy.lock`, so an overrunning invocation is
   skipped rather than overlapped.
 
-## Adding a new environment variable to dev or stage
+## Environment config (`env/`)
 
-Each environment's backend variables live in a gitignored env file next to
-its compose file (`deploy/dev/backend.env`, `deploy/stage/backend.env`;
-start from `backend/.env.example` for the variable names). To add or change
-one:
-```bash
-$EDITOR deploy/dev/backend.env          # or deploy/stage/backend.env
-docker compose -f deploy/dev/compose.yml up -d --no-deps backend-dev
+Each backend service's non-secret config is tracked in `env/<env>.env`
+(`local`, `dev`, `stage`, `prod` — `ENVIRONMENT`, `API_TITLE`, `API_VERSION`,
+`CORS_ORIGINS`, `LOG_LEVEL`). Real secrets, if any, go in a gitignored
+`env/<env>.secrets.env` (mode 600, created on whichever machine runs that
+environment; there is no such file on this box yet). `env/secrets.env.example`
+lists the expected secret variable *names* only, never values — start there
+when adding one. SOPS+age encryption of the secrets files in place, same
+filenames, is planned but not built yet.
+
+Every compose file's backend service loads both, in this order, via the long
+`env_file` form:
+```yaml
+env_file:
+  - path: ./env/<env>.env
+    required: true
+  - path: ./env/<env>.secrets.env   # gitignored
+    required: false
 ```
-Recreating just that service picks up the new env file; it does not rebuild
-or affect the other service or environment. Production's backend env file
-(`backend/.env`, also gitignored) follows the same pattern via the root
-`docker-compose.yml` and `backend` service, but is a production change — ask
-first.
+so a missing secrets file is fine (the public config still loads) and a
+secret can only *add* to the public config, never silently replace it by
+being absent.
+
+To add or change a value:
+```bash
+$EDITOR env/dev.env                                    # or env/stage.env, env/prod.env
+git add env/dev.env && git commit -m "..."              # this is a tracked, public file
+touch ~/.yuriodev-deploy-paused                          # optional belt-and-braces
+docker compose -f deploy/dev/compose.yml up -d --no-deps backend-dev
+curl -sk -u <user>:<pass> https://dev.yuriodev.co.uk/api/health | python3 -m json.tool   # dev is behind basic auth (credentials at ~/.config/yuriodev/basic-auth.txt); or the internal /health; confirm it took
+rm ~/.yuriodev-deploy-paused
+```
+Recreating just that one service picks up the new env file; it does not
+rebuild or affect the other service or environment. **The deploy agent never
+reacts to an env file changing** — only to a changed image ID — so this
+recreate step is always a manual, one-off action, every time. Production
+follows the same pattern via `env/prod.env` and the root `docker-compose.yml`
+`backend` service. Every step above — the git commit, the container recreate
+— is a production change per root `CLAUDE.md` regardless of which
+environment it's for: **ask Yurii first**, dev/stage included, not only prod.
+
+`backend/.env`, `backend/.env.example`, `deploy/dev/backend.env` and
+`deploy/stage/backend.env` are legacy leftovers from before `env/` existed
+and are scheduled for deletion within a release cycle. Don't add anything
+new to them, and never read or print `backend/.env` or any `env/*.secrets.env`.
+
+## Local development
+
+Mac only — **never run this on the VPS.** `compose.local.yml` (project
+`yuriodev-local`, its own Docker network, nothing shared with `yuriodev-network`)
+builds each Dockerfile's `dev` target (Vite dev server with HMR on
+`127.0.0.1:5173`; `uvicorn --reload` on `127.0.0.1:8000`) with the source bind
+-mounted in, and loads `env/local.env`. The frontend's Vite dev-server proxy
+for `/api` is pointed at the local backend container via
+`VITE_API_PROXY_TARGET=http://backend:8000` (compose `environment:`, not
+baked into any build). The root `Makefile` wraps it: `make dev-up` /
+`dev-down` / `dev-logs` / `dev-ps` / `dev-test` (runs `npm run test` and
+`pytest` inside the running containers) / `typecheck` / `lint` / `check`
+(typecheck + lint + tests + `scripts/check-compose.py`, the same guard
+`ci.yml`'s `frontend`/`backend`/`guards` jobs run — it doesn't cover
+`npm run build` or `npm audit`, which stay CI-only).
+
+## Monitoring
+
+`.github/workflows/uptime.yml` runs on a 10-minute cron and, entirely from
+outside (through Cloudflare, not from this box), checks that production's
+`/` returns 200, `/api/health` reports `status: healthy` and
+`environment: prod`, and that its `revision` matches the commit behind the
+latest GitHub Release once that release is at least 20 minutes old (a fresh
+promotion gets that long to actually land). Any failure opens or updates one
+GitHub issue labelled `monitor` (which emails the repo owner) with the exact
+problem list, and the issue auto-closes with a comment once checks pass
+again — `gh issue list --label monitor --state open` shows whether one is
+currently open. `workflow_dispatch` with `simulate_failure: true` exercises
+the whole alert path without a real incident. GitHub disables the schedule
+after 60 days with no commit to `master`, so a long-quiet repo needs a
+reminder to push something.
 
 ## Rollback
 
@@ -186,9 +258,14 @@ from what `:production` points at.
 - Dev/stage basic auth: htpasswd file at `nginx-proxy/auth/envs.htpasswd`
   (gitignored); plaintext credentials at `~/.config/yuriodev/basic-auth.txt`
   (mode 600).
-- Backend runtime secrets: `backend/.env` (production, gitignored),
-  `deploy/dev/backend.env`, `deploy/stage/backend.env` (gitignored); variable
-  names only in `backend/.env.example`.
+- Backend runtime secrets, current: `env/<env>.secrets.env` (gitignored,
+  mode 600, one file per environment, created on the machine that runs it —
+  none exist on this box yet); variable names only in
+  `env/secrets.env.example`. See "Environment config" above.
+- Backend runtime secrets, legacy (about to be deleted, don't add to them):
+  `backend/.env` (production), `deploy/dev/backend.env`,
+  `deploy/stage/backend.env` (all gitignored); variable names only in
+  `backend/.env.example`.
 - Origin TLS: `nginx-proxy/certs/origin.{pem,key}` (gitignored).
 - GHCR: no credentials on the box at all — every pull is anonymous against
   public packages; every push/retag happens inside GitHub Actions using the
@@ -206,3 +283,5 @@ from what `:production` points at.
 | production promotion stuck | Waiting on `production` environment approval | Approve the run in the Actions UI (reviewer `YuriiOks`) |
 | Agent log shows `REFUSED image without explicit tag` | A compose file's `image:` was edited to drop its tag | Compose files must pin `:dev` / `:stage` / `:production` explicitly — the agent refuses to guess `:latest` |
 | Cloudflare 526 | Origin certificate invalid/expired | See `/cert-status`; certs live at `nginx-proxy/certs/origin.{pem,key}` |
+| `/health` or `/api/health` reports the wrong `environment` | Wrong or missing `env/<env>.env` value, or the service was never recreated after an env-file edit (the deploy agent doesn't do this) | Check the compose file's `env_file` order, then follow "Environment config" above to recreate the one service |
+| Production monitor issue opened (`monitor` label) | `uptime.yml` found `/`, `/api/health`, or the revision-vs-latest-release check failing from outside | `gh issue list --label monitor --state open` for the exact problem list; then `/smoke-test` from the box itself |

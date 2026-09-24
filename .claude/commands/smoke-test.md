@@ -11,5 +11,7 @@ Then interpret in a few lines:
 - `deploy agent` heartbeat stale or paused, or `deploy agent log` showing FAILED/ERROR/REFUSED lines -> look at `tail -n 50 ~/.local/state/yuriodev-deploy.log`; check for `~/.yuriodev-deploy-paused`.
 - `containers (dev)` / `containers (stage)` WARN -> that environment's project may simply not be up; not an incident on its own.
 - `memory` WARN -> no image builds until RAM is available.
+- Everything above is PASS but Yurii got an alert email anyway -> `.github/workflows/uptime.yml` checks from outside (through Cloudflare) every 10 min, including that `/api/health`'s `revision` matches the latest GitHub Release; `gh issue list --label monitor --state open` shows whether it currently has an open alert (auto-closes on recovery, no action needed once it does). A revision mismatch after the 20-minute grace usually means the deploy agent is stuck — check its heartbeat/log as above.
+- To confirm a specific version is what's actually running anywhere: `curl -s <origin-or-edge-url>/api/health | python3 -m json.tool` and read `environment` + `revision` (git SHA) directly, rather than trusting container uptime alone.
 
 This command never fixes anything: propose next steps only, and never send POST requests to the site.

@@ -121,7 +121,7 @@ else
 fi
 
 # 7. production image freshness: only when docker-compose.yml pins an image: (still build:-only -> INFO).
-# Reads the compose FILE directly (never `docker compose config`, which would resolve backend/.env).
+# Reads the compose FILE directly (never `docker compose config`, which would load the env files).
 compose_service_image() {  # service -> "image:" value under that top-level service block, if any
   awk -v svc="$1" '
     /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { in_svc = ($0 == "  "svc":") }
