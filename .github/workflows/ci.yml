@@ -71,8 +71,6 @@ jobs:
         run: python scripts/check-compose.py
       - name: Compose files are valid
         run: |
-          # env files are gitignored; empty placeholders let `config` resolve paths
-          touch backend/.env deploy/dev/backend.env deploy/stage/backend.env
           for f in docker-compose.yml deploy/dev/compose.yml deploy/stage/compose.yml $(ls compose.local.yml 2>/dev/null); do
             echo "== $f"; docker compose -f "$f" config --quiet
           done

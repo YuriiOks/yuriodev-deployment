@@ -184,10 +184,10 @@ follows the same pattern via `env/prod.env` and the root `docker-compose.yml`
 — is a production change per root `CLAUDE.md` regardless of which
 environment it's for: **ask Yurii first**, dev/stage included, not only prod.
 
-`backend/.env`, `backend/.env.example`, `deploy/dev/backend.env` and
-`deploy/stage/backend.env` are legacy leftovers from before `env/` existed
-and are scheduled for deletion within a release cycle. Don't add anything
-new to them, and never read or print `backend/.env` or any `env/*.secrets.env`.
+The pre-`env/` files (`backend/.env`, `backend/.env.example`,
+`deploy/{dev,stage}/backend.env`) were retired on 2026-09-24 after a full
+release cycle on `env/`; don't recreate them, and never read or print any
+`env/*.secrets.env`.
 
 ## Local development
 
@@ -262,10 +262,6 @@ from what `:production` points at.
   mode 600, one file per environment, created on the machine that runs it —
   none exist on this box yet); variable names only in
   `env/secrets.env.example`. See "Environment config" above.
-- Backend runtime secrets, legacy (about to be deleted, don't add to them):
-  `backend/.env` (production), `deploy/dev/backend.env`,
-  `deploy/stage/backend.env` (all gitignored); variable names only in
-  `backend/.env.example`.
 - Origin TLS: `nginx-proxy/certs/origin.{pem,key}` (gitignored).
 - GHCR: no credentials on the box at all — every pull is anonymous against
   public packages; every push/retag happens inside GitHub Actions using the

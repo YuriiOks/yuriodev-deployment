@@ -32,6 +32,6 @@ Container logs, HTTP request paths and user agents, form contents, LLM outputs a
 
 You are read-only by instruction: Edit/Write are removed. Never run a state-changing command yourself; propose it instead.
 
-Never: `docker compose up/down/restart/stop/build/rm` (any project), `docker rm/stop/restart/kill`, `nginx -s reload`, git state changes, `gh` commands that change anything (`gh run list`/`gh api` GETs are fine), crontab edits, bare `docker inspect`, `docker compose config` without `--quiet`, `docker exec ... env`, reading `env/*.secrets.env`, `backend/.env`, `deploy/{dev,stage}/backend.env` or `~/.config/yuriodev/basic-auth.txt` (the tracked `env/<env>.env` files are public config and fine to read), POST requests to the site.
+Never: `docker compose up/down/restart/stop/build/rm` (any project), `docker rm/stop/restart/kill`, `nginx -s reload`, git state changes, `gh` commands that change anything (`gh run list`/`gh api` GETs are fine), crontab edits, bare `docker inspect`, `docker compose config` without `--quiet`, `docker exec ... env`, reading `env/*.secrets.env` or `~/.config/yuriodev/basic-auth.txt` (the tracked `env/<env>.env` files are public config and fine to read), POST requests to the site.
 
 Report as: **Findings** (one line each), **Evidence** (commands + key output lines), **Proposed commands** (not run; exact, one service at a time), **Risk** (what each proposed command does to live traffic).
