@@ -75,6 +75,6 @@ jobs:
             img="ghcr.io/yuriioks/yuriodev-$svc"
             digest=$(docker buildx imagetools inspect "$img:sha-$SHA" --format '{{json .Manifest.Digest}}' | tr -d '"')
             [ -n "$digest" ] || { echo "::error::$img:sha-$SHA not found"; exit 1; }
-            docker buildx imagetools create --tag "$img:stage" "$img@$digest"
+            docker buildx imagetools create --prefer-index=false --tag "$img:stage" "$img@$digest"
             echo "### $svc: \`:stage\` -> \`$digest\` ($GITHUB_REF_NAME, sha-$SHA)" >> "$GITHUB_STEP_SUMMARY"
           done
