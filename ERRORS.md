@@ -20,6 +20,12 @@ Append-only log of approaches that **didn't** work and the one that finally did,
 
 ---
 
+## 2026-09-24: Building the tag-driven release pipeline (four GitHub gotchas)
+**Task type:** GitHub Actions / GHCR / rulesets
+**What didn't work:** (1) `docker buildx imagetools create --tag X img@digest` wraps a single source in a NEW index, so `:dev`/`:stage` got digests different from `sha-<commit>` and a "stage digest == release digest" gate can never match. (2) A dry-run tag on an older commit never ran the promote workflow: tag pushes run the workflow file as it exists AT the tagged commit. (3) A ruleset bypass for the GitHub Actions app on `production` was rejected (422): on a personal-account repo the Actions integration cannot be a bypass actor. (4) The manual `workflow_dispatch` rollback failed with "Branch master is not allowed to deploy to production": the environment only allowed `v*.*.*` tags.
+**What worked:** (1) `imagetools create --prefer-index=false` (exact copy, same digest). (2) Tag a commit that already contains the workflow. (3) Drop the update-restriction ruleset and keep the no-force-push/no-deletion one (so `production` can only fast-forward) plus the environment approval. (4) Allow branch `master` in the `production` environment's deployment policy (approval is still required).
+**Note for next time:** Compare digests with `docker buildx imagetools inspect <ref> --format '{{json .Manifest.Digest}}'`, and select promote runs by `headBranch == <tag>`: every tag push triggers both promote workflows.
+
 ## 2026-09-24: Recreating backend broke /api/* with 502 (stale upstream IP in nginx)
 **Task type:** deploy / nginx proxy
 **What didn't work:** `docker compose up -d --no-deps backend` alone. nginx resolves `upstream backend { server backend:8000; }` once at start/reload and caches the IP; the recreated container got a new IP, so the proxy kept connecting to the old one ("connect() failed (113: Host is unreachable)", 502). The smoke test stayed green because it checks backend `/health` from inside the container, not through the proxy's `/api/` route.
