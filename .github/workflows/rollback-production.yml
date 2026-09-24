@@ -1,0 +1,83 @@
+name: Rollback production
+
+# Manually retags ghcr.io/yuriioks/yuriodev-{frontend,backend}:production at
+# the exact images an earlier release used (found via that release's tagged
+# commit). Nothing is rebuilt -- same exact-digest retag as promote-production.
+#
+# The `production` branch is NOT moved here: it records the last commit that
+# went through promote-production.yml, and a rollback only changes which
+# images :production points at, not that promotion history.
+#
+# Shares promote-production's concurrency group so a rollback and a
+# promotion can never run at the same time.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to roll back to (e.g. v0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      commit: ${{ steps.resolve.outputs.commit }}
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Tag must look like a release (vX.Y.Z)
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "::error::'$TAG' is not a release tag (expected vX.Y.Z)"; exit 1; }
+      - name: Tag must exist and point at a commit
+        id: resolve
+        run: |
+          commit=$(git rev-parse "refs/tags/$TAG^{commit}") \
+            || { echo "::error::tag '$TAG' not found"; exit 1; }
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: A GitHub Release must exist for this tag
+        run: |
+          gh release view "$TAG" --json tagName >/dev/null \
+            || { echo "::error::no GitHub Release found for '$TAG'"; exit 1; }
+
+  rollback:
+    needs: validate
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ inputs.tag }}
+      COMMIT: ${{ needs.validate.outputs.commit }}
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point :production at sha-<commit> (rollback to the tag's release)
+        run: |
+          echo "### Rollback to $TAG (commit $COMMIT)" >> "$GITHUB_STEP_SUMMARY"
+          for svc in frontend backend; do
+            img="ghcr.io/yuriioks/yuriodev-$svc"
+            old=$(docker buildx imagetools inspect "$img:production" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"' || true)
+            new=$(docker buildx imagetools inspect "$img:sha-$COMMIT" --format '{{json .Manifest.Digest}}' | tr -d '"')
+            [ -n "$new" ] || { echo "::error::$img:sha-$COMMIT not found"; exit 1; }
+            docker buildx imagetools create --prefer-index=false --tag "$img:production" "$img@$new"
+            echo "- $svc: \`${old:-none}\` -> \`$new\`" >> "$GITHUB_STEP_SUMMARY"
+          done
