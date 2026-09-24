@@ -43,8 +43,20 @@ for name, s in (yaml.safe_load(open(sys.argv[1])) or {}).get("services", {}).ite
 PY
 }
 
-healthy() {  # container port -> 0 if it answers through the proxy network
-  local path=/; [ "$2" = 8000 ] && path=/health
+healthy() {  # container port -> 0 once healthy
+  # Images with a HEALTHCHECK: wait for Docker's verdict (up to ~90 s).
+  # Without one (older images): fall back to a request through the proxy network.
+  local status path=/
+  if [ -n "$(docker inspect -f '{{if .Config.Healthcheck}}yes{{end}}' "$1" 2>/dev/null)" ]; then
+    for _ in $(seq 1 30); do
+      status=$(docker inspect -f '{{.State.Health.Status}}' "$1" 2>/dev/null)
+      [ "$status" = healthy ] && return 0
+      [ "$status" = unhealthy ] && return 1
+      sleep 3
+    done
+    return 1
+  fi
+  [ "$2" = 8000 ] && path=/health
   for _ in 1 2 3 4 5 6; do
     docker exec yuriodev-proxy wget -qO- -T 5 "http://$1:$2$path" >/dev/null 2>&1 && return 0
     sleep 5
