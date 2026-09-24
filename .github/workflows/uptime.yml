@@ -1,0 +1,87 @@
+name: Production monitor
+
+# Every 10 minutes, from outside (through Cloudflare): the site answers, the
+# backend reports itself healthy as `prod`, and it runs the latest release
+# (drift = the deploy agent on the server is stuck). On failure one issue labelled
+# `monitor` is opened (GitHub emails the owner) and updated while the problem
+# lasts; it is closed automatically on recovery. Nothing here touches the server.
+# Note: GitHub disables schedules after 60 days without a commit to master.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: 'Inject a fake problem to test the alert path (opens the monitor issue)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SITE: https://yuriodev.co.uk
+      GRACE_MINUTES: 20   # a fresh release gets this long to reach production
+    steps:
+      - name: Probe production
+        id: probe
+        run: |
+          problems=()
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/" || echo 000)
+          [ "$code" = 200 ] || problems+=("site / returned HTTP $code")
+          health=$(curl -s --max-time 20 "$SITE/api/health" || true)
+          status=$(jq -r '.status // empty' <<<"$health" 2>/dev/null)
+          env_name=$(jq -r '.environment // empty' <<<"$health" 2>/dev/null)
+          revision=$(jq -r '.revision // empty' <<<"$health" 2>/dev/null)
+          [ "$status" = healthy ] || problems+=("/api/health status is '${status:-no answer}'")
+          [ "$env_name" = prod ] || problems+=("/api/health environment is '${env_name:-missing}', expected prod")
+          [ "${{ inputs.simulate_failure }}" = true ] && problems+=("simulated failure (manual alert-path test)")
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name + " " + .published_at' 2>/dev/null || true)
+          tag=${release%% *}; published=${release#* }
+          if [ -n "$tag" ]; then
+            want=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)
+            age=$(( ( $(date +%s) - $(date -d "$published" +%s) ) / 60 ))
+            if [ -n "$revision" ] && [ "$revision" != "$want" ] && [ "$age" -ge "$GRACE_MINUTES" ]; then
+              problems+=("production runs ${revision:0:7}, latest release $tag is ${want:0:7} (published ${age} min ago): deploy agent stuck?")
+            fi
+          fi
+          {
+            echo "### Production monitor"
+            echo "- / -> $code; /api/health -> status=${status:-?} environment=${env_name:-?} revision=${revision:0:7}"
+            echo "- latest release: ${tag:-none}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ ${#problems[@]} -gt 0 ]; then
+            printf '%s\n' "${problems[@]}" > problems.txt
+            printf -- '- %s\n' "${problems[@]}" >> "$GITHUB_STEP_SUMMARY"
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open or update the monitor issue
+        if: steps.probe.outputs.failed == 'true'
+        run: |
+          gh label create monitor --color B60205 --description "Production monitor alert" --force -R "$GITHUB_REPOSITORY" >/dev/null
+          body=$(printf 'The production monitor found a problem (last checked %s UTC, run %s):\n\n%s\n\nThis issue closes itself when the checks pass again.' \
+            "$(date -u +'%Y-%m-%d %H:%M')" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$(sed 's/^/- /' problems.txt)")
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --label monitor --state open --json number --jq '.[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create -R "$GITHUB_REPOSITORY" --label monitor --title "Production monitor: $(head -1 problems.txt)" --body "$body"
+          else
+            gh issue edit "$open" -R "$GITHUB_REPOSITORY" --body "$body"
+          fi
+          exit 1
+      - name: Close the monitor issue on recovery
+        if: steps.probe.outputs.failed == 'false'
+        run: |
+          for n in $(gh issue list -R "$GITHUB_REPOSITORY" --label monitor --state open --json number --jq '.[].number'); do
+            gh issue close "$n" -R "$GITHUB_REPOSITORY" --comment "Recovered: all production checks pass again ($(date -u +'%Y-%m-%d %H:%M') UTC)."
+          done
