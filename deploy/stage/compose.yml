@@ -9,11 +9,31 @@ services:
     image: ghcr.io/yuriioks/yuriodev-frontend:stage
     container_name: yuriodev-stage-frontend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 96M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend-stage:
     image: ghcr.io/yuriioks/yuriodev-backend:stage
     container_name: yuriodev-stage-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: 192M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:                             # public config first, then optional secrets
       - path: ../../env/stage.env
         required: true
