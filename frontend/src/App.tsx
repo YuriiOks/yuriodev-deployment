@@ -71,3 +71,5 @@ function App() {
 }
 
 export default App
+
+export const deliberatelyBroken: number = "not a number";
