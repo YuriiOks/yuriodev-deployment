@@ -15,8 +15,11 @@ services:
     image: ghcr.io/yuriioks/yuriodev-backend:dev
     container_name: yuriodev-dev-backend
     restart: unless-stopped
-    env_file:
-      - ./backend.env   # gitignored; start from backend/.env.example
+    env_file:                             # public config first, then optional secrets
+      - path: ../../env/dev.env
+        required: true
+      - path: ../../env/dev.secrets.env   # gitignored
+        required: false
 
 networks:
   default:
