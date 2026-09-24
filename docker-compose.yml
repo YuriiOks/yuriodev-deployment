@@ -19,7 +19,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx-proxy:/etc/nginx/conf.d
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
     depends_on:
       - frontend
       - backend

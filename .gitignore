@@ -25,7 +25,6 @@ dist-ssr
 
 # Purged paths
 .docs/
-.claude/
 yuriodev-portfolio/
 yuriodev.html
 
@@ -35,3 +34,36 @@ yuriodev.html
 
 # Environment files
 .env
+.env.*
+!.env.example
+!.env.*.template
+
+# Secrets and private material that must never be committed (this repo is public)
+certbot/
+certs/
+*.pem
+*.key
+*.tar.gz
+__MACOSX/
+/docs/backlog.md
+/docs/history/
+
+# Claude Code: share the project config, keep personal/local state out.
+# Must stay below the `*.md` rule above: the last matching pattern wins.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/hooks/*
+!.claude/hooks/*.sh
+!.claude/scripts/
+.claude/scripts/*
+!.claude/scripts/*.sh
+!.claude/commands/
+!.claude/agents/
+!.claude/rules/
+!.claude/commands/*.md
+!.claude/agents/*.md
+!.claude/rules/*.md
+!/CLAUDE.md
+!/ERRORS.md
+CLAUDE.local.md

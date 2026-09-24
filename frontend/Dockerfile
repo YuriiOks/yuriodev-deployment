@@ -1,6 +1,6 @@
 # ---- Build Stage ----
 # Use a Node.js image to build the React app
-FROM node:19-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Set the working directory
 WORKDIR /app

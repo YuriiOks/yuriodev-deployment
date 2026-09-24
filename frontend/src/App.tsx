@@ -6,7 +6,6 @@ import Portfolio from './pages/portfolio';
 import Community from './pages/community';
 import Courses from './pages/courses';
 import Dashboard from './pages/dashboard';
-import Agent from './pages/agent';
 import './App.css';
 
 function AppContent() {
@@ -58,7 +57,6 @@ function AppContent() {
         <Route path="/community" element={<Community />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/assistant" element={<Agent />} />
       </Routes>
     </PageLayout>
   );

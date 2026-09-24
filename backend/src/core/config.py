@@ -4,7 +4,7 @@
 # Created: 2025-10-19
 
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import List
 
 class Settings(BaseSettings):
     """API configuration settings."""
@@ -12,21 +12,15 @@ class Settings(BaseSettings):
     # API Settings
     api_title: str = "YuriODev Website API"
     api_version: str = "0.1.0"
-    api_prefix: str = "/api"
     
-    # CORS Settings  
-    cors_origins: list = ["https://yuriodev.co.uk", "http://localhost:3000"]
-    
-    # Agent Engine URL (internal)
-    agent_engine_url: str = "http://localhost:8001"
-    
-    # Security
-    swagger_password: Optional[str] = "shawbrook2025"
-    
+    # CORS Settings
+    cors_origins: List[str] = ["https://yuriodev.co.uk", "http://localhost:5173"]
+
     # Logging
     log_level: str = "INFO"
     
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
