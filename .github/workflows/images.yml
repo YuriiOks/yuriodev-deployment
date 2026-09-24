@@ -62,3 +62,10 @@ jobs:
         run: |
           docker buildx imagetools create --tag "$IMAGE:dev" "$IMAGE@$DIGEST"
           echo "### ${{ matrix.service }}: \`:dev\` -> \`$DIGEST\` (sha-$SHA)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Also point :stage at it (only while STAGE_AUTO_PROMOTE=true)
+        if: vars.STAGE_AUTO_PROMOTE == 'true'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          docker buildx imagetools create --tag "$IMAGE:stage" "$IMAGE@$DIGEST"
+          echo "### ${{ matrix.service }}: \`:stage\` -> \`$DIGEST\` (auto-promoted, sha-$SHA)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,80 @@
+name: Promote to stage
+
+# A vX.Y.Z-rc.N tag on a master commit whose CI passed points :stage at that
+# commit's images (built once by images.yml; nothing is rebuilt here).
+# The deploy agent on the server picks up the moved tag within a minute.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-stage
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    runs-on: ubuntu-24.04
+    outputs:
+      rc: ${{ steps.c.outputs.rc }}
+    steps:
+      - id: c
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then echo "rc=true" >> "$GITHUB_OUTPUT"
+          else echo "rc=false" >> "$GITHUB_OUTPUT"; echo "$TAG is not an rc tag; nothing to do here."; fi
+
+  promote:
+    needs: classify
+    if: needs.classify.outputs.rc == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    env:
+      SHA: ${{ github.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Tag must point at a commit on master
+        run: |
+          git merge-base --is-ancestor "$SHA" origin/master \
+            || { echo "::error::$SHA is not on master"; exit 1; }
+      - name: CI and Images must have succeeded for this exact commit
+        run: |
+          check() {  # workflow name -> success|failure|pending
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SHA&per_page=50" \
+              --jq "[.workflow_runs[] | select(.name == \"$1\")] | sort_by(.created_at) | last
+                    | if . == null then \"pending\" elif .status != \"completed\" then \"pending\"
+                      elif .conclusion == \"success\" then \"success\" else \"failure\" end"
+          }
+          for i in $(seq 1 60); do
+            ci=$(check CI); img=$(check Images)
+            echo "CI=$ci Images=$img"
+            [ "$ci" = failure ] || [ "$img" = failure ] && { echo "::error::CI/Images failed for $SHA"; exit 1; }
+            [ "$ci" = success ] && [ "$img" = success ] && exit 0
+            sleep 15
+          done
+          echo "::error::timed out waiting for CI/Images on $SHA"; exit 1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point :stage at sha-<commit>
+        run: |
+          for svc in frontend backend; do
+            img="ghcr.io/yuriioks/yuriodev-$svc"
+            digest=$(docker buildx imagetools inspect "$img:sha-$SHA" --format '{{json .Manifest.Digest}}' | tr -d '"')
+            [ -n "$digest" ] || { echo "::error::$img:sha-$SHA not found"; exit 1; }
+            docker buildx imagetools create --tag "$img:stage" "$img@$digest"
+            echo "### $svc: \`:stage\` -> \`$digest\` ($GITHUB_REF_NAME, sha-$SHA)" >> "$GITHUB_STEP_SUMMARY"
+          done
