@@ -61,9 +61,29 @@ jobs:
           print("health ok:", r.json())
           EOF
 
+  guards:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml==6.0.2
+      - name: Compose invariants (targets, image tags, names, agent view, hardening shape)
+        run: python scripts/check-compose.py
+      - name: Compose files are valid
+        run: |
+          # env files are gitignored; empty placeholders let `config` resolve paths
+          touch backend/.env deploy/dev/backend.env deploy/stage/backend.env
+          for f in docker-compose.yml deploy/dev/compose.yml deploy/stage/compose.yml $(ls compose.local.yml 2>/dev/null); do
+            echo "== $f"; docker compose -f "$f" config --quiet
+          done
+
   images:
     runs-on: ubuntu-24.04
-    needs: [frontend, backend]
+    needs: [frontend, backend, guards]
     strategy:
       matrix:
         service: [frontend, backend]
@@ -76,6 +96,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.service }}
+          target: runtime
           push: false
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}

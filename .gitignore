@@ -37,6 +37,8 @@ yuriodev.html
 .env.*
 !.env.example
 !.env.*.template
+# env/<env>.env is tracked (public config); env/<env>.secrets.env never is.
+env/*.secrets.env
 
 # Secrets and private material that must never be committed (this repo is public)
 certbot/

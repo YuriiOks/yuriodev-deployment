@@ -19,7 +19,7 @@ RUN npm run build
 
 # ---- Production Stage ----
 # Use a lightweight Nginx image to serve the built files
-FROM nginx:stable-alpine
+FROM nginx:stable-alpine AS runtime
 
 # Copy the built static files from the 'builder' stage to the Nginx html directory
 COPY --from=builder /app/dist /usr/share/nginx/html

@@ -1,0 +1,34 @@
+# Keep the build context small and secret-free.
+.env
+.env.*
+!.env.example
+
+# Python caches and virtualenvs
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.venv
+venv
+
+# Runtime output
+logs
+
+# Tests and dev-only files never ship in the runtime image
+tests
+requirements-dev.txt
+
+# Editor, OS and VCS
+.vscode
+.idea
+*.sw?
+.DS_Store
+.git
+.gitignore
+
+# Docs and docker files
+*.md
+!README.md
+*.html
+Dockerfile
+.dockerignore

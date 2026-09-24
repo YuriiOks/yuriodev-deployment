@@ -4,13 +4,17 @@
 services:
   frontend:
     image: ghcr.io/yuriioks/yuriodev-frontend:production
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: runtime
     container_name: yuriodev-frontend
     restart: unless-stopped
 
   backend:
     image: ghcr.io/yuriioks/yuriodev-backend:production
-    build: ./backend
+    build:
+      context: ./backend
+      target: runtime
     container_name: yuriodev-backend
     restart: unless-stopped
     env_file:
