@@ -9,8 +9,8 @@ Checks (reads YAML only; never runs `docker compose config`, which would load en
     (the service name is a DNS alias on the shared network);
   * the deploy agent's parser (deploy/agent/yuriodev-deploy.sh, services_of) sees
     exactly the expected services;
-  * hardening blocks (logging, resource limits) have the same shape wherever they
-    appear, and the proxy never gets a memory limit;
+  * every service has the same logging block, every app service has resource
+    limits, the proxy has a healthcheck and never a memory limit;
   * compose.local.yml (if present) is Mac-only: dev targets, its own network, no
     registry images, never the shared yuriodev-network.
 Exit code 1 on any failure. Run from the repo root: python3 scripts/check-compose.py
@@ -96,11 +96,17 @@ for env, (path, tag) in DEPLOYED.items():
             if not isinstance(build, dict) or build.get("target") != "runtime":
                 fail(f"{rel}: service '{name}' builds without target: runtime")
         logging = svc.get("logging")
-        if logging is not None:
+        if logging is None:
+            fail(f"{rel}: service '{name}' has no logging block (json-file max-size/max-file)")
+        else:
             logging_shapes[f"{rel}:{name}"] = yaml.safe_dump(logging, sort_keys=True)
         limits = block(svc, "deploy", "resources", "limits")
         if limits is not None:
             limit_keys[f"{rel}:{name}"] = ",".join(sorted(limits))
+        elif name != "proxy":
+            fail(f"{rel}: service '{name}' has no deploy.resources.limits")
+        if name == "proxy" and "healthcheck" not in svc:
+            fail(f"{rel}: the proxy needs a compose healthcheck (it has no Dockerfile)")
         if name == "proxy" and block(svc, "deploy", "resources", "limits", "memory") is not None:
             fail(f"{rel}: the proxy must not get a memory limit (it serves every environment)")
         image = svc.get("image", "")
