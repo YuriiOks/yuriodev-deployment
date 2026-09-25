@@ -126,3 +126,16 @@ describe('Header section links', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/#skills');
   });
 });
+
+describe('Header theme toggle', () => {
+  it('names the theme it switches to, and updates after a toggle', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    renderHeader();
+
+    const toggle = screen.getByRole('button', { name: 'Switch to light theme' });
+    await user.click(toggle);
+    expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBe(toggle);
+    localStorage.clear();
+  });
+});
