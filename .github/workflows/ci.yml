@@ -54,7 +54,13 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
-      - name: Tests
+      - name: Lint
+        run: ruff check .
+      - name: Format
+        run: ruff format --check .
+      - name: Types (mypy strict)
+        run: mypy
+      - name: Tests (branch coverage gate; pytest addopts in pyproject.toml add --cov)
         run: python -m pytest -q
 
   guards:
