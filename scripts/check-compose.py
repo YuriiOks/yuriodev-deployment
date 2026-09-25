@@ -11,6 +11,8 @@ Checks (reads YAML only; never runs `docker compose config`, which would load en
     exactly the expected services;
   * every service has the same logging block, every app service has resource
     limits, the proxy has a healthcheck and never a memory limit;
+  * no deployed service sets network_mode (host networking would expose every
+    listening port without a `ports:` key);
   * only the prod proxy publishes ports; its image is pinned by digest
     (name:tag@sha256:<64 hex>) and every volume it mounts, ./nginx-proxy
     included, is read-only;
@@ -136,6 +138,9 @@ for env, (path, tag) in DEPLOYED.items():
             fail(f"{rel}: the proxy needs a compose healthcheck (it has no Dockerfile)")
         if name == "proxy" and block(svc, "deploy", "resources", "limits", "memory") is not None:
             fail(f"{rel}: the proxy must not get a memory limit (it serves every environment)")
+        if svc.get("network_mode"):
+            fail(f"{rel}: service '{name}' sets network_mode; every deployed service must stay on "
+                 "yuriodev-network (host networking bypasses the ports rule)")
         if env == "prod" and name == "proxy":
             check_proxy(rel, svc)
         elif svc.get("ports"):
