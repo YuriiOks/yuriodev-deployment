@@ -1,0 +1,170 @@
+/* A modal <dialog> lives in the browser's top layer, so it needs no z-index.
+   The element itself is a transparent, padding-free box; the .panel inside it
+   is what the visitor sees, so a click whose target is the dialog element is
+   a click on the backdrop. These rules replace the UA's dialog:modal margins
+   and size limits. */
+.dialog {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    font-family: 'Fira Code', monospace;
+}
+
+/* Literal colours: older engines do not pass custom properties to ::backdrop.
+   Only the panel animates, never the backdrop. */
+.dialog::backdrop {
+    background: rgba(3, 6, 14, 0.72);
+}
+
+[data-theme="light"] .dialog::backdrop {
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.top {
+    margin: 12vh auto auto;
+    margin: 12dvh auto auto;
+    width: min(36rem, calc(100% - 2rem));
+}
+
+.right {
+    margin: 0 0 0 auto;
+    width: min(28rem, 100%);
+    height: 100vh;
+    height: 100dvh;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(88vh - 1rem);
+    max-height: calc(88dvh - 1rem);
+    border: 1px solid var(--accent-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), 0 0 40px rgba(var(--accent-primary-rgb), 0.2);
+    animation: dialogDown 0.18s ease-out;
+}
+
+.right .panel {
+    max-height: none;
+    height: 100%;
+    border-width: 0 0 0 2px;
+    border-radius: 0;
+    animation: dialogIn 0.22s ease-out;
+}
+
+[data-theme="light"] .panel {
+    border-color: var(--accent-secondary);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
+}
+
+.glass {
+    background: rgba(10, 15, 28, 0.78);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .glass {
+    background: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.solid {
+    background: var(--bg-primary);
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.title {
+    margin: 0;
+    padding: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--accent-secondary);
+}
+
+/* Not a page section: none of global.css's "# " prefix and underline for h2. */
+.title::before,
+.title::after {
+    content: none;
+}
+
+/* The heading takes focus only so the dialog starts at its top; it is not a
+   control, so it shows no ring. */
+.title:focus-visible {
+    outline: none;
+}
+
+.close {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid var(--accent-primary);
+    background: transparent;
+    color: var(--accent-primary);
+    font-family: inherit;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+@media (hover: hover) {
+    .close:hover {
+        background: var(--accent-primary);
+        color: var(--text-on-accent-bg);
+    }
+}
+
+[data-theme="light"] .close {
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+
+@media (hover: hover) {
+    [data-theme="light"] .close:hover {
+        background: var(--accent-secondary);
+        color: var(--text-on-accent-bg);
+    }
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.footer {
+    flex-shrink: 0;
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+@keyframes dialogDown {
+    from { opacity: 0; transform: translateY(-0.75rem); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dialogIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}

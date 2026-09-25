@@ -1,0 +1,47 @@
+/* Status messages from ToastProvider: centred near the bottom, clear of the
+   scroll-to-top button on phones. */
+.region {
+    position: fixed;
+    bottom: 1.5rem;
+    inset-inline: 0;
+    margin-inline: auto;
+    width: fit-content;
+    max-width: min(24rem, calc(100% - 2rem));
+    z-index: var(--z-toast);
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--accent-primary);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    animation: toastIn 0.2s ease-out;
+}
+
+.toast[data-tone="err"] {
+    border-color: var(--accent-secondary);
+}
+
+[data-theme="light"] .toast {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 47.99rem) {
+    .region {
+        bottom: calc(1.5rem + 48px + 0.75rem);
+    }
+}
