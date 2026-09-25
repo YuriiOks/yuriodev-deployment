@@ -33,6 +33,7 @@
 }
 
 /* Ring inside the field, so the panel's edge does not clip it. */
+.commandInput,
 .commandInput:focus-visible {
     outline-offset: -2px;
 }

@@ -217,6 +217,7 @@
 }
 
 /* Ring inside the field, so the terminal window's edge does not clip it. */
+.terminalInput,
 .terminalInput:focus-visible {
     outline-offset: -2px;
 }

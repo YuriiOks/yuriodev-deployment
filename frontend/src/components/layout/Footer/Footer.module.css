@@ -111,6 +111,11 @@
     display: block;
 }
 
+/* Full opacity with the focus ring too, or the dimmed ring loses contrast. */
+.socialIcon:focus-visible {
+    opacity: 1;
+}
+
 .socialIcon:hover {
     opacity: 1;
     transform: translateY(-3px) scale(1.15);
@@ -338,5 +343,15 @@
         width: 44px;
         height: 44px;
         padding: 12px;
+    }
+}
+
+/* Phones: the footer column fits five 44px targets, which leaves the last of
+   the eleven alone on a third row. A pill four targets wide wraps evenly
+   (4 + 4 + 3, the short row centred); the width adds the pill's side padding
+   and border from the max-width: 576px rules above. */
+@media (pointer: coarse) and (max-width: 576px) {
+    .socialIcons {
+        width: calc(4 * 44px + 2 * 0.7rem + 2px);
     }
 }

@@ -1,7 +1,9 @@
 /* Fira Code, self-hosted (SIL Open Font License 1.1, see ../fonts/OFL.txt):
    the variable font (weights 300-700), in the same two subsets Google Fonts
-   serves: latin for the text, and symbols2 for the box-drawing characters of
-   the ASCII logo. No request leaves this site for fonts. */
+   serves: latin for the text, and symbols2 for box-drawing and block
+   characters (U+2500-259F) when they appear in Fira Code text such as the
+   terminal output. The browser fetches symbols2 only when such a character is
+   on the page. No request leaves this site for fonts. */
 @font-face {
     font-family: 'Fira Code';
     font-style: normal;
@@ -41,6 +43,17 @@ html {
 :is(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
+}
+
+/* The same ring, transparent, at rest. Many controls have `transition: all`;
+   with this resting state only the colour fades in on focus, instead of the
+   browser's default outline morphing into the ring. Not in forced-colors
+   mode, where the browser would paint the transparent ring on every link. */
+@media (forced-colors: none) {
+    :is(a, button, input, textarea, select, summary, [tabindex]) {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+    }
 }
 
 /* Visually hidden, still read by screen readers. */
