@@ -48,7 +48,7 @@ describe('first-visit loading screen', () => {
   it('shows over the already-rendered page and is gone after 1 second', () => {
     const { container } = renderApp();
     expect(intro()).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Initializing systems...');
+    expect(screen.getByText('Initializing systems...')).toBeInTheDocument();
     expect(container.querySelector('main#main-content')).not.toBeNull();
     expect(document.body.style.overflow).toBe('hidden');
 
@@ -83,6 +83,47 @@ describe('first-visit loading screen', () => {
     expect(intro()).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Tab' });
     expect(intro()).not.toBeInTheDocument();
+  });
+
+  it('gives the Skip button a clean accessible name', () => {
+    renderApp();
+    expect(screen.getByRole('button', { name: 'Skip intro' })).toHaveAttribute('aria-keyshortcuts', 'Escape');
+  });
+
+  it('keeps the key that ends it from reaching the page shortcuts or the browser', () => {
+    localStorage.clear();
+    const themeBefore = document.documentElement.getAttribute('data-theme');
+    renderApp();
+    // 't' is the page's theme shortcut; it must only end the intro.
+    const t = new KeyboardEvent('keydown', { key: 't', bubbles: true, cancelable: true });
+    act(() => {
+      document.body.dispatchEvent(t);
+    });
+    expect(intro()).not.toBeInTheDocument();
+    expect(t.defaultPrevented).toBe(true);
+    expect(document.documentElement.getAttribute('data-theme')).toBe(themeBefore);
+    expect(localStorage.length).toBe(0);
+  });
+
+  it('does not let Space scroll the page when it ends the intro', () => {
+    renderApp();
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    act(() => {
+      document.body.dispatchEvent(space);
+    });
+    expect(intro()).not.toBeInTheDocument();
+    // A cancelled keydown is what stops the browser's default scroll.
+    expect(space.defaultPrevented).toBe(true);
+  });
+
+  it('lets Tab through, so focus moves on as the intro ends', () => {
+    renderApp();
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    act(() => {
+      document.body.dispatchEvent(tab);
+    });
+    expect(intro()).not.toBeInTheDocument();
+    expect(tab.defaultPrevented).toBe(false);
   });
 
   it('is not shown again in the same session', () => {

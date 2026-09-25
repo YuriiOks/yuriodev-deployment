@@ -47,14 +47,21 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [finish]);
 
+  // Capture phase on window: this runs before the page's own shortcuts, so the
+  // key that ends the intro does nothing else (no theme flip, no section jump,
+  // no scroll). Tab still moves focus, and browser shortcuts (Ctrl/Cmd/Alt
+  // combinations) keep working; the page's shortcuts ignore those anyway.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
-      if (e.key === 'Escape') e.preventDefault();
+      if (e.key !== 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       finish();
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [finish]);
 
   const { progress, text: loadingText } = STAGES[stage];
@@ -76,9 +83,10 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
           </pre>
         </div>
 
-        {/* Loading Text */}
-        <div className={styles.loadingText} role="status">
-          <span className={styles.prompt} aria-hidden="true">$ </span>
+        {/* Loading text. Decorative: the page underneath is already readable, and the Skip
+            button is what assistive tech needs, so the stages are not announced. */}
+        <div className={styles.loadingText} aria-hidden="true">
+          <span className={styles.prompt}>$ </span>
           <span className={styles.text}>{loadingText}</span>
           <span className={styles.cursor} aria-hidden="true">_</span>
         </div>
@@ -110,8 +118,11 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
           </div>
         </div>
       </div>
-      <button type="button" className={styles.skipButton} onClick={finish}>
-        Skip intro<kbd className={styles.skipKey}>Esc</kbd>
+      <button type="button" className={styles.skipButton} onClick={finish} aria-keyshortcuts="Escape">
+        Skip intro
+        <kbd className={styles.skipKey} aria-hidden="true">
+          Esc
+        </kbd>
       </button>
     </div>
   );
