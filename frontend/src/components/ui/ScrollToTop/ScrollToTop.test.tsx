@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import ScrollToTop from './ScrollToTop';
 
 type Callback = (entries: Array<Pick<IntersectionObserverEntry, 'isIntersecting'>>) => void;
@@ -41,6 +41,15 @@ function scrollTo(y: number) {
 const button = () => screen.getByLabelText('Scroll to top');
 const shown = () => button().getAttribute('data-hidden') !== 'true';
 
+/** Whether the button's next focus counts as keyboard focus (:focus-visible). */
+function focusVisible(visible: boolean) {
+  const element = button();
+  const matches = element.matches.bind(element);
+  vi.spyOn(element, 'matches').mockImplementation((selector) =>
+    selector === ':focus-visible' ? visible : matches(selector),
+  );
+}
+
 describe('ScrollToTop', () => {
   afterEach(() => {
     window.IntersectionObserver = OriginalObserver;
@@ -63,6 +72,31 @@ describe('ScrollToTop', () => {
 
     act(() => observed.callback([{ isIntersecting: false }]));
     expect(shown()).toBe(true);
+  });
+
+  it('stays on screen while it has keyboard focus, so focus is never dropped', () => {
+    window.IntersectionObserver = CapturingObserver as unknown as typeof IntersectionObserver;
+    renderWithFooter();
+    scrollTo(500);
+    focusVisible(true);
+    fireEvent.focus(button());
+
+    act(() => observed.callback([{ isIntersecting: true }]));
+    expect(shown()).toBe(true);
+
+    fireEvent.blur(button());
+    expect(shown()).toBe(false);
+  });
+
+  it('does not stay on screen after a mouse click focuses it', () => {
+    window.IntersectionObserver = CapturingObserver as unknown as typeof IntersectionObserver;
+    renderWithFooter();
+    scrollTo(500);
+    focusVisible(false);
+    fireEvent.focus(button());
+
+    scrollTo(0);
+    expect(shown()).toBe(false);
   });
 
   it('stays hidden while an overlay is open', () => {
