@@ -195,8 +195,19 @@ describe('status command', () => {
     const result = lines(await status());
 
     expect(fetchMock).toHaveBeenCalledWith(HEALTH_URL, expect.objectContaining({ cache: 'no-store' }));
-    expect(result.map(({ text: t }) => t)).toEqual(['API:         healthy', 'Environment: prod', 'Revision:    0123456']);
-    expect(result[0].type).toBe('success');
+    expect(result.map(({ text: t }) => t)).toEqual(['The API is healthy.', 'Environment: prod', 'Revision:    0123456']);
+    // Only the verdict carries a mark; the padded columns share one type, so they line up.
+    expect(result.map(({ type }) => type)).toEqual(['success', 'info', 'info']);
+  });
+
+  it('warns when the API answers with any other status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify({ status: 'degraded' }), { status: 200 }))),
+    );
+    const result = lines(await status());
+    expect(result[0]).toEqual({ text: 'The API reports: degraded', type: 'warning' });
+    expect(result[1].text).toBe('Environment: unknown');
   });
 
   it('says so, without throwing, when the API answers with an error status', async () => {
@@ -226,6 +237,27 @@ describe('status command', () => {
           new Promise((_resolve, reject) => {
             init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
           }),
+      ),
+    );
+    const pending = status();
+    await vi.advanceTimersByTimeAsync(5000);
+    const result = lines(await pending);
+    expect(result[0]).toEqual({ text: 'Could not reach the API (no answer in 5 s).', type: 'error' });
+  });
+
+  it('reports the time limit, not bad JSON, when it runs out while the body is arriving', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+            }),
+        } as unknown as Response),
       ),
     );
     const pending = status();

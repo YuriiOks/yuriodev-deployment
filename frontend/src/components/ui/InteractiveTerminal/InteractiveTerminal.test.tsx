@@ -198,6 +198,8 @@ describe('InteractiveTerminal input', () => {
 
     expect(await screen.findByText('Environment: stage')).toBeInTheDocument();
     expect(outputLines()).toContain('Revision:    abcdef1');
+    // The answer takes the place of the placeholder shown while waiting.
+    expect(outputLines()).not.toContain('Working...');
   });
 
   test('status says the API is unreachable instead of failing', async () => {

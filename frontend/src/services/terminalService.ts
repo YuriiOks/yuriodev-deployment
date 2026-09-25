@@ -358,14 +358,17 @@ async function statusCommand(): Promise<TerminalLine[]> {
         try {
             body = await response.json();
         } catch {
-            return unreachable('the answer was not JSON');
+            // The 5 s limit can also run out while the body is still arriving.
+            return unreachable(controller.signal.aborted ? 'no answer in 5 s' : 'the answer was not JSON');
         }
         const health = field(body, 'status');
         if (!health) return unreachable('the answer had no status');
         const environment = field(body, 'environment') ?? 'unknown';
         const revision = field(body, 'revision');
+        // The verdict on its own line: its type adds a mark (✓ or ⚠) in front,
+        // which would push it out of line with the padded columns below.
         return [
-            line(`API:         ${health}`, health === 'healthy' ? 'success' : 'warning'),
+            health === 'healthy' ? line('The API is healthy.', 'success') : line(`The API reports: ${health}`, 'warning'),
             line(`Environment: ${environment}`, 'info'),
             line(`Revision:    ${revision ? shortRevision(revision) : 'unknown'}`, 'info'),
         ];

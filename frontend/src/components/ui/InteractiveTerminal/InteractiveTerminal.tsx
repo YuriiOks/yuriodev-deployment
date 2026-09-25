@@ -88,13 +88,20 @@ const InteractiveTerminal: React.FC = () => {
       show(echo, result);
       return;
     }
-    // A command that asks the network: the typed line shows now, the answer when it arrives.
+    // A command that asks the network: the typed line and a placeholder show
+    // now; the answer replaces the placeholder when it arrives.
     const screenNow = screen.current;
-    append([echo, { text: 'Working...', type: 'comment' }]);
+    const shownEcho: ShownLine = { ...echo, id: nextId.current++ };
+    const placeholder: ShownLine = { text: 'Working...', type: 'comment', id: nextId.current++ };
+    setOutput((current) => [...current, shownEcho, placeholder]);
     void result.then((answer) => {
       if (!mounted.current || screen.current !== screenNow) return;
-      if (answer.kind === 'clear') show(echo, answer);
-      else append([...answer.lines, BLANK]);
+      if (answer.kind === 'clear') {
+        show(echo, answer);
+        return;
+      }
+      const shown = [...answer.lines, BLANK].map((l) => ({ ...l, id: nextId.current++ }));
+      setOutput((current) => current.flatMap((l) => (l.id === placeholder.id ? shown : [l])));
     });
   };
 
