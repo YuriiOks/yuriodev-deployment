@@ -70,11 +70,11 @@
 
 /* The text */
 .body {
+  composes: prose from '../../../assets/styles/recipes.module.css';
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.65;
+  font-size: var(--fs-sm);
 }
 
 .part + .part {

@@ -1,4 +1,4 @@
-/* Shared surface recipes. Components reach them with
+/* Shared recipes: glass surfaces and long prose. Components reach them with
      composes: glass from '<relative path>/assets/styles/recipes.module.css';
    as the first declaration of a rule.
 
@@ -79,4 +79,18 @@
     :where(.glass, .glassAccent) {
         border-color: CanvasText;
     }
+}
+
+/* Long prose (the About story, post text): the system sans, which needs no
+   download and reads better than a monospace over many lines, at a
+   comfortable measure. Headings and code inside stay in Fira Code. */
+:where(.prose) {
+    font-family: var(--font-prose);
+    font-size: var(--fs-base);
+    line-height: var(--lh-body);
+    max-width: var(--measure);
+}
+
+:where(.prose) :where(h3, h4, code, pre, kbd) {
+    font-family: var(--font-mono);
 }

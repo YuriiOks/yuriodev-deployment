@@ -447,26 +447,6 @@
     padding: 1.5rem;
   }
 
-  .paragraph p {
-    font-size: 1rem;
-  }
-
-  .introText {
-    font-size: 1.1rem;
-  }
-
-  .subheading {
-    font-size: 1.25rem;
-  }
-
-  .achievementsList li {
-    font-size: 1rem;
-  }
-
-  .closingStatement {
-    font-size: 1.05rem;
-  }
-
   .cta {
     font-size: 1.1rem;
   }
@@ -576,34 +556,36 @@
 }
 
 .bioContent {
-  max-width: 100%;
+  composes: prose from '../../../assets/styles/recipes.module.css';
   width: 100%;
+  margin-inline: auto;
 }
 
 .paragraph {
-  margin-bottom: 2.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .paragraph p {
   color: var(--text-secondary);
-  line-height: 1.8;
-  font-size: 1.05rem;
-  margin-bottom: 1rem;
+  line-height: var(--lh-body);
+  font-size: var(--fs-base);
+  margin-bottom: var(--space-4);
 }
 
 .introText {
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
   color: var(--text-primary);
 }
 
 .subheading {
-  font-size: 1.5rem;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
   color: var(--accent-secondary);
-  font-family: 'Fira Code', monospace;
-  margin-bottom: 1.25rem;
-  margin-top: 0.5rem;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  margin-bottom: var(--space-4);
+  margin-top: var(--space-2);
+  font-weight: var(--fw-semibold);
 }
 
 /* Text Highlights - Color only, no background */
@@ -656,8 +638,8 @@
 
 .achievementsList li {
   color: var(--text-secondary);
-  line-height: 1.8;
-  font-size: 1.05rem;
+  line-height: var(--lh-body);
+  font-size: var(--fs-base);
   margin-bottom: 0.75rem;
   padding-left: 1.5rem;
   position: relative;
@@ -673,7 +655,7 @@
 
 /* Special Text Styles */
 .closingStatement {
-  font-size: 1.1rem;
+  font-size: var(--fs-md);
   color: var(--text-primary);
   margin-top: 1.5rem;
 }
