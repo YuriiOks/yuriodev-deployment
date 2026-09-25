@@ -6,10 +6,12 @@ type Result = Awaited<ReturnType<AxeBuilder['analyze']>>['violations'][number];
 /*
  * axe-core against the WCAG 2.2 AA rule set, on the home page, the privacy
  * notice and the 404 page, in both themes (the site follows the OS theme until
- * the visitor picks one). Serious and critical violations fail the test,
- * colour contrast included: nothing is tolerated. The colour tokens have their
- * own contrast test (src/assets/styles/contrast.test.ts); this one catches
- * what a stylesheet does with them (opacity, tints, one-off colours).
+ * the visitor picks one). Serious and critical violations fail the test; none
+ * is allowed. axe's colour-contrast rule only fails the text it is sure of:
+ * text over pseudo-elements, gradients or text shadows comes back
+ * "incomplete", which is most of this site. contrast.spec.ts measures that
+ * text from computed styles, and src/assets/styles/contrast.test.ts holds the
+ * colour tokens themselves to AA.
  */
 
 const PAGES = [
