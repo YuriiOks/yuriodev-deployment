@@ -60,8 +60,8 @@ jobs:
         run: ruff format --check .
       - name: Types (mypy strict)
         run: mypy
-      - name: Tests (branch coverage gate; pytest addopts in pyproject.toml add --cov)
-        run: python -m pytest -q
+      - name: Tests (90% branch-coverage gate from pyproject.toml)
+        run: python -m pytest -q --cov --cov-report=term-missing
 
   guards:
     runs-on: ubuntu-24.04

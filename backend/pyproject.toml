@@ -31,7 +31,8 @@ warn_required_dynamic_aliases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = ["-ra", "--strict-markers", "--strict-config", "--cov", "--cov-report=term-missing"]
+# Coverage is opt-in (CI passes `--cov`), so a subset run is not failed by the 90% gate.
+addopts = ["-ra", "--strict-markers", "--strict-config"]
 filterwarnings = [
     "error",
     # starlette 1.x nudges TestClient users towards httpx2; httpx stays until that is settled.

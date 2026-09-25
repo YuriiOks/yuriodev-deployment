@@ -77,3 +77,8 @@ __pycache__/
 *.pyc
 *.tsbuildinfo
 backend/logs/
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/
+.mypy_cache/

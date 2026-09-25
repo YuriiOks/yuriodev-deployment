@@ -8,11 +8,11 @@ __pycache__
 *.py[cod]
 .pytest_cache
 .mypy_cache
+.ruff_cache
+.coverage*
+htmlcov
 .venv
 venv
-
-# Runtime output
-logs
 
 # Tests never ship in any image; requirements-dev.txt is needed in the
 # build context because the `dev` Dockerfile stage installs it.
