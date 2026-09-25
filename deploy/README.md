@@ -253,6 +253,105 @@ the fixed commit on `master` through the usual promotion flow) — don't leave
 the pause file in place, and don't leave production permanently diverged
 from what `:production` points at.
 
+## Applying the proxy hardening
+
+A one-off, reload-only change to the live proxy config (no container recreate,
+no image change). What it does:
+
+- `nginx-proxy/10-catchall.conf` (new): `default_server` on both ports. `:443`
+  refuses the TLS handshake for a missing or unknown SNI (bare IP, `api.`, random
+  names) and closes a known-SNI request whose Host is foreign (444). `:80` keeps
+  `/healthz` (the proxy HEALTHCHECK) and closes everything else (444).
+  `api.yuriodev.co.uk` is gone from every `server_name`.
+- `nginx-proxy/00-http.conf` (new): `server_tokens off`, the minimised JSON
+  access-log format `edge_json` (IPs cut to /24 or /48, no query strings, no
+  `X-Forwarded-For`), and rate-limit zones that nothing uses yet. Real client IP
+  (`CF-Connecting-IP`) and `limit_req` come later, once the origin's AAAA record
+  is gone.
+- `nginx-proxy/snippets/` (not loaded by the `conf.d/*.conf` glob):
+  `security-headers.conf` (HSTS `max-age=86400`, nosniff, `X-Frame-Options: DENY`,
+  Referrer-Policy, Permissions-Policy, COOP, CORP, and a
+  `Content-Security-Policy-Report-Only` that allows exactly what the current
+  bundle loads, including Google Fonts), `server-common.conf` (access log, 1 MB
+  body limit, the headers) and `proxy-common.conf` (the `proxy_set_header`
+  lines, now in one place; `X-Forwarded-For` is replaced, not appended; 5 s
+  connect / 30 s read timeouts).
+- `default.conf`: `www.yuriodev.co.uk` gets its own server that answers
+  `301 https://yuriodev.co.uk$request_uri`; `:80` redirects only our four
+  hostnames. dev/stage keep basic auth, `X-Robots-Tag` and `no-store`, and hide
+  any `Cache-Control` the app image sends so exactly one is served.
+
+The CSP is report-only and there is no report endpoint yet: violations show
+only in the browser's DevTools console. Cloudflare's own HSTS setting stays
+off (one header, one place).
+
+Path B, from the live tree, on Yurii's OK. Nothing changes on the running
+proxy until the reload in step 4, but the files are on disk from step 1, so
+`nginx -t` runs straight away:
+
+```bash
+cd ~/yuriodev-deployment && git status --short          # must be clean
+# 0. Baseline for comparison (see "Verify" below): save the header check and smoke test output
+# 1. Apply the reviewed commits' diff to the working tree and index, without
+#    committing yet (REF = the reviewed branch tip, e.g. fetched with
+#    `git fetch <remote-or-clone-path> ops/proxy-hardening && REF=$(git rev-parse FETCH_HEAD)`).
+#    A diff, not a file checkout, so doc edits that reached master meanwhile survive.
+git cherry-pick --no-commit "$(git merge-base HEAD "$REF")..$REF"
+git status --short    # only nginx-proxy/{00-http,10-catchall,default,dev,stage}.conf, nginx-proxy/snippets/, deploy/README.md, .claude/rules/infra.md, CLAUDE.md
+# 2. Validate at once (a proxy restart with a bad config is a full outage)
+docker exec yuriodev-proxy nginx -t
+#    On failure, undo before anything reloads:
+#    git restore --source=HEAD --staged --worktree -- nginx-proxy/default.conf nginx-proxy/dev.conf nginx-proxy/stage.conf deploy/README.md .claude/rules/infra.md CLAUDE.md
+#    git rm -r -q --cached nginx-proxy/00-http.conf nginx-proxy/10-catchall.conf nginx-proxy/snippets && rm -r nginx-proxy/00-http.conf nginx-proxy/10-catchall.conf nginx-proxy/snippets
+# 3. Commit exactly these paths (add -c user.name=... -c user.email=... if the box has no git identity)
+git diff --cached --stat
+git commit -m "feat(proxy): refuse unknown hosts, add security headers, redirect www"
+# 4. Reload (only with Yurii's OK; a failed reload keeps the old config)
+docker exec yuriodev-proxy nginx -s reload
+# 5. Verify (below), then push: path-A merges never touch these files
+git fetch origin && git log HEAD..origin/master --oneline   # if it prints commits: git rebase origin/master first
+git push origin master
+```
+
+Verify, origin (from the box):
+
+```bash
+H='^(strict-transport-security|content-security-policy-report-only|x-content-type-options|x-frame-options|referrer-policy|permissions-policy|cross-origin-opener-policy|cross-origin-resource-policy|server):'
+for h in yuriodev.co.uk dev.yuriodev.co.uk stage.yuriodev.co.uk; do echo "== $h"; curl -skI --max-time 10 --resolve "$h:443:127.0.0.1" "https://$h/" | grep -iE "$H"; done   # 8 headers each + "server: nginx" (no version); dev/stage answer 401 and still carry them
+curl -skI --max-time 10 --resolve yuriodev.co.uk:443:127.0.0.1 https://yuriodev.co.uk/api/health | grep -iE "$H"                                               # same set on the API
+curl -sk  --max-time 10 -o /dev/null -w '%{http_code}\n' --resolve yuriodev.co.uk:443:127.0.0.1 https://yuriodev.co.uk/                                         # 200
+curl -sk  --max-time 10 -o /dev/null -w '%{http_code} %{redirect_url}\n' --resolve www.yuriodev.co.uk:443:127.0.0.1 'https://www.yuriodev.co.uk/x?y=1'         # 301 https://yuriodev.co.uk/x?y=1
+curl -sk  --max-time 10 -o /dev/null -w '%{http_code}\n' https://127.0.0.1/                                                                                   # 000 (no SNI: handshake refused)
+curl -sk  --max-time 10 -o /dev/null -w '%{http_code}\n' --resolve api.yuriodev.co.uk:443:127.0.0.1 https://api.yuriodev.co.uk/                              # 000 (unknown SNI)
+curl -sk  --max-time 10 -o /dev/null -w '%{http_code}\n' --resolve yuriodev.co.uk:443:127.0.0.1 -H 'Host: example.com' https://yuriodev.co.uk/                # 000 (444)
+curl -s   --max-time 10 -o /dev/null -w '%{http_code}\n' -H 'Host: example.com' http://127.0.0.1/                                                             # 000 (444)
+curl -s   --max-time 10 -o /dev/null -w '%{http_code} %{redirect_url}\n' --resolve yuriodev.co.uk:80:127.0.0.1 http://yuriodev.co.uk/                          # 301 https://yuriodev.co.uk/
+for e in dev stage; do curl -skI --max-time 10 --resolve "$e.yuriodev.co.uk:443:127.0.0.1" "https://$e.yuriodev.co.uk/" | grep -iE '^(HTTP|x-robots-tag|cache-control)'; done   # 401, noindex, one no-store
+docker exec yuriodev-proxy wget -qO- http://127.0.0.1/healthz                                                                                                 # ok
+docker ps --filter name=yuriodev-proxy --format '{{.Status}}'                                                                                                  # (healthy)
+docker compose logs --since 5m --tail 5 proxy                                                                                                                  # JSON access lines ("ip" is Cloudflare's /24 for now)
+.claude/scripts/smoke-test.sh                                                                                                                                  # RESULT: healthy
+```
+
+Verify, edge (through Cloudflare):
+
+```bash
+curl -sI --max-time 10 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/ | grep -iE "$H"                                               # every header, exactly one strict-transport-security
+curl -s  --max-time 10 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/api/health | python3 -m json.tool                              # healthy, environment prod
+curl -s  --max-time 10 --doh-url https://1.1.1.1/dns-query -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.yuriodev.co.uk/x?y=1'   # 301 https://yuriodev.co.uk/x?y=1
+for e in dev stage; do curl -s --max-time 10 --doh-url https://1.1.1.1/dns-query -o /dev/null -w "$e %{http_code}\n" "https://$e.yuriodev.co.uk/"; done   # 401 401
+```
+
+Then, in a browser (both themes; `/`, an unknown path, the command palette and
+the terminal): DevTools shows zero `[Report Only]` CSP messages and no MIME or
+nosniff errors. `https://api.yuriodev.co.uk/` through Cloudflare now fails with
+525 (the origin refuses that SNI) until its DNS record is deleted in Cloudflare.
+
+Rollback: `git revert --no-edit <sha>` (restores the three vhosts and removes the
+new files), `docker exec yuriodev-proxy nginx -t`, `docker exec yuriodev-proxy
+nginx -s reload`, push. Browsers keep the 1-day HSTS policy they already saw,
+which is harmless for an HTTPS-only site.
+
 ## Where credentials live (paths only — never print these)
 
 - Dev/stage basic auth: htpasswd file at `nginx-proxy/auth/envs.htpasswd`

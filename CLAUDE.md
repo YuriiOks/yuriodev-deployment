@@ -9,8 +9,10 @@ Deployment repo for **yuriodev.co.uk**: a personal portfolio (Vite/React fronten
 ```
 Internet -> Cloudflare (proxied, SSL mode Full (strict): needs a valid origin cert)
          -> yuriodev-proxy (nginx:stable-alpine; the ONLY container publishing ports, 80 and 443)
-              :80   any host                                    -> 301 https
-              :443  yuriodev.co.uk        /                     -> yuriodev-frontend:80        (production)
+              :80   our 4 hostnames                             -> 301 https; anything else -> closed (444), except /healthz -> 200 (proxy HEALTHCHECK)
+              :443  unknown/no SNI -> TLS handshake refused; known SNI + foreign Host -> 444 (nginx-proxy/10-catchall.conf)
+                    www.yuriodev.co.uk                          -> 301 https://yuriodev.co.uk$request_uri
+                    yuriodev.co.uk        /                     -> yuriodev-frontend:80        (production)
                                            /api/                 -> yuriodev-backend:8000       (production; only route is GET /health, exposed publicly as GET /api/health)
                     dev.yuriodev.co.uk    (basic auth, noindex)  -> yuriodev-dev-frontend:80 / yuriodev-dev-backend:8000
                     stage.yuriodev.co.uk  (basic auth, noindex)  -> yuriodev-stage-frontend:80 / yuriodev-stage-backend:8000
