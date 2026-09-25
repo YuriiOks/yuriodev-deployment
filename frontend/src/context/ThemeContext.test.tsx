@@ -86,7 +86,7 @@ describe('ThemeContext / useTheme', () => {
     expect(themeValue()).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     // Following the system is not a choice: nothing is written.
-    expect(localStorage.getItem('theme')).toBeNull();
+    expect(localStorage.getItem('theme-choice')).toBeNull();
   });
 
   it('flips the theme each time toggleTheme is called', async () => {
@@ -98,22 +98,37 @@ describe('ThemeContext / useTheme', () => {
     await user.click(screen.getByText('toggle'));
     expect(themeValue()).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(localStorage.getItem('theme')).toBe('light');
+    expect(localStorage.getItem('theme-choice')).toBe('light');
 
     await user.click(screen.getByText('toggle'));
     expect(themeValue()).toBe('dark');
-    expect(localStorage.getItem('theme')).toBe('dark');
+    expect(localStorage.getItem('theme-choice')).toBe('dark');
   });
 
   it('uses a saved choice and ignores an invalid stored value', () => {
-    localStorage.setItem('theme', 'light');
+    localStorage.setItem('theme-choice', 'light');
     const { unmount } = renderProbe();
     expect(themeValue()).toBe('light');
     unmount();
 
-    localStorage.setItem('theme', 'purple');
+    localStorage.setItem('theme-choice', 'purple');
     renderProbe();
     expect(themeValue()).toBe('dark');
+  });
+
+  it('ignores and removes the legacy "theme" value, which was never a choice', () => {
+    localStorage.setItem('theme', 'dark');
+    const scheme = mockColorScheme(true);
+    try {
+      renderProbe();
+      expect(themeValue()).toBe('light');
+      expect(localStorage.getItem('theme')).toBeNull();
+
+      scheme.setLight(false);
+      expect(themeValue()).toBe('dark');
+    } finally {
+      scheme.restore();
+    }
   });
 
   it('follows OS changes until the visitor chooses a theme explicitly', async () => {
@@ -192,10 +207,21 @@ describe('public/theme-init.js (pre-paint theme)', () => {
 
   it('applies the saved choice and sets theme-color to match', () => {
     addThemeColorMetas();
-    localStorage.setItem('theme', 'light');
+    localStorage.setItem('theme-choice', 'light');
     runInit();
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(themeColors()).toEqual(['#f8fafc', '#f8fafc']);
+  });
+
+  it('ignores the legacy "theme" value and follows the system', () => {
+    const scheme = mockColorScheme(true);
+    try {
+      localStorage.setItem('theme', 'dark');
+      runInit();
+      expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    } finally {
+      scheme.restore();
+    }
   });
 
   it('falls back to the system preference without a valid saved choice', () => {
@@ -204,7 +230,7 @@ describe('public/theme-init.js (pre-paint theme)', () => {
       runInit();
       expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 
-      localStorage.setItem('theme', 'purple');
+      localStorage.setItem('theme-choice', 'purple');
       scheme.setLight(false);
       runInit();
       expect(document.documentElement.getAttribute('data-theme')).toBe('dark');

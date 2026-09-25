@@ -140,6 +140,7 @@ describe('App routing', () => {
     expect(screen.getByText(/sets no cookies of its own/)).toBeInTheDocument();
     expect(screen.getByText(/Fira Code, is served from this site itself/)).toBeInTheDocument();
     expect(screen.queryByText(/loaded from Google Fonts/)).not.toBeInTheDocument();
+    expect(screen.getByText(/only if you pick one with the theme button/)).toBeInTheDocument();
   });
 
   it('starts the tab order with a skip link that moves focus to main', async () => {

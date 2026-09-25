@@ -1,7 +1,8 @@
-import React, { useCallback, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 import { ThemeContext, type Theme } from './theme-context';
 import {
   applyTheme,
+  forgetLegacyTheme,
   getStoredTheme,
   getSystemTheme,
   storeTheme,
@@ -24,6 +25,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const choice = useSyncExternalStore(subscribeStoredTheme, getStoredTheme, noChoice);
   const system = useSyncExternalStore(subscribeSystemTheme, getSystemTheme, darkByDefault);
   const theme: Theme = choice ?? system;
+
+  useEffect(() => {
+    forgetLegacyTheme();
+  }, []);
 
   // Before paint, so a toggle never shows a frame in the old theme.
   useLayoutEffect(() => {

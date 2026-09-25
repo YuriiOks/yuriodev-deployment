@@ -31,8 +31,9 @@ const Privacy = () => {
         <h2>What is stored on your device</h2>
         <ul>
           <li>
-            The light or dark theme in use (your choice, or your system's default), in your
-            browser's local storage, so the site remembers it.
+            Your light or dark theme choice, only if you pick one with the theme button, in your
+            browser's local storage, so the site remembers it. Until then the site follows your
+            system setting and stores nothing for the theme.
           </li>
           <li>A flag in session storage so the intro animation plays only once per visit. Your browser deletes it when you close the tab.</li>
         </ul>

@@ -1,5 +1,5 @@
 import type { Theme } from './theme-context';
-import { readStorage, writeStorage } from '../utils/safeStorage';
+import { readStorage, removeStorage, writeStorage } from '../utils/safeStorage';
 
 /*
  * Theme state outside React, read through useSyncExternalStore.
@@ -7,7 +7,18 @@ import { readStorage, writeStorage } from '../utils/safeStorage';
  * storage key and the colours below in sync with it.
  */
 
-export const THEME_STORAGE_KEY = 'theme';
+/** Written only when the visitor presses the theme toggle. */
+export const THEME_STORAGE_KEY = 'theme-choice';
+
+/**
+ * Earlier versions of the site wrote the theme in use under 'theme' on every
+ * visit, chosen or not, so that value is not a choice and is ignored.
+ */
+const LEGACY_THEME_KEY = 'theme';
+
+export function forgetLegacyTheme(): void {
+  removeStorage('local', LEGACY_THEME_KEY);
+}
 
 /** Browser UI colour (meta theme-color) per theme: the page background. */
 export const THEME_COLORS: Record<Theme, string> = { dark: '#0a0f1c', light: '#f8fafc' };

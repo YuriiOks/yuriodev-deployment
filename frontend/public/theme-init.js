@@ -8,7 +8,9 @@
   var root = document.documentElement;
   var theme = null;
   try {
-    theme = window.localStorage.getItem('theme');
+    // Only an explicit choice made with the theme toggle. The older 'theme'
+    // key was written on every visit, so it says nothing about a choice.
+    theme = window.localStorage.getItem('theme-choice');
   } catch (e) {
     // Site data blocked: fall back to the system preference.
   }
