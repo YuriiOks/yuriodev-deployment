@@ -49,6 +49,15 @@ export const POSTS_FEED = {
   ],
 };
 
+/** The feed switched off in the backend's config: a valid answer with nothing to show. */
+export const POSTS_DISABLED = {
+  version: 1,
+  enabled: false,
+  generated_at: '2026-09-25T10:30:00Z',
+  source: { provider: 'none', status: 'disabled', last_success_at: null },
+  items: [],
+};
+
 export const HEALTH = {
   status: 'healthy',
   service: 'backend',

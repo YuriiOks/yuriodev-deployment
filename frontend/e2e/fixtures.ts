@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from '@playwright/test';
-import { HEALTH, POSTS_FEED } from './data';
+import { HEALTH, POSTS_DISABLED, POSTS_FEED } from './data';
 
 /*
  * Every test gets a page whose /api requests are answered here (vite preview
@@ -8,8 +8,11 @@ import { HEALTH, POSTS_FEED } from './data';
  */
 
 export interface Options {
-  /** What GET /api/posts answers: the fixture feed, or 404 (a backend without the route). */
-  posts: 'feed' | 'missing';
+  /**
+   * What GET /api/posts answers: the fixture feed; the feed switched off
+   * (`enabled: false`, no items); or 404, a backend without the route.
+   */
+  posts: 'feed' | 'disabled' | 'missing';
 }
 
 export const test = base.extend<Options>({
@@ -19,13 +22,20 @@ export const test = base.extend<Options>({
     await page.route('**/api/**', async (route) => {
       const { pathname } = new URL(route.request().url());
       if (pathname === '/api/posts' && posts === 'feed') return route.fulfill({ json: POSTS_FEED });
+      if (pathname === '/api/posts' && posts === 'disabled') return route.fulfill({ json: POSTS_DISABLED });
       if (pathname === '/api/health') return route.fulfill({ json: HEALTH });
       return route.fulfill({ status: 404, json: { error: 'not_found' } });
     });
 
     const errors: string[] = [];
     page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+      if (message.type() !== 'error') return;
+      // Chromium logs every 4xx response; the one a missing posts route answers is expected.
+      const expected404 =
+        posts === 'missing' &&
+        message.text().includes('404') &&
+        new URL(message.location().url || 'http://x/').pathname === '/api/posts';
+      if (!expected404) errors.push(`console: ${message.text()}`);
     });
     page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
 
@@ -40,11 +50,18 @@ export { expect };
 /** The home page's sections, in page order, as the navigation lists them. */
 export const SECTION_IDS = ['hero', 'about', 'timeline', 'skills', 'projects', 'platform', 'posts', 'connect'] as const;
 
-/** Opens `path` and waits until the page, its fonts and (on '/') the late posts section are in place. */
-export async function open(page: Page, path: string): Promise<void> {
+/**
+ * Opens `path` and waits until the page, its fonts and (on '/') the late posts
+ * section are in place. Pass `posts: false` when the feed is off: it then
+ * waits for the posts request to be answered instead.
+ */
+export async function open(page: Page, path: string, { posts = true }: { posts?: boolean } = {}): Promise<void> {
+  const home = new URL(path, 'http://x').pathname === '/';
+  const answered = home && !posts ? page.waitForResponse((r) => new URL(r.url()).pathname === '/api/posts') : null;
   await page.goto(path);
   await expect(page.locator('main#main-content')).toBeVisible();
-  if (new URL(path, 'http://x').pathname === '/') await expect(page.locator('section#posts')).toBeVisible();
+  if (home && posts) await expect(page.locator('section#posts')).toBeVisible();
+  if (answered) await answered;
   await page.evaluate(() => document.fonts.ready);
   await settle(page);
 }

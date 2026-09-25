@@ -51,11 +51,48 @@ test.describe('section jumps', () => {
 
   test('the header never covers a section heading when the page opens at it', async ({ page }) => {
     for (const id of SECTION_IDS) {
+      // A new document each time: going from /#a to /#b would only change the hash.
+      await page.goto('about:blank');
       await open(page, `/#${id}`);
       await expectHeadingClear(page, id);
     }
   });
+
+  test('the header never covers a section heading when only the hash changes', async ({ page }) => {
+    await open(page, '/');
+    for (const id of SECTION_IDS) {
+      await page.goto(`/#${id}`);
+      await settle(page);
+      await expectHeadingClear(page, id);
+    }
+  });
 });
+
+// Production starts here: the backend has no posts route yet, or the feed is switched off.
+for (const posts of ['disabled', 'missing'] as const) {
+  test.describe(`posts feed ${posts}`, () => {
+    test.use({ posts });
+
+    test('the home page has no posts section and the navigation no Posts entry', async ({ page }) => {
+      await open(page, '/', { posts: false });
+      await expect(page.locator('section#posts')).toHaveCount(0);
+
+      const { sidebar } = await navSurfaces(page);
+      const nav = sidebar ? page.locator('#leftSidebarNav') : page.locator('#navMenu');
+      if (!sidebar) await page.locator('header [data-opens="menu"]').click();
+      await expect(nav.locator('a[href="#connect"]')).toBeVisible();
+      await expect(nav.locator('a[href="#posts"]')).toHaveCount(0);
+    });
+
+    test('the header never covers a section heading when the page opens at it', async ({ page }) => {
+      for (const id of SECTION_IDS.filter((section) => section !== 'posts')) {
+        await page.goto('about:blank');
+        await open(page, `/#${id}`, { posts: false });
+        await expectHeadingClear(page, id);
+      }
+    });
+  });
+}
 
 test.describe('navigation surfaces', () => {
   for (const path of ['/', '/privacy']) {
