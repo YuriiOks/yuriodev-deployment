@@ -323,8 +323,8 @@ function socialsLines(): TerminalLine[] {
 function sectionsText(): string {
     return [
         'Sections of this page (the header menu and the palette jump to them):',
-        ...SECTIONS.map(({ navLabel, label, optional }) =>
-            `  ${navLabel.padEnd(18)}${label}${optional ? ' (only while there is something to show)' : ''}`),
+        ...SECTIONS.map(({ navLabel, label, optional }) => `  ${navLabel.padEnd(18)}${label}${optional ? '*' : ''}`),
+        ...(SECTIONS.some(({ optional }) => optional) ? ['* Only while there is something to show.'] : []),
     ].join('\n');
 }
 
