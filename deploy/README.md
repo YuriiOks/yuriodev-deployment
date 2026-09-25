@@ -34,7 +34,8 @@ workflows only move registry tags.
 
 1. **Land on `master`.** A push to `master` triggers `.github/workflows/ci.yml`:
    `frontend` (typecheck, lint at 0 problems, `npm run test`, build, `npm audit
-   --audit-level=high`), `backend` (`python -m pytest -q`), `guards`
+   --audit-level=high`), `backend` (`ruff check`, `ruff format --check`, strict
+   `mypy`, and `python -m pytest -q --cov` with a 90% branch-coverage gate), `guards`
    (`scripts/check-compose.py` plus `docker compose ... config --quiet` on
    every compose file) and `images` (build-only `runtime` + `dev` targets, no
    push). On green CI, `.github/workflows/images.yml` fires via
@@ -200,10 +201,11 @@ for `/api` is pointed at the local backend container via
 `VITE_API_PROXY_TARGET=http://backend:8000` (compose `environment:`, not
 baked into any build). The root `Makefile` wraps it: `make dev-up` /
 `dev-down` / `dev-logs` / `dev-ps` / `dev-test` (runs `npm run test` and
-`pytest` inside the running containers) / `typecheck` / `lint` / `check`
-(typecheck + lint + tests + `scripts/check-compose.py`, the same guard
+`pytest` inside the running containers) / `typecheck` (`tsc` + `mypy`) /
+`lint` (`eslint` + `ruff check` + `ruff format --check`) / `check`
+(typecheck + lint + tests + `scripts/check-compose.py`, the same checks
 `ci.yml`'s `frontend`/`backend`/`guards` jobs run — it doesn't cover
-`npm run build` or `npm audit`, which stay CI-only).
+`npm run build`, `npm audit` or the backend coverage gate, which stay CI-only).
 
 ## Monitoring
 

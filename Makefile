@@ -9,7 +9,9 @@ help:
 	@echo "dev-logs   follow both services' logs"
 	@echo "dev-ps     show the local containers"
 	@echo "dev-test   run vitest and pytest inside the running local containers"
-	@echo "check      typecheck + lint + tests + compose guards (what CI runs)"
+	@echo "typecheck  tsc (frontend) + mypy strict (backend)"
+	@echo "lint       eslint (frontend) + ruff check and ruff format --check (backend)"
+	@echo "check      typecheck + lint + tests + compose guards (what CI runs, minus build, audit and coverage)"
 
 dev-up:
 	$(LOCAL) up -d --build
@@ -29,9 +31,12 @@ dev-test:
 
 typecheck:
 	$(LOCAL) exec -T frontend npx tsc --noEmit -p tsconfig.app.json
+	$(LOCAL) exec -T backend mypy
 
 lint:
 	$(LOCAL) exec -T frontend npm run lint
+	$(LOCAL) exec -T backend ruff check .
+	$(LOCAL) exec -T backend ruff format --check .
 
 test: dev-test
 
