@@ -55,7 +55,7 @@ const HeroSection: React.FC = () => {
             <div className={styles.outputNested}>{'    '}<span className={styles.jsonKey}>"rag_pipelines"</span>: <span className={styles.jsonBracket}>[</span><span className={styles.jsonString}>"Vector DBs"</span>, <span className={styles.jsonString}>"Retrieval"</span>, <span className={styles.jsonString}>"Reranking"</span><span className={styles.jsonBracket}>]</span>,</div>
             <div className={styles.outputNested}>{'    '}<span className={styles.jsonKey}>"ml_ops"</span>: <span className={styles.jsonBracket}>[</span><span className={styles.jsonString}>"Cloud Native"</span>, <span className={styles.jsonString}>"CI/CD"</span>, <span className={styles.jsonString}>"Monitoring"</span><span className={styles.jsonBracket}>]</span></div>
             <div className={styles.output}>{'  '}<span className={styles.jsonBrace}>{'}'}</span>,{''}</div>
-            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"status"</span>: <span className={`${styles.success} ${styles.jsonValue}`}>"deploying_enterprise_ai"</span></div>
+            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"status"</span>: <span className={styles.success}>"deploying_enterprise_ai"</span></div>
             <div className={styles.outputRoot}><span className={styles.jsonBraceOuter}>{'}'}</span></div>
           </div>
         </div>
