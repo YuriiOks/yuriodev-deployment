@@ -32,7 +32,7 @@ export const EMAILS = {
 // Sections of the home page
 // ---------------------------------------------------------------------------
 
-export type SectionId = 'hero' | 'about' | 'timeline' | 'skills' | 'projects' | 'platform' | 'connect';
+export type SectionId = 'hero' | 'about' | 'timeline' | 'skills' | 'projects' | 'platform' | 'posts' | 'connect';
 
 export interface SectionDef {
   readonly id: SectionId;
@@ -52,6 +52,8 @@ export const SECTIONS: readonly SectionDef[] = [
   { id: 'skills', label: 'Skills', navLabel: '--skills' },
   { id: 'projects', label: 'Projects', navLabel: '--projects' },
   { id: 'platform', label: 'Platform', navLabel: '--yuriodev_vision' },
+  // Only while the API has at least 3 posts to show.
+  { id: 'posts', label: 'Posts', navLabel: '--posts', optional: true },
   { id: 'connect', label: 'Connect', navLabel: '--connect' },
 ];
 

@@ -186,7 +186,8 @@ describe('Header section links', () => {
   it('list every section once, in page order, as site.ts does', () => {
     renderHeader('/');
     const anchors = [...menuList().querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href'));
-    expect(anchors).toEqual(SECTIONS.map(({ id }) => `#${id}`));
+    // An optional section (posts) only while it is on the page; there is no page here.
+    expect(anchors).toEqual(SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `#${id}`));
   });
 
   it('lead back to the home page section from another page', async () => {

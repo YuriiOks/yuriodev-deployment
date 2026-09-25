@@ -120,6 +120,24 @@ describe('section navigation surfaces', () => {
     wide = true;
     renderPage('/privacy');
     const hrefs = [...sidebar()!.querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(SECTIONS.map(({ id }) => `/#${id}`));
+    expect(hrefs).toEqual(SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `/#${id}`));
+  });
+
+  it('an optional section (posts) is listed only while it is on the page', () => {
+    wide = true;
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/']}>
+          <PageLayout currentPath="/">
+            {SECTIONS.filter(({ optional }) => !optional).map(({ id }) => (
+              <section key={id} id={id}><h2>{id}</h2></section>
+            ))}
+          </PageLayout>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+    const hrefs = [...sidebar()!.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    expect(hrefs).not.toContain('#posts');
+    expect(hrefs).toEqual(SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `#${id}`));
   });
 });

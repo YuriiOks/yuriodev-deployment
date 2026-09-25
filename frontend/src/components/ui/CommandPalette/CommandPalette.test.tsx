@@ -82,7 +82,7 @@ describe('CommandPalette', () => {
     await openPalette(user);
 
     expect(optionTitles()).toEqual([
-      ...SECTIONS.map(({ label }) => `Go to ${label}`),
+      ...SECTIONS.filter(({ optional }) => !optional).map(({ label }) => `Go to ${label}`),
       'Go to Terminal',
       'Copy email address',
       'Send email',

@@ -5,6 +5,7 @@ import ProjectsSection from '../components/sections/ProjectsSection/ProjectsSect
 import TimelineSection from '../components/sections/TimelineSection/TimelineSection';
 import ConnectSection from '../components/sections/ConnectSection/ConnectSection';
 import SkillsSection from '../components/sections/SkillsSection/SkillsSection';
+import PostsSection from '../components/sections/PostsSection/PostsSection';
 import { useScrollToHash } from '../hooks/useScrollToHash';
 import { usePageTitle } from '../hooks/usePageTitle';
 
@@ -20,6 +21,7 @@ const Portfolio = () => {
       <SkillsSection />
       <ProjectsSection />
       <PlatformSection />
+      <PostsSection />
       <ConnectSection />
     </>
   );

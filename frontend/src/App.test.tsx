@@ -54,7 +54,9 @@ describe('App routing', () => {
       .map((a) => a.getAttribute('href')!.slice(1))
       .filter(Boolean);
 
-    expect(targets).toEqual(expect.arrayContaining(SECTIONS.map(({ id }) => id)));
+    // An optional section (posts) is only linked while it is on the page.
+    expect(targets).toEqual(expect.arrayContaining(SECTIONS.filter(({ optional }) => !optional).map(({ id }) => id)));
+    expect(targets).not.toContain('posts');
     // The palette's "Go to Terminal" target.
     expect(document.getElementById(TERMINAL_ANCHOR)).not.toBeNull();
     for (const id of targets) {

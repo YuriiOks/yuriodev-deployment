@@ -1,0 +1,107 @@
+/* ===========================
+   Latest posts
+   =========================== */
+
+/* Marks the section's place while there is nothing to show: no box height,
+   so the page does not move. */
+.sentinel {
+  height: 0;
+}
+
+.section {
+  width: 100%;
+  padding: 3rem 2rem;
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+.content {
+  max-width: var(--content-max-width);
+  width: 100%;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.title {
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.title::before {
+  content: '# ';
+  color: var(--accent-secondary);
+}
+
+[data-theme="dark"] .title {
+  color: var(--accent-secondary);
+}
+
+[data-theme="dark"] .title::before {
+  color: var(--accent-primary);
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 50rem;
+  margin: 0 auto;
+  line-height: 1.8;
+}
+
+.synced {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* One column on phones and tablets, two from 64rem (a column narrower than
+   about 20rem makes post text hard to read). */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cell {
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+/* Phones: the full width between the gutters, like the terminal below. */
+@media (max-width: 47.99rem) {
+  .section {
+    padding: 3rem 1rem;
+  }
+
+  .content {
+    max-width: none;
+  }
+}
