@@ -2,7 +2,6 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import { ThemeProvider } from './context/ThemeContext'
-import './index.css'
 import './assets/styles/_variables.css'
 import './assets/styles/global.css'
 
