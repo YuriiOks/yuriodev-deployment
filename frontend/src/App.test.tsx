@@ -138,7 +138,8 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Privacy notice' })).toBeInTheDocument();
     expect(screen.getByText(/25 September 2026/)).toHaveAttribute('dateTime', '2026-09-25');
     expect(screen.getByText(/sets no cookies of its own/)).toBeInTheDocument();
-    expect(screen.getByText(/loaded from Google Fonts/)).toBeInTheDocument();
+    expect(screen.getByText(/Fira Code, is served from this site itself/)).toBeInTheDocument();
+    expect(screen.queryByText(/loaded from Google Fonts/)).not.toBeInTheDocument();
   });
 
   it('starts the tab order with a skip link that moves focus to main', async () => {

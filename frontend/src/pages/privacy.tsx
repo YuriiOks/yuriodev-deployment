@@ -58,13 +58,9 @@ const Privacy = () => {
         </p>
 
         <h2>Fonts</h2>
-        {/* Replace this paragraph once the font is self-hosted. */}
         <p>
-          The site's font is currently loaded from Google Fonts, so your browser sends your IP
-          address to Google when a page loads. See{' '}
-          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
-            Google's privacy policy
-          </a>.
+          The site's font, Fira Code, is served from this site itself. Loading a page makes no
+          request to Google Fonts or any other third-party font service.
         </p>
 
         <h2>Links to other sites</h2>
