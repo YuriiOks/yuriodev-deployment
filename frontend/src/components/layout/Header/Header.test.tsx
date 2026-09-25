@@ -102,6 +102,30 @@ describe('Header mobile menu', () => {
     expect(input).toHaveFocus();
   });
 
+  it('closes when Tab moves focus past its last link', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+    const links = menuList().querySelectorAll('a');
+    links[links.length - 1].focus();
+
+    await user.tab();
+
+    expect(screen.getByLabelText('outside input')).toHaveFocus();
+    expect(isOpen()).toBe(false);
+  });
+
+  it('stays open while Tab moves between its own links', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+
+    await user.tab();
+
+    expect(menuList()).toContainElement(document.activeElement as HTMLElement);
+    expect(isOpen()).toBe(true);
+  });
+
   it('closes on a click outside the menu', async () => {
     const user = userEvent.setup();
     renderHeader();

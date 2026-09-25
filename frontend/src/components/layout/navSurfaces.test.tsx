@@ -88,6 +88,15 @@ describe('section navigation surfaces', () => {
     expect(menuButton()).not.toBeNull();
   });
 
+  it('keeps focus in the header when the focused menu link unmounts at 88rem', () => {
+    renderPage();
+    const about = document.querySelector<HTMLElement>('header a[href="#about"]')!;
+    act(() => about.focus());
+    setWide(true);
+    expect(about.isConnected).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: '--portfolio', hidden: true }));
+  });
+
   it('both surfaces use the same order', () => {
     const order = SECTIONS.map(({ id }) => `#${id}`);
     renderPage();

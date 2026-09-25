@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import { useSectionNav } from '../../../context/useSectionNav';
@@ -24,6 +24,9 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   const wide = useMediaQuery(minWidth('sidebar'));
   const navControlsRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  // The control in the header that last had focus, while focus is still
+  // there; lets focus follow when that control unmounts at the breakpoint.
+  const lastFocusRef = useRef<HTMLElement | null>(null);
   const currentPage = pageAt(currentPath)?.id;
 
   // Close the menu whenever the route changes, and when the window grows
@@ -58,6 +61,39 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
     };
   }, [isMenuOpen]);
 
+  // Growing past the breakpoint unmounts the menu button and the section
+  // links. If one of them had focus, hand it to the first page link rather
+  // than letting it drop to <body>.
+  useLayoutEffect(() => {
+    if (!wide) return;
+    const last = lastFocusRef.current;
+    const active = document.activeElement;
+    if (!last || last.isConnected || (active && active !== document.body)) return;
+    navControlsRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+  }, [wide]);
+
+  // Tabbing out of the header closes the menu, so it never hides the
+  // element that receives focus next.
+  const onNavFocus = (e: React.FocusEvent<HTMLDivElement>) => {
+    lastFocusRef.current = e.target;
+  };
+  const onNavBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && !navControlsRef.current?.contains(next)) {
+      lastFocusRef.current = null;
+      setIsMenuOpen(false);
+      return;
+    }
+    if (!next) {
+      // Focus went nowhere: a click on the page, or the window losing focus.
+      // Forget the control unless it left because it was unmounted.
+      const target = e.target;
+      queueMicrotask(() => {
+        if (lastFocusRef.current === target && target.isConnected) lastFocusRef.current = null;
+      });
+    }
+  };
+
   const closeMenu = () => setIsMenuOpen(false);
 
   const toggleMobileMenu = () => {
@@ -67,7 +103,7 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   // Generate dynamic terminal prompt based on current page and section
   const getTerminalPrompt = () => {
     // Always show the page name (portfolio, community, courses, dashboard)
-    const pageName = currentPath === '/' ? 'portfolio' : currentPath.substring(1);
+    const pageName = currentPage ?? currentPath.substring(1);
     const pageArgument = ` --page=${pageName}`;
     const themeArgument = ` --theme=${theme}`;
     return `yurii@yuriodev:~$ ./run --module=AI_Education${pageArgument}${themeArgument}`;
@@ -79,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
         <div className={styles.terminalPrompt}>
           {getTerminalPrompt()}<span className={styles.cursor}>_</span>
         </div>
-        <div className={styles.navControls} ref={navControlsRef}>
+        <div className={styles.navControls} ref={navControlsRef} onFocus={onNavFocus} onBlur={onNavBlur}>
           <button
             className={styles.themeToggle}
             onClick={toggleTheme}

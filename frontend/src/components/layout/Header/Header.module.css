@@ -62,6 +62,8 @@
     gap: 0.5rem;
     flex-wrap: nowrap;
     flex-shrink: 0;
+    /* Stay right-aligned when the prompt is hidden on phones. */
+    margin-left: auto;
 }
 
 .themeToggle, .mobileMenuToggle, .helpToggle {
@@ -220,6 +222,11 @@
     gap: 0;
     border-top: 1px solid var(--accent-primary);
     box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+    /* The header is fixed, so on short screens (a phone held sideways) the
+       panel scrolls itself to reach its last links. */
+    max-height: calc(100dvh - var(--header-h));
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .navMenu.dropdown.active {
