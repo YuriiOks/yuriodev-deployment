@@ -146,6 +146,21 @@ prod_digest frontend yuriodev-frontend || fe_checked=0
 prod_digest backend yuriodev-backend || be_checked=0
 [ "$fe_checked" -eq 0 ] && [ "$be_checked" -eq 0 ] && row INFO "prod digest" "docker-compose.yml uses build: only (no registry image yet)"
 
+# 7b. proxy pin rollout: the deploy agent never touches the proxy, so after a digest bump the
+# running proxy lags behind the pin until someone recreates it by hand.
+proxy_pin=$(compose_service_image proxy)
+case "$proxy_pin" in
+  *@sha256:*)
+    proxy_ref="${proxy_pin%%@*}"; proxy_ref="${proxy_ref%:*}@${proxy_pin#*@}"   # name:tag@sha256:x -> name@sha256:x
+    want=$(timeout 5 docker image inspect -f '{{.Id}}' "$proxy_ref" 2>/dev/null)
+    have=$(timeout 5 docker inspect -f '{{.Image}}' yuriodev-proxy 2>/dev/null)
+    if [ -z "$want" ]; then row INFO "prod digest (proxy)" "pinned image not cached locally: pin not rolled out (deploy/README.md, The proxy image)"
+    elif [ -z "$have" ]; then row WARN "prod digest (proxy)" "container not found: yuriodev-proxy"
+    elif [ "$want" = "$have" ]; then row PASS "prod digest (proxy)" "running proxy matches the pinned digest"
+    else row WARN "prod digest (proxy)" "running proxy != pinned digest: pin not rolled out (deploy/README.md, The proxy image)"; fi ;;
+  *) row WARN "prod digest (proxy)" "proxy image '${proxy_pin:-?}' is not pinned by digest" ;;
+esac
+
 # 8. host resources (WARN only)
 avail=$(awk '/^MemAvailable:/{printf "%d", $2/1024}' /proc/meminfo)
 disk=$(df -P / | awk 'NR==2{gsub("%","",$5); print $5}')
