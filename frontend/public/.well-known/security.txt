@@ -1,0 +1,4 @@
+Contact: mailto:yurii.oksamytnyi@yuriodev.co.uk
+Expires: 2027-09-25T00:00:00Z
+Preferred-Languages: en
+Canonical: https://yuriodev.co.uk/.well-known/security.txt

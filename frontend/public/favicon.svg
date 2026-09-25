@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="YuriODev">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#0a0f1c"/>
+  <rect x="3.25" y="3.25" width="57.5" height="57.5" rx="12.75" fill="none" stroke="#00d4ff" stroke-opacity="0.7" stroke-width="2.5"/>
+  <g fill="none" stroke="#00d4ff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 15 32 32.5 46 15M32 32.5V49" stroke-width="7" stroke-opacity="0.8" filter="url(#glow)"/>
+    <path d="M18 15 32 32.5 46 15M32 32.5V49" stroke-width="7"/>
+  </g>
+  <rect x="40" y="44" width="12" height="5" rx="1" fill="#ffc107"/>
+</svg>
