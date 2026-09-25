@@ -27,18 +27,22 @@ flowchart LR
 Nothing is ever rebuilt after `images.yml`: every later step is a
 `docker buildx imagetools create --prefer-index=false` retag, so the exact
 same digest that passed CI is what production eventually runs. The deploy
-agent is the only thing that ever touches running containers on the box; the
-workflows only move registry tags.
+agent is the only thing that ever touches the app containers on the box; the
+workflows only move registry tags. The proxy is the exception: it runs a
+public nginx image pinned by digest and is only ever recreated by hand (see
+"The proxy image" below).
 
 ## How to release
 
 1. **Land on `master`.** A push to `master` triggers `.github/workflows/ci.yml`:
    `frontend` (typecheck, lint at 0 problems, `npm run test`, build, `npm audit
    --audit-level=high`), `backend` (`ruff check`, `ruff format --check`, strict
-   `mypy`, and `python -m pytest -q --cov` with a 90% branch-coverage gate), `guards`
-   (`scripts/check-compose.py` plus `docker compose ... config --quiet` on
-   every compose file) and `images` (build-only `runtime` + `dev` targets, no
-   push). On green CI, `.github/workflows/images.yml` fires via
+   `mypy`, `python -m pytest -q --cov` with a 90% branch-coverage gate, and a
+   Trivy scan of the pinned `backend/requirements.txt` that fails on a fixable
+   HIGH/CRITICAL CVE), `guards` (`scripts/check-compose.py` plus
+   `docker compose ... config --quiet` on every compose file), `proxy-image`
+   (Trivy on the digest-pinned proxy image, same threshold) and `images`
+   (build-only `runtime` + `dev` targets, no push). On green CI, `.github/workflows/images.yml` fires via
    `workflow_run`, builds each service's `runtime` target once, pushes
    `ghcr.io/yuriioks/yuriodev-{frontend,backend}:sha-<commit>`, scans it with
    Trivy (blocks on a fixable HIGH/CRITICAL CVE), and — only if that
@@ -142,6 +146,58 @@ to a changed image ID (see "Environment config" below).
 - **Lock:** the script takes a non-blocking `flock` on
   `~/.local/state/yuriodev-deploy.lock`, so an overrunning invocation is
   skipped rather than overlapped.
+
+## The proxy image (`yuriodev-proxy`)
+
+The root `docker-compose.yml` pins the proxy as
+`nginx:stable-alpine@sha256:<digest>` and mounts `./nginx-proxy` read-only
+(`:ro`; nginx never writes there, the host still edits it and reloads per the
+golden rules). The digest pinned on 2026-09-25,
+`sha256:985220252f3863977e468f611ef118ebd01421289dd86ee1ae99cb068c3bce2b`, is
+the multi-arch index behind `stable-alpine` (the same index as `1.30-alpine`
+and `stable-alpine3.24`): nginx 1.30.5 on Alpine 3.24, built 2026-09-22. Before
+it, the proxy ran whatever `nginx:stable-alpine` happened to be cached on the
+box (nginx 1.28.0).
+
+**What the deploy agent does with the proxy: nothing.** `services_of()` in
+`deploy/agent/yuriodev-deploy.sh` lists only services whose `image:` starts
+with `ghcr.io/`, so the agent never pulls the nginx image and never runs `up`
+for the proxy. The only `up` it runs in the root compose file (when `prod` is
+in `ENABLED_ENVS`) is `docker compose up -d --no-deps frontend|backend`, and
+only when that service's image ID changed; `--no-deps` keeps compose from
+touching the proxy even though the proxy's definition in the file changed.
+Its closing `docker image prune -f` removes only dangling images, never an
+image a container runs. So pulling a pin change (this one, or a later
+Dependabot digest bump) into the live tree changes nothing that is running:
+the proxy keeps its old image and its read-write mount until it is recreated
+by hand, once, at a quiet time.
+
+**Rolling out a new pin** (a production change: ask Yurii first; every
+environment blips for a few seconds while the proxy is swapped):
+```bash
+cd ~/yuriodev-deployment                              # the live tree, with the pin change pulled in
+touch ~/.yuriodev-deploy-paused                       # keep the agent from deploying (and exec-ing into the proxy) mid-swap
+docker compose pull proxy                             # fetch the pinned digest; nothing restarts yet
+IMG=$(awk '/^  proxy:/{p=1} p&&/^    image:/{print $2; exit}' docker-compose.yml)
+docker run --rm --network none -v "$PWD/nginx-proxy:/etc/nginx/conf.d:ro" \
+  -v "$PWD/certbot/conf:/etc/letsencrypt:ro" "$IMG" nginx -t   # new nginx + current config, before the switch
+docker compose up -d --no-deps proxy                  # the one recreate
+docker compose ps proxy                               # "healthy" after the first 30 s healthcheck
+.claude/scripts/smoke-test.sh                         # prod/dev/stage through the new proxy
+rm ~/.yuriodev-deploy-paused
+```
+**Rollback:** put the previous `image:` line back (revert the commit), then
+`docker compose up -d --no-deps proxy` again. Pulling by digest should leave
+the local `nginx:stable-alpine` tag on the old image (check with
+`docker image ls nginx` before the swap), so the rollback needs no download.
+
+**Keeping it fresh:** Dependabot's `docker-compose` entry (`.github/dependabot.yml`)
+opens a PR with the new digest when `stable-alpine` moves; CI's `proxy-image`
+job scans whatever digest the file pins and fails on a fixable HIGH/CRITICAL
+CVE. If it fails on `master` before Dependabot has proposed a bump, resolve a
+fresh digest (`docker buildx imagetools inspect nginx:stable-alpine --format
+'{{json .Manifest.Digest}}'`), pin it, merge, and roll out as above. Every
+merged bump needs that manual rollout.
 
 ## Environment config (`env/`)
 
@@ -323,8 +379,12 @@ promotion gets that long to actually land). Any failure opens or updates one
 GitHub issue labelled `monitor` (which emails the repo owner) with the exact
 problem list, and the issue auto-closes with a comment once checks pass
 again — `gh issue list --label monitor --state open` shows whether one is
-currently open. `workflow_dispatch` with `simulate_failure: true` exercises
-the whole alert path without a real incident. GitHub disables the schedule
+currently open. An `/api/health` answer that is not a JSON object (a
+Cloudflare or nginx HTML error page, an empty body, a timeout) is itself a
+failure, reported with its HTTP code and the first bytes of the body; if the
+probe step ever crashes, the issue is still opened. `workflow_dispatch` with
+`simulate_failure: true` exercises the whole alert path without a real
+incident, and `simulate_html_health: true` the non-JSON path. GitHub disables the schedule
 after 60 days with no commit to `master`, so a long-quiet repo needs a
 reminder to push something.
 
@@ -387,4 +447,6 @@ from what `:production` points at.
 | Agent log shows `REFUSED image without explicit tag` | A compose file's `image:` was edited to drop its tag | Compose files must pin `:dev` / `:stage` / `:production` explicitly — the agent refuses to guess `:latest` |
 | Cloudflare 526 | Origin certificate invalid/expired | See `/cert-status`; certs live at `nginx-proxy/certs/origin.{pem,key}` |
 | `/health` or `/api/health` reports the wrong `environment` | Wrong or missing `env/<env>.env` value, or the service was never recreated after an env-file edit (the deploy agent doesn't do this) | Check the compose file's `env_file` order, then follow "Environment config" above to recreate the one service |
+| CI's `proxy-image` job fails | A fixable HIGH/CRITICAL CVE in the pinned nginx image | Merge Dependabot's `docker-compose` digest bump (or pin a fresh digest), then roll it out: "The proxy image" above |
+| CI's backend Trivy step fails | A fixable HIGH/CRITICAL CVE in a pin in `backend/requirements.txt` | Bump that pin to the fixed version the report names |
 | Production monitor issue opened (`monitor` label) | `uptime.yml` found `/`, `/api/health`, or the revision-vs-latest-release check failing from outside | `gh issue list --label monitor --state open` for the exact problem list; then `/smoke-test` from the box itself |
