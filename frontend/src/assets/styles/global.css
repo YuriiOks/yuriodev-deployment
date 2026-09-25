@@ -23,6 +23,19 @@ html {
     outline-offset: 2px;
 }
 
+/* Visually hidden, still read by screen readers. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Reduced motion: no smooth scrolling, no looping or decorative animation.
    Animations still run once, instantly, so anything that fades in ends up
    visible; JavaScript-driven motion checks src/utils/motion.ts. */

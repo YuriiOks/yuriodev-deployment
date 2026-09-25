@@ -130,8 +130,18 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
     }
   };
 
+  // The skip link moves focus (and the view) to main without touching the URL.
+  const skipToMain = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    mainRef.current?.focus();
+  };
+
   return (
     <>
+      {/* First focusable element on every page. */}
+      <a href="#main-content" className={styles.skipLink} onClick={skipToMain}>
+        Skip to main content
+      </a>
       <CanvasBackground />
       <CommandPalette isOpen={overlay === 'palette'} onOpenChange={setPaletteOpen} onShowHelp={openHelp} />
       <HelpPanel isOpen={overlay === 'help'} onClose={closeHelp} />

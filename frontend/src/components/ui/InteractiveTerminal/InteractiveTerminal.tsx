@@ -140,7 +140,14 @@ const InteractiveTerminal: React.FC = () => {
       
       {/* Terminal content */}
       <div className={styles.interactiveTerminal} onClick={handleTerminalClick}>
-        <div className={styles.terminalOutput} ref={terminalOutputRef}>
+        {/* New output is announced politely to screen readers. */}
+        <div
+          className={styles.terminalOutput}
+          ref={terminalOutputRef}
+          role="log"
+          aria-live="polite"
+          aria-label="Terminal output"
+        >
           <div className={`${styles.terminalLine} ${styles.success}`}>
             Welcome to YuriODev Terminal v2.0.1
           </div>
