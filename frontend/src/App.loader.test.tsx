@@ -45,7 +45,7 @@ describe('first-visit loading screen', () => {
     resetStorageFallback();
   });
 
-  it('shows over the already-rendered page and is gone within 1.2 seconds', () => {
+  it('shows over the already-rendered page and is gone after 1 second', () => {
     const { container } = renderApp();
     expect(intro()).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Initializing systems...');
@@ -53,7 +53,7 @@ describe('first-visit loading screen', () => {
     expect(document.body.style.overflow).toBe('hidden');
 
     act(() => {
-      vi.advanceTimersByTime(1199);
+      vi.advanceTimersByTime(999);
     });
     expect(intro()).toBeInTheDocument();
     act(() => {
@@ -104,7 +104,7 @@ describe('first-visit loading screen', () => {
     const { container } = renderApp();
     expect(container.querySelector('main#main-content')).not.toBeNull();
     act(() => {
-      vi.advanceTimersByTime(1200);
+      vi.advanceTimersByTime(1000);
     });
     expect(intro()).not.toBeInTheDocument();
   });

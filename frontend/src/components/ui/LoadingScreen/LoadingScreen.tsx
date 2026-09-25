@@ -5,8 +5,11 @@ interface LoadingScreenProps {
   onComplete?: () => void;
 }
 
-/** The whole first-visit screen, fade included, never lasts longer than this. */
-const LOADER_TOTAL_MS = 1200;
+/**
+ * The whole first-visit screen, fade included. The budget is 1.2s; 1s leaves
+ * room for timers that fire late while the page renders underneath.
+ */
+const LOADER_TOTAL_MS = 1000;
 const FADE_MS = 250;
 
 const STAGES = [
@@ -22,7 +25,7 @@ const STAGES = [
 const STAGE_MS = Math.floor((LOADER_TOTAL_MS - FADE_MS) / STAGES.length);
 
 /**
- * First-visit intro. It covers the page for at most 1.2s; the Skip button, or
+ * First-visit intro. It covers the page for about 1s (1.2s at most); the Skip button, or
  * any key press (Escape included), ends it at once. It never holds focus: the
  * page underneath stays reachable, and a Tab both ends the intro and moves on.
  */

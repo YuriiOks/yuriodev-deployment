@@ -18,7 +18,7 @@
   justify-content: center;
   z-index: var(--z-boot);
   opacity: 1;
-  /* The whole screen lasts at most 1.2s (LoadingScreen.tsx); the fade is its last 250ms. */
+  /* The whole screen lasts about 1s (LoadingScreen.tsx); the fade is its last 250ms. */
   transition: opacity 0.25s ease;
   overflow: hidden;
 }
