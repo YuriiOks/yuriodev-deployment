@@ -221,8 +221,27 @@ rm ~/.yuriodev-deploy-paused
 ```
 (and the same with `deploy/stage/compose.yml` / `backend-stage`).
 
-**prod: Typefully.** First release the code with the feature still off and
-check `curl -s https://yuriodev.co.uk/api/posts` shows `"enabled": false`.
+**prod: Typefully.** From this box, check the origin with `--resolve` (as
+below): `/etc/hosts` points `yuriodev.co.uk` at this machine, whose
+certificate is a Cloudflare Origin CA one, so a plain `curl -s
+https://yuriodev.co.uk/...` fails TLS verification and prints nothing — and a
+check piped from it would pass without having checked anything. Through
+Cloudflare instead: `curl -fsS --doh-url https://1.1.1.1/dns-query
+https://yuriodev.co.uk/api/posts`.
+
+Before turning prod on, all of these hold:
+- Typefully has answered the question about showing posts on the site under
+  its Terms (and the plan includes API access).
+- `posts.toml` is back-filled, so curated plus imported posts come to at least
+  3 items.
+- You know whether Typefully lets you tag a draft after it is published
+  (that decides how "Hide a post" below works).
+
+First release the code with the feature still off and check it:
+```bash
+curl -fsSk --resolve yuriodev.co.uk:443:127.0.0.1 https://yuriodev.co.uk/api/posts \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["enabled"])'     # must print False
+```
 Then:
 1. Yurii creates an API key in Typefully (Settings -> API). A Typefully key
    carries its creator's full permissions (it can publish), so it goes only
@@ -244,22 +263,28 @@ Then:
    ```bash
    touch ~/.yuriodev-deploy-paused
    docker compose up -d --no-deps backend
-   curl -s https://yuriodev.co.uk/api/health | python3 -m json.tool
-   curl -s https://yuriodev.co.uk/api/posts | python3 -m json.tool          # source.status "fresh" within a minute
-   curl -s https://yuriodev.co.uk/api/posts | grep -c -e scratchpad -e private_url   # must print 0
+   origin() { curl -fsSk --resolve yuriodev.co.uk:443:127.0.0.1 "https://yuriodev.co.uk$1"; }
+   origin /api/health | python3 -m json.tool
+   origin /api/posts | python3 -m json.tool                                 # source.status "fresh" within a minute
+   body=$(origin /api/posts) && printf '%s' "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); s=json.dumps(d); bad=[k for k in ("scratchpad","private_url","share_url","draft_title","typefully.com") if k in s]; print(d["source"], len(d["items"]), "items"); sys.exit(f"LEAK {bad}" if bad else 0)' && echo CLEAN   # must end with CLEAN
    docker compose logs --since 10m backend | grep '"feed\.'                  # feed.refresh lines; no key material
    rm ~/.yuriodev-deploy-paused
    ```
+   The leak check fails loudly (no `CLEAN`) if the fetch fails, the body is not
+   JSON, or a private field shows up.
 
 `source.status` says how the feed is doing: `fresh` (last success within an
 hour), `stale` (older; posts still shown), `error` (the key was rejected, the
-key or set id is missing — logged once as `feed.misconfigured` — or there has
-been no success for 72 hours; only curated posts are shown), `disabled` (off).
-A rejected key stops polling until the next recreate.
+key or set id is missing or the key has a stray character in it — logged once
+as `feed.misconfigured` — or there has been no success for 72 hours; only
+curated posts are shown), `disabled` (off). A rejected key stops polling until
+the next recreate. A `feed.drift` or `feed.listing_invalid` warning means
+Typefully's answers no longer look as expected: the previous posts stay up
+(and go `stale`) until the code is adjusted.
 
-- **Hide a post:** tag its draft `hide-from-site` in Typefully (gone at the
-  next poll), or add `[[override]] id = "..." hide = true` to `posts.toml`
-  (next release).
+- **Hide a post:** if Typefully lets you tag a published draft, tag it
+  `hide-from-site` (gone at the next poll); otherwise, or as well, add
+  `[[override]] id = "..." hide = true` to `posts.toml` (next release).
 - **Rotate the key:** create the new key, replace the value in
   `env/prod.secrets.env`, recreate the backend as in step 3, check
   `source.status`, then revoke the old key in Typefully.
