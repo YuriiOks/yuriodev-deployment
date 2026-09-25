@@ -12,8 +12,8 @@ from src.core.errors import error_response
 from src.core.logging import reset_request_id, set_request_id
 
 REQUEST_ID_HEADER = "X-Request-ID"
-_VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
-_VALID_CF_RAY = re.compile(r"^[A-Za-z0-9-]{1,40}$")
+_VALID_REQUEST_ID = re.compile(r"[A-Za-z0-9-]{8,64}")
+_VALID_CF_RAY = re.compile(r"[A-Za-z0-9-]{1,40}")
 _MAX_PATH_LOGGED = 200
 
 # The container HEALTHCHECK polls this every 30 s; its access lines only show at DEBUG.
@@ -25,7 +25,7 @@ error_logger = logging.getLogger("yuriodev.error")
 
 def _request_id_from(headers: Headers) -> str:
     incoming = headers.get(REQUEST_ID_HEADER, "")
-    return incoming if _VALID_REQUEST_ID.match(incoming) else uuid.uuid4().hex
+    return incoming if _VALID_REQUEST_ID.fullmatch(incoming) else uuid.uuid4().hex
 
 
 class RequestContextMiddleware:
@@ -91,6 +91,6 @@ class RequestContextMiddleware:
             "duration_ms": round((time.perf_counter() - started) * 1000, 1),
         }
         cf_ray = headers.get("cf-ray", "")
-        if _VALID_CF_RAY.match(cf_ray):
+        if _VALID_CF_RAY.fullmatch(cf_ray):
             fields["cf_ray"] = cf_ray
         access_logger.log(level, "%s %s %s", fields["method"], path, status, extra=fields)

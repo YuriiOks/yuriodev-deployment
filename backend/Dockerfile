@@ -19,7 +19,7 @@ WORKDIR /app
 COPY requirements.txt requirements-dev.txt ./
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log", "--ws", "none"]
 
 
 FROM base AS runtime
@@ -57,5 +57,6 @@ ENV REVISION=$GIT_SHA
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)" || exit 1
 
-# The app logs its own access line (JSON, no client IP); uvicorn's would add the IP.
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+# The app logs its own access line (JSON, no client IP); uvicorn's would add the IP. There are
+# no WebSocket routes, and uvicorn's WebSocket handler logs the client address and query string.
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--ws", "none"]

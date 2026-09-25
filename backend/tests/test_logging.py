@@ -96,6 +96,21 @@ def test_console_format(make_settings, capsys):
     assert not out.lstrip().startswith("{")
 
 
+def test_console_format_escapes_visitor_controlled_text(make_settings, capsys):
+    configure_logging(make_settings(log_format="console"))
+    capsys.readouterr()
+
+    logging.getLogger("yuriodev.test").info(
+        "GET %s", "/a\nfake line\u202e\x1b[31m", extra={"path": "/b\r\n\x1b[0m"}
+    )
+
+    out = capsys.readouterr().out
+    assert out.count("\n") == 1
+    assert "\x1b" not in out
+    assert "\u202e" not in out
+    assert "GET /a\\nfake line\\u202e\\x1b[31m [path=/b\\r\\n\\x1b[0m]" in out
+
+
 def test_uvicorn_logs_go_through_our_handler_and_its_access_log_is_off(make_settings):
     for name in ("uvicorn", "uvicorn.access"):
         logging.getLogger(name).addHandler(logging.StreamHandler())

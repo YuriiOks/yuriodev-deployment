@@ -4,6 +4,9 @@ import json
 import re
 
 import pytest
+from starlette.datastructures import Headers
+
+from src.core.middleware import _request_id_from
 
 
 def access_lines(output):
@@ -29,6 +32,25 @@ def test_a_malformed_incoming_request_id_is_replaced(client, bad):
 
     assert response.headers["x-request-id"] != bad
     assert re.fullmatch(r"[0-9a-f]{32}", response.headers["x-request-id"])
+
+
+def test_a_trailing_newline_does_not_pass_the_request_id_check():
+    # `$` would accept "abcdefgh\n"; the value is echoed into a header and the error body.
+    assert _request_id_from(Headers({"x-request-id": "abcdefgh\n"})) != "abcdefgh\n"
+    assert _request_id_from(Headers({"x-request-id": "abcdefgh"})) == "abcdefgh"
+
+
+def test_the_access_line_is_ascii_and_escapes_control_and_bidi_characters(make_client, capsys):
+    client = make_client(log_level="INFO", log_format="json")
+    capsys.readouterr()
+
+    client.get("/api/%0Ainjected%E2%80%AEevil%1B[31m")
+
+    out = capsys.readouterr().out
+    assert out.isascii()
+    assert "\x1b" not in out
+    (line,) = access_lines(out)
+    assert line["path"] == "/api/\ninjected\u202eevil\x1b[31m"
 
 
 def test_one_access_line_without_ip_user_agent_or_query(make_client, capsys):

@@ -41,6 +41,16 @@ def reset_request_id(token: Token[str | None]) -> None:
     _request_id.reset(token)
 
 
+def _escape(text: str) -> str:
+    """Printable form of visitor-controlled text: control, bidi and ANSI characters escaped."""
+    if text.isprintable():
+        return text
+    return "".join(
+        char if char.isprintable() else char.encode("unicode_escape").decode("ascii")
+        for char in text
+    )
+
+
 def _extras(record: logging.LogRecord) -> dict[str, Any]:
     return {
         key: value
@@ -65,7 +75,9 @@ class JsonFormatter(logging.Formatter):
             out.setdefault(key, value)
         if record.exc_info:
             out["exc_info"] = self.formatException(record.exc_info)
-        return json.dumps(out, default=str, ensure_ascii=False)
+        # ASCII only: request paths are visitor-controlled, and a raw bidi or control character
+        # would reorder or split the line in a terminal reading `docker logs`.
+        return json.dumps(out, default=str, ensure_ascii=True)
 
 
 class ConsoleFormatter(logging.Formatter):
@@ -74,9 +86,13 @@ class ConsoleFormatter(logging.Formatter):
     def __init__(self) -> None:
         super().__init__("%(asctime)s %(levelname)-8s %(name)s: %(message)s")
 
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        record.message = _escape(record.message)  # the traceback below keeps its newlines
+        return super().formatMessage(record)
+
     def format(self, record: logging.LogRecord) -> str:
         line = super().format(record)
-        extras = " ".join(f"{key}={value}" for key, value in _extras(record).items())
+        extras = " ".join(f"{key}={_escape(str(value))}" for key, value in _extras(record).items())
         request_id = get_request_id()
         if request_id:
             extras = f"request_id={request_id} {extras}".rstrip()
