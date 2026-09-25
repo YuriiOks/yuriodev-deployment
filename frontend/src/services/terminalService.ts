@@ -16,6 +16,8 @@ import {
 } from '../data/site';
 import type { Theme } from '../context/theme-context';
 import { isHeaderEmojiLine } from '../utils/headerEmoji';
+import { firstLine, truncate } from '../utils/postText';
+import { getPosts, primaryVariant } from './postsApi';
 
 /** The contact card's line for each profile: marker, then the name padded to the column. */
 const CONTACT_MARKERS: Partial<Record<SocialId, string>> = {
@@ -321,7 +323,8 @@ function socialsLines(): TerminalLine[] {
 function sectionsText(): string {
     return [
         'Sections of this page (the header menu and the palette jump to them):',
-        ...SECTIONS.map(({ navLabel, label }) => `  ${navLabel.padEnd(18)}${label}`),
+        ...SECTIONS.map(({ navLabel, label, optional }) =>
+            `  ${navLabel.padEnd(18)}${label}${optional ? ' (only while there is something to show)' : ''}`),
     ].join('\n');
 }
 
@@ -379,6 +382,28 @@ async function statusCommand(): Promise<TerminalLine[]> {
     }
 }
 
+/** How many posts `posts` lists. */
+export const TERMINAL_POSTS = 5;
+
+/** The latest posts: each one's first line, then its link. */
+async function postsCommand(): Promise<TerminalLine[]> {
+    const feed = (await getPosts())?.feed;
+    if (!feed?.enabled || feed.items.length === 0) {
+        return [line('No posts yet.', 'info')];
+    }
+    return [
+        line('Latest posts:', 'warning'),
+        line('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info'),
+        ...feed.items.slice(0, TERMINAL_POSTS).flatMap((item, i) => {
+            const { variant } = primaryVariant(item);
+            return [
+                line(`${i + 1}. ${truncate(firstLine(variant.parts[0]), 60)}`, 'output'),
+                line(`   ${displayUrl(variant.url)}`, 'success'),
+            ];
+        }),
+    ];
+}
+
 type CommandDef = Omit<TerminalCommand, 'name'>;
 
 /** Keyed by command name, in the order `help` and the help panel list them. */
@@ -392,6 +417,7 @@ const REGISTRY = {
     experience: { description: 'Show career highlights', run: TEXT.experience },
     education: { description: 'Display education and certifications', run: TEXT.education },
     status: { description: 'Check the live API: environment and revision', run: statusCommand },
+    posts: { description: 'List the latest posts from LinkedIn and X', run: postsCommand },
     theme: { description: 'Show or switch the theme: theme [dark|light]', argValues: THEMES, run: themeCommand },
     ls: { description: 'List the sections of this page', run: sectionsText },
     whoami: { description: 'Display current user info', run: TEXT.whoami },
