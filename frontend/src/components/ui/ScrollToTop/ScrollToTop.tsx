@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './ScrollToTop.module.css';
+import { scrollBehavior } from '../../../utils/motion';
 
 const ScrollToTop: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -21,7 +22,7 @@ const ScrollToTop: React.FC = () => {
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: scrollBehavior()
     });
   };
 

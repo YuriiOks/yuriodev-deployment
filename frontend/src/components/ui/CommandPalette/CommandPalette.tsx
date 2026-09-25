@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import styles from './CommandPalette.module.css';
+import { scrollBehavior } from '../../../utils/motion';
 
 function scrollToSection(selector:string) {
     const element = document.querySelector(selector);
@@ -10,7 +11,7 @@ function scrollToSection(selector:string) {
         const headerOffset = header ? header.offsetHeight : 70;
         // Document position, not offsetTop: '#terminal' sits inside a positioned section.
         const elementPosition = element.getBoundingClientRect().top + window.scrollY - headerOffset;
-        window.scrollTo({ top: elementPosition, behavior: 'smooth' });
+        window.scrollTo({ top: elementPosition, behavior: scrollBehavior() });
     }
 }
 

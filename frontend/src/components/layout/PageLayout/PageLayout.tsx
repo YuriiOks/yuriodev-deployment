@@ -9,6 +9,7 @@ import HelpPanel from '../../ui/HelpPanel/HelpPanel';
 import ScrollToTop from '../../ui/ScrollToTop/ScrollToTop';
 import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
 import styles from './PageLayout.module.css';
+import { scrollBehavior } from '../../../utils/motion';
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -59,14 +60,14 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
       // Scroll to top with Home key
       if (e.key === 'Home') {
         e.preventDefault();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: scrollBehavior() });
         return;
       }
 
       // Scroll to bottom with End key
       if (e.key === 'End') {
         e.preventDefault();
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        window.scrollTo({ top: document.body.scrollHeight, behavior: scrollBehavior() });
         return;
       }
     };
@@ -104,7 +105,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
 
     const targetSection = allSections[targetIndex];
     if (targetSection) {
-      targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      targetSection.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
     }
   };
 

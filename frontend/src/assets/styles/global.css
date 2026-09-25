@@ -11,6 +11,26 @@ html {
     overflow-x: hidden;
 }
 
+/* Reduced motion: no smooth scrolling, no looping or decorative animation.
+   Animations still run once, instantly, so anything that fades in ends up
+   visible; JavaScript-driven motion checks src/utils/motion.ts. */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 body {
     font-family: 'Fira Code', monospace;
     background: var(--bg-primary);

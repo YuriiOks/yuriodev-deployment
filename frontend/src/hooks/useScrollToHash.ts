@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { scrollBehavior } from '../utils/motion';
 
 /**
  * BrowserRouter does not scroll to a URL fragment after a client-side
@@ -19,6 +20,6 @@ export function useScrollToHash(): void {
     } catch {
       return;
     }
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   }, [hash, key]);
 }

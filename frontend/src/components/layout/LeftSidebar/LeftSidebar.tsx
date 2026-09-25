@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styles from './LeftSidebar.module.css';
+import { scrollBehavior } from '../../../utils/motion';
 
 interface SectionInfo {
   id: string;
@@ -146,7 +147,7 @@ const LeftSidebar: React.FC = () => {
     e.preventDefault();
     const section = document.getElementById(sectionId);
     if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      section.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
       setActiveSection(sectionId);
     }
   };
