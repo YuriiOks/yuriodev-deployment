@@ -135,7 +135,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
       <CanvasBackground />
       <CommandPalette isOpen={overlay === 'palette'} onOpenChange={setPaletteOpen} onShowHelp={openHelp} />
       <HelpPanel isOpen={overlay === 'help'} onClose={closeHelp} />
-      <ScrollToTop />
+      <ScrollToTop suppressed={overlay !== null} />
       <Header onHelpToggle={openHelp} currentPath={currentPath} />
       <LeftSidebar />
       <main id="main-content" ref={mainRef} tabIndex={-1} className={styles.mainContent}>
