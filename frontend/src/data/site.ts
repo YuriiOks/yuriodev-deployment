@@ -223,11 +223,6 @@ type KeyInput = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>;
  * The shortcut a key press triggers, if any. A single-key shortcut never
  * fires with Ctrl, Cmd or Alt held, so Ctrl/Cmd+K is only ever the palette.
  */
-export function shortcutFor(e: KeyInput): ShortcutId | null {
-  return shortcutDefFor(e)?.id ?? null;
-}
-
-/** The whole definition of the shortcut a key press triggers, if any. */
 export function shortcutDefFor(e: KeyInput): ShortcutDef | null {
   const mod = e.ctrlKey || e.metaKey;
   for (const shortcut of SHORTCUTS) {

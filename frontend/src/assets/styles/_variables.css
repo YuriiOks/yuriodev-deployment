@@ -15,8 +15,8 @@
             --z-sidebar: 100;   /* LeftSidebar */
             --z-fab: 150;       /* ScrollToTop */
             --z-header: 200;    /* Header and its menu */
-            --z-overlay: 1000;  /* scrims behind a dialog */
-            --z-modal: 1010;    /* CommandPalette, HelpPanel */
+            --z-overlay: 1000;  /* reserved; dialogs use the top layer */
+            --z-modal: 1010;    /* reserved; dialogs use the top layer */
             --z-toast: 1100;
             --z-boot: 1200;     /* LoadingScreen */
             --z-skip: 1300;     /* skip link */
