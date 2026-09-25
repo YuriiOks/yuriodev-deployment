@@ -15,7 +15,15 @@ from src.feed.normalize import parse_summary
 from src.feed.providers.base import ProviderError
 from src.feed.providers.typefully import TypefullyProvider
 from src.feed.service import FeedConfig, FeedService
-from tests.feed_factory import T0, draft, li_post, simple, summary_row, x_post
+from tests.feed_factory import (
+    T0,
+    StreamingMockTransport,
+    draft,
+    li_post,
+    simple,
+    summary_row,
+    x_post,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -305,15 +313,102 @@ async def test_intentional_drops_do_not_count_as_drift():
     assert ids(feed) == ["x:1009"]
 
 
-async def test_an_unexpected_normaliser_exception_counts_as_schema(monkeypatch):
+@pytest.mark.parametrize("error", [ValueError, OverflowError, KeyError, AttributeError])
+async def test_an_unexpected_normaliser_exception_counts_as_schema(monkeypatch, error):
     def boom(*args, **kwargs):
-        raise ValueError("unexpected")
+        raise error("unexpected")
 
     monkeypatch.setattr("src.feed.service.normalize_draft", boom)
     feed = make_feed(FakeProvider([simple(1)]))
 
     assert (await feed.refresh_once()).outcome is CycleOutcome.OK
     assert feed.state.entries[1].reason == "schema"
+
+
+def renamed_url(n):
+    raw = simple(n)
+    raw["x_permalink"] = raw.pop("x_published_url")
+    return raw
+
+
+def renamed_enabled(n):
+    raw = simple(n)
+    raw["platforms"]["x"]["is_enabled"] = raw["platforms"]["x"].pop("enabled")
+    return raw
+
+
+def renamed_text(n):
+    raw = simple(n)
+    for post in raw["platforms"]["x"]["posts"]:
+        post["body"] = post.pop("text")
+    return raw
+
+
+@pytest.mark.parametrize("rename", [renamed_url, renamed_enabled, renamed_text])
+async def test_a_renamed_upstream_field_trips_the_drift_guard(rename):
+    provider = FakeProvider([simple(n) for n in range(1, 7)])
+    feed = make_feed(provider)
+    await feed.refresh_once()
+    before = ids(feed)
+
+    provider.set(*(rename(n) for n in range(1, 7)))
+    for d in provider.drafts.values():
+        d["updated_at"] = "2026-09-21T00:00:00Z"
+    result = await feed.refresh_once()
+
+    assert result.outcome is CycleOutcome.DRIFT
+    assert ids(feed) == before
+    assert feed.status() == "fresh"
+
+
+async def test_a_draft_that_claims_no_platform_is_an_intentional_drop():
+    drafts = [draft(n) for n in range(1, 5)] + [simple(9)]  # nothing enabled, no permalinks
+
+    feed = make_feed(FakeProvider(drafts))
+
+    assert (await feed.refresh_once()).outcome is CycleOutcome.OK
+    assert ids(feed) == ["x:1009"]
+    assert feed.state.entries[1].reason == "no_valid_variant"
+
+
+async def test_one_unreadable_draft_is_skipped_not_the_whole_cycle():
+    provider = FakeProvider([simple(1), simple(2), simple(3)])
+    provider.draft_errors[3] = ProviderError("bad_response")
+    feed = make_feed(provider)
+
+    for _ in range(2):
+        assert (await feed.refresh_once()).outcome is CycleOutcome.OK
+    assert sorted(ids(feed)) == ["x:1001", "x:1002"]
+    assert feed.state.entries[3].reason == "fetch_failed"
+    assert provider.fetched.count(3) == 1  # not retried until the draft changes
+
+    del provider.draft_errors[3]
+    provider.set(simple(1), simple(2), simple(3, updated="2026-09-21T00:00:00Z"))
+    await feed.refresh_once()
+    assert "x:1003" in ids(feed)
+
+
+async def test_many_unreadable_drafts_count_as_drift():
+    provider = FakeProvider([simple(1)])
+    feed = make_feed(provider)
+    await feed.refresh_once()
+
+    provider.set(*(simple(n) for n in range(1, 6)))
+    provider.drafts[1]["updated_at"] = "2026-09-21T00:00:00Z"
+    for n in range(1, 5):
+        provider.draft_errors[n] = ProviderError("bad_response")
+
+    assert (await feed.refresh_once()).outcome is CycleOutcome.DRIFT
+    assert ids(feed) == ["x:1001"]
+
+
+async def test_an_out_of_range_publish_time_falls_back_instead_of_crashing():
+    raw = simple(1, x_at="9999-12-31T23:59:59-01:00")
+    feed = make_feed(FakeProvider([raw]))
+
+    assert (await feed.refresh_once()).outcome is CycleOutcome.OK
+    (item,) = feed.items("fresh")
+    assert item.variants["x"].published_at == T0
 
 
 # ordering, curation, caps
@@ -420,6 +515,29 @@ async def test_snapshot_round_trip(tmp_path):
     assert restarted.state.entries[2].reason == "schema"
 
 
+@pytest.mark.parametrize(
+    ("find", "replace"),
+    [
+        ("https://x.com/YuriODev/status/1001", "javascript:alert(1)"),
+        ("https://x.com/YuriODev/status/1001", "https://x.com/YuriODev/status/1002"),
+        ('"id":"x:1001"', '"id":"x:9"'),
+    ],
+)
+async def test_a_snapshot_with_a_bad_permalink_is_not_loaded(tmp_path, find, replace):
+    path = tmp_path / "snap.json"
+    await make_feed(
+        FakeProvider([simple(1)]), social_set_id=5, snapshot_path=str(path)
+    ).refresh_once()
+    text = path.read_text()
+    assert find in text
+    path.write_text(text.replace(find, replace))
+
+    restarted = make_feed(FakeProvider(), social_set_id=5, snapshot_path=str(path))
+
+    assert restarted.load_snapshot() is False
+    assert ids(restarted) == []
+
+
 @pytest.mark.parametrize("other", [{"social_set_id": 6}, {"enabled": False}])
 async def test_a_snapshot_for_another_set_or_a_disabled_feed_is_not_loaded(tmp_path, other):
     path = tmp_path / "snap.json"
@@ -479,7 +597,7 @@ async def test_publish_times_come_from_get_draft_not_the_listing(make_settings):
             return httpx.Response(200, json={"results": [row], "next": None})
         return httpx.Response(200, json=full)
 
-    async with build_http_client(make_settings(), httpx.MockTransport(handler)) as client:
+    async with build_http_client(make_settings(), StreamingMockTransport(handler)) as client:
         provider = TypefullyProvider(client, SecretStr("k"), 1, call_gap=0)
         feed = make_feed(provider)
         assert (await feed.refresh_once()).outcome is CycleOutcome.OK
@@ -542,6 +660,29 @@ def test_typefully_without_key_or_set_id_is_misconfigured(make_settings, caplog,
     assert record.levelno == logging.ERROR
     assert set(record.missing) <= {"TYPEFULLY_API_KEY", "TYPEFULLY_SOCIAL_SET_ID"}
     assert record.missing
+
+
+@pytest.mark.parametrize(
+    "key",
+    ["tf-key\nsecond-line", "tf key", "tf-k\u00e9y", "tf-key\x00"],
+)
+def test_a_malformed_key_is_misconfiguration_not_an_outage(make_settings, caplog, key):
+    settings = make_settings(
+        social_feed_enabled=True,
+        social_feed_provider="typefully",
+        typefully_api_key=key,
+        typefully_social_set_id=1,
+    )
+
+    feed = FeedService.from_settings(settings, http=object())
+
+    assert feed.misconfigured is True
+    assert feed.polls is False
+    assert feed.status() == "error"
+    (record,) = [r for r in caplog.records if getattr(r, "event", "") == "feed.misconfigured"]
+    assert record.malformed == ["TYPEFULLY_API_KEY"]
+    assert record.missing == []
+    assert "tf" not in caplog.text
 
 
 async def test_misconfigured_refresh_is_a_no_op_that_stops(make_settings):

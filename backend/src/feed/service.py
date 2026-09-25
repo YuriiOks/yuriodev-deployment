@@ -48,7 +48,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger("yuriodev.feed")
 
 # Drops that are deliberate (fail-closed rules, exclusions) rather than signs of a changed
-# upstream format; only the others count towards the schema-drift guard.
+# upstream format; only the others (schema, incomplete, bad_url, fetch_failed) count towards the
+# schema-drift guard.
 _INTENTIONAL_DROPS = frozenset(
     {"excluded", "not_published", "paid_partnership", "x_article", "no_valid_variant"}
 )
@@ -159,7 +160,8 @@ class FeedService:
             )
 
         key, set_id = settings.typefully_api_key, settings.typefully_social_set_id
-        if key is None or set_id is None or http is None:
+        malformed = key is not None and not _usable_key(key.get_secret_value())
+        if key is None or set_id is None or http is None or malformed:
             missing = [
                 name
                 for name, value in (
@@ -171,7 +173,11 @@ class FeedService:
             ]
             logger.error(
                 "social feed misconfigured: serving curated posts only",
-                extra={"event": "feed.misconfigured", "missing": missing},
+                extra={
+                    "event": "feed.misconfigured",
+                    "missing": missing,
+                    "malformed": ["TYPEFULLY_API_KEY"] if malformed else [],
+                },
             )
             return cls(
                 config,
@@ -319,6 +325,14 @@ class FeedService:
             except ProviderError as exc:
                 if exc.kind == "not_found":  # deleted between the listing and the fetch
                     continue
+                if exc.kind == "bad_response":
+                    # This draft's answer is unusable and asking again will not help: skip it
+                    # until it changes, so one bad draft cannot hold up the whole feed.
+                    counts.fetched += 1
+                    entries[summary.draft_id] = self._drop(
+                        summary.draft_id, summary, "fetch_failed", counts
+                    )
+                    continue
                 return self._failed(exc, "get_draft")
             counts.fetched += 1
             entries[summary.draft_id] = self._normalize(summary.draft_id, raw, summary, counts)
@@ -375,20 +389,28 @@ class FeedService:
         try:
             result = normalize_draft(raw, summary, self.config.exclude_tag)
             item, reason, skipped = result.item, result.reason, result.skipped
-        except (ValueError, TypeError):  # pydantic ValidationError is a ValueError
+        except Exception:  # any surprise in one draft (pydantic, overflow, ...) skips only it
             item, reason, skipped = None, "schema", ()
-        for code in (*skipped, *([reason] if reason else [])):
+        for code in skipped:
             counts.reasons[code] = counts.reasons.get(code, 0) + 1
         if reason is not None:
-            if reason in _INTENTIONAL_DROPS:
-                counts.dropped += 1
-            else:
-                counts.invalid += 1
-            logger.info(
-                "draft skipped",
-                extra={"event": "feed.skipped", "draft_id": draft_id, "reason": reason},
-            )
-        return CachedDraft(updated_at=summary.updated_at, item=item, reason=reason)
+            return self._drop(draft_id, summary, reason, counts)
+        return CachedDraft(updated_at=summary.updated_at, item=item, reason=None)
+
+    def _drop(
+        self, draft_id: int, summary: DraftSummary, reason: str, counts: _Counts
+    ) -> CachedDraft:
+        """Cache a skipped draft (not fetched again until it changes) and count why."""
+        counts.reasons[reason] = counts.reasons.get(reason, 0) + 1
+        if reason in _INTENTIONAL_DROPS:
+            counts.dropped += 1
+        else:
+            counts.invalid += 1
+        logger.info(
+            "draft skipped",
+            extra={"event": "feed.skipped", "draft_id": draft_id, "reason": reason},
+        )
+        return CachedDraft(updated_at=summary.updated_at, item=None, reason=reason)
 
     def _failed(self, exc: ProviderError, step: str) -> CycleResult:
         if exc.kind in ("auth", "not_found"):
@@ -470,6 +492,13 @@ class FeedService:
                 ),
             )
         )
+
+
+def _usable_key(value: str) -> bool:
+    """A key that can go into an HTTP header as is: printable ASCII with no whitespace.
+    Anything else (a pasted newline, a smart quote) would fail inside the HTTP library as if
+    the network were down, so it is reported as misconfiguration instead."""
+    return bool(value) and all("!" <= char <= "~" for char in value)
 
 
 def _load_curation_or_empty(path: Path) -> Curation:

@@ -14,7 +14,7 @@ def imported(item_id="x:1", li=None):
     variants = {
         "x": PostVariant(
             id=item_id,
-            url="https://x.com/YuriODev/status/1",
+            url=f"https://x.com/YuriODev/status/{item_id.removeprefix('x:')}",
             published_at=WHEN,
             parts=("a",),
             truncated=False,

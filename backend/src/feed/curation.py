@@ -15,8 +15,8 @@ from typing import Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
-from src.feed.normalize import cap_parts, clean_text, variant_id
-from src.feed.schemas import FeedItem, Platform, PostVariant
+from src.feed.normalize import cap_parts, clean_text
+from src.feed.schemas import FeedItem, Platform, PostVariant, variant_id
 
 CURATION_PATH = Path(__file__).resolve().parent / "content" / "posts.toml"
 

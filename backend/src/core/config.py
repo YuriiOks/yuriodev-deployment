@@ -71,6 +71,16 @@ class Settings(BaseSettings):
         value = value.strip()
         return value.upper() if info.field_name == "log_level" else value.lower()
 
+    @field_validator("typefully_api_key", mode="before")
+    @classmethod
+    def _strip_key(cls, value: Any) -> Any:
+        # A pasted key often carries a trailing space or newline; blank means unset. Any other
+        # odd character is left in place for the feed to report as misconfigured.
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -5,7 +5,11 @@ notes, titles, tags, internal URLs, media ids, reply settings and any field adde
 later) can never reach a response. Rules:
 
 - One item per draft, with a variant per platform that is enabled, has a permalink matching its
-  pattern, and has text. A draft with no such variant is dropped.
+  pattern, and has text. A draft with no such variant is dropped. The reason says whether that
+  was expected (`no_valid_variant`: no platform claims the post, or every one was dropped by a
+  rule below) or a sign of a changed upstream format (`incomplete`: a platform is enabled or
+  has a permalink but its posts, text, permalink or time are missing; `bad_url`), so the
+  service's drift guard can tell the two apart.
 - Text is kept as written: styled Unicode letters, emoji joiners and variation selectors stay
   (no NFKC). Only control characters (except newline), bidi overrides and comment-thread markup
   are removed. Parts are capped at 5,000 characters and 30 per variant (`truncated`).
@@ -23,16 +27,11 @@ from datetime import UTC, datetime
 from typing import Any, TypeGuard
 
 from src.feed.providers.base import DraftSummary
-from src.feed.schemas import FeedItem, Platform, PostVariant
+from src.feed.schemas import FeedItem, Platform, PostVariant, variant_id
 
 PLATFORMS: tuple[Platform, ...] = ("x", "linkedin")
 MAX_PART_CHARS = 5000
 MAX_PARTS = 30
-
-X_URL = re.compile(r"https://x\.com/[A-Za-z0-9_]{1,15}/status/(\d{1,25})")
-LINKEDIN_URL = re.compile(
-    r"https://www\.linkedin\.com/feed/update/urn:li:(share|activity|ugcPost):(\d{1,25})/?"
-)
 
 # C0 controls except \n, DEL, C1 controls, and the bidi embedding/override/isolate characters.
 _STRIP = re.compile("[\x00-\x09\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]")
@@ -53,11 +52,11 @@ def parse_time(value: Any) -> datetime | None:
         return None
     try:
         parsed = datetime.fromisoformat(value)
-    except ValueError:
+        if parsed.tzinfo is None:
+            return None
+        return parsed.astimezone(UTC).replace(microsecond=0)
+    except (ValueError, OverflowError):  # OverflowError: a year-1 or year-9999 edge in UTC
         return None
-    if parsed.tzinfo is None:
-        return None
-    return parsed.astimezone(UTC).replace(microsecond=0)
 
 
 def parse_summary(raw: Any) -> DraftSummary | None:
@@ -95,20 +94,6 @@ def cap_parts(texts: Sequence[str]) -> tuple[tuple[str, ...], bool]:
     return tuple(parts), truncated
 
 
-def x_variant_id(url: str) -> str | None:
-    match = X_URL.fullmatch(url)
-    return f"x:{match.group(1)}" if match else None
-
-
-def linkedin_variant_id(url: str) -> str | None:
-    match = LINKEDIN_URL.fullmatch(url)
-    return f"li:{match.group(1)}:{match.group(2)}" if match else None
-
-
-def variant_id(platform: Platform, url: str) -> str | None:
-    return x_variant_id(url) if platform == "x" else linkedin_variant_id(url)
-
-
 def normalize_draft(
     raw: Any, summary: DraftSummary | None = None, exclude_tag: str | None = None
 ) -> Normalized:
@@ -136,9 +121,15 @@ def normalize_draft(
     skipped: list[str] = []
     media = False
     bad_url = False
+    incomplete = False
     for platform in PLATFORMS:
         plist = posts[platform] or []
-        if not _enabled(platforms.get(platform)) or not plist:
+        url = raw.get(f"{platform}_published_url")
+        enabled = _enabled(platforms.get(platform))
+        if not enabled or not plist:
+            # Enabled without posts, or a permalink on a platform that is off or empty: the
+            # post exists but a field it needs was not found (renamed upstream?).
+            incomplete = incomplete or enabled or url is not None
             continue
         if platform == "x" and any(_flag(p, "subscribers_only") for p in plist):
             skipped.append("x:subscribers_only")
@@ -146,17 +137,24 @@ def normalize_draft(
         if platform == "linkedin" and any(p.get("linkedin_reshare_urn") for p in plist):
             skipped.append("linkedin:reshare")
             continue
-        url = raw.get(f"{platform}_published_url")
         vid = variant_id(platform, url) if isinstance(url, str) else None
         if vid is None or not isinstance(url, str):
-            bad_url = bad_url or url is not None  # a missing URL is not a bad one
+            if url is None:
+                incomplete = True
+            else:
+                bad_url = True
             continue
-        texts = [clean_text(p["text"]) for p in plist if isinstance(p.get("text"), str)]
-        texts = [t for t in texts if t]
+        raw_texts = [p.get("text") for p in plist]
+        if not any(isinstance(t, str) for t in raw_texts):
+            incomplete = True
+            continue
+        texts = [t for t in (clean_text(r) for r in raw_texts if isinstance(r, str)) if t]
         if not texts:
+            skipped.append(f"{platform}:empty")  # published without text (media only)
             continue
         published = parse_time(raw.get(f"{platform}_post_published_at")) or fallback
         if published is None:
+            incomplete = True
             continue
         parts, truncated = cap_parts(texts)
         variants[platform] = PostVariant(
@@ -167,7 +165,8 @@ def normalize_draft(
     if not variants:
         if _is_x_article(raw, platforms):
             return Normalized(None, "x_article", tuple(skipped))
-        return Normalized(None, "bad_url" if bad_url else "no_valid_variant", tuple(skipped))
+        reason = "bad_url" if bad_url else "incomplete" if incomplete else "no_valid_variant"
+        return Normalized(None, reason, tuple(skipped))
 
     first: Platform = "x" if "x" in variants else "linkedin"
     item = FeedItem(

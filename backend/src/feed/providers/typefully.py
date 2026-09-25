@@ -13,11 +13,13 @@
 - Rate limits: the `X-RateLimit-*` headers are read on every response (their numbers are not
   published). A 429 reports the reset time; a nearly spent budget defers the remaining
   get_draft calls to the next cycle. Calls are sequential with a short gap.
+- A listing is all or nothing: one row without a usable id or update time fails the call, so a
+  changed listing format can never empty the feed as if the drafts had been deleted.
 """
 
 import asyncio
-import contextlib
 import logging
+import math
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, Literal
@@ -44,7 +46,17 @@ def _provider_kind(upstream_kind: str) -> ProviderErrorKind:
         return "not_found"
     if upstream_kind == "rate_limited":
         return "rate_limited"
-    return "transient"  # timeouts, 5xx, redirects, wrong content type, oversize, bad JSON
+    if upstream_kind in ("timeout", "connect", "http_5xx"):
+        return "transient"
+    return "bad_response"  # redirects and other statuses, wrong content type, oversize, bad JSON
+
+
+def _finite(value: str) -> float | None:
+    try:
+        number = float(value)
+    except ValueError:
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _remaining_and_reset(headers: Mapping[str, str]) -> tuple[int | None, float | None]:
@@ -56,9 +68,8 @@ def _remaining_and_reset(headers: Mapping[str, str]) -> tuple[int | None, float 
         key = name.lower()
         if not key.startswith("x-ratelimit-"):
             continue
-        try:
-            number = float(value)
-        except ValueError:
+        number = _finite(value)
+        if number is None:
             continue
         if key.endswith("-remaining"):
             remaining.append(int(number))
@@ -67,8 +78,9 @@ def _remaining_and_reset(headers: Mapping[str, str]) -> tuple[int | None, float 
             resets.append(number - now if number > 1e9 else number)
     retry_after = headers.get("retry-after")
     if retry_after is not None:
-        with contextlib.suppress(ValueError):  # the HTTP-date form is not used by Typefully
-            resets.append(float(retry_after))
+        delay = _finite(retry_after)  # the HTTP-date form is not used by Typefully
+        if delay is not None:
+            resets.append(delay)
     return (min(remaining) if remaining else None), (max(resets) if resets else None)
 
 
@@ -99,7 +111,7 @@ class TypefullyProvider:
     def should_defer(self) -> bool:
         return self._remaining is not None and self._remaining < LOW_BUDGET
 
-    async def _get(self, url: str, params: Mapping[str, str | int]) -> Any:
+    async def _get(self, url: str, params: Mapping[str, str | int], *, draft: bool = False) -> Any:
         if self._calls:
             await self._sleep(self._call_gap)
         self._calls += 1
@@ -112,6 +124,10 @@ class TypefullyProvider:
             if remaining is not None:
                 self._remaining = remaining
             kind = _provider_kind(exc.kind)
+            if draft and exc.status == 403:
+                # A key the listing just accepted but that may not read this one draft: skip
+                # the draft rather than stop polling (a revoked key answers 401).
+                kind = "bad_response"
             logger.info(
                 "typefully call failed",
                 extra={"event": "feed.upstream_error", "kind": exc.kind, "status": exc.status},
@@ -127,16 +143,26 @@ class TypefullyProvider:
             {"status": "published", "order_by": "-published_at", "limit": PAGE_LIMIT, "offset": 0},
         )
         if not isinstance(body, Mapping) or not isinstance(body.get("results"), list):
-            raise ProviderError("transient")
-        summaries: list[DraftSummary] = []
-        for row in body["results"][:PAGE_LIMIT]:
-            summary = parse_summary(row)
-            if summary is not None:
-                summaries.append(summary)
-        return summaries
+            raise ProviderError("bad_response")
+        rows = body["results"][:PAGE_LIMIT]
+        summaries = [parse_summary(row) for row in rows]
+        valid = [s for s in summaries if s is not None]
+        if len(valid) != len(rows):
+            logger.warning(
+                "listing rows failed validation: keeping the previous snapshot",
+                extra={
+                    "event": "feed.listing_invalid",
+                    "rows": len(rows),
+                    "invalid": len(rows) - len(valid),
+                },
+            )
+            raise ProviderError("bad_response")
+        return valid
 
     async def get_draft(self, draft_id: int) -> Mapping[str, Any]:
-        body = await self._get(f"{self._base}/{int(draft_id)}", {"exclude_comment_markers": "true"})
+        body = await self._get(
+            f"{self._base}/{int(draft_id)}", {"exclude_comment_markers": "true"}, draft=True
+        )
         if not isinstance(body, Mapping):
-            raise ProviderError("transient")
+            raise ProviderError("bad_response")
         return body

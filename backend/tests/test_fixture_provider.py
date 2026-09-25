@@ -25,6 +25,14 @@ async def test_an_unknown_draft_is_not_found():
         await FixtureProvider().get_draft(999_999)
 
 
+async def test_a_fixture_row_without_an_update_time_fails_the_whole_listing(tmp_path):
+    path = tmp_path / "drafts.json"
+    path.write_text('{"drafts": [{"id": 1, "updated_at": "2026-09-20T08:30:00Z"}, {"id": 2}]}')
+
+    with pytest.raises(ProviderError, match="bad_response"):
+        await FixtureProvider(path).list_published()
+
+
 @pytest.fixture(params=[None, "not json", '{"no_drafts": []}', '{"drafts": [1]}'])
 def broken_fixture(request, tmp_path):
     path = tmp_path / "drafts.json"

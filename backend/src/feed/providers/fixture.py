@@ -34,8 +34,11 @@ class FixtureProvider:
         return self._drafts
 
     async def list_published(self) -> list[DraftSummary]:
-        summaries = (parse_summary(d) for d in self._load().values())
-        return [s for s in summaries if s is not None]
+        summaries = [parse_summary(d) for d in self._load().values()]
+        valid = [s for s in summaries if s is not None]
+        if len(valid) != len(summaries):  # never a partial list, as for the real provider
+            raise ProviderError("bad_response")
+        return valid
 
     async def get_draft(self, draft_id: int) -> Mapping[str, Any]:
         try:

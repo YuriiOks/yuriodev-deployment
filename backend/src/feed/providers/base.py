@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, Protocol
 
-ProviderErrorKind = Literal["transient", "rate_limited", "auth", "not_found"]
+# transient: timeouts, refused connections, 5xx; worth retrying the whole cycle.
+# bad_response: an answer that will not get better by asking again (wrong content type, oversize,
+#   not JSON, an unexpected status). On a single draft it skips that draft, not the cycle.
+ProviderErrorKind = Literal["transient", "bad_response", "rate_limited", "auth", "not_found"]
 
 
 @dataclass(frozen=True)

@@ -3,6 +3,8 @@
 import copy
 from datetime import UTC, datetime
 
+import httpx
+
 SENTINELS = (
     "PRIVATE-SCRATCHPAD-SENTINEL",
     "PRIVATE-TITLE-SENTINEL",
@@ -125,3 +127,22 @@ def summary_row(full):
     row = {k: copy.deepcopy(v) for k, v in full.items() if k != "platforms"}
     row["x_post_published_at"] = None
     return row
+
+
+class StreamingMockTransport(httpx.MockTransport):
+    """A MockTransport whose responses arrive unread, as from a network transport.
+
+    `httpx.Response(content=...)` reads (and decodes) its body at construction; a real transport
+    hands over an unread stream, and `get_json_capped` reads the raw bytes itself.
+    """
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        response = await super().handle_async_request(request)
+        return httpx.Response(
+            response.status_code, headers=response.headers, stream=response.stream
+        )
+
+
+def raw_response(status, body, **headers):
+    """A response whose body is sent exactly as given (not decoded when it is built)."""
+    return httpx.Response(status, headers=headers, stream=httpx.ByteStream(body))

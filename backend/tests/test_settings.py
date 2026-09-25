@@ -148,6 +148,15 @@ def test_an_empty_api_key_line_means_unset(clean_env):
     assert settings.typefully_social_set_id is None
 
 
+@pytest.mark.parametrize(("raw", "expected"), [(" tf-key\n", "tf-key"), (" \t\n", None)])
+def test_the_api_key_is_stripped_and_blank_means_unset(clean_env, raw, expected):
+    clean_env.setenv("TYPEFULLY_API_KEY", raw)
+
+    key = fresh().typefully_api_key
+
+    assert (key.get_secret_value() if key else None) == expected
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [

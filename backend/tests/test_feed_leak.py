@@ -17,6 +17,7 @@ from src.feed.service import FeedConfig, FeedService
 from tests.feed_factory import (
     FORBIDDEN_KEYS,
     SENTINELS,
+    StreamingMockTransport,
     draft,
     li_post,
     simple,
@@ -64,7 +65,7 @@ async def test_typefully_path_leaks_nothing_to_body_or_snapshot(tmp_path, make_s
 
     snapshot = tmp_path / "snap.json"
     settings = make_settings()
-    async with build_http_client(settings, httpx.MockTransport(handler)) as client:
+    async with build_http_client(settings, StreamingMockTransport(handler)) as client:
         provider = TypefullyProvider(client, SecretStr("k"), 1, call_gap=0)
         feed = FeedService(
             FeedConfig(enabled=True, social_set_id=1, snapshot_path=str(snapshot)),

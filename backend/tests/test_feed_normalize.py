@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from src.feed.normalize import (
     MAX_PART_CHARS,
@@ -12,6 +13,7 @@ from src.feed.normalize import (
     parse_summary,
     parse_time,
 )
+from src.feed.schemas import FeedItem, PostVariant
 from tests.feed_factory import draft, li_post, summary_row, x_post
 
 
@@ -106,8 +108,47 @@ def test_bad_linkedin_permalinks_are_rejected(url):
     assert normalize_draft(draft(7, linkedin=[li_post("t")], li_link=url)).reason == "bad_url"
 
 
-def test_a_missing_permalink_is_no_valid_variant():
-    assert normalize_draft(draft(8, x=[x_post("t")], x_link=None)).reason == "no_valid_variant"
+def test_a_missing_permalink_is_incomplete():
+    assert normalize_draft(draft(8, x=[x_post("t")], x_link=None)).reason == "incomplete"
+
+
+def test_a_draft_that_claims_no_platform_is_no_valid_variant():
+    assert normalize_draft(draft(8)).reason == "no_valid_variant"
+
+
+def test_a_permalink_on_a_platform_that_looks_off_is_incomplete():
+    raw = draft(8, x=[x_post("t")])
+    raw["platforms"]["x"]["is_enabled"] = raw["platforms"]["x"].pop("enabled")
+
+    assert normalize_draft(raw).reason == "incomplete"
+
+
+def test_an_enabled_platform_without_posts_is_incomplete():
+    raw = draft(8, x=[x_post("t")])
+    raw["platforms"]["x"]["items"] = raw["platforms"]["x"].pop("posts")
+
+    assert normalize_draft(raw).reason == "incomplete"
+
+
+def test_posts_without_a_text_field_are_incomplete():
+    raw = draft(8, x=[x_post("t")])
+    raw["platforms"]["x"]["posts"][0]["body"] = raw["platforms"]["x"]["posts"][0].pop("text")
+
+    assert normalize_draft(raw).reason == "incomplete"
+
+
+def test_a_media_only_post_is_an_intentional_drop():
+    result = normalize_draft(draft(8, x=[x_post("   ")]))
+
+    assert result.reason == "no_valid_variant"
+    assert result.skipped == ("x:empty",)
+
+
+def test_a_subscriber_only_x_post_alone_is_an_intentional_drop():
+    result = normalize_draft(draft(8, x=[x_post("t", subscribers_only=True)]))
+
+    assert result.reason == "no_valid_variant"
+    assert result.skipped == ("x:subscribers_only",)
 
 
 def test_one_bad_variant_does_not_drop_the_good_one():
@@ -179,7 +220,7 @@ def test_variant_time_falls_back_to_the_listing_when_the_draft_has_none():
 def test_no_time_at_all_drops_the_variant():
     raw = draft(17, x=[x_post("t")], x_at=None, published=None)
 
-    assert normalize_draft(raw).reason == "no_valid_variant"
+    assert normalize_draft(raw).reason == "incomplete"
 
 
 # fail-closed rules
@@ -289,6 +330,10 @@ def test_parse_summary_rejects_unusable_rows(row):
     assert parse_summary(row) is None
 
 
+def test_parse_summary_rejects_an_out_of_range_update_time():
+    assert parse_summary({"id": 1, "updated_at": "0001-01-01T00:00:00+01:00"}) is None
+
+
 def test_parse_summary_tolerates_missing_tags():
     assert parse_summary({"id": 1, "updated_at": "2026-09-20T08:30:00Z"}).tags == ()
 
@@ -302,7 +347,49 @@ def test_parse_summary_tolerates_missing_tags():
         ("not a time", None),
         (None, None),
         (1695000000, None),
+        ("0001-01-01T00:00:00+01:00", None),  # before year 1 in UTC
+        ("9999-12-31T23:59:59-01:00", None),  # after year 9999 in UTC
     ],
 )
 def test_parse_time(value, expected):
     assert parse_time(value) == expected
+
+
+# the public models check permalinks themselves
+
+
+@pytest.mark.parametrize(
+    ("vid", "url"),
+    [
+        ("x:1", "javascript:alert(1)"),
+        ("x:1", "https://x.com/YuriODev/status/2"),
+        ("li:share:1", "https://x.com/YuriODev/status/1"),
+    ],
+)
+def test_a_variant_whose_url_is_not_its_permalink_is_rejected(vid, url):
+    with pytest.raises(ValidationError):
+        PostVariant(
+            id=vid,
+            url=url,
+            published_at=datetime(2026, 9, 20, tzinfo=UTC),
+            parts=("t",),
+            truncated=False,
+        )
+
+
+def test_an_item_checks_its_id_and_platform_keys():
+    variant = item_of(draft(30, x=[x_post("t")])).variants["x"]
+    base = {
+        "published_at": variant.published_at,
+        "origin": "typefully",
+        "pinned": False,
+        "featured": False,
+        "has_media": False,
+    }
+
+    with pytest.raises(ValidationError):
+        FeedItem(id="x:9", variants={"x": variant}, **base)
+    with pytest.raises(ValidationError):
+        FeedItem(id=variant.id, variants={"linkedin": variant}, **base)
+    with pytest.raises(ValidationError):
+        FeedItem(id=variant.id, variants={}, **base)

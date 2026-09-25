@@ -11,7 +11,7 @@ from src.deps import get_feed_service
 from src.feed.providers.base import ProviderError
 from src.feed.service import FeedConfig, FeedService
 from src.routes.posts import etag_matches
-from tests.feed_factory import simple, summary_row
+from tests.feed_factory import StreamingMockTransport, simple, summary_row
 
 
 def test_disabled_by_default_returns_the_empty_contract(client):
@@ -137,7 +137,7 @@ def use_transport(monkeypatch, handler):
     original = src.core.http.build_http_client
 
     def patched(settings, transport=None):
-        return original(settings, httpx.MockTransport(handler))
+        return original(settings, StreamingMockTransport(handler))
 
     monkeypatch.setattr(src.core.http, "build_http_client", patched)
 
