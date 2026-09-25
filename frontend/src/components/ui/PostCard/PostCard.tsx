@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import LinkifiedText from '../LinkifiedText/LinkifiedText';
 import {
   PLATFORM_LABELS,
@@ -7,6 +7,7 @@ import {
   type PostItem,
 } from '../../../services/postsApi';
 import { accessibleSummary, formatFullDate, formatRelativeTime } from '../../../utils/postText';
+import { scrollBehavior } from '../../../utils/motion';
 import styles from './PostCard.module.css';
 
 interface PostCardProps {
@@ -29,7 +30,10 @@ function looksLong(text: string): boolean {
 const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
   const titleId = useId();
   const bodyId = useId();
+  const articleRef = useRef<HTMLElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
+  // Set by "Show less" until the collapse has been laid out.
+  const collapsing = useRef(false);
   const [expanded, setExpanded] = useState(false);
   // Whether the clamped first part hides lines; null until the browser has
   // measured it.
@@ -40,7 +44,9 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
   const parts = variant.parts;
   const thread = parts.length > 1;
   const shown = expanded ? parts : parts.slice(0, 1);
-  const canExpand = thread || expanded || (overflowing ?? looksLong(parts[0]));
+  // The clamp hides part of the (collapsed) first part.
+  const clipped = !expanded && (overflowing ?? looksLong(parts[0]));
+  const canExpand = thread || expanded || clipped;
   const xThread = item.variants.x && item.variants.x.parts.length > 1 ? item.variants.x.parts.length : 0;
 
   useEffect(() => {
@@ -53,11 +59,29 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
     return () => observer.disconnect();
   }, [expanded]);
 
+  // After "Show less", a reader who was deep in a long thread would be left
+  // below the card: bring its top back into view (scroll-padding-top keeps it
+  // clear of the fixed header). Focus stays on the button.
+  useLayoutEffect(() => {
+    const article = articleRef.current;
+    if (expanded || !collapsing.current || !article) return;
+    collapsing.current = false;
+    const headerClearance = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    if (article.getBoundingClientRect().top < headerClearance) {
+      article.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+    }
+  }, [expanded]);
+
+  const toggle = () => {
+    collapsing.current = expanded;
+    setExpanded(!expanded);
+  };
+
   const where = platforms.map((p) => PLATFORM_LABELS[p]).join(' and ');
   const when = formatFullDate(item.publishedAt);
 
   return (
-    <article className={styles.card} aria-labelledby={titleId}>
+    <article ref={articleRef} className={styles.card} aria-labelledby={titleId}>
       <h3 id={titleId} className="sr-only">
         {`Post on ${where}, ${when}: ${accessibleSummary(parts[0])}`}
       </h3>
@@ -83,6 +107,7 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
             ref={i === 0 ? textRef : undefined}
             text={part}
             platform={platform}
+            linksFocusable={!clipped}
             className={expanded ? styles.part : `${styles.part} ${styles.clamped}`}
           />
         ))}
@@ -97,25 +122,13 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
           className={styles.expand}
           aria-expanded={expanded}
           aria-controls={bodyId}
-          onClick={() => setExpanded((open) => !open)}
+          onClick={toggle}
         >
           {expanded ? 'Show less' : thread ? `Show full thread (${parts.length})` : 'Show more'}
         </button>
       )}
 
-      {item.image ? (
-        <img
-          className={styles.image}
-          src={item.image.url}
-          alt={item.image.alt}
-          loading="lazy"
-          decoding="async"
-          width={640}
-          height={360}
-        />
-      ) : (
-        item.hasMedia && <p className={styles.note}>Includes images or video: see the original.</p>
-      )}
+      {item.hasMedia && <p className={styles.note}>Includes images or video: see the original.</p>}
 
       <ul className={styles.links} aria-label="Originals">
         {platforms.map((p) => (

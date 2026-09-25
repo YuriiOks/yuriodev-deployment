@@ -52,21 +52,12 @@ export interface PostVariant {
   readonly truncated: boolean;
 }
 
-/**
- * An image hosted by the site itself (under /api/), with its alt text. Not in
- * version 1 of the contract yet; accepted when a later backend adds it.
- */
-export interface PostImage {
-  readonly url: string;
-  readonly alt: string;
-}
-
 export interface PostItem {
   readonly id: string;
   readonly publishedAt: string;
   readonly pinned: boolean;
+  /** The original has images or video (not carried by version 1: the card says so and links out). */
   readonly hasMedia: boolean;
-  readonly image: PostImage | null;
   readonly variants: Readonly<Partial<Record<PostPlatform, PostVariant>>>;
 }
 
@@ -111,18 +102,9 @@ function parseVariant(platform: PostPlatform, raw: unknown): PostVariant | null 
   };
 }
 
-function parseImage(raw: unknown): PostImage | null {
-  const first: unknown = Array.isArray(raw) ? raw[0] : undefined;
-  if (!isObject(first)) return null;
-  const { url, alt } = first;
-  // Same origin only: the page never loads a third-party image.
-  if (typeof url !== 'string' || !/^\/api\/[^\s"'<>\\]+$/.test(url) || url.includes('//')) return null;
-  return { url, alt: typeof alt === 'string' ? alt : '' };
-}
-
 function parseItem(raw: unknown): PostItem | null {
   if (!isObject(raw)) return null;
-  const { id, published_at: publishedAt, pinned, has_media: hasMedia, variants, media } = raw;
+  const { id, published_at: publishedAt, pinned, has_media: hasMedia, variants } = raw;
   if (typeof id !== 'string' || !isDate(publishedAt) || !isObject(variants)) return null;
   const parsed: Partial<Record<PostPlatform, PostVariant>> = {};
   for (const platform of PLATFORMS) {
@@ -135,7 +117,6 @@ function parseItem(raw: unknown): PostItem | null {
     publishedAt,
     pinned: pinned === true,
     hasMedia: hasMedia === true,
-    image: parseImage(media),
     variants: parsed,
   };
 }

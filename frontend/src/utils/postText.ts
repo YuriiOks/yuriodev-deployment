@@ -7,13 +7,14 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-const relative = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto' });
+const relative = new Intl.RelativeTimeFormat('en-GB', { numeric: 'always' });
 const absolute = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const full = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short' });
 
 /**
- * "just now", "5 minutes ago", "3 hours ago", "yesterday", "4 days ago",
- * "2 weeks ago"; from 30 days on, the date itself ("24 Sept 2026"). A time in
+ * "just now", "5 minutes ago", "3 hours ago", "1 day ago", "4 days ago",
+ * "2 weeks ago" (elapsed time, never calendar words such as "yesterday",
+ * which a count of whole days can get wrong); from 30 days on, the date itself ("24 Sept 2026"). A time in
  * the future (a clock running behind) counts as just now. Empty for an
  * invalid date.
  */

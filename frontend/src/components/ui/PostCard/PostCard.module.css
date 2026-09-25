@@ -12,7 +12,8 @@
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.card:focus-within {
+/* Lit while a keyboard user is inside it; a mouse click leaves it dark. */
+.card:has(:focus-visible) {
   border-color: var(--accent-primary);
   box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.25);
 }
@@ -87,6 +88,9 @@
   -webkit-line-clamp: 6;
   line-clamp: 6;
   overflow: hidden;
+  /* Unlike hidden, clip cannot be scrolled, so nothing can shift the
+     clamped text (a find-in-page match, a script's scrollIntoView). */
+  overflow: clip;
 }
 
 .note {
@@ -98,7 +102,10 @@
 .expand {
   justify-self: start;
   min-height: 44px;
-  padding: 0 0.25rem;
+  /* No inline padding: the label lines up with the text above it. The
+     negative margin takes back the button's own vertical slack. */
+  margin-top: -0.5rem;
+  padding: 0;
   border: none;
   background: none;
   color: var(--accent-primary);
@@ -107,15 +114,6 @@
   text-decoration: underline;
   text-underline-offset: 0.2em;
   cursor: pointer;
-}
-
-.image {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 6px;
-  background: var(--section-shaded-bg);
 }
 
 /* Links to the originals */

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PostCard from './PostCard';
@@ -26,7 +26,7 @@ describe('PostCard', () => {
     render(<PostCard item={post} now={NOW} />);
     const badges = within(screen.getByRole('list', { name: 'Published on' })).getAllByRole('listitem');
     expect(badges.map((badge) => badge.textContent)).toEqual(['LinkedIn', 'X · thread of 3']);
-    const time = screen.getByText('yesterday');
+    const time = screen.getByText('1 day ago');
     expect(time.tagName).toBe('TIME');
     expect(time).toHaveAttribute('datetime', '2026-09-24T08:00:00Z');
   });
@@ -76,14 +76,57 @@ describe('PostCard', () => {
     expect(screen.queryByRole('link', { name: '@friend' })).not.toBeInTheDocument();
   });
 
-  it('shows an image with its alt text, or says the original has media', () => {
-    const withImage = rawItem({ x: xVariant(['t']) }, { has_media: true, media: [{ url: '/api/media/1.jpg', alt: 'Architecture diagram' }] });
-    const { unmount } = render(<PostCard item={item(withImage)} now={NOW} />);
-    expect(screen.getByRole('img', { name: 'Architecture diagram' })).toHaveAttribute('src', '/api/media/1.jpg');
-    unmount();
-
-    render(<PostCard item={item(rawItem({ x: xVariant(['t']) }, { has_media: true }))} now={NOW} />);
+  it('says when the original has images or video, and never loads one', () => {
+    const withMedia = rawItem({ x: xVariant(['t']) }, { has_media: true, media: [{ url: '/api/media/1.jpg', alt: 'Diagram' }] });
+    render(<PostCard item={item(withMedia)} now={NOW} />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByText(/Includes images or video/)).toBeInTheDocument();
+  });
+
+  it('keeps links in clamped text out of the Tab order until the post is expanded', async () => {
+    const user = userEvent.setup();
+    const long = `${'word '.repeat(60)}\nRead https://example.com/write-up and more ${'word '.repeat(40)}`;
+    render(<PostCard item={item(rawItem({ linkedin: linkedinVariant(long) }))} now={NOW} />);
+    const inText = screen.getByRole('link', { name: 'example.com/write-up' });
+    expect(inText).toHaveAttribute('tabindex', '-1');
+
+    // Tab goes straight to "Show more", then to the original.
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Show more' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('link', { name: /View on LinkedIn/ })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Show more' }));
+    expect(screen.getByRole('link', { name: 'example.com/write-up' })).not.toHaveAttribute('tabindex');
+  });
+
+  it('leaves links in short, unclamped text in the Tab order', () => {
+    render(<PostCard item={item(rawItem({ linkedin: linkedinVariant('See https://example.com/a') }))} now={NOW} />);
+    expect(screen.getByRole('link', { name: 'example.com/a' })).not.toHaveAttribute('tabindex');
+  });
+
+  it('brings the card back into view on "Show less" when its top has scrolled away', async () => {
+    const user = userEvent.setup();
+    render(<PostCard item={item(rawItem({ x: xVariant(['first part', 'second part']) }))} now={NOW} />);
+    const article = screen.getByRole('article');
+    const scrollIntoView = vi.fn();
+    article.scrollIntoView = scrollIntoView;
+    const toggle = screen.getByRole('button', { name: 'Show full thread (2)' });
+
+    await user.click(toggle);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    // The reader has scrolled down the thread: the card's top is above the view.
+    const top = vi.spyOn(article, 'getBoundingClientRect').mockReturnValue({ top: -500 } as DOMRect);
+    await user.click(toggle);
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'start' }));
+    expect(toggle).toHaveFocus();
+
+    // Collapsing with the card's top still in view leaves the page alone.
+    await user.click(toggle);
+    top.mockReturnValue({ top: 200 } as DOMRect);
+    scrollIntoView.mockClear();
+    await user.click(toggle);
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });

@@ -90,15 +90,12 @@ describe('parsePostsResponse', () => {
     expect(parsePostsResponse(payload(items(MAX_POSTS + 5)))!.items).toHaveLength(MAX_POSTS);
   });
 
-  it('accepts an image only from the site itself', () => {
-    const withMedia = (media: unknown) =>
-      parsePostsResponse(payload([rawItem({ x: xVariant(['t']) }, { media })]))!.items[0].image;
-    expect(withMedia([{ url: '/api/media/abc.jpg', alt: 'A diagram' }])).toEqual({ url: '/api/media/abc.jpg', alt: 'A diagram' });
-    expect(withMedia([{ url: 'https://pbs.example/img.jpg', alt: 'x' }])).toBeNull();
-    expect(withMedia([{ url: '//evil.example/img.jpg', alt: 'x' }])).toBeNull();
-    expect(withMedia([{ url: '/api//evil.example/img.jpg', alt: 'x' }])).toBeNull();
-    expect(withMedia([{ url: 'javascript:alert(1)', alt: 'x' }])).toBeNull();
-    expect(withMedia(undefined)).toBeNull();
+  it('ignores a media field: version 1 carries only has_media', () => {
+    const raw = rawItem({ x: xVariant(['t']) }, { has_media: true, media: [{ url: '/api/media/abc.jpg', alt: 'A diagram' }] });
+    const [item] = parsePostsResponse(payload([raw]))!.items;
+    expect(item.hasMedia).toBe(true);
+    expect(Object.keys(item)).not.toContain('image');
+    expect(Object.keys(item)).not.toContain('media');
   });
 
   it('hasEnoughPosts needs the feed on and at least 3 posts', () => {

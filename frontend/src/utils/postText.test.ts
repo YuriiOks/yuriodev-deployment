@@ -13,9 +13,10 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(ago(MIN), NOW)).toBe('1 minute ago');
     expect(formatRelativeTime(ago(5 * MIN), NOW)).toBe('5 minutes ago');
     expect(formatRelativeTime(ago(3 * HOUR + 20 * MIN), NOW)).toBe('3 hours ago');
-    expect(formatRelativeTime(ago(DAY + HOUR), NOW)).toBe('yesterday');
+    expect(formatRelativeTime(ago(DAY + HOUR), NOW)).toBe('1 day ago');
     expect(formatRelativeTime(ago(4 * DAY), NOW)).toBe('4 days ago');
-    expect(formatRelativeTime(ago(7 * DAY), NOW)).toBe('last week');
+    expect(formatRelativeTime(ago(7 * DAY), NOW)).toBe('1 week ago');
+    expect(formatRelativeTime(ago(13 * DAY), NOW)).toBe('1 week ago');
     expect(formatRelativeTime(ago(15 * DAY), NOW)).toBe('2 weeks ago');
   });
 
