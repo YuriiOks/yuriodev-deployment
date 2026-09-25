@@ -89,6 +89,29 @@ describe('App routing', () => {
     expect(document.title).toBe(title);
   });
 
+  it.each([
+    ['/', 'https://yuriodev.co.uk/'],
+    ['/privacy', 'https://yuriodev.co.uk/privacy'],
+    ['/privacy/', 'https://yuriodev.co.uk/privacy'],
+    ['/courses', 'https://yuriodev.co.uk/'],
+    ['/does-not-exist', 'https://yuriodev.co.uk/'],
+  ])('sets the canonical URL and og:url on %s', (path, url) => {
+    renderAppAt(path);
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', url);
+    expect(document.head.querySelector('meta[property="og:url"]')).toHaveAttribute('content', url);
+  });
+
+  it('points the canonical URL back at the home page after leaving /privacy', async () => {
+    const user = userEvent.setup();
+    renderAppAt('/privacy');
+    await user.click(screen.getByRole('link', { name: '--portfolio', hidden: true }));
+    expect(window.location.pathname).toBe('/');
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://yuriodev.co.uk/',
+    );
+  });
+
   it('renders a not-found page with a link home and a noindex tag for unknown paths', () => {
     renderAppAt('/does-not-exist');
     expect(screen.getByRole('heading', { level: 1, name: /page not found/i })).toBeInTheDocument();

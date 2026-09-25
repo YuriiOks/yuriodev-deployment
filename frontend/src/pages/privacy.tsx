@@ -2,9 +2,17 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './text-page.module.css';
 
 const CONTACT_EMAIL = 'yurii.oksamytnyi@yuriodev.co.uk';
+const [EMAIL_USER, EMAIL_DOMAIN] = CONTACT_EMAIL.split('@');
+
+/** The contact address as a mailto link; on narrow screens it wraps after the @. */
+const ContactEmail = () => (
+  <a href={`mailto:${CONTACT_EMAIL}`}>
+    {EMAIL_USER}@<wbr />{EMAIL_DOMAIN}
+  </a>
+);
 
 const Privacy = () => {
-  usePageTitle('Privacy');
+  usePageTitle('Privacy', '/privacy');
 
   return (
     <section className={styles.page} aria-labelledby="privacy-title">
@@ -17,12 +25,15 @@ const Privacy = () => {
         <h2>Who is responsible</h2>
         <p>
           This is the personal website of Yurii Oksamytnyi, London, UK, who is the controller of
-          the personal data described here. Contact: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          the personal data described here. Contact: <ContactEmail />.
         </p>
 
         <h2>What is stored on your device</h2>
         <ul>
-          <li>Your light or dark theme choice, in your browser's local storage, so the site remembers it.</li>
+          <li>
+            The light or dark theme in use (your choice, or your system's default), in your
+            browser's local storage, so the site remembers it.
+          </li>
           <li>A flag in session storage so the intro animation plays only once per visit. Your browser deletes it when you close the tab.</li>
         </ul>
         <p>
@@ -67,7 +78,7 @@ const Privacy = () => {
           Under UK data protection law you can ask for a copy of personal data about you, ask for
           it to be corrected or deleted, or object to its use. If you are named on this site and
           would like that changed or removed, just ask. Email{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. You can also complain to the{' '}
+          <ContactEmail />. You can also complain to the{' '}
           <a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener noreferrer">
             Information Commissioner's Office
           </a>.
