@@ -2,8 +2,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { ThemeProvider } from './context/ThemeContext';
 import App from './App';
-import { EMAILS, IDENTITY, PROJECT_LINKS, displayUrl, socialsFor } from './data/site';
-import { terminalCommands } from './services/terminalService';
+import { EMAILS, IDENTITY, PROJECT_LINKS, SOCIALS, displayUrl, socialsFor } from './data/site';
+import { execute } from './services/terminalService';
+
+/** A synchronous terminal command's output as plain text. */
+function terminalText(input: string): string {
+  const result = execute(input, { theme: 'dark', setTheme: () => {} });
+  if (result instanceof Promise || result.kind !== 'lines') throw new Error(`${input} is not a text command`);
+  return result.lines.map(({ text }) => text).join('\n');
+}
 
 function renderHome() {
   window.history.pushState({}, '', '/');
@@ -45,12 +52,13 @@ describe('every surface links what data/site.ts says', () => {
     expect(screen.getByRole('link', { name: 'Collaborate with Me' })).toHaveAttribute('href', `mailto:${EMAILS.contact}`);
   });
 
-  it('terminal: contact prints the personal address and each terminal profile', () => {
-    const contact = terminalCommands.contact();
+  it('terminal: contact prints the personal address and each terminal profile, socials every profile', () => {
+    const contact = terminalText('contact');
     expect(contact).toContain(EMAILS.personal);
     for (const { url } of socialsFor('terminal')) expect(contact).toContain(displayUrl(url));
     expect(contact).toContain(displayUrl(IDENTITY.website));
-    expect(terminalCommands.projects()).toContain(displayUrl(PROJECT_LINKS.pythonCourse));
+    expect(terminalText('projects')).toContain(displayUrl(PROJECT_LINKS.pythonCourse));
+    for (const { url } of SOCIALS) expect(terminalText('socials')).toContain(displayUrl(url));
   });
 
   it('the Python course links use the YuriODev casing everywhere they render', () => {
