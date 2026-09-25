@@ -30,8 +30,12 @@ class FakeIntersectionObserver {
   }
 }
 
+/** Every step function the provider has handed out. */
+const stepsSeen = new Set<unknown>();
+
 function Probe() {
   const nav = useSectionNav();
+  stepsSeen.add(nav.step);
   const navigate = useNavigate();
   const { pathname, hash } = useLocation();
   return (
@@ -148,6 +152,16 @@ describe('SectionNavProvider', () => {
     await user.click(screen.getByText('next'));
     await user.click(screen.getByText('previous'));
     expect(scrolledTo()).toEqual(['skills', 'skills', 'about']);
+  });
+
+  it('keeps step stable while the active section changes', () => {
+    stepsSeen.clear();
+    renderAt('/');
+    const [observer] = FakeIntersectionObserver.instances;
+    observer.enter('about');
+    observer.enter('skills');
+    expect(state().active).toBe('skills');
+    expect(stepsSeen.size).toBe(1);
   });
 
   it('goTo scrolls on the home page and opens the home page at the section elsewhere', async () => {

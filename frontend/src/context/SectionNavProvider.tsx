@@ -43,21 +43,28 @@ export const SectionNavProvider: React.FC<SectionNavProviderProps> = ({ mainRef,
     [onHome, navigate],
   );
 
+  // Reads the tracker when called rather than the rendered snapshot, so it
+  // stays stable while scrolling and the J/K key listener is bound once.
+  const step = useCallback(
+    (direction: 1 | -1) => {
+      if (!onHome) return;
+      const { present, active } = parseSnapshot(tracker.snapshot());
+      if (present.length === 0) return;
+      const index = active === null ? -1 : present.indexOf(active);
+      const target = index === -1 ? 0 : Math.min(Math.max(index + direction, 0), present.length - 1);
+      scrollToId(present[target]);
+    },
+    [onHome, tracker],
+  );
+
   const value = useMemo<SectionNav>(() => {
     const parsed = parseSnapshot(snapshot);
     const present = onHome ? parsed.present : [];
     const activeId = onHome ? parsed.active : null;
     const sections = SECTIONS.filter((section) => !section.optional || present.includes(section.id));
 
-    const step = (direction: 1 | -1) => {
-      if (present.length === 0) return;
-      const index = activeId === null ? -1 : present.indexOf(activeId);
-      const target = index === -1 ? 0 : Math.min(Math.max(index + direction, 0), present.length - 1);
-      scrollToId(present[target]);
-    };
-
     return { sections, present, activeId, onHome, goTo, step };
-  }, [snapshot, onHome, goTo]);
+  }, [snapshot, onHome, goTo, step]);
 
   return <SectionNavContext.Provider value={value}>{children}</SectionNavContext.Provider>;
 };
