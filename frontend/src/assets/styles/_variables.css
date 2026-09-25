@@ -21,6 +21,10 @@
             --z-boot: 1200;     /* LoadingScreen */
             --z-skip: 1300;     /* skip link */
 
+            /* Keyboard focus ring (global.css): amber, >= 3:1 on every
+               background in its theme. */
+            --focus-ring: #ffc107;
+
             /* Layout. LeftSidebar.module.css derives its position from this
                width (and the sections' 2rem padding); update it there too. */
             --content-max-width: 75%;
@@ -98,6 +102,8 @@
 
         [data-theme="light"] {
             color-scheme: light;
+
+            --focus-ring: #944903;
 
             --bg-primary: #f8fafc;
             --bg-secondary: rgba(255, 255, 255, 0.95);

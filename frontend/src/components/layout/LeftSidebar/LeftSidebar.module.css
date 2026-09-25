@@ -21,7 +21,7 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    gap: 18px;
+    gap: 4px;
     width: fit-content; /* Dynamically adjust to content */
     /* No transition on left/width: the overlap guard measures the settled box. */
     transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease, background-color 0.3s ease, padding 0.3s ease;
@@ -89,7 +89,8 @@
     position: relative;
     text-decoration: none;
     z-index: var(--z-decor);
-    height: 10px;
+    /* At least a 24px-tall target (44px on touch screens, below). */
+    min-height: 24px;
     padding-left: 22px;
     cursor: pointer;
     width: 105%; /* Take full width of parent for consistent alignment */
@@ -194,4 +195,15 @@
                 0 3px 10px rgba(0, 0, 0, 0.06),
                 inset 0 1px 0 rgba(255, 255, 255, 1);
     border: 1px solid rgba(var(--accent-secondary-rgb), 0.2);
+}
+
+/* Touch screens: 44px-tall rows. */
+@media (pointer: coarse) {
+    .leftSidebarNav {
+        gap: 0;
+    }
+
+    .sidebarNavLink {
+        min-height: 44px;
+    }
 }

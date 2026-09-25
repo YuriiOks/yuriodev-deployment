@@ -13,6 +13,16 @@ html {
     overflow-x: hidden;
 }
 
+/* One keyboard focus ring for every interactive element, in both themes.
+   Specificity (0,2,0) beats a module's bare `.x { outline: none }`; a module's
+   own `.x:focus-visible` (loaded later) may adjust it but must keep a visible
+   indicator. main (tabindex -1, focused after navigation) opts out in
+   PageLayout.module.css. */
+:is(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
 /* Reduced motion: no smooth scrolling, no looping or decorative animation.
    Animations still run once, instantly, so anything that fades in ends up
    visible; JavaScript-driven motion checks src/utils/motion.ts. */

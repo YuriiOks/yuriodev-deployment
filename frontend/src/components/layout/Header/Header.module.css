@@ -80,7 +80,6 @@
     border: 2px solid var(--button-nav-border);
     color: var(--button-nav-text);
     box-shadow: none;
-    outline: none;
     white-space: nowrap;
     box-sizing: border-box;
     flex-shrink: 0;
@@ -108,8 +107,8 @@
     box-shadow: var(--button-nav-hover-shadow);
 }
 
-.themeToggle:focus, .mobileMenuToggle:focus, .helpToggle:focus {
-    outline: none;
+/* The global focus ring stays; this only adds the hover look. */
+.themeToggle:focus-visible, .mobileMenuToggle:focus-visible, .helpToggle:focus-visible {
     border-color: var(--button-nav-hover-border);
     box-shadow: 0 0 0 3px var(--button-nav-hover-shadow);
 }

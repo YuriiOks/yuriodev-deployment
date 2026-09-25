@@ -211,10 +211,14 @@
     color: var(--success);
     font-family: 'Fira Code', monospace;
     font-size: 1rem;
-    outline: none;
     font-weight: 600;
     text-shadow: 0 0 8px rgba(var(--success-rgb), 0.5);
     caret-color: var(--success);
+}
+
+/* Ring inside the field, so the terminal window's edge does not clip it. */
+.terminalInput:focus-visible {
+    outline-offset: -2px;
 }
 
 [data-theme="light"] .terminalInput {
