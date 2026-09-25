@@ -28,8 +28,9 @@
     outline-offset: -2px;
 }
 
+/* --text-2, not --text-muted: the dialog is glass. */
 .commandInput::placeholder {
-    color: var(--text-muted);
+    color: var(--text-2);
 }
 
 .commandResults {

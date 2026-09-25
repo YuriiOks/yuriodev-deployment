@@ -220,11 +220,6 @@
   color: var(--text-muted);
 }
 
-/* Light theme - Orange separator */
-[data-theme="light"] .dateSeparator {
-  color: #94a3b8;
-}
-
 .ongoingBadge {
   font-size: 0.7rem;
   padding: 0.2rem 0.6rem;
@@ -427,41 +422,41 @@
 
 /* AI/ML Technologies - Purple */
 .tag-ai {
-  background: rgba(138, 43, 226, 0.15);
-  border-color: #8A2BE2;
-  color: #BB86FC;
+  background: rgba(var(--hue-violet-rgb), 0.15);
+  border-color: var(--hue-violet);
+  color: var(--hue-violet);
 }
 
 .tag-ai:hover {
-  background: rgba(138, 43, 226, 0.25);
+  background: rgba(var(--hue-violet-rgb), 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--hue-violet-rgb), 0.3);
 }
 
 /* Cloud & Infrastructure - Blue */
 .tag-cloud {
-  background: rgba(30, 144, 255, 0.15);
-  border-color: #1E90FF;
-  color: #4FC3F7;
+  background: rgba(var(--hue-blue-rgb), 0.15);
+  border-color: var(--hue-blue);
+  color: var(--hue-blue);
 }
 
 .tag-cloud:hover {
-  background: rgba(30, 144, 255, 0.25);
+  background: rgba(var(--hue-blue-rgb), 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(30, 144, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--hue-blue-rgb), 0.3);
 }
 
 /* Programming Languages - Green */
 .tag-language {
-  background: rgba(0, 200, 83, 0.15);
-  border-color: #00C853;
-  color: #69F0AE;
+  background: rgba(var(--hue-green-rgb), 0.15);
+  border-color: var(--hue-green);
+  color: var(--hue-green);
 }
 
 .tag-language:hover {
-  background: rgba(0, 200, 83, 0.25);
+  background: rgba(var(--hue-green-rgb), 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 200, 83, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--hue-green-rgb), 0.3);
 }
 
 /* Domain/Industry - Orange */
@@ -492,15 +487,15 @@
 
 /* Education & Soft Skills - Pink */
 .tag-education {
-  background: rgba(255, 64, 129, 0.15);
-  border-color: #FF4081;
-  color: #FF80AB;
+  background: rgba(var(--hue-pink-rgb), 0.15);
+  border-color: var(--hue-pink);
+  color: var(--hue-pink);
 }
 
 .tag-education:hover {
-  background: rgba(255, 64, 129, 0.25);
+  background: rgba(var(--hue-pink-rgb), 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 64, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--hue-pink-rgb), 0.3);
 }
 
 /* Default - Original accent color */
@@ -553,27 +548,29 @@
 }
 
 /* Discord Link Styling */
+/* Discord's blurple, in shades that reach 4.5:1: lighter on the dark
+   card, deeper on the white one and under the white hover text. */
 .discordLink {
-  color: #5865F2;
+  color: #7289DA;
   border-color: #5865F2;
   background: rgba(88, 101, 242, 0.1);
 }
 
 .discordLink:hover {
-  background: #5865F2;
+  background: #4752C4;
   color: white;
   box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
   transform: translateX(4px) translateY(-2px);
 }
 
 [data-theme="light"] .discordLink {
-  color: #5865F2;
+  color: #4752C4;
   border-color: #5865F2;
   background: rgba(88, 101, 242, 0.08);
 }
 
 [data-theme="light"] .discordLink:hover {
-  background: #5865F2;
+  background: #4752C4;
   color: white;
 }
 
