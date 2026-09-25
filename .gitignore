@@ -71,3 +71,9 @@ __MACOSX/
 !/CLAUDE.md
 !/ERRORS.md
 CLAUDE.local.md
+
+# Build and runtime byproducts
+__pycache__/
+*.pyc
+*.tsbuildinfo
+backend/logs/
