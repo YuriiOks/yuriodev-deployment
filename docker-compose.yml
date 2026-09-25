@@ -44,9 +44,9 @@ services:
         required: false
 
   proxy:
-    # Pinned by digest: Dependabot's docker-compose entry proposes new digests and CI's
-    # proxy-image job scans this exact image. The deploy agent ignores non-ghcr.io images, so
-    # a new pin goes live only by hand, at a quiet time (deploy/README.md, "The proxy image").
+    # Pinned by digest: Dependabot's docker-compose entry proposes new digests and the
+    # proxy-image.yml workflow scans this exact image. The deploy agent ignores non-ghcr.io
+    # images, so a new pin goes live only by hand (deploy/README.md, "The proxy image").
     image: nginx:stable-alpine@sha256:985220252f3863977e468f611ef118ebd01421289dd86ee1ae99cb068c3bce2b
     container_name: yuriodev-proxy
     ports:

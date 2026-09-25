@@ -93,39 +93,6 @@ jobs:
             echo "== $f"; docker compose -f "$f" config --quiet
           done
 
-  # The proxy runs a public nginx image pinned by digest in docker-compose.yml (Dependabot
-  # proposes new digests). Fails on a fixable HIGH/CRITICAL CVE in that exact image: the fix is
-  # to merge Dependabot's bump (or pin a fresh digest by hand), then recreate the proxy.
-  proxy-image:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Read the pinned proxy image from docker-compose.yml
-        id: ref
-        run: |
-          image=$(awk '/^  proxy:/{p=1} p&&/^    image:/{print $2; exit}' docker-compose.yml)
-          case "$image" in
-            *@sha256:*) echo "image=$image" >> "$GITHUB_OUTPUT"; echo "Scanning $image" ;;
-            *) echo "::error::the proxy image '$image' is not pinned by digest"; exit 1 ;;
-          esac
-      - name: No fixable HIGH/CRITICAL in the pinned proxy image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ steps.ref.outputs.image }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
-          output: trivy-proxy.txt
-      - name: Scan summary
-        if: ${{ !cancelled() && steps.ref.outputs.image != '' }}
-        env:
-          IMAGE: ${{ steps.ref.outputs.image }}
-        run: |
-          { echo "### Trivy (proxy $IMAGE, fixable HIGH/CRITICAL)"; echo '```'; cat trivy-proxy.txt 2>/dev/null || echo "(no report)"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-
   images:
     runs-on: ubuntu-24.04
     needs: [frontend, backend, guards]
