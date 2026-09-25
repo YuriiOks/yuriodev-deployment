@@ -40,13 +40,16 @@ jobs:
         id: probe
         run: |
           problems=()
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/" || echo 000)
+          # curl prints the write-out ("000") even when it fails, so default only an EMPTY result:
+          # `|| echo 000` would append a second 000 on a timeout or refused connection.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/" || true); code=${code:-000}
           [ "$code" = 200 ] || problems+=("site / returned HTTP $code")
           # The default shell is `bash -e`: every command substitution below must not be able to
           # fail (|| true), or the step dies before `failed` is set and no issue is opened --
           # exactly when /api/health answers with a Cloudflare/nginx HTML error page.
           status=; env_name=; revision=
-          health_code=$(curl -s -o health.json -w '%{http_code}' --max-time 20 "$SITE/api/health" || echo 000)
+          health_code=$(curl -s -o health.json -w '%{http_code}' --max-time 20 "$SITE/api/health" || true)
+          health_code=${health_code:-000}
           if [ "${{ inputs.simulate_html_health }}" = true ]; then
             printf '<html><head><title>502 Bad Gateway</title></head></html>\n' > health.json
           fi
