@@ -306,6 +306,26 @@
   font-size: 0.95rem;
 }
 
+/* A LinkedIn profile named in a description. Underlined at rest: colour
+   alone does not set a link apart from the text around it. */
+.personLink {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.personLink:hover {
+  color: var(--accent-secondary);
+}
+
+.personLinkIcon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
 /* Highlights Section */
 .highlightsSection {
   margin: 1.5rem 0;
