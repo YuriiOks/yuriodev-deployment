@@ -41,7 +41,8 @@
                "From X up" is (min-width: Xrem); "below X" is
                (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
                overlap. src/assets/styles/breakpoints.test.ts rejects any
-               other width. */
+               other width outside the files still listed in its
+               NOT_YET_ON_SCALE. */
             
             /* Dark Mode (Default Theme) */
             --bg-primary: #0a0f1c;

@@ -21,7 +21,7 @@ const HeroSection: React.FC = () => {
 
   return (
     <section className={styles.heroSection} id="hero">
-      <h1 className={styles.heroTitle}>YURII OKSAMYTNYI</h1>
+      <h1 className={styles.heroTitle}>{IDENTITY.name}</h1>
       <p className={styles.heroSubtitle}>AI/ML Systems Engineer | Agentic Architect</p>
       <div className={styles.typewriter} id="typewriter" aria-hidden="true">{typedMessage}</div>
       <p className="sr-only">{messagesForScreenReaders}</p>

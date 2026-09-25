@@ -44,7 +44,7 @@ export interface SectionDef {
   readonly optional?: boolean;
 }
 
-/** In DOM order on '/'. site.test.ts renders the home page and checks it. */
+/** In DOM order on '/'. site.test.tsx renders the home page and checks it. */
 export const SECTIONS: readonly SectionDef[] = [
   { id: 'hero', label: 'Hero', navLabel: '--hero' },
   { id: 'about', label: 'About', navLabel: '--about' },
