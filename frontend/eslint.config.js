@@ -20,4 +20,11 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // The site ships no console output; debug logging must not creep back.
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'error',
+    },
+  },
 ])

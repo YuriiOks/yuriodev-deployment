@@ -38,10 +38,6 @@ function AppContent() {
     
     // Re-enable scrolling
     document.body.style.overflow = '';
-    
-    // Console message
-    console.log('%c$ ./initialize_yuriodev --status=complete', 'color: #FFC107; font-family: "Fira Code", monospace; font-weight: 600;');
-    console.log('%c✓ Portfolio loaded successfully', 'color: #00ff88; font-family: "Fira Code", monospace;');
   };
 
   // Show ONLY loading screen without any layout wrapper

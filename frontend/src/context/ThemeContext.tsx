@@ -27,17 +27,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prevTheme => {
-      const newTheme = prevTheme === 'dark' ? 'light' : 'dark';
-
-      // Terminal-style console output (matching original HTML)
-      console.log(`%c$ ./set_theme --mode=${newTheme}`, 'color: #FFC107; font-family: "Fira Code", monospace; font-weight: 600;');
-      console.log(`%c✓ Theme switched to: ${newTheme} mode`, 'color: #00ff88; font-family: "Fira Code", monospace;');
-      console.log(`%c✓ Interface colors updated`, 'color: #00ff88; font-family: "Fira Code", monospace;');
-      console.log(`%c✓ Neural network visualization adjusted`, 'color: #00ff88; font-family: "Fira Code", monospace;');
-
-      return newTheme;
-    });
+    setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
   };
 
   return (
