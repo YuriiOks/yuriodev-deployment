@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { terminalCommands } from '../../../services/terminalService';
+import { runTerminalCommand } from '../../../services/terminalService';
 import { isHeaderEmojiLine } from '../../../utils/headerEmoji';
 import styles from './InteractiveTerminal.module.css';
 
@@ -87,6 +87,9 @@ const InteractiveTerminal: React.FC = () => {
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Enter that confirms an IME composition (CJK input and similar) is not
+    // a command submission. Safari reports it as keyCode 229 instead.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter') {
       const command = input.trim().toLowerCase();
       if (command) {
@@ -97,7 +100,7 @@ const InteractiveTerminal: React.FC = () => {
         ];
         
         // Execute command
-        const commandOutput = terminalCommands[command]?.();
+        const commandOutput = runTerminalCommand(command);
         
         if (commandOutput === 'CLEAR_TERMINAL') {
           setOutput([]);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { terminalCommands } from './terminalService';
+import { runTerminalCommand, terminalCommands } from './terminalService';
 
 describe('terminalCommands', () => {
   it('returns non-empty output for every known command', () => {
@@ -36,5 +36,24 @@ describe('terminalCommands', () => {
     const contact = terminalCommands.contact();
     expect(contact).toContain('linkedin.com/in/y-oks');
     expect(contact).toContain('x.com/YuriODev');
+  });
+
+  it('runTerminalCommand runs known commands', () => {
+    expect(runTerminalCommand('help')).toBe(terminalCommands.help());
+  });
+
+  it.each(['constructor', '__proto__', 'hasOwnProperty', 'toString', 'valueOf'])(
+    'runTerminalCommand treats the inherited name %s as unknown',
+    (name) => {
+      expect(runTerminalCommand(name)).toBeUndefined();
+    },
+  );
+
+  it('no output contains a replacement character or the retired --details hint', () => {
+    for (const name of Object.keys(terminalCommands)) {
+      const output = terminalCommands[name]();
+      expect(output, name).not.toContain('\uFFFD');
+      expect(output, name).not.toContain('--details');
+    }
   });
 });

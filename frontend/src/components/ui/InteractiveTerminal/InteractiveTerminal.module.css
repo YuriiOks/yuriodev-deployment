@@ -423,7 +423,7 @@
     }
 
     .terminalInput {
-        font-size: 0.9rem;
+        font-size: 1rem; /* at least 16px, or iOS zooms in on focus */
     }
 
     .terminalPromptInteractive {
@@ -470,7 +470,7 @@
     }
 
     .terminalInput {
-        font-size: 0.85rem;
+        font-size: 1rem; /* at least 16px, or iOS zooms in on focus */
     }
 
     .terminalPromptInteractive {
