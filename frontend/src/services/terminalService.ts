@@ -48,7 +48,6 @@ whoami     - Display current user info`,
     contact: () => `Contact Information:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📧 Email:    yurii.oksamytnyi@yuriodev.co.uk
-📱 Phone:    +44 7767 336011
 🔗 LinkedIn: linkedin.com/in/y-oks
 𝕏  X:        x.com/YuriODev
 💻 GitHub:   github.com/YuriiOks
@@ -98,7 +97,7 @@ Available for:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👨‍💻 AI/ML Systems Engineer | Agentic Architect
 🎓 MLX Applied Machine Learning Graduate
-📊 8+ years building production AI systems
+📊 10+ years building production AI systems
 📍 Based in London, UK
 
 Mission: Democratizing AI/ML education through

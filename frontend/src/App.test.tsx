@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from './context/ThemeContext';
 import App from './App';
 
@@ -56,5 +57,23 @@ describe('App routing', () => {
     for (const id of targets) {
       expect(document.getElementById(id), `#${id}`).not.toBeNull();
     }
+  });
+
+  it('home page states 10+ years of experience and shows no phone number', async () => {
+    const user = userEvent.setup();
+    const { container } = renderAppAt('/');
+
+    expect(container).toHaveTextContent('"10+ years in production AI"');
+
+    // The About story is collapsed by default; open it so its text counts too.
+    for (const button of screen.getAllByRole('button', { hidden: true })) {
+      if (/story/i.test(button.textContent ?? '')) await user.click(button);
+    }
+    expect(container).toHaveTextContent('10+ years in the trenches');
+
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/\b8\+ years/);
+    expect(text).not.toMatch(/phone|\+44|7767/i);
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
   });
 });

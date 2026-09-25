@@ -56,4 +56,16 @@ describe('terminalCommands', () => {
       expect(output, name).not.toContain('--details');
     }
   });
+
+  it('contact shows no phone number', () => {
+    const contact = terminalCommands.contact();
+    expect(contact).not.toMatch(/phone|\+44|\d{4} ?\d{6}/i);
+  });
+
+  it('states experience as 10+ years', () => {
+    expect(terminalCommands.about()).toContain('10+ years building production AI systems');
+    for (const name of Object.keys(terminalCommands)) {
+      expect(terminalCommands[name](), name).not.toMatch(/\b8\+ years/);
+    }
+  });
 });

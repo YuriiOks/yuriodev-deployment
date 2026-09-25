@@ -20,7 +20,6 @@ export interface AboutData {
   achievements: Achievement[];
   contact: {
     email: string;
-    phone: string;
     location: string;
     linkedin: string;
     x: string;
@@ -30,7 +29,7 @@ export interface AboutData {
 
 export const aboutData: AboutData = {
   headline: "AI/ML Systems Engineer | Agentic Architect",
-  yearsExperience: "8+",
+  yearsExperience: "10+",
   summary: `Specialized in building production-grade AI/ML systems with focus on agentic architectures, RAG pipelines, and cloud-native platforms. Currently architecting intelligent agents and democratizing ML education through hands-on learning.`,
   
   mission: `Building the next generation of AI education — moving beyond theory to production-ready skills. Creating open-source resources and learning platforms that bridge the gap between knowing and doing.`,
@@ -76,7 +75,6 @@ export const aboutData: AboutData = {
   
   contact: {
     email: "yurii.oksamytnyi@yuriodev.co.uk",
-    phone: "+44 7767 336011",
     location: "London, UK",
     linkedin: "https://linkedin.com/in/y-oks",
     x: "https://x.com/YuriODev",
