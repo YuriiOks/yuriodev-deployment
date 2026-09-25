@@ -1,12 +1,12 @@
 .skillTerminal {
     background: var(--bg-card);
-    border: 1px solid rgba(6, 182, 212, 0.4);
+    border: 1px solid rgba(var(--accent-primary-rgb), 0.4);
     border-radius: 8px;
     padding: 0;
     font-family: 'Fira Code', monospace;
     font-size: 0.9rem;
     line-height: 1.6;
-    box-shadow: 0 4px 16px rgba(6, 182, 212, 0.1);
+    box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.1);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -38,18 +38,18 @@
 
 [data-theme="light"] .skillTerminal {
     background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(249, 115, 22, 0.4);
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+    border: 1px solid rgba(var(--accent-secondary-rgb), 0.4);
+    box-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.12);
 }
 
 [data-theme="light"] .skillTerminal:hover {
-    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3) !important;
-    border-color: #f97316 !important;
+    box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.3) !important;
+    border-color: var(--amber-edge) !important;
     transform: translateY(-4px);
 }
 
 .skillHeader {
-    background: rgba(6, 182, 212, 0.08);
+    background: rgba(var(--accent-primary-rgb), 0.08);
     color: var(--accent-secondary);
     font-weight: 600;
     padding: 0 1.5rem;
@@ -58,12 +58,12 @@
     display: flex;
     align-items: center;
     font-size: clamp(0.85rem, 2vw, 1rem);
-    border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+    border-bottom: 1px solid rgba(var(--accent-primary-rgb), 0.3);
 }
 
 [data-theme="light"] .skillHeader {
-    background: rgba(249, 115, 22, 0.06);
-    border-bottom-color: rgba(249, 115, 22, 0.2);
+    background: rgba(var(--accent-secondary-rgb), 0.06);
+    border-bottom-color: rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 .terminalPrompt {
@@ -184,23 +184,21 @@
     box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
 }
 
-/* Database Tags - Cyan/Teal */
+/* Database Tags - the brand cyan */
 .tag_database {
-    background: rgba(6, 182, 212, 0.15);
-    border-color: #06b6d4;
-    color: #22d3ee;
+    background: rgba(var(--cyan-rgb), 0.15);
+    border-color: var(--cyan-edge);
+    color: var(--cyan-text);
 }
 
 [data-theme="light"] .tag_database {
-    background: rgba(6, 182, 212, 0.1);
-    border-color: #0891b2;
-    color: #0e7490;
+    background: rgba(var(--cyan-rgb), 0.1);
 }
 
 .tag_database:hover {
-    background: rgba(6, 182, 212, 0.25);
+    background: rgba(var(--cyan-rgb), 0.25);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--cyan-rgb), 0.3);
 }
 
 /* Model Tags - Pink/Rose */
@@ -222,23 +220,22 @@
     box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
 }
 
-/* Language Tags - Green/Emerald */
+/* Language Tags - Green */
 .tag_language {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: #10b981;
+    background: rgba(var(--hue-green-rgb), 0.15);
+    border-color: var(--hue-green);
     color: #6ee7b7;
 }
 
 [data-theme="light"] .tag_language {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: #059669;
-    color: #047857;
+    background: rgba(var(--hue-green-rgb), 0.1);
+    color: var(--hue-green);
 }
 
 .tag_language:hover {
-    background: rgba(16, 185, 129, 0.25);
+    background: rgba(var(--hue-green-rgb), 0.25);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--hue-green-rgb), 0.3);
 }
 
 /* Cloud Tags - Blue/Sky */
@@ -260,23 +257,21 @@
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-/* Tool Tags - Amber/Yellow */
+/* Tool Tags - the brand amber */
 .tag_tool {
-    background: rgba(245, 158, 11, 0.15);
-    border-color: #f59e0b;
-    color: #fbbf24;
+    background: rgba(var(--amber-rgb), 0.15);
+    border-color: var(--amber-edge);
+    color: var(--amber-text);
 }
 
 [data-theme="light"] .tag_tool {
-    background: rgba(245, 158, 11, 0.1);
-    border-color: #d97706;
-    color: #b45309;
+    background: rgba(var(--amber-rgb), 0.1);
 }
 
 .tag_tool:hover {
-    background: rgba(245, 158, 11, 0.25);
+    background: rgba(var(--amber-rgb), 0.25);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--amber-rgb), 0.3);
 }
 
 /* Concept Tags - Indigo */
@@ -300,23 +295,20 @@
 
 /* Metric Tags - Orange (Highlight) */
 .tag_metric {
-    background: rgba(249, 115, 22, 0.2);
-    border-color: #f97316;
-    color: #fb923c;
+    background: rgba(var(--hue-orange-rgb), 0.2);
+    border-color: var(--hue-orange);
+    color: var(--hue-orange);
     font-weight: 600;
 }
 
 [data-theme="light"] .tag_metric {
-    background: rgba(249, 115, 22, 0.15);
-    border-color: #ea580c;
-    color: #c2410c;
-    font-weight: 600;
+    background: rgba(var(--hue-orange-rgb), 0.1);
 }
 
 .tag_metric:hover {
-    background: rgba(249, 115, 22, 0.3);
+    background: rgba(var(--hue-orange-rgb), 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--hue-orange-rgb), 0.4);
 }
 
 /* ============================================ */

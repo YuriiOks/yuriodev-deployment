@@ -131,14 +131,14 @@
 }
 
 .cardHeader {
-  background: rgba(6, 182, 212, 0.08);  /* Cyan overlay */
-  border-bottom: 1px solid rgba(6, 182, 212, 0.3);  /* Cyan border */
+  background: rgba(var(--accent-primary-rgb), 0.08);  /* Cyan overlay */
+  border-bottom: 1px solid rgba(var(--accent-primary-rgb), 0.3);  /* Cyan border */
   padding: 0.75rem 1.5rem;
 }
 
 [data-theme="light"] .cardHeader {
-  background: rgba(249, 115, 22, 0.06);
-  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+  background: rgba(var(--accent-secondary-rgb), 0.06);
+  border-bottom: 1px solid rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 .terminalPrompt {
@@ -150,7 +150,7 @@
 
 /* Light theme - Orange terminal prompt */
 [data-theme="light"] .terminalPrompt {
-  color: #ea580c;
+  color: var(--accent-secondary);
 }
 
 .cardContent {
@@ -261,7 +261,7 @@
 
 /* Light theme - Orange bullets */
 [data-theme="light"] .bullet {
-  color: #f97316;
+  color: var(--accent-secondary);
 }
 
 /* Achievements Section */

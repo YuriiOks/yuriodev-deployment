@@ -4,8 +4,8 @@
     transition: all 0.3s ease;
     animation: slideIn 0.5s ease-out;
     background: var(--bg-card);
-    border: 1px solid rgba(6, 182, 212, 0.4);
-    box-shadow: 0 4px 16px rgba(6, 182, 212, 0.1);
+    border: 1px solid rgba(var(--accent-primary-rgb), 0.4);
+    box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.1);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -33,8 +33,8 @@
 /* Light theme card styling */
 [data-theme="light"] .projectCard {
     background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(217, 119, 6, 0.4);
-    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.12);
+    border: 1px solid rgba(var(--amber-rgb), 0.4);
+    box-shadow: 0 2px 8px rgba(var(--amber-rgb), 0.12);
 }
 
 /* Featured badge styling */
@@ -52,7 +52,7 @@
 
 /* Light theme hover */
 [data-theme="light"] .projectCard:hover {
-    box-shadow: 0 8px 24px rgba(217, 119, 6, 0.3) !important;
+    box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.3) !important;
     border-color: var(--accent-secondary) !important;
     transform: translateY(-4px);
 }
@@ -70,8 +70,8 @@
 
 /* Card Header - matching TimelineItem with fixed height */
 .projectHeader {
-    background: rgba(6, 182, 212, 0.08);
-    border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+    background: rgba(var(--accent-primary-rgb), 0.08);
+    border-bottom: 1px solid rgba(var(--accent-primary-rgb), 0.3);
     padding: 1rem 1.5rem;
     min-height: 5rem;
     display: flex;
@@ -82,8 +82,8 @@
 
 /* Light theme header */
 [data-theme="light"] .projectHeader {
-    background: rgba(217, 119, 6, 0.06);
-    border-bottom-color: rgba(217, 119, 6, 0.2);
+    background: rgba(var(--amber-rgb), 0.06);
+    border-bottom-color: rgba(var(--amber-rgb), 0.2);
 }
 
 /* Header content wrapper */
@@ -200,7 +200,7 @@
 /* Light theme highlighted metrics */
 [data-theme="light"] .highlightedMetric {
     color: var(--accent-secondary);
-    background: rgba(217, 119, 6, 0.12);
+    background: rgba(var(--amber-rgb), 0.12);
 }
 
 /* Highlighted Code Elements (quoted text) */
@@ -218,8 +218,8 @@
 /* Light theme highlighted code */
 [data-theme="light"] .highlightedCode {
     color: var(--accent-primary);
-    background: rgba(0, 89, 179, 0.1);
-    border-color: rgba(0, 89, 179, 0.25);
+    background: rgba(var(--cyan-rgb), 0.1);
+    border-color: rgba(var(--cyan-rgb), 0.25);
 }
 
 /* Expandable Section */
@@ -249,7 +249,7 @@
 
 /* Light theme expand button */
 [data-theme="light"] .expandButton {
-    background: rgba(217, 119, 6, 0.08);
+    background: rgba(var(--amber-rgb), 0.08);
     border-color: var(--accent-secondary);
     color: var(--accent-secondary);
 }
@@ -276,7 +276,7 @@
 
 /* Light theme details */
 [data-theme="light"] .projectDetails {
-    background: rgba(217, 119, 6, 0.04);
+    background: rgba(var(--amber-rgb), 0.04);
     border-left-color: var(--accent-secondary);
 }
 
@@ -359,14 +359,14 @@
 
 /* Light theme methodology tags */
 [data-theme="light"] .techTag.methodology {
-    background: rgba(217, 119, 6, 0.08);
+    background: rgba(var(--amber-rgb), 0.08);
     border-color: var(--accent-secondary);
     color: var(--accent-secondary);
 }
 
 [data-theme="light"] .techTag.methodology:hover {
-    background: rgba(217, 119, 6, 0.15);
-    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
+    background: rgba(var(--amber-rgb), 0.15);
+    box-shadow: 0 4px 12px rgba(var(--amber-rgb), 0.2);
 }
 
 /* Links */

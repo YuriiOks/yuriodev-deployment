@@ -40,7 +40,7 @@
 
 /* Light theme - Orange glow */
 [data-theme="light"] .timelineDot {
-  box-shadow: 0 0 0 4px var(--bg-primary), 0 0 20px rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 0 4px var(--bg-primary), 0 0 20px rgba(var(--accent-secondary-rgb), 0.4);
 }
 
 .timelineDot .typeIcon {
@@ -61,8 +61,8 @@
   transition: all 0.3s ease;
   animation: slideIn 0.5s ease-out;
   background: var(--bg-card);
-  border: 1px solid rgba(6, 182, 212, 0.4);  /* Cyan border for dark theme */
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.1);  /* Cyan glow for dark theme */
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.4);  /* Cyan border for dark theme */
+  box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.1);  /* Cyan glow for dark theme */
   position: relative;
 }
 
@@ -87,8 +87,8 @@
 /* Light theme - Enhanced card with orange accent */
 [data-theme="light"] .timelineCard {
   background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(249, 115, 22, 0.4);  /* Orange border - more visible */
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(var(--accent-secondary-rgb), 0.4);  /* Orange border - more visible */
+  box-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.12);
 }
 
 .timelineItem.left .timelineCard {
@@ -108,8 +108,8 @@
 
 /* Light theme hover - Orange glow */
 [data-theme="light"] .timelineCard:hover {
-  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3) !important;
-  border-color: #f97316 !important;
+  box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.3) !important;
+  border-color: var(--amber-edge) !important;
   transform: translateY(-4px);
 }
 
@@ -138,14 +138,14 @@
 
 /* Dark theme - Cyan overlay */
 .cardHeader {
-  background: rgba(6, 182, 212, 0.08);  /* Cyan overlay */
-  border-bottom-color: rgba(6, 182, 212, 0.3);  /* Cyan border */
+  background: rgba(var(--accent-primary-rgb), 0.08);  /* Cyan overlay */
+  border-bottom-color: rgba(var(--accent-primary-rgb), 0.3);  /* Cyan border */
 }
 
 /* Light theme - Orange overlay */
 [data-theme="light"] .cardHeader {
-  background: rgba(249, 115, 22, 0.06);
-  border-bottom-color: rgba(249, 115, 22, 0.2);
+  background: rgba(var(--accent-secondary-rgb), 0.06);
+  border-bottom-color: rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 /* Header content wrapper (for date + badges grouping) */
@@ -213,7 +213,7 @@
 
 /* Light theme - Orange dates */
 [data-theme="light"] .date {
-  color: #ea580c;
+  color: var(--accent-secondary);
 }
 
 .dateSeparator {
@@ -238,8 +238,8 @@
 
 /* Light theme - Orange ongoing badge */
 [data-theme="light"] .ongoingBadge {
-  background: #f97316;
-  color: white;
+  background: var(--amber);
+  color: var(--on-amber);
 }
 
 .typeLabel {
@@ -256,9 +256,9 @@
 
 /* Light theme - Orange type label */
 [data-theme="light"] .typeLabel {
-  background: rgba(249, 115, 22, 0.1);
-  border-color: #f97316;
-  color: #ea580c;
+  background: rgba(var(--accent-secondary-rgb), 0.1);
+  border-color: var(--amber-edge);
+  color: var(--accent-secondary);
 }
 
 /* Card Content */
@@ -352,15 +352,15 @@
 
 /* Light theme - Orange styling */
 [data-theme="light"] .expandButton {
-  background: rgba(249, 115, 22, 0.08);
-  border-color: #f97316;
-  color: #ea580c;
+  background: rgba(var(--accent-secondary-rgb), 0.08);
+  border-color: var(--amber-edge);
+  color: var(--accent-secondary);
 }
 
 [data-theme="light"] .expandButton:hover {
-  background: #f97316;
-  color: white;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  background: var(--amber);
+  color: var(--on-amber);
+  box-shadow: 0 4px 12px rgba(var(--accent-secondary-rgb), 0.3);
 }
 
 .highlightsList {
@@ -401,7 +401,7 @@
 
 /* Light theme - Orange bullets */
 [data-theme="light"] .highlightBullet {
-  color: #f97316;
+  color: var(--accent-secondary);
 }
 
 /* Tags */
@@ -466,28 +466,28 @@
 
 /* Domain/Industry - Orange */
 .tag-domain {
-  background: rgba(255, 152, 0, 0.15);
-  border-color: #FF9800;
-  color: #FFB74D;
+  background: rgba(var(--hue-orange-rgb), 0.15);
+  border-color: var(--hue-orange);
+  color: var(--hue-orange);
 }
 
 .tag-domain:hover {
-  background: rgba(255, 152, 0, 0.25);
+  background: rgba(var(--hue-orange-rgb), 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--hue-orange-rgb), 0.3);
 }
 
 /* Development & Tools - Cyan */
 .tag-tools {
-  background: rgba(0, 188, 212, 0.15);
-  border-color: #00BCD4;
-  color: #4DD0E1;
+  background: rgba(var(--cyan-rgb), 0.15);
+  border-color: var(--cyan-edge);
+  color: var(--cyan-text);
 }
 
 .tag-tools:hover {
-  background: rgba(0, 188, 212, 0.25);
+  background: rgba(var(--cyan-rgb), 0.25);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--cyan-rgb), 0.3);
 }
 
 /* Education & Soft Skills - Pink */
@@ -541,15 +541,15 @@
 
 /* Light theme - Orange link styling */
 [data-theme="light"] .eventLink {
-  color: #ea580c;
-  border-color: #f97316;
-  background: rgba(249, 115, 22, 0.06);
+  color: var(--accent-secondary);
+  border-color: var(--amber-edge);
+  background: rgba(var(--accent-secondary-rgb), 0.06);
 }
 
 [data-theme="light"] .eventLink:hover {
-  background: #f97316;
-  color: white;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  background: var(--amber);
+  color: var(--on-amber);
+  box-shadow: 0 4px 12px rgba(var(--accent-secondary-rgb), 0.3);
 }
 
 /* Discord Link Styling */
@@ -612,26 +612,26 @@
   /* Mobile card styling - same colors as desktop */
   .timelineCard {
     background: var(--bg-card) !important;
-    border: 1px solid rgba(6, 182, 212, 0.5) !important;  /* Brighter cyan border */
-    box-shadow: 0 4px 16px rgba(6, 182, 212, 0.15) !important;
+    border: 1px solid rgba(var(--accent-primary-rgb), 0.5) !important;  /* Brighter cyan border */
+    box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.15) !important;
   }
   
   [data-theme="light"] .timelineCard {
     background: rgba(255, 255, 255, 0.99) !important;
-    border: 1px solid rgba(249, 115, 22, 0.5) !important;  /* Brighter orange border */
-    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.18) !important;
+    border: 1px solid rgba(var(--accent-secondary-rgb), 0.5) !important;  /* Brighter orange border */
+    box-shadow: 0 4px 16px rgba(var(--accent-secondary-rgb), 0.18) !important;
   }
   
   /* Mobile hover effects */
   .timelineCard:hover {
     transform: translateY(-4px) !important;
-    box-shadow: 0 8px 24px rgba(6, 182, 212, 0.3) !important;
-    border-color: #22d3ee !important;
+    box-shadow: 0 8px 24px rgba(var(--accent-primary-rgb), 0.3) !important;
+    border-color: var(--cyan-edge) !important;
   }
   
   [data-theme="light"] .timelineCard:hover {
-    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.35) !important;
-    border-color: #f97316 !important;
+    box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.35) !important;
+    border-color: var(--amber-edge) !important;
   }
   
   /* Mobile: Consistent left-to-right layout for ALL cards */

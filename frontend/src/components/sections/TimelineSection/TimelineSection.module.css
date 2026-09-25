@@ -92,20 +92,20 @@
 }
 
 [data-theme="light"] .filterButton {
-  background: rgba(249, 115, 22, 0.08);
-  border-color: #f97316;
-  color: #ea580c;
+  background: rgba(var(--accent-secondary-rgb), 0.08);
+  border-color: var(--amber-edge);
+  color: var(--accent-secondary);
 }
 
 [data-theme="light"] .filterButton.active {
-  background: #f97316;
-  color: white;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+  background: var(--amber);
+  color: var(--on-amber);
+  box-shadow: 0 4px 12px rgba(var(--accent-secondary-rgb), 0.4);
 }
 
 [data-theme="light"] .filterButton:hover {
-  background: rgba(249, 115, 22, 0.15);
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.2);
+  background: rgba(var(--accent-secondary-rgb), 0.15);
+  box-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 /* Timeline Container */
@@ -129,9 +129,9 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    #06b6d4,
-    #22d3ee,
-    #a78bfa,
+    var(--cyan-edge),
+    var(--cyan),
+    var(--hue-violet),
     transparent
   );
   transform: translateX(-50%);
@@ -142,9 +142,9 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    #f97316,
-    #fb923c,
-    #fdba74,
+    var(--amber-edge),
+    var(--amber),
+    rgba(var(--amber-rgb), 0.35),
     transparent
   );
 }
