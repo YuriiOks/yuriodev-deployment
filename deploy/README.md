@@ -285,32 +285,69 @@ The CSP is report-only and there is no report endpoint yet: violations show
 only in the browser's DevTools console. Cloudflare's own HSTS setting stays
 off (one header, one place).
 
-Path B, from the live tree, on Yurii's OK. Nothing changes on the running
-proxy until the reload in step 4, but the files are on disk from step 1, so
+How it ships. Two paths, as for every change on this box:
+
+- **Path B, live-bound files** (`nginx-proxy/`, `docker-compose.yml`,
+  `deploy/{dev,stage}/compose.yml`, `env/*.env`, `deploy/agent/`): applied and
+  committed in the live tree with explicit paths, then pushed straight to
+  `master`.
+- **Path A, everything else** (app code, CI, scripts, docs): a branch and a PR.
+
+This change has one of each. The `nginx-proxy/` part goes through path B
+below. The branch's doc edits (this section, `CLAUDE.md`, `.claude/`) arrive
+afterwards through the branch's PR (step 7), where any conflict with other
+doc edits is resolved like any other PR. Do not merge that PR before step 6:
+the catch-up pull would then put the new proxy files on the live disk, where
+the next reload or restart would pick them up.
+
+From the live tree, every step on Yurii's OK. Nothing changes on the running
+proxy until the reload in step 5, but the files are on disk from step 2, so
 `nginx -t` runs straight away:
 
 ```bash
 cd ~/yuriodev-deployment && git status --short          # must be clean
-# 0. Baseline for comparison (see "Verify" below): save the header check and smoke test output
-# 1. Apply the reviewed commits' diff to the working tree and index, without
-#    committing yet (REF = the reviewed branch tip, e.g. fetched with
-#    `git fetch <remote-or-clone-path> ops/proxy-hardening && REF=$(git rev-parse FETCH_HEAD)`).
-#    A diff, not a file checkout, so doc edits that reached master meanwhile survive.
-git cherry-pick --no-commit "$(git merge-base HEAD "$REF")..$REF"
-git status --short    # only nginx-proxy/{00-http,10-catchall,default,dev,stage}.conf, nginx-proxy/snippets/, deploy/README.md, .claude/rules/infra.md, CLAUDE.md
-# 2. Validate at once (a proxy restart with a bad config is a full outage)
+# 0. Baseline (see "Verify" below): save the header check and smoke test output.
+#    Then catch the live tree up with origin/master. A pull is a production
+#    change, so pause the agent first:
+touch ~/.yuriodev-deploy-paused
+git fetch origin && git log --oneline HEAD..origin/master
+git diff --stat HEAD...origin/master -- nginx-proxy docker-compose.yml deploy/dev deploy/stage deploy/agent env
+#    ^ must print nothing: path A never touches live-bound files. If it lists any, stop:
+#      that change needs its own runbook before this one.
+git pull --ff-only
+rm ~/.yuriodev-deploy-paused
+# 1. Fetch the reviewed branch (pushed for review; fetched as a ref, never checked out)
+#    and preview what gets applied: the branch's nginx-proxy/ changes and nothing else.
+git fetch origin ops/proxy-hardening && REF=$(git rev-parse FETCH_HEAD)
+git diff --stat HEAD..."$REF" -- nginx-proxy/            # 00-http.conf, 10-catchall.conf, default/dev/stage.conf, snippets/*.conf
+git diff HEAD..."$REF" -- nginx-proxy/ | git apply --check && echo "applies cleanly"
+#    If --check fails, nothing has changed: master gained other nginx-proxy/ edits
+#    since the branch was cut. Rebase the branch in a clone (never here), review
+#    again, start over.
+# 2. Apply to the working tree and index. git apply is all or nothing: no conflict
+#    markers, no half-applied state.
+git diff HEAD..."$REF" -- nginx-proxy/ | git apply --index
+git status --short    # only nginx-proxy/ paths: M default.conf dev.conf stage.conf, A 00-http.conf 10-catchall.conf snippets/*.conf
+# 3. Validate at once (a proxy restart with a bad config is a full outage)
 docker exec yuriodev-proxy nginx -t
-#    On failure, undo before anything reloads:
-#    git restore --source=HEAD --staged --worktree -- nginx-proxy/default.conf nginx-proxy/dev.conf nginx-proxy/stage.conf deploy/README.md .claude/rules/infra.md CLAUDE.md
-#    git rm -r -q --cached nginx-proxy/00-http.conf nginx-proxy/10-catchall.conf nginx-proxy/snippets && rm -r nginx-proxy/00-http.conf nginx-proxy/10-catchall.conf nginx-proxy/snippets
-# 3. Commit exactly these paths (add -c user.name=... -c user.email=... if the box has no git identity)
-git diff --cached --stat
+#    On failure, undo before anything reloads (the exact reverse of step 2):
+#    git diff HEAD..."$REF" -- nginx-proxy/ | git apply -R --index && git status --short   # prints nothing
+# 4. Commit exactly these paths (add -c user.name=... -c user.email=... if the box has no git identity)
+git diff --cached --stat                                  # nginx-proxy/ only
 git commit -m "feat(proxy): refuse unknown hosts, add security headers, redirect www"
-# 4. Reload (only with Yurii's OK; a failed reload keeps the old config)
+# 5. Reload (only with Yurii's OK; a failed reload keeps the old config)
 docker exec yuriodev-proxy nginx -s reload
-# 5. Verify (below), then push: path-A merges never touch these files
-git fetch origin && git log HEAD..origin/master --oneline   # if it prints commits: git rebase origin/master first
+# 6. Verify (below), then push. HEAD is origin/master (as of step 0) plus the step-4 commit:
+git fetch origin && git log --oneline HEAD..origin/master  # expect nothing
+#    If it prints commits (a PR merged meanwhile): ask, pause the agent, re-run step 0's
+#    `git diff --stat` check, then `git rebase origin/master`. The one local commit
+#    touches only nginx-proxy/, which path A never does, so it replays cleanly; if it
+#    stops anyway, `git rebase --abort` restores the state before the rebase.
+#    Unpause afterwards.
 git push origin master
+# 7. Merge the branch's PR (merge commit or squash). master already holds the same
+#    nginx-proxy/ content, so the PR adds only the docs. Then catch the live tree up
+#    as in step 0 (pause, the `git diff --stat` check, `git pull --ff-only`, unpause).
 ```
 
 Verify, origin (from the box):
@@ -330,16 +367,27 @@ for e in dev stage; do curl -skI --max-time 10 --resolve "$e.yuriodev.co.uk:443:
 docker exec yuriodev-proxy wget -qO- http://127.0.0.1/healthz                                                                                                 # ok
 docker ps --filter name=yuriodev-proxy --format '{{.Status}}'                                                                                                  # (healthy)
 docker compose logs --since 5m --tail 5 proxy                                                                                                                  # JSON access lines ("ip" is Cloudflare's /24 for now)
+docker compose logs --since 5m proxy 2>&1 | grep -cE '"status":5[0-9]{2}'                                                                                      # 0: proxy 5xx, as /check-logs now greps the JSON lines
 .claude/scripts/smoke-test.sh                                                                                                                                  # RESULT: healthy
 ```
 
-Verify, edge (through Cloudflare):
+Verify, edge (through Cloudflare; a fresh shell, so `H` is set again):
 
 ```bash
-curl -sI --max-time 10 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/ | grep -iE "$H"                                               # every header, exactly one strict-transport-security
+H='^(strict-transport-security|content-security-policy-report-only|x-content-type-options|x-frame-options|referrer-policy|permissions-policy|cross-origin-opener-policy|cross-origin-resource-policy|server):'
+curl -sI --max-time 10 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/ | grep -iE "$H"                                               # all 8 headers (Cloudflare replaces "server")
+curl -sI --max-time 10 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/ | grep -ci '^strict-transport-security:'                      # 1 (Cloudflare adds no second HSTS)
 curl -s  --max-time 10 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/api/health | python3 -m json.tool                              # healthy, environment prod
 curl -s  --max-time 10 --doh-url https://1.1.1.1/dns-query -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.yuriodev.co.uk/x?y=1'   # 301 https://yuriodev.co.uk/x?y=1
 for e in dev stage; do curl -s --max-time 10 --doh-url https://1.1.1.1/dns-query -o /dev/null -w "$e %{http_code}\n" "https://$e.yuriodev.co.uk/"; done   # 401 401
+```
+
+Verify, origin addresses from outside (Yurii's laptop, not the box; the IPv6 line
+needs a v6-capable network):
+
+```bash
+curl -sk    --max-time 10 -o /dev/null -w '%{http_code}\n' "https://<origin-ipv4>/"     # 000 (no SNI: handshake refused)
+curl -sk -g --max-time 10 -o /dev/null -w '%{http_code}\n' "https://[<origin-ipv6>]/"   # 000
 ```
 
 Then, in a browser (both themes; `/`, an unknown path, the command palette and
@@ -347,10 +395,11 @@ the terminal): DevTools shows zero `[Report Only]` CSP messages and no MIME or
 nosniff errors. `https://api.yuriodev.co.uk/` through Cloudflare now fails with
 525 (the origin refuses that SNI) until its DNS record is deleted in Cloudflare.
 
-Rollback: `git revert --no-edit <sha>` (restores the three vhosts and removes the
-new files), `docker exec yuriodev-proxy nginx -t`, `docker exec yuriodev-proxy
-nginx -s reload`, push. Browsers keep the 1-day HSTS policy they already saw,
-which is harmless for an HTTPS-only site.
+Rollback: `git revert --no-edit <sha of the step-4 commit>` (restores the three
+vhosts and removes the new files; it touches only `nginx-proxy/`),
+`docker exec yuriodev-proxy nginx -t`, `docker exec yuriodev-proxy nginx -s
+reload`, push. Browsers keep the 1-day HSTS policy they already saw, which is
+harmless for an HTTPS-only site.
 
 ## Where credentials live (paths only — never print these)
 
