@@ -400,11 +400,12 @@
 }
 
 /* Disabled/Coming Soon link */
+/* Not a link yet: muted and dashed, but still readable (no opacity). */
 .projectLink.disabled {
-    opacity: 0.5;
     cursor: not-allowed;
     color: var(--text-muted);
     border-color: var(--text-muted);
+    border-style: dashed;
     background: rgba(var(--text-muted-rgb), 0.05);
     pointer-events: none;
 }
@@ -416,30 +417,29 @@
 
 /* Light theme disabled */
 [data-theme="light"] .projectLink.disabled {
-    opacity: 0.5;
-    color: #94a3b8;
-    border-color: #cbd5e1;
-    background: rgba(148, 163, 184, 0.05);
+    color: var(--text-muted);
+    border-color: var(--border-strong);
+    background: rgba(var(--text-muted-rgb), 0.05);
 }
 
 /* Light theme links */
 [data-theme="light"] .projectLink {
     color: var(--accent-secondary);
     border-color: var(--accent-secondary);
-    background: rgba(217, 119, 6, 0.06);
+    background: rgba(var(--amber-rgb), 0.06);
 }
 
 [data-theme="light"] .projectLink:hover {
     background: var(--accent-secondary);
     color: white;
-    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--amber-rgb), 0.3);
 }
 
 /* Light theme expand button hover */
 [data-theme="light"] .expandButton:hover {
     background: var(--accent-secondary);
     color: white;
-    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--amber-rgb), 0.3);
 }
 
 /* Responsive */

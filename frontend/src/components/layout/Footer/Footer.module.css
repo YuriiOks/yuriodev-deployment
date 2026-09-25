@@ -154,7 +154,6 @@
 .tech {
     color: var(--text-muted);
     font-size: 0.75rem;
-    opacity: 0.8;
     font-family: 'Fira Code', monospace;
 }
 
