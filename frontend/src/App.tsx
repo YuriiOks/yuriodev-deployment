@@ -11,6 +11,7 @@ import Privacy from './pages/privacy';
 import NotFound from './pages/not-found';
 import { readStorage, writeStorage } from './utils/safeStorage';
 import { prefersReducedMotion } from './utils/motion';
+import { pagePath } from './data/site';
 import './App.css';
 
 /** sessionStorage flag: the first-visit loading screen has already been shown in this tab. */
@@ -45,12 +46,12 @@ function AppContent() {
       <PageLayout currentPath={location.pathname}>
         <ErrorBoundary resetKey={location.pathname}>
           <Routes>
-            <Route path="/" element={<Portfolio />} />
-            <Route path="/home" element={<Navigate to="/" replace />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/privacy" element={<Privacy />} />
+            <Route path={pagePath('portfolio')} element={<Portfolio />} />
+            <Route path="/home" element={<Navigate to={pagePath('portfolio')} replace />} />
+            <Route path={pagePath('community')} element={<Community />} />
+            <Route path={pagePath('courses')} element={<Courses />} />
+            <Route path={pagePath('dashboard')} element={<Dashboard />} />
+            <Route path={pagePath('privacy')} element={<Privacy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ErrorBoundary>

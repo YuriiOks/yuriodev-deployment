@@ -105,7 +105,7 @@ const PlatformSection: React.FC = () => {
           </p>
           <div className={styles.ctaButtons}>
             <a 
-              href="https://github.com/YurioDev/Python-Course" 
+              href={PROJECT_LINKS.pythonCourse} 
               target="_blank"
               rel="noopener noreferrer"
               className={styles.ctaButton}
@@ -113,7 +113,7 @@ const PlatformSection: React.FC = () => {
               Explore Python Course
             </a>
             <a 
-              href="mailto:yurii.oksamytnyi@yuriodev.co.uk?subject=YuriODev Early Access"
+              href={`mailto:${EMAILS.personal}?subject=YuriODev Early Access`}
               className={`${styles.ctaButton} ${styles.secondary}`}
             >
               Request Early Access

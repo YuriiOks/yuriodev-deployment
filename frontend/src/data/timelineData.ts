@@ -3,6 +3,8 @@
  * Extracted from CV (Updated: October 2025)
  */
 
+import { PROJECT_LINKS, socialById } from './site';
+
 export type TimelineEventType = 'experience' | 'education' | 'certification' | 'achievement';
 
 export interface TimelineEvent {
@@ -60,7 +62,7 @@ export const timelineData: TimelineEvent[] = [
       'Mentored students from beginner to professional level in Python, ML, and system design',
     ],
     tags: ['Education', 'Python', 'GitHub Actions', 'Mentoring', 'Course Design'],
-    link: 'https://discord.gg/2UK3cKDd2s',
+    link: socialById('discord').url,
     linkText: 'Join Discord Community',
     isOngoing: true,
   },
@@ -247,7 +249,7 @@ export const timelineData: TimelineEvent[] = [
       'Reached 1000+ students across 20+ countries',
     ],
     tags: ['Education', 'Open Source', 'Python', 'CI/CD'],
-    link: 'https://github.com/YurioDev/Python-Course',
+    link: PROJECT_LINKS.pythonCourse,
   },
 ];
 

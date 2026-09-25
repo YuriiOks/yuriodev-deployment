@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './HeroSection.module.css';
 import useTypewriter from '../../../hooks/useTypewriter';
+import { EMAILS, IDENTITY } from '../../../data/site';
 
 const messages = [
   "Architecting agentic AI systems (LangGraph, MCP)...",
@@ -30,10 +31,10 @@ const HeroSection: React.FC = () => {
           <div className={styles.jsonColumn}>
             <div className={styles.commandLine}>$ cat ./profile.json</div>
             <div className={styles.outputRoot}><span className={styles.jsonBraceOuter}>{'{'}</span></div>
-            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"name"</span>: <span className={styles.jsonString}>"Yurii Oksamytnyi"</span>,</div>
-            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"title"</span>: <span className={styles.jsonString}>"AI/ML Systems Engineer"</span>,</div>
+            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"name"</span>: <span className={styles.jsonString}>"{IDENTITY.name}"</span>,</div>
+            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"title"</span>: <span className={styles.jsonString}>"{IDENTITY.title}"</span>,</div>
             <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"specialization"</span>: <span className={styles.jsonString}>"Agentic Architect"</span>,</div>
-            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"location"</span>: <span className={styles.jsonString}>"London, UK"</span>,</div>
+            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"location"</span>: <span className={styles.jsonString}>"{IDENTITY.location}"</span>,</div>
             <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"education"</span>: <span className={styles.jsonBrace}>{'{'}</span></div>
             <div className={styles.outputNested}>{'    '}<span className={styles.jsonKey}>"degree"</span>: <span className={styles.jsonString}>"BSc Computer Science"</span>,</div>
             <div className={styles.outputNested}>{'    '}<span className={styles.jsonKey}>"university"</span>: <span className={styles.jsonString}>"Moscow Institute of Physics and Technology"</span>,</div>
@@ -71,7 +72,7 @@ const HeroSection: React.FC = () => {
       <div className={styles.ctaButtons}>
         <a href="#platform" className={styles.ctaButton}>Explore YuriODev Vision</a>
         <a href="#projects" className={styles.ctaButton}>View Research & Projects</a>
-        <a href="mailto:contact@yuriodev.co.uk" className={styles.ctaButton}>Collaborate with Me</a>
+        <a href={`mailto:${EMAILS.contact}`} className={styles.ctaButton}>Collaborate with Me</a>
       </div>
     </section>
   );

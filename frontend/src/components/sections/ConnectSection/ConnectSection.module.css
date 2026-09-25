@@ -63,6 +63,48 @@
   line-height: 1.8;
 }
 
+/* Profiles: labelled buttons above the terminal, wrapping on narrow screens */
+.socialLinks {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  max-width: var(--content-max-width);
+  margin: -2rem auto 2.5rem;
+  padding: 0;
+}
+
+.socialLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 2px solid var(--button-nav-border);
+  border-radius: 6px;
+  background: var(--button-nav-bg);
+  color: var(--button-nav-text);
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.socialLink:hover,
+.socialLink:focus-visible {
+  background: var(--button-nav-hover-bg);
+  border-color: var(--button-nav-hover-border);
+  color: var(--button-nav-hover-text);
+  box-shadow: 0 0 10px var(--button-nav-hover-shadow);
+}
+
+.socialLinkIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 /* Terminal Container */
 .terminalContainer {
   max-width: var(--content-max-width);

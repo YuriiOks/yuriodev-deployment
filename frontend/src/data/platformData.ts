@@ -3,6 +3,8 @@
  * Updated from CV (October 2025)
  */
 
+import { PROJECT_LINKS } from './site';
+
 export interface RoadmapPhase {
   phase: number;
   title: string;
@@ -80,14 +82,14 @@ export const platformData: PlatformData = {
       title: "Comprehensive Python Course",
       description: "25+ modules covering AQA GCSE CS syllabus from fundamentals to OOP with automated testing",
       icon: "🐍",
-      link: "https://github.com/YurioDev/Python-Course",
+      link: PROJECT_LINKS.pythonCourse,
       status: "live",
     },
     {
       title: "Automated CI/CD Grading",
       description: "GitHub Actions-powered testing workflow providing instant feedback on student submissions",
       icon: "🔄",
-      link: "https://github.com/YurioDev/Python-Course",
+      link: PROJECT_LINKS.pythonCourse,
       status: "live",
     },
     {

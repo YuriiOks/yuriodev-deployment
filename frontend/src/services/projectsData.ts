@@ -3,6 +3,8 @@
  * Updated from CV (October 2025)
  */
 
+import { PROJECT_LINKS } from '../data/site';
+
 export interface Metric {
   label: string;
   value: string;
@@ -192,7 +194,7 @@ export const projectsData: Project[] = [
       { label: "Institutions", value: "5 universities" },
     ],
     links: [
-      { name: "📖 Full Course", url: "https://github.com/YurioDev/Python-Course" }
+      { name: "📖 Full Course", url: PROJECT_LINKS.pythonCourse }
     ],
     featured: true,
   }

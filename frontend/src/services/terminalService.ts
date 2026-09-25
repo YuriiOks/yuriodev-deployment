@@ -1,3 +1,25 @@
+import { EMAILS, IDENTITY, PROJECT_LINKS, displayUrl, socialsFor, type SocialId } from '../data/site';
+
+/** The contact card's line for each profile: marker, then the name padded to the column. */
+const CONTACT_MARKERS: Partial<Record<SocialId, string>> = {
+    linkedin: '🔗',
+    x: '𝕏 ',
+    github: '💻',
+};
+
+function contactLine(marker: string, name: string, value: string): string {
+    return `${marker} ${`${name}:`.padEnd(10)}${value}`;
+}
+
+const contactCard = (): string => [
+    contactLine('📧', 'Email', EMAILS.personal),
+    ...socialsFor('terminal').map(({ id, shortLabel, url }) =>
+        contactLine(CONTACT_MARKERS[id] ?? '🔗', shortLabel, displayUrl(url)),
+    ),
+    contactLine('🌐', 'Website', displayUrl(IDENTITY.website)),
+    contactLine('📍', 'Location', IDENTITY.location),
+].join('\n');
+
 export const terminalCommands: Record<string, () => string> = {
     help: () => `Available commands:
 help       - Show this help message
@@ -47,12 +69,7 @@ whoami     - Display current user info`,
 
     contact: () => `Contact Information:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📧 Email:    yurii.oksamytnyi@yuriodev.co.uk
-🔗 LinkedIn: linkedin.com/in/y-oks
-𝕏  X:        x.com/YuriODev
-💻 GitHub:   github.com/YuriiOks
-🌐 Website:  yuriodev.co.uk
-📍 Location: London, UK
+${contactCard()}
 
 Available for:
 • AI/ML systems architecture & consulting
@@ -89,16 +106,16 @@ Available for:
    88% extraction accuracy
 
 🐍 Automated Python Course
-   github.com/YurioDev/Python-Course
+   ${displayUrl(PROJECT_LINKS.pythonCourse)}
    1000+ students • 25+ modules
    CI/CD grading • Open source`,
 
-    about: () => `About Yurii Oksamytnyi:
+    about: () => `About ${IDENTITY.name}:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👨‍💻 AI/ML Systems Engineer | Agentic Architect
 🎓 MLX Applied Machine Learning Graduate
 📊 10+ years building production AI systems
-📍 Based in London, UK
+📍 Based in ${IDENTITY.location}
 
 Mission: Democratizing AI/ML education through
 hands-on platforms and production-grade systems.

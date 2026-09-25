@@ -1,7 +1,8 @@
 import { usePageTitle } from '../hooks/usePageTitle';
+import { EMAILS, IDENTITY, pagePath } from '../data/site';
 import styles from './text-page.module.css';
 
-const CONTACT_EMAIL = 'yurii.oksamytnyi@yuriodev.co.uk';
+const CONTACT_EMAIL = EMAILS.personal;
 const [EMAIL_USER, EMAIL_DOMAIN] = CONTACT_EMAIL.split('@');
 
 /** The contact address as a mailto link; on narrow screens it wraps after the @. */
@@ -12,7 +13,7 @@ const ContactEmail = () => (
 );
 
 const Privacy = () => {
-  usePageTitle('Privacy', '/privacy');
+  usePageTitle('Privacy', pagePath('privacy'));
 
   return (
     <section className={styles.page} aria-labelledby="privacy-title">
@@ -24,7 +25,7 @@ const Privacy = () => {
 
         <h2>Who is responsible</h2>
         <p>
-          This is the personal website of Yurii Oksamytnyi, London, UK, who is the controller of
+          This is the personal website of {IDENTITY.name}, {IDENTITY.location}, who is the controller of
           the personal data described here. Contact: <ContactEmail />.
         </p>
 
