@@ -475,6 +475,30 @@
     font-size: 0.85rem;
     padding: 1rem;
   }
+
+  .timelineItems {
+    padding-left: 1.5rem;
+  }
+
+  .timelineItems::before {
+    left: -3px;
+  }
+
+  .timelineItem {
+    padding-left: 1rem;
+  }
+
+  .timelineItem::before {
+    left: -2.3rem;
+  }
+
+  .timelineContent h4 {
+    font-size: 1rem;
+  }
+
+  .timelineContent p {
+    font-size: 0.9rem;
+  }
 }
 
 /* ===========================
@@ -726,6 +750,106 @@
 
 .codeContent .builtin {
   color: var(--accent-tertiary);
+}
+
+/* Timeline */
+.timeline {
+  margin: 3rem 0;
+  padding: 2rem 0;
+  border-top: 1px solid var(--border-card);
+}
+
+.timelineTitle {
+  font-size: 1.5rem;
+  color: var(--accent-secondary);
+  font-family: 'Fira Code', monospace;
+  margin-bottom: 2rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.timelineItems {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.timelineItems::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--accent-primary),
+    var(--accent-secondary),
+    var(--accent-tertiary)
+  );
+}
+
+.timelineItem {
+  position: relative;
+  margin-bottom: 2.5rem;
+  padding-left: 1.5rem;
+}
+
+.timelineItem::before {
+  content: '';
+  position: absolute;
+  left: -2.65rem;
+  top: 0.0rem;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-secondary);
+  border: 2px solid var(--bg-card);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--glow-secondary);
+  z-index: 1;
+}
+
+.timelineYear {
+  color: var(--accent-secondary);
+  font-family: 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.timelineContent h4 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+/* Light mode timeline adjustments */
+[data-theme="light"] .timelineItems::before {
+  background: linear-gradient(
+    to bottom,
+    var(--accent-primary),
+    var(--accent-secondary),
+    var(--accent-tertiary)
+  );
+}
+
+[data-theme="light"] .timelineItem::before {
+  background: var(--accent-secondary);
+  box-shadow: 0 0 10px var(--glow-secondary);
+}
+
+[data-theme="light"] .timelineYear {
+  color: var(--accent-secondary);
+}
+
+[data-theme="light"] .timelineContent h4 {
+  color: var(--text-primary);
+}
+
+.timelineContent p {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 0.95rem;
 }
 
 /* Footer */
