@@ -1,7 +1,8 @@
+import type React from 'react';
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from '../../../context/ThemeContext';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
 import { OverlayProvider } from '../../../context/OverlayProvider';
@@ -25,19 +26,33 @@ function ActiveOverlay() {
   return <div data-testid="overlay">{String(useOverlay().active)}</div>;
 }
 
+/** As PageLayout does: the overlays are keyed to the current route. */
+function RoutedOverlayProvider({ children }: { children: React.ReactNode }) {
+  return <OverlayProvider routeKey={useLocation().pathname}>{children}</OverlayProvider>;
+}
+
+/** Route changes from outside the header (the browser's Back button, a script). */
+let navigateFromOutside: (to: string) => void = () => {};
+function NavigateElsewhere() {
+  const navigate = useNavigate();
+  navigateFromOutside = navigate;
+  return null;
+}
+
 function renderHeader(path = '/') {
   return render(
     <ThemeProvider>
       <MemoryRouter initialEntries={[path]}>
         <SectionNavProvider mainRef={{ current: null }}>
-          <OverlayProvider>
+          <RoutedOverlayProvider>
             <Routes>
               <Route path="*" element={<HeaderAtLocation />} />
             </Routes>
             <p>outside</p>
             <input aria-label="outside input" />
+            <NavigateElsewhere />
             <ActiveOverlay />
-          </OverlayProvider>
+          </RoutedOverlayProvider>
         </SectionNavProvider>
       </MemoryRouter>
     </ThemeProvider>,
@@ -85,6 +100,22 @@ describe('Header mobile menu', () => {
 
     expect(screen.getByTestId('location')).toHaveTextContent('/courses');
     expect(isOpen()).toBe(false);
+  });
+
+  it('closes when the route changes from outside the menu, and opens again with one click', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+
+    // Focus stays on the menu button: neither a click outside nor Tab closes it.
+    act(() => navigateFromOutside('/privacy'));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/privacy');
+    expect(isOpen()).toBe(false);
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(menuButton());
+    expect(isOpen()).toBe(true);
   });
 
   it('closes on Escape and returns focus to the menu button', async () => {

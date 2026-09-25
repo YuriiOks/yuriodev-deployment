@@ -113,7 +113,8 @@ describe('PageLayout overlays', () => {
 
     await user.click(screen.getByLabelText('Show help panel'));
     expect(helpDialog()).toBeInTheDocument();
-    expect(within(helpDialog()!).getByRole('heading', { name: 'Help' })).toHaveFocus();
+    // Its scrolling body, so the arrow keys scroll the drawer at once.
+    expect(within(helpDialog()!).getByRole('heading', { name: 'Keyboard Shortcuts' }).closest('[tabindex="-1"]')).toHaveFocus();
   });
 
   it('opening the palette closes the header menu', async () => {

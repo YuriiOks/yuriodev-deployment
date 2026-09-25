@@ -23,7 +23,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
   const mainRef = useRef<HTMLElement>(null);
   return (
     <SectionNavProvider mainRef={mainRef}>
-      <OverlayProvider>
+      <OverlayProvider routeKey={currentPath}>
         <ToastProvider>
           <PageLayoutContent mainRef={mainRef} currentPath={currentPath}>
             {children}
@@ -44,6 +44,14 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
   const closeHelp = useCallback(() => close('help'), [close]);
   const openHelp = useCallback(() => open('help'), [open]);
   const dialogOpen = active === 'palette' || active === 'help';
+  // When the element that opened a dialog cannot take focus back (a link in
+  // the header menu, which opening the dialog closed), focus goes to the
+  // header control that opens that dialog, else the menu button.
+  const paletteReturn = useCallback(() => [headerControl('palette'), headerControl('menu')], []);
+  const helpReturn = useCallback(
+    () => [headerControl('help'), headerControl('menu'), headerControl('palette')],
+    [],
+  );
   useRouteChangeFocus(mainRef);
   useGlobalShortcuts();
 
@@ -60,8 +68,13 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
         Skip to main content
       </a>
       <CanvasBackground />
-      <CommandPalette open={active === 'palette'} onClose={closePalette} onShowHelp={openHelp} />
-      <HelpPanel open={active === 'help'} onClose={closeHelp} />
+      <CommandPalette
+        open={active === 'palette'}
+        onClose={closePalette}
+        onShowHelp={openHelp}
+        returnFocus={paletteReturn}
+      />
+      <HelpPanel open={active === 'help'} onClose={closeHelp} returnFocus={helpReturn} />
       <ScrollToTop suppressed={dialogOpen} />
       <Header currentPath={currentPath} />
       <LeftSidebar />
@@ -72,5 +85,10 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
     </>
   );
 };
+
+/** The header button that opens an overlay (Header marks them with data-opens). */
+function headerControl(id: 'palette' | 'help' | 'menu'): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`header [data-opens="${id}"]`);
+}
 
 export default PageLayout;

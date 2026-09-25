@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import { useSectionNav } from '../../../context/useSectionNav';
 import { useOverlay } from '../../../context/useOverlay';
-import { useMediaQuery } from '../../../hooks/useMediaQuery';
+import { subscribeMediaQuery, useMediaQuery } from '../../../hooks/useMediaQuery';
 import { minWidth } from '../../../constants/breakpoints';
 import { NAV_PAGES, pageAt } from '../../../data/site';
 import SectionLink from '../SectionLink/SectionLink';
@@ -31,14 +31,17 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   const currentPage = pageAt(currentPath)?.id;
   const isMenuOpen = active === 'menu' && !wide;
 
-  // Close the menu whenever the route changes, and when the window grows
-  // past the point where the menu exists (before paint, so it never shows).
-  useLayoutEffect(() => {
-    close('menu');
-  }, [currentPath, close]);
-  useLayoutEffect(() => {
-    if (wide) close('menu');
-  }, [wide, close]);
+  // The menu is hidden (isMenuOpen) from the moment the window grows past
+  // the point where it exists; closing it on that change keeps it from coming
+  // back when the window narrows again. A route change closes it in
+  // OverlayProvider, which keys the menu to the route it was opened on.
+  useEffect(
+    () =>
+      subscribeMediaQuery(minWidth('sidebar'), (matches) => {
+        if (matches) close('menu');
+      }),
+    [close],
+  );
 
   // While open, Escape or a click/tap outside the menu closes it.
   useEffect(() => {
@@ -130,6 +133,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
             type="button"
             className={styles.paletteToggle}
             onClick={() => open('palette')}
+            data-opens="palette"
             aria-label="Open command palette"
             aria-haspopup="dialog"
             aria-keyshortcuts="Control+K Meta+K"
@@ -144,6 +148,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
             type="button"
             className={styles.helpToggle}
             onClick={() => open('help')}
+            data-opens="help"
             aria-label="Show help panel"
             aria-haspopup="dialog"
           >
@@ -154,6 +159,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
               ref={menuButtonRef}
               className={styles.mobileMenuToggle}
               onClick={toggleMobileMenu}
+              data-opens="menu"
               aria-label="Toggle mobile menu"
               aria-expanded={isMenuOpen}
               aria-controls="navMenu"

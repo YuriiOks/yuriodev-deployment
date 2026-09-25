@@ -15,6 +15,11 @@
   font-weight: 600;
 }
 
+/* Amber on the light surface is about 3:1, too low for text this size. */
+[data-theme="light"] .helpPanelContent h3 {
+  color: var(--text-primary);
+}
+
 .helpPanelContent section:first-child h3 {
   margin-top: 0;
 }
@@ -118,13 +123,9 @@
 
 .switchHint {
   margin: 0.25rem 0 0;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.4;
-}
-
-[data-theme="light"] .switchHint {
-  color: var(--text-secondary);
 }
 
 .switch {

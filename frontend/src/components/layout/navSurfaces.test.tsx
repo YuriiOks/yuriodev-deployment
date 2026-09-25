@@ -88,6 +88,17 @@ describe('section navigation surfaces', () => {
     expect(menuButton()).not.toBeNull();
   });
 
+  it('an open menu closes when the window grows past 88rem, and stays closed when it narrows again', () => {
+    renderPage();
+    act(() => menuButton()!.click());
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+
+    setWide(true);
+    setWide(false);
+
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('keeps focus in the header when the focused menu link unmounts at 88rem', () => {
     renderPage();
     const about = document.querySelector<HTMLElement>('header a[href="#about"]')!;

@@ -41,6 +41,14 @@ html {
 :root[data-overlay] {
     overflow: hidden;
     scrollbar-gutter: stable;
+    /* The dialog's ::backdrop does not reach into that gutter; paint it the
+       colour of the backdrop over --bg-primary so it is dimmed too.
+       Dialog.module.css holds the backdrop colours. */
+    background: rgb(5, 9, 18);
+}
+
+:root[data-overlay][data-theme="light"] {
+    background: rgb(155, 159, 168);
 }
 
 /* One keyboard focus ring for every interactive element, in both themes.

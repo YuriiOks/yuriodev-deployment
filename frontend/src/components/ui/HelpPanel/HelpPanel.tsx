@@ -8,18 +8,24 @@ import styles from './HelpPanel.module.css';
 interface HelpPanelProps {
   open: boolean;
   onClose: () => void;
+  /** See Dialog's returnFocus. */
+  returnFocus?: () => readonly (HTMLElement | null | undefined)[];
 }
 
 const SINGLE_KEYS = SHORTCUTS.filter(({ singleKey }) => singleKey).map(({ display }) => display);
 
 /** Lists the keyboard shortcuts and the terminal's commands; a drawer on the right. */
-const HelpPanel: React.FC<HelpPanelProps> = ({ open, onClose }) => (
+const HelpPanel: React.FC<HelpPanelProps> = ({ open, onClose, returnFocus }) => (
   <Dialog
     open={open}
     onClose={onClose}
     title="Help"
     placement="right"
     surface="solid"
+    // The drawer is longer than a phone screen: start on its scrolling
+    // body so the arrow keys and Page Down scroll it right away.
+    initialFocus="body"
+    returnFocus={returnFocus}
     footer={
       <p className={styles.helpFooter}>
         Press <kbd className={styles.shortcut}>Esc</kbd> or click outside to close
