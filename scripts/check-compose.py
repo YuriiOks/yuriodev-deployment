@@ -11,10 +11,14 @@ Checks (reads YAML only; never runs `docker compose config`, which would load en
     exactly the expected services;
   * every service has the same logging block, every app service has resource
     limits, the proxy has a healthcheck and never a memory limit;
+  * only the prod proxy publishes ports; its image is pinned by digest
+    (name:tag@sha256:<64 hex>) and every volume it mounts, ./nginx-proxy
+    included, is read-only;
   * compose.local.yml (if present) is Mac-only: dev targets, its own network, no
     registry images, never the shared yuriodev-network.
 Exit code 1 on any failure. Run from the repo root: python3 scripts/check-compose.py
 """
+import re
 import sys
 from pathlib import Path
 
@@ -33,6 +37,8 @@ EXPECTED_AGENT_VIEW = {
     "stage": {("frontend-stage", "yuriodev-stage-frontend", "80"), ("backend-stage", "yuriodev-stage-backend", "8000")},
 }
 PROD_SERVICE_NAMES = {"frontend", "backend", "proxy"}
+DIGEST_PINNED = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
+PROXY_CONF = ("./nginx-proxy", "/etc/nginx/conf.d")
 
 errors: list[str] = []
 
@@ -59,6 +65,27 @@ def agent_view(doc: dict) -> set:
         port = "8000" if "backend" in name else "80"
         out.add((name, svc.get("container_name", ""), port))
     return out
+
+
+def volume(entry) -> tuple:
+    """(source, target, read_only) for a short ("src:dst[:mode]") or long-syntax volume."""
+    if isinstance(entry, dict):
+        return str(entry.get("source", "")), str(entry.get("target", "")), entry.get("read_only") is True
+    parts = str(entry).split(":")
+    mode = parts[2] if len(parts) > 2 else ""
+    return parts[0], (parts[1] if len(parts) > 1 else ""), "ro" in mode.split(",")
+
+
+def check_proxy(rel, svc: dict) -> None:
+    image = str(svc.get("image", ""))
+    if not DIGEST_PINNED.match(image):
+        fail(f"{rel}: the proxy image '{image}' must be pinned by digest (name:tag@sha256:<64 hex>)")
+    vols = [volume(v) for v in svc.get("volumes") or []]
+    if not any((src.rstrip("/"), dst.rstrip("/")) == PROXY_CONF for src, dst, _ in vols):
+        fail(f"{rel}: the proxy must mount {PROXY_CONF[0]} at {PROXY_CONF[1]}")
+    for src, dst, read_only in vols:
+        if not read_only:
+            fail(f"{rel}: proxy volume '{src}:{dst}' must be mounted read-only (:ro)")
 
 
 def block(svc: dict, *keys):
@@ -109,12 +136,18 @@ for env, (path, tag) in DEPLOYED.items():
             fail(f"{rel}: the proxy needs a compose healthcheck (it has no Dockerfile)")
         if name == "proxy" and block(svc, "deploy", "resources", "limits", "memory") is not None:
             fail(f"{rel}: the proxy must not get a memory limit (it serves every environment)")
+        if env == "prod" and name == "proxy":
+            check_proxy(rel, svc)
+        elif svc.get("ports"):
+            fail(f"{rel}: service '{name}' publishes ports; only the prod proxy may (it serves every environment)")
         image = svc.get("image", "")
         if name == "proxy":
             continue
         want = f"ghcr.io/yuriioks/yuriodev-{'backend' if 'backend' in name else 'frontend'}:{tag}"
         if image != want:
             fail(f"{rel}: service '{name}' image is '{image}', expected '{want}'")
+    if env == "prod" and doc and "proxy" not in services:
+        fail(f"{rel}: no 'proxy' service (the only service allowed to publish ports)")
     got = agent_view(doc)
     if doc and got != EXPECTED_AGENT_VIEW[env]:
         fail(f"{rel}: deploy agent would see {sorted(got)}, expected {sorted(EXPECTED_AGENT_VIEW[env])}")
