@@ -311,7 +311,7 @@ cd ~/yuriodev-deployment && git status --short          # must be clean
 #    change, so pause the agent first:
 touch ~/.yuriodev-deploy-paused
 git fetch origin && git log --oneline HEAD..origin/master
-git diff --stat HEAD...origin/master -- nginx-proxy docker-compose.yml deploy/dev deploy/stage deploy/agent env
+git diff --stat HEAD...origin/master -- nginx-proxy docker-compose.yml deploy/dev deploy/stage deploy/agent 'env/*.env'
 #    ^ must print nothing: path A never touches live-bound files. If it lists any, stop:
 #      that change needs its own runbook before this one.
 git pull --ff-only
