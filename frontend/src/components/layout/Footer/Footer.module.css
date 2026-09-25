@@ -180,7 +180,7 @@
 }
 
 .privacyLink {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.75rem;
     font-family: 'Fira Code', monospace;
     text-decoration: underline;

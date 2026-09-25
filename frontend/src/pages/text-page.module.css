@@ -36,7 +36,7 @@
 }
 
 .error {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     margin: 0 0 1.5rem;
 }
 
@@ -48,7 +48,7 @@
 }
 
 .updated {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.9rem;
     margin: 0 0 1.5rem;
 }

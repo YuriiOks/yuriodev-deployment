@@ -2,11 +2,12 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { useRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Link } from 'react-router-dom';
+import { MemoryRouter, Link, useNavigate } from 'react-router-dom';
 import { useRouteChangeFocus } from './useRouteChangeFocus';
 
 function Harness() {
   const ref = useRef<HTMLElement>(null);
+  const navigate = useNavigate();
   useRouteChangeFocus(ref);
   return (
     <>
@@ -14,6 +15,7 @@ function Harness() {
         <Link to="/other">other page</Link>
         <Link to="/#section">same page, new hash</Link>
         <Link to="/other#section">other page with hash</Link>
+        <button type="button" onClick={() => navigate(-1)}>back</button>
       </nav>
       <main ref={ref} tabIndex={-1}>content</main>
     </>
@@ -60,6 +62,18 @@ describe('useRouteChangeFocus', () => {
     const user = userEvent.setup();
     renderAt('/');
     await user.click(screen.getByText('other page with hash'));
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByRole('main'));
+  });
+
+  it('moves focus but leaves the scroll position to the browser on Back', async () => {
+    const user = userEvent.setup();
+    renderAt('/');
+    await user.click(screen.getByText('other page'));
+    vi.mocked(window.scrollTo).mockClear();
+
+    await user.click(screen.getByText('back'));
+
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(screen.getByRole('main'));
   });
