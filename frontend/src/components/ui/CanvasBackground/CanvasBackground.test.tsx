@@ -48,17 +48,20 @@ describe('CanvasBackground', () => {
     setReducedMotion(false);
     const windowListeners = trackListeners(window);
     const documentListeners = trackListeners(document);
+    const rootListeners = trackListeners(document.documentElement);
 
     const { unmount } = render(<CanvasBackground />);
     expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
     expect(windowListeners()).toEqual(expect.arrayContaining(['resize', 'mousemove']));
     expect(documentListeners()).toContain('visibilitychange');
+    expect(rootListeners()).toContain('mouseleave');
 
     unmount();
     expect(window.cancelAnimationFrame).toHaveBeenCalled();
     const ours = ['resize', 'mousemove', 'mouseleave', 'visibilitychange'];
     expect(windowListeners().filter((type) => ours.includes(type))).toEqual([]);
     expect(documentListeners().filter((type) => ours.includes(type))).toEqual([]);
+    expect(rootListeners().filter((type) => ours.includes(type))).toEqual([]);
   });
 
   it('draws one static frame and starts no loop under reduced motion', () => {
@@ -80,8 +83,8 @@ describe('CanvasBackground', () => {
 
     const { container } = render(<CanvasBackground />);
     const canvas = container.querySelector('canvas')!;
-    expect(canvas.width).toBe(131);
-    expect(canvas.height).toBe(284);
+    expect(canvas.width).toBe(94);
+    expect(canvas.height).toBe(203);
     // One arc per node: the 20-node floor for a phone-sized viewport.
     expect(ctx.arc).toHaveBeenCalledTimes(20);
 

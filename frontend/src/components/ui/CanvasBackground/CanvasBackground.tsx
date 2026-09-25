@@ -6,9 +6,10 @@ import styles from './CanvasBackground.module.css';
  * The animated "neural network" behind the page.
  *
  * Cost controls:
- * - The backing store is about a third of the CSS size. The browser's
- *   upscaling softens the picture the way the old CSS `filter: blur(3px)` did,
- *   with an eighth of the pixels and no filter pass over the whole viewport.
+ * - The backing store is a quarter of the CSS size. The browser's upscaling
+ *   softens the picture, with a sixteenth of the pixels and no filter pass
+ *   over the whole viewport; dimmer lines and dots and a wider glow bring it
+ *   close to the old CSS `filter: blur(3px)` haze (it stays a little crisper).
  *   devicePixelRatio is deliberately not applied (well under any 2x cap), so a
  *   high-density screen never paints more.
  * - At most 30 frames a second, with movement scaled by the elapsed time.
@@ -19,7 +20,15 @@ import styles from './CanvasBackground.module.css';
  * - Every listener, observer and pending frame is released on unmount.
  */
 
-const BACKING_SCALE = 0.35;
+const BACKING_SCALE = 0.25;
+// The old blur spread each line and dot over several pixels, which also
+// dimmed them; these bring the upscaled picture back to that soft haze.
+const LINK_ALPHA = { dark: 0.6, light: 1 };
+const NODE_ALPHA = 0.7;
+const GLOW_BLUR = { dark: 22, light: 8 }; // CSS px
+// On the light background the glow barely shows, so the dots themselves are
+// drawn wider; upscaled, they read as the old soft discs, not tiny squares.
+const NODE_SPREAD = { dark: 0, light: 1.5 }; // CSS px added to the radius
 const FRAME_INTERVAL_MS = 1000 / 30;
 const BASE_STEP_MS = 1000 / 60; // the speeds below are tuned per 60 fps step
 const MIN_NODES = 20;
@@ -102,7 +111,7 @@ const CanvasBackground: React.FC = () => {
     let resizeFrameId = 0;
 
     const nodeFill = (node: Node) =>
-      palette.colors[node.tone] + alphaHex((node.glow * (palette.dark ? 200 : 100)) / 255);
+      palette.colors[node.tone] + alphaHex((NODE_ALPHA * node.glow * (palette.dark ? 200 : 100)) / 255);
 
     const makeNode = (): Node => {
       const node: Node = {
@@ -188,10 +197,11 @@ const CanvasBackground: React.FC = () => {
       }
 
       // shadowBlur is in backing-store pixels and ignores the transform.
-      ctx.shadowBlur = (palette.dark ? 15 : 8) * BACKING_SCALE;
+      ctx.shadowBlur = (palette.dark ? GLOW_BLUR.dark : GLOW_BLUR.light) * BACKING_SCALE;
+      const spread = palette.dark ? NODE_SPREAD.dark : NODE_SPREAD.light;
       for (const node of nodes) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, node.radius + spread, 0, Math.PI * 2);
         ctx.fillStyle = node.fill;
         ctx.shadowColor = palette.colors[node.tone];
         ctx.fill();
@@ -208,7 +218,7 @@ const CanvasBackground: React.FC = () => {
           const dy = nodes[i].y - nodes[j].y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           if (distance >= LINK_DISTANCE) continue;
-          const opacity = ((palette.dark ? 0.3 : 0.15) * (LINK_DISTANCE - distance)) / LINK_DISTANCE;
+          const opacity = ((palette.dark ? LINK_ALPHA.dark * 0.3 : LINK_ALPHA.light * 0.15) * (LINK_DISTANCE - distance)) / LINK_DISTANCE;
           const color = distance < LINK_DISTANCE / 2 ? palette.colors.secondary : palette.colors.primary;
           ctx.beginPath();
           ctx.moveTo(nodes[i].x, nodes[i].y);
