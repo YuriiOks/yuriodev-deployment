@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../../context/useTheme';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
@@ -11,6 +11,19 @@ import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
 import styles from './PageLayout.module.css';
 import { scrollBehavior } from '../../../utils/motion';
 
+/** The one overlay that may be open; opening another replaces it. */
+type Overlay = 'palette' | 'help' | null;
+
+/** True for targets where a typed character belongs to the field, not to a shortcut. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
 interface PageLayoutProps {
   children: React.ReactNode;
   currentPath?: string;
@@ -18,22 +31,30 @@ interface PageLayoutProps {
 
 const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) => {
   const { toggleTheme } = useTheme();
-  const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const setPaletteOpen = useCallback(
+    (open: boolean) => setOverlay((current) => (open ? 'palette' : current === 'palette' ? null : current)),
+    [],
+  );
+  const openHelp = useCallback(() => setOverlay('help'), []);
+  const closeHelp = useCallback(() => setOverlay((current) => (current === 'help' ? null : current)), []);
   const mainRef = useRef<HTMLElement>(null);
   useRouteChangeFocus(mainRef);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input field
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      // Single-key shortcuts only: never while typing in a field, while an
+      // input method is composing, or when a modifier is held (Ctrl/Cmd+K
+      // belongs to the command palette, not to "previous section").
+      if (isTypingTarget(e.target) || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) {
         return;
       }
 
       // Toggle help panel with '?' key
       if (e.key === '?') {
         e.preventDefault();
-        setIsHelpPanelOpen(prev => !prev);
+        setOverlay((current) => (current === 'help' ? null : 'help'));
         return;
       }
 
@@ -112,10 +133,10 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
   return (
     <>
       <CanvasBackground />
-      <CommandPalette />
-      <HelpPanel isOpen={isHelpPanelOpen} onClose={() => setIsHelpPanelOpen(false)} />
+      <CommandPalette isOpen={overlay === 'palette'} onOpenChange={setPaletteOpen} onShowHelp={openHelp} />
+      <HelpPanel isOpen={overlay === 'help'} onClose={closeHelp} />
       <ScrollToTop />
-      <Header onHelpToggle={() => setIsHelpPanelOpen(true)} currentPath={currentPath} />
+      <Header onHelpToggle={openHelp} currentPath={currentPath} />
       <LeftSidebar />
       <main id="main-content" ref={mainRef} tabIndex={-1} className={styles.mainContent}>
         {children}

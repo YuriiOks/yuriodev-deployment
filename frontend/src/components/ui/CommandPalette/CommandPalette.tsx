@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import styles from './CommandPalette.module.css';
@@ -14,7 +14,14 @@ function openExternal(url: string) {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-const CommandPalette: React.FC = () => {
+interface CommandPaletteProps {
+    /** Open state owned by the parent (PageLayout keeps one overlay open at a time). Omit to let the palette own it. */
+    isOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    onShowHelp?: () => void;
+}
+
+const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen: openProp, onOpenChange, onShowHelp }) => {
     const { toggleTheme } = useTheme();
     const { pathname } = useLocation();
     const navigate = useNavigate();
@@ -35,14 +42,19 @@ const CommandPalette: React.FC = () => {
             { title: 'Go to Connect', action: goTo('connect'), shortcut: 'connect' },
             { title: 'Go to Terminal', action: goTo('terminal'), shortcut: 'terminal' },
             { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
-            { title: 'Show Help', action: () => {/**/}, shortcut: 'help' },
+            { title: 'Show Help', action: () => onShowHelp?.(), shortcut: 'help' },
             { title: 'Send Email', action: () => { window.location.href = 'mailto:yurii.oksamytnyi@yuriodev.co.uk'; }, shortcut: 'email' },
             { title: 'View LinkedIn', action: () => openExternal('https://www.linkedin.com/in/y-oks'), shortcut: 'linkedin' },
             { title: 'View X', action: () => openExternal('https://x.com/YuriODev'), shortcut: 'x' },
             { title: 'View GitHub', action: () => openExternal('https://github.com/YuriiOks'), shortcut: 'github' }
         ];
-    }, [toggleTheme, pathname, navigate]);
-    const [isOpen, setIsOpen] = useState(false);
+    }, [toggleTheme, pathname, navigate, onShowHelp]);
+    const [ownOpen, setOwnOpen] = useState(false);
+    const isOpen = openProp ?? ownOpen;
+    const setIsOpen = useCallback((open: boolean) => {
+        if (openProp === undefined) setOwnOpen(open);
+        onOpenChange?.(open);
+    }, [openProp, onOpenChange]);
     const [inputValue, setInputValue] = useState('');
     const [filteredCommands, setFilteredCommands] = useState(commands);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -56,7 +68,7 @@ const CommandPalette: React.FC = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen]);
+    }, [isOpen, setIsOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -88,6 +100,13 @@ const CommandPalette: React.FC = () => {
                     placeholder="Type a command or search..."
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setIsOpen(false);
+                            setInputValue('');
+                        }
+                    }}
                     autoFocus
                 />
                 <div className={styles.commandResults}>

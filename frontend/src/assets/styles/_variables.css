@@ -7,6 +7,20 @@
                scroll-padding-top clears it on every anchor jump. */
             --header-h: 3.5rem;
 
+            /* Stacking: one layer per role, no ties. --z-raised and --z-decor
+               order things inside one component only. */
+            --z-below: -1;      /* CanvasBackground */
+            --z-raised: 1;
+            --z-decor: 2;
+            --z-sidebar: 100;   /* LeftSidebar */
+            --z-fab: 150;       /* ScrollToTop */
+            --z-header: 200;    /* Header and its menu */
+            --z-overlay: 1000;  /* scrims behind a dialog */
+            --z-modal: 1010;    /* CommandPalette, HelpPanel */
+            --z-toast: 1100;
+            --z-boot: 1200;     /* LoadingScreen */
+            --z-skip: 1300;     /* skip link */
+
             /* Layout. LeftSidebar.module.css derives its position from this
                width (and the sections' 2rem padding); update it there too. */
             --content-max-width: 75%;

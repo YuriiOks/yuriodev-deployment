@@ -7,7 +7,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 9999;
+  z-index: var(--z-overlay);
   animation: fadeIn 0.3s ease;
 }
 
@@ -34,7 +34,7 @@
   background: var(--bg-card);
   border-left: 2px solid var(--accent-primary);
   box-shadow: -4px 0 20px rgba(var(--bg-card-rgb-val, 10, 15, 28), 0.95);
-  z-index: 10000;
+  z-index: var(--z-modal);
   overflow-y: auto;
   padding: 2rem;
   transform: translateX(100%);

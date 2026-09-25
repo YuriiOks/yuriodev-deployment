@@ -16,7 +16,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--z-boot);
   opacity: 1;
   transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -92,7 +92,7 @@
   max-width: 800px;
   padding: 3rem;
   position: relative;
-  z-index: 2;
+  z-index: var(--z-decor);
 }
 
 /* ASCII Logo - Revolutionary Design */

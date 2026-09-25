@@ -13,7 +13,7 @@
     transform: translateY(-50%);
     height: auto;
     max-height: calc(100vh - 160px);
-    z-index: 999;
+    z-index: var(--z-sidebar);
     background: transparent;
     border: none;
     padding: 0.75rem 0;
@@ -42,7 +42,7 @@
     bottom: 15px;
     width: 1.5px;
     background-color: rgba(var(--accent-primary-rgb), 0.4);
-    z-index: 1;
+    z-index: var(--z-raised);
     transition: background-color 0.3s ease;
 }
 
@@ -88,7 +88,7 @@
     align-items: center;
     position: relative;
     text-decoration: none;
-    z-index: 2;
+    z-index: var(--z-decor);
     height: 10px;
     padding-left: 22px;
     cursor: pointer;
@@ -107,7 +107,7 @@
     left: 20.25px;
     top: 50%;
     transform: translateY(-50%) rotate(45deg);
-    z-index: 3;
+    z-index: var(--z-raised);
 }
 .sidebarNavLink .linkText {
     display: inline-block;

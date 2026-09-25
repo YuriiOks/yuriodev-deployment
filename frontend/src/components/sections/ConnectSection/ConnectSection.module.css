@@ -7,7 +7,7 @@
   padding: 3rem 2rem 6rem;
   background: var(--section-hero-bg-gradient);
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 .sectionContent {

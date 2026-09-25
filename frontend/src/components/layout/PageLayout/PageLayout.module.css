@@ -5,7 +5,9 @@
     padding-top: var(--header-h);
     padding-bottom: 2rem;
     position: relative;
-    z-index: 1;
+    /* Its own stacking context on the content plane: nothing inside can rise
+       above the header or the floating controls. */
+    isolation: isolate;
 }
 
 /* main takes focus programmatically after a route change; it is a landmark,

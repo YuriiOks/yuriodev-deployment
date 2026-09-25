@@ -4,7 +4,7 @@
   width: 100%;
   padding: 4rem 2rem;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 .sectionContentWrapper {
@@ -98,7 +98,7 @@
   background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
   transform: scaleX(0);
   transition: transform 0.3s ease;
-  z-index: 2;
+  z-index: var(--z-decor);
 }
 
 .summaryCard:hover::before,
@@ -805,7 +805,7 @@
   border: 2px solid var(--bg-card);
   border-radius: 50%;
   box-shadow: 0 0 10px var(--glow-secondary);
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 .timelineYear {
