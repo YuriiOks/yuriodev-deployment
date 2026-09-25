@@ -2,12 +2,6 @@
    Latest posts
    =========================== */
 
-/* Marks the section's place while there is nothing to show: no box height,
-   so the page does not move. */
-.sentinel {
-  height: 0;
-}
-
 .section {
   width: 100%;
   padding: 3rem 2rem;

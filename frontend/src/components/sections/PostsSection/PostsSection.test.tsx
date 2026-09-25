@@ -1,53 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import PostsSection from './PostsSection';
 import { POSTS_URL, resetPostsCache } from '../../../services/postsApi';
+import { noteJump } from '../../../utils/scroll';
 import { items, payload, stubFetch } from '../../../test/postsFixtures';
 
-/** An IntersectionObserver the test drives: `nearView()` reports every observed element as intersecting. */
-let observed: { callback: IntersectionObserverCallback; elements: Element[]; options?: IntersectionObserverInit }[] = [];
-class TestObserver {
-  private readonly entry: (typeof observed)[number];
-  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
-    this.entry = { callback, elements: [], options };
-    observed.push(this.entry);
-  }
-  observe(element: Element) {
-    this.entry.elements.push(element);
-  }
-  unobserve() {}
-  disconnect() {
-    this.entry.elements = [];
-  }
-  takeRecords() {
-    return [];
-  }
-}
-
-function nearView() {
-  act(() => {
-    for (const { callback, elements } of observed) {
-      if (elements.length === 0) continue;
-      const entries = elements.map((target) => ({ target, isIntersecting: true }) as IntersectionObserverEntry);
-      callback(entries, {} as IntersectionObserver);
-    }
-  });
-}
-
-const originalObserver = window.IntersectionObserver;
-
-beforeEach(() => {
-  observed = [];
-  window.IntersectionObserver = TestObserver as unknown as typeof IntersectionObserver;
-});
-
 afterEach(() => {
-  window.IntersectionObserver = originalObserver;
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   resetPostsCache();
 });
 
-/** Renders the section, brings it near the view and waits for the request to settle. */
+/** Renders the section between two neighbours and waits for the request to settle. */
 async function renderAndLoad(fetchMock: ReturnType<typeof vi.fn>) {
   const view = render(
     <main>
@@ -56,32 +20,27 @@ async function renderAndLoad(fetchMock: ReturnType<typeof vi.fn>) {
       <section id="connect">after</section>
     </main>,
   );
-  nearView();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   // Let the answer land.
   await act(async () => {});
   return view;
 }
 
-/** Nothing but the zero-height marker: no section, no heading, no text. */
+/** Nothing at all: no section, no heading, no placeholder element. */
 function expectHidden(container: HTMLElement) {
   expect(container.querySelector('#posts')).toBeNull();
   expect(screen.queryByRole('heading')).toBeNull();
   const main = container.querySelector('main')!;
-  expect([...main.children].map((el) => el.tagName)).toEqual(['SECTION', 'DIV', 'SECTION']);
-  expect(main.children[1]).toBeEmptyDOMElement();
-  expect(main.children[1]).toHaveAttribute('aria-hidden', 'true');
+  expect([...main.children].map((el) => el.id)).toEqual(['platform', 'connect']);
 }
 
 describe('PostsSection', () => {
-  it('does not ask the API until its place comes near the view', async () => {
+  it('asks the API on mount, before the visitor gets anywhere near it', async () => {
     const fetchMock = stubFetch(payload(items(3)));
     render(<PostsSection />);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(observed.at(-1)?.options?.rootMargin).toBe('800px 0px');
-    nearView();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(POSTS_URL, expect.anything()));
     expect(await screen.findByRole('heading', { name: 'Latest posts' })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('shows 3 or more posts as a labelled section of articles', async () => {
@@ -133,7 +92,6 @@ describe('PostsSection', () => {
   it('asks only once, and shows the remembered answer straight away on the next mount', async () => {
     const fetchMock = stubFetch(payload(items(3)));
     const { unmount } = await renderAndLoad(fetchMock);
-    nearView();
     unmount();
     render(<PostsSection />);
     expect(screen.getByRole('heading', { name: 'Latest posts' })).toBeInTheDocument();
@@ -150,9 +108,68 @@ describe('PostsSection', () => {
       }),
     );
     const { unmount } = render(<PostsSection />);
-    nearView();
     await waitFor(() => expect(signal).toBeDefined());
     unmount();
     expect(signal!.aborted).toBe(true);
+  });
+
+  describe('a jump that its arrival pushed off target', () => {
+    const scrolls: string[] = [];
+    function trackScrolls() {
+      scrolls.length = 0;
+      vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+        scrolls.push(this.id);
+      });
+    }
+    function renderPage() {
+      return render(
+        <main>
+          <section id="about">before</section>
+          <PostsSection />
+          <section id="connect">
+            <div id="terminal">terminal</div>
+          </section>
+        </main>,
+      );
+    }
+
+    it.each(['connect', 'terminal', 'posts'])('is repeated for #%s, at or below the section', async (target) => {
+      trackScrolls();
+      stubFetch(payload(items(3)));
+      noteJump(target);
+      renderPage();
+      expect(await screen.findByRole('heading', { name: 'Latest posts' })).toBeInTheDocument();
+      expect(scrolls).toEqual([target]);
+    });
+
+    it('is left alone for a place above the section, or a jump long past', async () => {
+      trackScrolls();
+      stubFetch(payload(items(3)));
+      noteJump('about');
+      const { unmount } = renderPage();
+      expect(await screen.findByRole('heading', { name: 'Latest posts' })).toBeInTheDocument();
+      expect(scrolls).toEqual([]);
+      unmount();
+      resetPostsCache();
+
+      vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_000);
+      renderPage();
+      expect(await screen.findByRole('heading', { name: 'Latest posts' })).toBeInTheDocument();
+      expect(scrolls).toEqual([]);
+    });
+
+    it('is not repeated when the section was already there on mount', async () => {
+      const fetchMock = stubFetch(payload(items(3)));
+      const { unmount } = renderPage();
+      await screen.findByRole('heading', { name: 'Latest posts' });
+      unmount();
+      trackScrolls();
+      noteJump('connect');
+      renderPage();
+      expect(screen.getByRole('heading', { name: 'Latest posts' })).toBeInTheDocument();
+      await act(async () => {});
+      expect(scrolls).toEqual([]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

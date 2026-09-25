@@ -188,6 +188,50 @@ describe('cache', () => {
     expect(mock).toHaveBeenCalledTimes(2);
   });
 
+  it('shares a request in flight between callers', async () => {
+    const mock = stubFetch(payload(items(3)));
+    const [a, b] = await Promise.all([loadPosts(), getPosts()]);
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+    expect(a!.feed!.items).toHaveLength(3);
+  });
+
+  it('keeps a shared request going while another caller still waits, and aborts it when none is left', async () => {
+    let signal: AbortSignal | undefined;
+    let answer: (response: Response) => void = () => {};
+    const mock = vi.fn((_url: string, init: RequestInit) => {
+      signal = init.signal ?? undefined;
+      return new Promise<Response>((resolve, reject) => {
+        answer = resolve;
+        init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      });
+    });
+    vi.stubGlobal('fetch', mock);
+
+    const first = new AbortController();
+    const second = new AbortController();
+    const leaving = loadPosts(first.signal);
+    const staying = loadPosts(second.signal);
+    first.abort();
+    await expect(leaving).resolves.toBeNull();
+    expect(signal?.aborted).toBe(false);
+
+    answer(new Response(JSON.stringify(payload(items(3))), { status: 200 }));
+    const result = await staying;
+    expect(result!.feed!.items).toHaveLength(3);
+    expect(peekPosts()).toBe(result);
+    expect(mock).toHaveBeenCalledTimes(1);
+
+    // Once every caller has left, the request is aborted and nothing is remembered.
+    resetPostsCache();
+    const only = new AbortController();
+    const alone = loadPosts(only.signal);
+    only.abort();
+    await expect(alone).resolves.toBeNull();
+    expect(signal?.aborted).toBe(true);
+    expect(peekPosts()).toBeNull();
+  });
+
   it('remembers nothing when the caller aborted', async () => {
     stubFetch(payload(items(3)));
     const controller = new AbortController();

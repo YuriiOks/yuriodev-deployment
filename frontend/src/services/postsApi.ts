@@ -202,21 +202,67 @@ export interface CachedPosts {
 
 let cached: CachedPosts | null = null;
 
+/** The request in flight, shared by every caller until it settles. */
+interface Inflight {
+  readonly promise: Promise<CachedPosts | null>;
+  readonly controller: AbortController;
+  /** Callers still waiting; the request is aborted when the last one leaves. */
+  waiting: number;
+}
+
+let inflight: Inflight | null = null;
+
 /** The last answer this page received, if any. */
 export function peekPosts(): CachedPosts | null {
   return cached;
 }
 
+function startRequest(): Inflight {
+  const controller = new AbortController();
+  const request: Inflight = {
+    controller,
+    waiting: 0,
+    promise: fetchPosts(controller.signal).then((feed) => {
+      if (inflight === request) inflight = null;
+      if (controller.signal.aborted) return null;
+      cached = { feed, at: Date.now() };
+      return cached;
+    }),
+  };
+  return request;
+}
+
 /**
  * Asks the API and remembers the answer (a failure too, so a page that could
- * not reach it does not keep retrying). Resolves to null only when `signal`
- * aborted the request, in which case nothing is remembered.
+ * not reach it does not keep retrying). Callers that ask while a request is
+ * in flight share it. Resolves to null only when `signal` aborted, in which
+ * case this caller stops waiting; the request itself is aborted, and nothing
+ * remembered, only once no caller is left waiting for it.
  */
-export async function loadPosts(signal?: AbortSignal): Promise<CachedPosts | null> {
-  const feed = await fetchPosts(signal);
-  if (signal?.aborted) return null;
-  cached = { feed, at: Date.now() };
-  return cached;
+export function loadPosts(signal?: AbortSignal): Promise<CachedPosts | null> {
+  if (signal?.aborted) return Promise.resolve(null);
+  const request = inflight ?? (inflight = startRequest());
+  request.waiting += 1;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const leave = (result: CachedPosts | null) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
+      request.waiting -= 1;
+      resolve(result);
+    };
+    const onAbort = () => {
+      leave(null);
+      if (request.waiting === 0) {
+        if (inflight === request) inflight = null;
+        request.controller.abort();
+      }
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    void request.promise.then(leave);
+  });
 }
 
 /** The cached answer while it is fresh, otherwise a new one. */
@@ -228,6 +274,8 @@ export async function getPosts(signal?: AbortSignal): Promise<CachedPosts | null
 /** Test helper: forget the cached answer. */
 export function resetPostsCache(): void {
   cached = null;
+  inflight?.controller.abort();
+  inflight = null;
 }
 
 // ---------------------------------------------------------------------------

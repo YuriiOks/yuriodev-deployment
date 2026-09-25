@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../context/ThemeContext';
@@ -123,21 +124,51 @@ describe('section navigation surfaces', () => {
     expect(hrefs).toEqual(SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `/#${id}`));
   });
 
-  it('an optional section (posts) is listed only while it is on the page', () => {
+  it('an optional section (posts) is listed, in its place, only while it is on the page', async () => {
+    let setPosts: (on: boolean) => void = () => {};
+    const Sections = () => {
+      const [posts, setState] = useState(false);
+      setPosts = setState;
+      return (
+        <>
+          {SECTIONS.filter(({ id, optional }) => !optional || (id === 'posts' && posts)).map(({ id }) => (
+            <section key={id} id={id}><h2>{id}</h2></section>
+          ))}
+        </>
+      );
+    };
+    const renderWith = () =>
+      render(
+        <ThemeProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <PageLayout currentPath="/">
+              <Sections />
+            </PageLayout>
+          </MemoryRouter>
+        </ThemeProvider>,
+      );
+    const all = SECTIONS.map(({ id }) => `#${id}`);
+    const always = SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `#${id}`);
+    const sidebarHrefs = () => [...sidebar()!.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    const menuHrefs = () => [...headerSectionLinks()].map((a) => a.getAttribute('href'));
+
+    // Wide: the sidebar.
     wide = true;
-    render(
-      <ThemeProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <PageLayout currentPath="/">
-            {SECTIONS.filter(({ optional }) => !optional).map(({ id }) => (
-              <section key={id} id={id}><h2>{id}</h2></section>
-            ))}
-          </PageLayout>
-        </MemoryRouter>
-      </ThemeProvider>,
-    );
-    const hrefs = [...sidebar()!.querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    expect(hrefs).not.toContain('#posts');
-    expect(hrefs).toEqual(SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `#${id}`));
+    const { unmount } = renderWith();
+    expect(sidebarHrefs()).toEqual(always);
+    await act(async () => setPosts(true));
+    expect(sidebarHrefs()).toEqual(all);
+    await act(async () => setPosts(false));
+    expect(sidebarHrefs()).toEqual(always);
+    unmount();
+
+    // Narrow: the header menu.
+    wide = false;
+    renderWith();
+    expect(menuHrefs()).toEqual(always);
+    await act(async () => setPosts(true));
+    expect(menuHrefs()).toEqual(all);
+    await act(async () => setPosts(false));
+    expect(menuHrefs()).toEqual(always);
   });
 });

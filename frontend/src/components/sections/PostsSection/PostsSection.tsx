@@ -1,31 +1,52 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import PostCard from '../../ui/PostCard/PostCard';
 import { usePosts } from '../../../hooks/usePosts';
 import { PLATFORM_LABELS, PLATFORMS, hasEnoughPosts, platformsOf } from '../../../services/postsApi';
 import { formatRelativeTime } from '../../../utils/postText';
+import { recentJump, scrollToId } from '../../../utils/scroll';
 import styles from './PostsSection.module.css';
+
+/** A jump asked for this recently is still on its way (smooth scrolling included). */
+export const JUMP_SETTLE_MS = 3000;
 
 /**
  * "Latest posts": Yurii's recent LinkedIn and X posts, from GET /api/posts.
  *
  * Shown only when the API has the feed switched on and returns at least 3
  * posts. Until then, and whenever it is off, empty, failing or missing, the
- * page renders nothing here but an empty marker element (no height, not a
- * section), so nothing moves and the navigation does not list it. The
- * marker is also where the request starts: when it nears the view.
+ * page renders nothing here, so nothing moves and the navigation does not
+ * list it.
+ *
+ * When the section appears after the page has mounted, a jump aimed at it
+ * (a /#posts link) or at anything below it (Connect, the terminal) that was
+ * asked for moments ago has just been pushed off target by its height, so it
+ * is repeated.
  */
 const PostsSection: React.FC = () => {
-  const { feed, now, sentinelRef } = usePosts();
+  const { feed, now } = usePosts();
+  const shown = hasEnoughPosts(feed);
+  const sectionRef = useRef<HTMLElement>(null);
+  // Whether the section has been on the page since this component mounted.
+  const wasShown = useRef(shown);
 
-  if (!hasEnoughPosts(feed)) {
-    return <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />;
-  }
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    if (!shown || !section || wasShown.current) return;
+    wasShown.current = true;
+    const target = recentJump(JUMP_SETTLE_MS);
+    const element = target ? document.getElementById(target) : null;
+    if (!target || !element) return;
+    const below = element === section || Boolean(section.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (below) scrollToId(target);
+  }, [shown]);
+
+  if (!shown) return null;
 
   const present = PLATFORMS.filter((platform) => feed.items.some((item) => platformsOf(item).includes(platform)));
   const synced = feed.status === 'stale' && feed.lastSuccessAt ? formatRelativeTime(feed.lastSuccessAt, now) : '';
 
   return (
-    <section id="posts" className={styles.section} aria-labelledby="posts-title">
+    <section ref={sectionRef} id="posts" className={styles.section} aria-labelledby="posts-title">
       <div className={styles.content}>
         <div className={styles.header}>
           <h2 id="posts-title" className={styles.title}>
