@@ -50,6 +50,7 @@ whoami     - Display current user info`,
 📧 Email:    yurii.oksamytnyi@yuriodev.co.uk
 📱 Phone:    +44 7767 336011
 🔗 LinkedIn: linkedin.com/in/y-oks
+𝕏  X:        x.com/YuriODev
 💻 GitHub:   github.com/YuriiOks
 🌐 Website:  yuriodev.co.uk
 📍 Location: London, UK

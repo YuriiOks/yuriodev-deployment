@@ -23,6 +23,7 @@ export interface AboutData {
     phone: string;
     location: string;
     linkedin: string;
+    x: string;
     github: string;
   };
 }
@@ -78,6 +79,7 @@ export const aboutData: AboutData = {
     phone: "+44 7767 336011",
     location: "London, UK",
     linkedin: "https://linkedin.com/in/y-oks",
+    x: "https://x.com/YuriODev",
     github: "https://github.com/YuriiOks",
   },
 };

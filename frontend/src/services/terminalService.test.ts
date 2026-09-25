@@ -31,4 +31,10 @@ describe('terminalCommands', () => {
   it('looking up an unknown command name yields no handler', () => {
     expect(terminalCommands['not-a-real-command']).toBeUndefined();
   });
+
+  it('contact lists the LinkedIn and X profiles', () => {
+    const contact = terminalCommands.contact();
+    expect(contact).toContain('linkedin.com/in/y-oks');
+    expect(contact).toContain('x.com/YuriODev');
+  });
 });

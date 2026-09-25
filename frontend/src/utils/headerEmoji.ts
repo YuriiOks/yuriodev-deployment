@@ -29,6 +29,7 @@ export const HEADER_EMOJI_LIST: readonly string[] = [
   '📄',
   '🏠',
   '🐍',
+  '𝕏', // mathematical double-struck X (U+1D54F), marks the X profile line
 ];
 
 export const HEADER_EMOJI_REGEX = new RegExp(`^(?:${HEADER_EMOJI_LIST.join('|')})`, 'u');
