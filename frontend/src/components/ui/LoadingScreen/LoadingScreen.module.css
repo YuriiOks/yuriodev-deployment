@@ -12,7 +12,7 @@
   background: #0a0e27;
   background-image: 
     radial-gradient(circle at 20% 50%, rgba(var(--cyan-rgb), 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(255, 193, 7, 0.08) 0%, transparent 50%);
+    radial-gradient(circle at 80% 50%, rgba(var(--amber-rgb),0.08) 0%, transparent 50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,7 +141,7 @@
   
   /* Glowing effect for dark theme */
   filter: drop-shadow(0 0 30px rgba(var(--cyan-rgb), 0.6))
-          drop-shadow(0 0 60px rgba(255, 193, 7, 0.3));
+          drop-shadow(0 0 60px rgba(var(--amber-rgb),0.3));
   
   animation: gradientShift 8s ease-in-out infinite;
 }
@@ -150,10 +150,9 @@
 [data-theme="light"] .asciiArt {
   background: linear-gradient(
     135deg,
-    var(--amber-edge) 0%,
-    var(--amber-edge) 25%,
-    var(--amber) 50%,
-    #fbbf24 75%,
+    var(--amber-text) 0%,
+    var(--amber-edge) 30%,
+    var(--amber) 65%,
     #fcd34d 100%
   );
   background-size: 200% 200%;
@@ -310,10 +309,9 @@
 [data-theme="light"] .progressFill {
   background: linear-gradient(
     90deg,
-    var(--amber-edge) 0%,
-    var(--amber-edge) 25%,
-    var(--amber) 50%,
-    #fbbf24 75%,
+    var(--amber-text) 0%,
+    var(--amber-edge) 30%,
+    var(--amber) 65%,
     #fcd34d 100%
   );
   background-size: 200% 100%;
@@ -519,17 +517,17 @@
 }
 
 .square:nth-child(10) {
-  background: linear-gradient(135deg, var(--amber), var(--amber));
+  background: linear-gradient(135deg, var(--amber), var(--hue-orange));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.6));
+  filter: drop-shadow(0 0 8px rgba(var(--amber-rgb),0.6));
   animation-delay: 0.45s;
 }
 
 /* Light theme: Orange to gold gradient across squares */
 [data-theme="light"] .square:nth-child(1) {
-  background: linear-gradient(135deg, var(--amber-edge), var(--amber-edge));
+  background: linear-gradient(135deg, var(--amber-text), var(--amber-edge));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -541,7 +539,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(234, 88, 12, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(3) {
@@ -561,11 +559,11 @@
 }
 
 [data-theme="light"] .square:nth-child(5) {
-  background: linear-gradient(135deg, var(--amber), #fbbf24);
+  background: linear-gradient(135deg, var(--amber), #fcd34d);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(251, 146, 60, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(6) {

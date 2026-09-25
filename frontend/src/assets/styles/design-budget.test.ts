@@ -41,7 +41,7 @@ describe('one cyan and one amber', () => {
   // The duplicate cyans and oranges that sat beside the brand tokens. Colour
   // the thing with --cyan* / --amber* (or a legacy alias) in _variables.css.
   const DUPLICATES =
-    /#(?:06b6d4|22d3ee|0891b2|0e7490|00bcd4|00d4ff|0059b3|f97316|ea580c|c2410c|fb923c|ff9800|f59e0b|d97706|ffc107)\b|\b(?:6,\s*182,\s*212|0,\s*212,\s*255|0,\s*89,\s*179|249,\s*115,\s*22|245,\s*158,\s*11|217,\s*119,\s*6)\b/i;
+    /#(?:06b6d4|22d3ee|0891b2|0e7490|00bcd4|00d4ff|0059b3|f97316|ea580c|c2410c|fb923c|ff9800|f59e0b|d97706|ffc107)\b|\b(?:6,\s*182,\s*212|0,\s*212,\s*255|0,\s*89,\s*179|249,\s*115,\s*22|245,\s*158,\s*11|217,\s*119,\s*6|255,\s*193,\s*7|234,\s*88,\s*12|251,\s*146,\s*60)\b/i;
 
   it('no stylesheet outside _variables.css spells out a brand cyan or amber', () => {
     const outside = Object.fromEntries(Object.entries(styles).filter(([file]) => !file.endsWith('/_variables.css')));
