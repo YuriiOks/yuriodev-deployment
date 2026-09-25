@@ -112,9 +112,10 @@
 }
 
 .codeBlock {
-    background:var(--bg-card);
-    border:1px solid var(--border-card);
-    border-radius:8px;
+    composes: glassAccent from '../../../assets/styles/recipes.module.css';
+    /* The accent glass, with the neon edge the hero has always had. */
+    border-color: var(--border-accent);
+    border-radius: var(--radius-lg);
     padding:2rem;
     margin:2rem auto;
     max-width:var(--content-max-width);
@@ -123,18 +124,7 @@
     font-family:'Fira Code',monospace;
     font-size:0.9rem;
     line-height:1.6;
-    box-shadow: var(--card-shadow);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
     position: relative;
-}
-
-[data-theme="dark"] .codeBlock {
-    background: rgba(10, 15, 28, 0.7);
-    backdrop-filter: blur(10px);
-}
-
-[data-theme="light"] .codeBlock {
-    border-color: rgba(249, 115, 22, 0.4);
 }
 
 .jsonGrid {

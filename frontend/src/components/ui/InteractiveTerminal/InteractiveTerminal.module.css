@@ -34,7 +34,6 @@
     padding: 0.75rem 1rem;
     background: linear-gradient(180deg, rgba(var(--bg-card-rgb-val, 20, 24, 36), 0.95), rgba(var(--bg-card-rgb-val, 20, 24, 36), 0.98));
     border-bottom: 1px solid var(--border-color-muted);
-    backdrop-filter: blur(10px);
 }
 
 [data-theme="light"] .terminalHeader {

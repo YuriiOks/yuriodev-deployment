@@ -1,0 +1,82 @@
+/* Shared surface recipes. Components reach them with
+     composes: glass from '<relative path>/assets/styles/recipes.module.css';
+   as the first declaration of a rule.
+
+   GLASS IS FOR CHROME ONLY. This file is the only place in the codebase
+   where backdrop-filter appears (design-budget.test.ts holds that):
+     .glass        header, section sidebar, command palette dialog
+     .glassAccent  hero code block, footer social pill: glass in the dark
+                   theme with a fine pointer from 48rem up, solid elsewhere
+   Cards, terminals, drawers, post cards and prose stay solid: dense text
+   reads better on a solid fill, and a blur behind a near-opaque fill costs
+   paint time for nothing.
+
+   Rules for glass:
+   - Text on it: --text-1, --text-2, --cyan-text, --amber-text (and their
+     legacy names). Never --text-3 / --text-muted or a category hue.
+   - Never nest glass, and never give an ancestor of glass opacity < 1,
+     filter, mask, clip-path, mix-blend-mode or backdrop-filter, even while
+     it animates: that ancestor becomes the backdrop root and the glass
+     blurs nothing. Animate the glass element itself.
+   - Never animate backdrop-filter, the blur radius or the glass fill.
+   - A glass element is the containing block for its position: fixed
+     descendants; keep popovers absolutely positioned inside it, or outside.
+   - Blur values stay literal (12px, 10px in the light theme), with the
+     -webkit- twin that Safari needs.
+
+   Every selector here is wrapped in :where(), so it has no specificity: a
+   component's own rule (border, radius, shadow) always wins, whatever order
+   the bundler emits the stylesheets in. Within this file later rules win,
+   which is how the fallbacks at the end replace the glass. */
+
+:where(.glass) {
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-highlight), var(--shadow-1);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+}
+
+:where([data-theme="light"] .glass) {
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+:where(.glassAccent) {
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-1);
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 48rem) {
+    :where(:root:not([data-theme="light"]) .glassAccent) {
+        background: var(--glass-fill);
+        border-color: var(--glass-border);
+        box-shadow: var(--glass-highlight), var(--shadow-1);
+        -webkit-backdrop-filter: blur(12px) saturate(140%);
+        backdrop-filter: blur(12px) saturate(140%);
+    }
+}
+
+/* Fallbacks: no backdrop-filter support, reduced transparency, more
+   contrast (Safari has no prefers-reduced-transparency, so there only
+   prefers-contrast removes the glass), forced colours. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    :where(.glass, :root:not([data-theme="light"]) .glassAccent) {
+        background: var(--surface-2);
+    }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    :where(.glass, .glassAccent) {
+        background: var(--surface-2);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+
+@media (forced-colors: active) {
+    :where(.glass, .glassAccent) {
+        border-color: CanvasText;
+    }
+}

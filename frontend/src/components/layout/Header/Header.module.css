@@ -1,5 +1,6 @@
 .terminalHeader {
-    background: var(--bg-secondary);
+    composes: glass from '../../../assets/styles/recipes.module.css';
+    border-width: 0 0 2px;
     border-bottom: 2px solid var(--header-border-bottom-color);
     /* Exactly --header-h tall (border included), so everything that has to
        clear the header can use the token. */
@@ -14,8 +15,7 @@
     right: 0;
     width: 100%;
     z-index: var(--z-header);
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    transition: border-color var(--dur-2) var(--ease-std);
     box-sizing: border-box;
 }
 

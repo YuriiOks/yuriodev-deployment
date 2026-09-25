@@ -267,7 +267,6 @@
   margin: 0 auto;
   height: 8px;
   background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
   border-radius: 100px;
   overflow: hidden;
   margin-bottom: 1.25rem;
