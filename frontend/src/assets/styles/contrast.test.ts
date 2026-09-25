@@ -111,6 +111,7 @@ interface Pair {
 }
 
 const TEXT = 4.5;
+const LARGE = 3; // text of 24px and up, or bold 18.66px and up
 const UI = 3;
 
 const cross = (fgs: readonly string[], bgs: readonly (readonly string[])[], min: number): Pair[] =>
@@ -138,6 +139,7 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(TEXT_TOKENS, SOLID_DARK, TEXT),
     ...cross(HUES, [['--bg-0'], ['--surface-1'], ['--surface-3']], TEXT),
     ...cross(GLASS_TEXT, [['--glass-fill', '--text-1'], ['--glass-fill', '--bg-0']], TEXT),
+    ...cross(['--amber-display'], SOLID_DARK, LARGE),
     // Hover and current-item tints.
     { fg: '--cyan-text', bg: ['rgba(var(--cyan-rgb), 0.18)', '--bg-0'], min: TEXT },
     { fg: '--nav-link-text-active', bg: ['--nav-link-bg-active', '--bg-0'], min: TEXT },
@@ -154,6 +156,7 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(TEXT_TOKENS, SOLID_LIGHT, TEXT),
     ...cross(HUES, [['--bg-0'], ['--bg-1'], ['--surface-1']], TEXT),
     ...cross(GLASS_TEXT, [['--glass-fill', '--text-1'], ['--glass-fill', '--bg-0']], TEXT),
+    ...cross(['--amber-display'], SOLID_LIGHT, LARGE),
     { fg: '--cyan-text', bg: ['rgba(var(--cyan-rgb), 0.18)', '--surface-1'], min: TEXT },
     { fg: '--nav-link-text-active', bg: ['--nav-link-bg-active', '--bg-0'], min: TEXT },
     { fg: '--on-cyan', bg: ['--cyan'], min: TEXT },

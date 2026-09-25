@@ -143,6 +143,8 @@
        neon itself passes everywhere, so all four shades are one colour. */
     --cyan: #00d4ff;   --cyan-rgb: 0, 212, 255;   --cyan-text: #00d4ff;   --cyan-edge: #00d4ff;   --on-cyan: #0a0f1c;
     --amber: #ffc107;  --amber-rgb: 255, 193, 7;  --amber-text: #ffc107;  --amber-edge: #ffc107;  --on-amber: #0a0f1c;
+    /* Large display text (24px and up, never on glass): the hero name. */
+    --amber-display: var(--amber);
 
     /* Category hues: tags, the canvas and syntax colouring only. */
     --hue-violet: #c084fc; --hue-violet-rgb: 192, 132, 252;
@@ -216,6 +218,9 @@
        rings and glows. */
     --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;  --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
     --amber: #fbbf24;  --amber-rgb: 217, 119, 6; --amber-text: #944903;  --amber-edge: #b45309;  --on-amber: #3a2500;
+    /* Large text only needs 3:1, so display text keeps a brighter orange
+       than --amber-text (which must also pass 4.5:1 through the glass). */
+    --amber-display: #b45309;
 
     --hue-violet: #7e22ce; --hue-violet-rgb: 126, 34, 206;
     --hue-teal: #0f766e;   --hue-teal-rgb: 15, 118, 110;
@@ -330,7 +335,6 @@
     --nav-link-bg-active: rgba(var(--amber-rgb), 0.12);
     --nav-link-border-active: var(--amber-edge);
     --nav-link-text-active: var(--amber-text);
-    --nav-link-shadow-active: rgba(var(--amber-rgb), 0.45);
 
     --cta-button-bg: rgba(var(--cyan-rgb), 0.1);
     --cta-button-text: var(--cyan-text);

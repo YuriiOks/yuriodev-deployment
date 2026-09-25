@@ -17,7 +17,7 @@
 }
 
 [data-theme="light"] .heroTitle {
-    color: var(--accent-secondary);
+    color: var(--amber-display);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.12),
                  0 0 12px rgba(var(--amber-rgb), 0.08);
     animation: none;
@@ -96,10 +96,6 @@
     font-weight:500;
 }
 
-[data-theme="light"] .heroSubtitle {
-    color: var(--accent-secondary);
-}
-
 .typewriter {
     font-size:1.2rem;
     margin-bottom:2rem;
@@ -116,12 +112,12 @@
     /* The accent glass, with the neon edge the hero has always had. */
     border-color: var(--border-accent);
     border-radius: var(--radius-lg);
-    padding:2rem;
-    margin:2rem auto;
+    padding: var(--space-6);
+    margin: var(--space-6) auto;
     max-width:var(--content-max-width);
     width: 100%;
     text-align:left;
-    font-family:'Fira Code',monospace;
+    font-family: var(--font-mono);
     font-size:0.9rem;
     line-height:1.6;
     position: relative;
@@ -209,10 +205,6 @@
     color:var(--json-key-color);
 }
 
-[data-theme="light"] .jsonKey {
-    color: var(--syn-key);
-}
-
 .jsonString {
     color:var(--accent-primary);
 }
@@ -223,11 +215,6 @@
 
 .jsonBoolean, .jsonNumber {
     color:var(--accent-secondary);
-}
-
-[data-theme="light"] .jsonBoolean, 
-[data-theme="light"] .jsonNumber {
-    color: var(--accent-secondary);
 }
 
 .jsonBrace {
@@ -247,10 +234,6 @@
     font-size: 1.1em;
 }
 
-[data-theme="light"] .jsonBraceOuter {
-    color: var(--accent-secondary);
-}
-
 .jsonBracket {
     color: var(--accent-primary);
     font-weight: 600;
@@ -266,10 +249,6 @@
 
 .success {
     color:var(--success);
-}
-
-[data-theme="light"] .success {
-    color: var(--success);
 }
 
 .ctaButtons {

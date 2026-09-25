@@ -133,14 +133,14 @@
 
 /* Text labels with background */
 .leftSidebarNav .linkText {
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: var(--space-1) 10px;
+    border-radius: var(--radius-sm);
     font-size: 0.8rem;
 }
 
 /* The panel is the glass recipe (composed above). */
 .leftSidebarNav {
-    padding: 1rem 0.75rem;
+    padding: var(--space-4) var(--space-3);
     border-radius: var(--radius-lg);
     /* A fixed width, so the geometry above holds whatever the labels. */
     width: var(--sidebar-w);

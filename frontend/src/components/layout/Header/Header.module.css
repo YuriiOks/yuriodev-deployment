@@ -7,8 +7,8 @@
     height: var(--header-h);
     display: flex;
     align-items: center;
-    padding: 0 1.5rem;
-    font-family: 'Fira Code', monospace;
+    padding: 0 var(--space-5);
+    font-family: var(--font-mono);
     position: fixed;
     top: 0;
     left: 0;
@@ -107,7 +107,7 @@
     background: var(--button-nav-hover-bg);
     border-color: var(--button-nav-hover-border);
     color: var(--button-nav-hover-text);
-    box-shadow: var(--button-nav-hover-shadow);
+    box-shadow: var(--glow-1);
 }
 
 /* The global focus ring stays; this only adds the hover look. */
@@ -152,14 +152,14 @@
     color: var(--nav-link-text-active);
     border-color: var(--nav-link-border-active);
     background: var(--nav-link-bg-active);
-    box-shadow: var(--nav-link-shadow-active);
+    box-shadow: var(--glow-2);
 }
 
 .navMenu a.pageActive {
     color: var(--nav-link-text-active);
     background: var(--nav-link-bg-active);
     border-color: var(--nav-link-border-active);
-    box-shadow: var(--nav-link-shadow-active);
+    box-shadow: var(--glow-2);
     font-weight: 600;
 }
 

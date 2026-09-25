@@ -415,7 +415,9 @@
     box-shadow: none;
 }
 
-/* Light theme disabled */
+/* Light theme disabled. It restates the base colours on purpose: the
+   [data-theme="light"] .projectLink rule below has the same specificity as
+   .projectLink.disabled and comes later, so it would win otherwise. */
 [data-theme="light"] .projectLink.disabled {
     color: var(--text-muted);
     border-color: var(--border-strong);
