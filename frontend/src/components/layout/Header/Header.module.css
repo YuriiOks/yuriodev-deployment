@@ -1,7 +1,12 @@
 .terminalHeader {
     background: var(--bg-secondary);
     border-bottom: 2px solid var(--header-border-bottom-color);
-    padding: 0.75rem 1.5rem;
+    /* Exactly --header-h tall (border included), so everything that has to
+       clear the header can use the token. */
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
     font-family: 'Fira Code', monospace;
     position: fixed;
     top: 0;
@@ -283,7 +288,7 @@
     }
     
     .terminalHeader {
-        padding: 0.5rem 0.75rem;
+        padding: 0 0.75rem;
     }
     
     .navControls {
@@ -302,7 +307,7 @@
     }
     
     .terminalHeader {
-        padding: 0.5rem;
+        padding: 0 0.5rem;
     }
     
     .themeToggle, .helpToggle, .mobileMenuToggle {

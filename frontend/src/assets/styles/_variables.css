@@ -2,6 +2,11 @@
             /* Native form controls and scrollbars follow the theme. */
             color-scheme: dark;
 
+            /* The fixed header's real height: Header.module.css sizes the
+               header with it, main is padded by it and html's
+               scroll-padding-top clears it on every anchor jump. */
+            --header-h: 3.5rem;
+
             /* Layout. LeftSidebar.module.css derives its position from this
                width (and the sections' 2rem padding); update it there too. */
             --content-max-width: 75%;
@@ -148,4 +153,11 @@
             --hero-title-shadow: 0 0 25px var(--glow-secondary), 0 0 8px var(--glow-primary);
             --card-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.15), 0 0 20px var(--glow-secondary);
             --header-border-bottom-color: var(--accent-secondary);
+        }
+
+        /* 64px header from 48rem (768px) up; 56px below. */
+        @media (min-width: 48rem) {
+            :root {
+                --header-h: 4rem;
+            }
         }

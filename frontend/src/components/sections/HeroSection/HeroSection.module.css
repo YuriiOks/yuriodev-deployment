@@ -1,6 +1,5 @@
 .heroSection {
     padding: 4rem 2rem;
-    padding-top: calc(80px + 4rem); /* Header height + normal padding */
     text-align: center;
     background: var(--section-hero-bg-gradient);
     position: relative;
@@ -332,7 +331,6 @@
 @media (max-width: 768px) {
     .heroSection {
         padding: 3rem 1.5rem;
-        padding-top: calc(70px + 3rem); /* Header height (tablet) + normal padding */
     }
 
     .heroTitle {
@@ -383,7 +381,6 @@
 @media (max-width: 480px) {
     .heroSection {
         padding: 2rem 1rem;
-        padding-top: calc(60px + 2rem); /* Header height (mobile) + normal padding */
     }
 
     .heroTitle {

@@ -4,15 +4,9 @@ import { useTheme } from '../../../context/useTheme';
 import styles from './CommandPalette.module.css';
 import { scrollBehavior } from '../../../utils/motion';
 
-function scrollToSection(selector:string) {
-    const element = document.querySelector(selector);
-    if (element) {
-        const header = document.querySelector('.terminal-header') as HTMLElement;
-        const headerOffset = header ? header.offsetHeight : 70;
-        // Document position, not offsetTop: '#terminal' sits inside a positioned section.
-        const elementPosition = element.getBoundingClientRect().top + window.scrollY - headerOffset;
-        window.scrollTo({ top: elementPosition, behavior: scrollBehavior() });
-    }
+// html's scroll-padding-top keeps the target clear of the fixed header.
+function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
 }
 
 // External links open in a new tab with no opener and no referrer.
@@ -28,7 +22,7 @@ const CommandPalette: React.FC = () => {
     const commands = useMemo(() => {
         // Sections live on the home page; from any other page, go there first.
         const goTo = (id: string) => () => {
-            if (pathname === '/') scrollToSection(`#${id}`);
+            if (pathname === '/') scrollToSection(id);
             else navigate(`/#${id}`);
         };
         return [
