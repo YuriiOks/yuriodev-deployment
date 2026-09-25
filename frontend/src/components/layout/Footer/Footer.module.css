@@ -68,15 +68,18 @@
     font-size: 0.8rem;
 }
 
-/* Center: Social Icons */
+/* Center: Social Icons. A solid pill: the footer bar behind it is
+   near-opaque, so a backdrop blur here would have nothing to show. */
 .socialIcons {
-    composes: glassAccent from '../../../assets/styles/recipes.module.css';
     display: flex;
-    gap: 0.75rem;
+    gap: var(--space-3);
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 1rem;
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-1);
     flex-shrink: 0;
     order: 2;
 }
@@ -153,8 +156,8 @@
 
 .tech {
     color: var(--text-muted);
-    font-size: 0.75rem;
-    font-family: 'Fira Code', monospace;
+    font-size: var(--fs-2xs);
+    font-family: var(--font-mono);
 }
 
 .techHighlight {
