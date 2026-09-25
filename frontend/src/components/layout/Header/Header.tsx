@@ -41,8 +41,12 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
     if (!isMenuOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Only pull focus back when it was in the menu (or nowhere), not
+        // when another overlay, such as the command palette, holds it.
+        const active = document.activeElement;
+        const focusInMenu = !active || active === document.body || navControlsRef.current?.contains(active);
         setIsMenuOpen(false);
-        menuButtonRef.current?.focus();
+        if (focusInMenu) menuButtonRef.current?.focus();
       }
     };
     const onPointerDown = (e: PointerEvent) => {
@@ -61,9 +65,10 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   // Determine current page name from path
   const getCurrentPage = () => (currentPath === '/' ? 'portfolio' : currentPath.substring(1));
 
-  // Track active section based on scroll
+  // Track active section based on scroll. Re-run on every route change so the
+  // sections of the page just navigated to are observed; wait a frame for
+  // them to be laid out.
   useEffect(() => {
-    const sections = document.querySelectorAll('section[id]');
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -74,10 +79,14 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
       },
       { rootMargin: '-50% 0px -50% 0px' }
     );
-
-    sections.forEach((section) => observer.observe(section));
-    return () => sections.forEach((section) => observer.unobserve(section));
-  }, []);
+    const frame = requestAnimationFrame(() => {
+      document.querySelectorAll('section[id]').forEach((section) => observer.observe(section));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [currentPath]);
 
   const toggleMobileMenu = () => {
     setIsMenuOpen((open) => !open);

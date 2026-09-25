@@ -25,6 +25,7 @@ function renderHeader(path = '/') {
           <Route path="*" element={<HeaderAtLocation />} />
         </Routes>
         <p>outside</p>
+        <input aria-label="outside input" />
       </MemoryRouter>
     </ThemeProvider>,
   );
@@ -82,6 +83,19 @@ describe('Header mobile menu', () => {
 
     expect(isOpen()).toBe(false);
     expect(menuButton()).toHaveFocus();
+  });
+
+  it('leaves focus alone on Escape when another overlay holds it', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+    const input = screen.getByLabelText('outside input');
+    input.focus();
+
+    await user.keyboard('{Escape}');
+
+    expect(isOpen()).toBe(false);
+    expect(input).toHaveFocus();
   });
 
   it('closes on a click outside the menu', async () => {
