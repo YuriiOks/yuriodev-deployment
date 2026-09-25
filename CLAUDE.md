@@ -1,6 +1,6 @@
 # yuriodev-deployment
 
-Deployment repo for **yuriodev.co.uk**: a personal portfolio (Vite/React frontend + FastAPI relay backend), behind one nginx proxy container, all run with docker compose.
+Deployment repo for **yuriodev.co.uk**: a personal portfolio (Vite/React frontend + FastAPI backend), behind one nginx proxy container, all run with docker compose.
 
 > **PRODUCTION RUNS LIVE FROM THIS DIRECTORY.** Three environments run behind one proxy on this box: `yuriodev.co.uk` (production), `dev.yuriodev.co.uk` and `stage.yuriodev.co.uk`. Frontend/backend images are built once in GitHub Actions per green `master` commit and ship by retagging in the registry (`:dev` -> rc tag -> `:stage` -> release tag + GitHub approval -> `:production`); a cron deploy agent on this box follows those tags and recreates the changed containers. `docker-compose.yml` still keeps `build:` on frontend/backend, but only for break-glass (golden rule 2). `nginx-proxy/` is bind-mounted into the running proxy. Any container build/recreate/restart/stop, any edit to `nginx-proxy/` or a compose file, and any git change to the working tree or index is a production change: **ask Yurii first.**
 
@@ -11,7 +11,7 @@ Internet -> Cloudflare (proxied, SSL mode Full (strict): needs a valid origin ce
          -> yuriodev-proxy (nginx:stable-alpine; the ONLY container publishing ports, 80 and 443)
               :80   any host                                    -> 301 https
               :443  yuriodev.co.uk        /                     -> yuriodev-frontend:80        (production)
-                                           /api/                 -> yuriodev-backend:8000       (production; only route is GET /health, exposed publicly as GET /api/health)
+                                           /api/                 -> yuriodev-backend:8000       (production; only route is GET|HEAD /health, exposed publicly as /api/health)
                     dev.yuriodev.co.uk    (basic auth, noindex)  -> yuriodev-dev-frontend:80 / yuriodev-dev-backend:8000
                     stage.yuriodev.co.uk  (basic auth, noindex)  -> yuriodev-stage-frontend:80 / yuriodev-stage-backend:8000
 ```
@@ -65,7 +65,7 @@ Release (ask first): `git tag -a vX.Y.Z-rc.N -m "..." && git push origin vX.Y.Z-
 
 ## Testing
 - Frontend: typecheck is clean; `npm run lint` must stay at 0 problems (it blocks CI); `npm run test` (vitest) and `npm run build` must pass. `.github/workflows/ci.yml`'s `frontend` job runs all four plus `npm audit --audit-level=high` on every push to `master` and every PR.
-- Backend: `.github/workflows/ci.yml`'s `backend` job runs `python -m pytest -q` (`requirements-dev.txt`: pytest + httpx) on Python 3.11, covering `/health`+`/api/health`, CORS preflight and settings parsing. No host venv is possible on this box (PEP 668, no sudo); verify locally in a throwaway `python:3.11-slim` container (see `/deploy-check`).
+- Backend: `.github/workflows/ci.yml`'s `backend` job runs `ruff check`, `ruff format --check`, `mypy` (strict, `src/`) and `python -m pytest -q` with a 90% branch-coverage gate (config in `backend/pyproject.toml`; tools in `requirements-dev.txt`) on Python 3.11, covering health GET/HEAD, the error model, docs flag, logging, request ids, CORS and settings parsing. No host venv is possible on this box (PEP 668, no sudo); verify locally in a throwaway `python:3.11-slim` container (see `/deploy-check`).
 - `guards` CI job: `scripts/check-compose.py` (image tags per env, container names, `restart: unless-stopped`, `target: runtime`, env-unique service names, the deploy agent's parser view, a logging block on every service, resource limits on every app container, a proxy healthcheck and never a proxy memory limit) plus `docker compose ... config --quiet` on every compose file.
 - `images` CI job build-checks both the `runtime` and `dev` Docker targets (no push) so the `dev` stage doesn't rot. Post-merge, `.github/workflows/images.yml` builds+pushes `runtime`, then runs Trivy and **blocks** on fixable HIGH/CRITICAL CVEs before `:dev` (and `:stage` while `STAGE_AUTO_PROMOTE=true`) moves.
 - `.github/workflows/uptime.yml` polls production through Cloudflare every 10 minutes: `/` must be 200, `/api/health` must report `status: healthy` and `environment: prod`, and the revision must match the latest GitHub Release within a 20-minute grace window. A failure opens/updates one GitHub issue labelled `monitor` (emails the owner) and it auto-closes on recovery; `workflow_dispatch` with `simulate_failure: true` tests the alert path. GitHub disables the schedule after 60 days without a commit to `master`.
