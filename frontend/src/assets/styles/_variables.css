@@ -1,198 +1,342 @@
+/* ==========================================================================
+   Design tokens, both themes.
+     1. theme-independent scales (type, space, shape, layout, motion, layers)
+     2. dark theme (the default)
+     3. light theme
+     4. preference overrides
+     5. legacy names, kept as aliases until their last consumer moves over
+
+   Colour roles: cyan marks brand and interactive things (links, buttons,
+   hover borders); amber marks what is current or focused (the active nav
+   item, the focus ring, section headings). The category hues are for tags,
+   the canvas and syntax colouring only, never for UI state.
+
+   Every *-rgb triplet is COMMA-separated, so rgba() can take it plus an alpha.
+   contrast.test.ts holds the text and UI pairs below to WCAG AA in both
+   themes; change a colour here and that test tells you if it still passes.
+   ========================================================================== */
+
+/* 1. Theme-independent ---------------------------------------------------- */
 :root {
-            /* Native form controls and scrollbars follow the theme. */
-            color-scheme: dark;
+    /* The fixed header's real height: Header.module.css sizes the
+       header with it, main is padded by it and html's
+       scroll-padding-top clears it on every anchor jump. */
+    --header-h: 3.5rem;
 
-            /* The fixed header's real height: Header.module.css sizes the
-               header with it, main is padded by it and html's
-               scroll-padding-top clears it on every anchor jump. */
-            --header-h: 3.5rem;
+    /* Stacking: one layer per role, no ties. --z-raised and --z-decor
+       order things inside one component only. */
+    --z-below: -1;      /* CanvasBackground */
+    --z-raised: 1;
+    --z-decor: 2;
+    --z-sidebar: 100;   /* LeftSidebar */
+    --z-fab: 150;       /* ScrollToTop */
+    --z-header: 200;    /* Header and its menu */
+    --z-overlay: 1000;  /* reserved; dialogs use the top layer */
+    --z-modal: 1010;    /* reserved; dialogs use the top layer */
+    --z-toast: 1100;
+    --z-boot: 1200;     /* LoadingScreen */
+    --z-skip: 1300;     /* skip link */
 
-            /* Stacking: one layer per role, no ties. --z-raised and --z-decor
-               order things inside one component only. */
-            --z-below: -1;      /* CanvasBackground */
-            --z-raised: 1;
-            --z-decor: 2;
-            --z-sidebar: 100;   /* LeftSidebar */
-            --z-fab: 150;       /* ScrollToTop */
-            --z-header: 200;    /* Header and its menu */
-            --z-overlay: 1000;  /* reserved; dialogs use the top layer */
-            --z-modal: 1010;    /* reserved; dialogs use the top layer */
-            --z-toast: 1100;
-            --z-boot: 1200;     /* LoadingScreen */
-            --z-skip: 1300;     /* skip link */
+    /* Type. Fira Code is the site's voice; long prose (the About story,
+       post text) is set in the system sans, which needs no download.
+       Sizes are fluid between a 360px and a 1280px viewport. */
+    --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-prose: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --fs-2xs: clamp(0.75rem, 0.738rem + 0.054vw, 0.781rem);    /* 12 -> 12.5px  chips, badges */
+    --fs-xs: clamp(0.8125rem, 0.788rem + 0.109vw, 0.875rem);   /* 13 -> 14      meta, timestamps */
+    --fs-sm: clamp(0.906rem, 0.882rem + 0.109vw, 0.969rem);    /* 14.5 -> 15.5  nav, buttons, terminal */
+    --fs-base: clamp(1rem, 0.976rem + 0.109vw, 1.0625rem);     /* 16 -> 17      body */
+    --fs-md: clamp(1.125rem, 1.076rem + 0.217vw, 1.25rem);     /* 18 -> 20      subtitles */
+    --fs-lg: clamp(1.25rem, 1.152rem + 0.435vw, 1.5rem);       /* 20 -> 24      card titles */
+    --fs-xl: clamp(1.5rem, 1.353rem + 0.652vw, 1.875rem);      /* 24 -> 30 */
+    --fs-2xl: clamp(1.75rem, 1.457rem + 1.304vw, 2.5rem);      /* 28 -> 40      section headings */
+    --fs-3xl: clamp(2.125rem, 1.538rem + 2.609vw, 3.625rem);   /* 34 -> 58      hero name */
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+    --lh-tight: 1.2;
+    --lh-snug: 1.4;
+    --lh-body: 1.65;
+    --tracking-caps: 0.06em;
+    --measure: 68ch;    /* longest comfortable line of prose */
 
-            /* Keyboard focus ring (global.css): amber, >= 3:1 on every
-               background in its theme. */
-            --focus-ring: #ffc107;
+    /* Space */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+    --space-8: 4rem;
+    --space-section: clamp(3rem, 2rem + 4vw, 6rem);
 
-            /* Layout. LeftSidebar.module.css derives its position from this
-               width (and the sections' 2rem padding); update it there too. */
-            --content-max-width: 75%;
+    /* Shape */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+    --radius-round: 50%;
 
-            /* Breakpoints. Custom properties cannot be used inside @media, so
-               this is the scale every stylesheet writes out literally (and
-               src/constants/breakpoints.ts repeats for JavaScript):
-                 sm       30rem   480px   phone to large phone
-                 md       48rem   768px   tablet; the header grows to 64px
-                 lg       64rem  1024px   the header's help button appears
-                 xl       80rem  1280px   the footer lays out in one row
-                 sidebar  88rem  1408px   the section sidebar replaces the
-                                          header's menu (never both)
-               "From X up" is (min-width: Xrem); "below X" is
-               (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
-               overlap. src/assets/styles/breakpoints.test.ts rejects any
-               other width outside the files still listed in its
-               NOT_YET_ON_SCALE. */
-            
-            /* Dark Mode (Default Theme) */
-            --bg-primary: #0a0f1c;
-            --bg-secondary: rgba(10, 15, 28, 0.95);
-            --bg-card: rgba(10, 15, 28, 0.9);
-            --bg-card-rgb-val: 10, 15, 28;
-            --background-primary: var(--bg-card);
+    /* Layout. The content column: 75% of its section, never wider than
+       72rem (1152px), so lines stop growing on wide screens.
+       LeftSidebar.module.css places itself beside this column; update it
+       there too if the formula changes. */
+    --content-max-width: min(75%, 72rem);
 
-            --text-primary: #00d4ff;
-            --text-secondary: #cbd5e1;
-            --text-muted: #6b7280;
-            --text-on-accent-bg: #0a0f1c;
-            --text-on-light-bg: #1e293b;
-            --text-tertiary: var(--text-secondary);
-            --text-muted-rgb: 107, 114, 128;
+    /* Breakpoints. Custom properties cannot be used inside @media, so
+       this is the scale every stylesheet writes out literally (and
+       src/constants/breakpoints.ts repeats for JavaScript):
+         sm       30rem   480px   phone to large phone
+         md       48rem   768px   tablet; the header grows to 64px
+         lg       64rem  1024px   the header's help button appears
+         xl       80rem  1280px   the footer lays out in one row
+         sidebar  88rem  1408px   the section sidebar replaces the
+                                  header's menu (never both)
+       "From X up" is (min-width: Xrem); "below X" is
+       (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
+       overlap. src/assets/styles/breakpoints.test.ts rejects any
+       other width outside the files still listed in its
+       NOT_YET_ON_SCALE. */
 
-            --accent-primary: #00d4ff;
-            --accent-primary-rgb: 0, 212, 255;
-            --accent-secondary: #FFC107;
-            --accent-secondary-rgb: 255, 193, 7;
-            --accent-tertiary: #008080;
-            --accent-tertiary-rgb: 0, 128, 128;
-            --accent-quaternary: #c084fc;
-            --accent-quaternary-rgb: 192, 132, 252;
+    /* Motion */
+    --dur-1: 120ms;   /* press, colour change */
+    --dur-2: 200ms;   /* hover, state change */
+    --dur-3: 320ms;   /* reveal, drawer */
+    --dur-4: 600ms;   /* one-shot entrance */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-std: cubic-bezier(0.2, 0, 0, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --stagger: 60ms;
+}
 
-            --border-color: #00d4ff;
-            --border-color-muted: rgba(var(--accent-primary-rgb), 0.3);
-            --border-subtle: rgba(var(--accent-primary-rgb), 0.18);
-            --border-card: var(--accent-primary);
+/* 64px header from 48rem (768px) up; 56px below. */
+@media (min-width: 48rem) {
+    :root {
+        --header-h: 4rem;
+    }
+}
 
-            --success: #00ff88;
-            --success-rgb: 0, 255, 136;
-            --warning-color: var(--accent-secondary);
+/* 2. Dark theme (the default) -------------------------------------------- */
+:root,
+[data-theme="dark"] {
+    /* Native form controls and scrollbars follow the theme. */
+    color-scheme: dark;
 
-            --glow-primary: rgba(var(--accent-primary-rgb), 0.5);
-            --glow-secondary: rgba(var(--accent-secondary-rgb), 0.5);
+    /* Surfaces */
+    --bg-0: #0a0f1c;       --bg-0-rgb: 10, 15, 28;        /* page */
+    --bg-1: #0d1424;                                       /* sunken wells */
+    --surface-1: #111a2e;  --surface-1-rgb: 17, 26, 46;   /* cards, terminals */
+    --surface-2: #172238;                                  /* chrome bars, chips, solid fallbacks */
+    --surface-3: #1d2a45;                                  /* drawers, popovers */
 
-            --section-shaded-bg: rgba(var(--accent-primary-rgb), 0.03);
-            --section-shaded-border: rgba(var(--accent-primary-rgb), 0.15);
-            --section-hero-bg-gradient: radial-gradient(circle at center, rgba(var(--accent-primary-rgb), 0.05) 0%, transparent 60%);
+    /* Text */
+    --text-1: #e6f1ff;                                     /* headings */
+    --text-2: #c3cedd;                                     /* secondary copy, nav links */
+    --text-3: #8d9ab0;     --text-3-rgb: 141, 154, 176;   /* meta only; never on .glass */
+    /* Body text stays the neon cyan in the dark theme. */
+    --body-ink: var(--cyan);
 
-            --button-nav-bg: rgba(var(--accent-primary-rgb), 0.1);
-            --button-nav-text: var(--accent-primary);
-            --button-nav-border: var(--accent-primary);
-            --button-nav-hover-bg: rgba(var(--accent-secondary-rgb), 0.2);
-            --button-nav-hover-text: var(--accent-secondary);
-            --button-nav-hover-border: var(--accent-secondary);
-            --button-nav-hover-shadow: var(--glow-secondary);
+    /* Brand neon: the fill, a text-safe shade, an edge shade (>= 3:1 as a
+       border) and the ink that sits on the fill. In the dark theme the
+       neon itself passes everywhere, so all four shades are one colour. */
+    --cyan: #00d4ff;   --cyan-rgb: 0, 212, 255;   --cyan-text: #00d4ff;   --cyan-edge: #00d4ff;   --on-cyan: #0a0f1c;
+    --amber: #ffc107;  --amber-rgb: 255, 193, 7;  --amber-text: #ffc107;  --amber-edge: #ffc107;  --on-amber: #0a0f1c;
 
-            --nav-link-text: var(--text-muted);
-            --nav-link-bg-hover: rgba(var(--accent-primary-rgb), 0.1);
-            --nav-link-border-hover: var(--accent-primary);
-            --nav-link-text-hover: var(--accent-primary);
-            --nav-link-bg-active: rgba(var(--accent-secondary-rgb), 0.1);
-            --nav-link-border-active: var(--accent-secondary);
-            --nav-link-text-active: var(--accent-secondary);
-            --nav-link-shadow-active: var(--glow-secondary);
+    /* Category hues: tags, the canvas and syntax colouring only. */
+    --hue-violet: #c084fc; --hue-violet-rgb: 192, 132, 252;
+    --hue-teal: #2dd4bf;   --hue-teal-rgb: 45, 212, 191;
+    --hue-green: #34d399;  --hue-green-rgb: 52, 211, 153;
+    --hue-blue: #60a5fa;   --hue-blue-rgb: 96, 165, 250;
+    --hue-orange: #fb923c; --hue-orange-rgb: 251, 146, 60;
+    --hue-pink: #f472b6;   --hue-pink-rgb: 244, 114, 182;
 
-            --cta-button-bg: rgba(var(--accent-primary-rgb), 0.1);
-            --cta-button-text: var(--accent-primary);
-            --cta-button-border: var(--accent-primary);
-            --cta-button-hover-bg: rgba(var(--accent-secondary-rgb), 0.2);
-            --cta-button-hover-text: var(--accent-secondary);
-            --cta-button-hover-border: var(--accent-secondary);
-            --cta-button-hover-shadow: var(--glow-secondary);
+    /* Status */
+    --ok: #00ff88;   --ok-rgb: 0, 255, 136;
+    --warn: #fbbf24; --warn-rgb: 251, 191, 36;
+    --err: #fb7185;  --err-rgb: 251, 113, 133;
+    --info: #7dd3fc; --info-rgb: 125, 211, 252;
 
-            --json-key-color: #33f0c8;
-            --hero-title-shadow: 0 0 30px var(--glow-primary), 0 0 10px var(--glow-primary);
-            --card-shadow: 0 0 20px var(--glow-primary);
-            --header-border-bottom-color: var(--accent-primary);
-        }
+    /* Terminal and syntax */
+    --term-prompt: var(--ok);
+    --syn-key: #33f0c8;
+    --syn-string: var(--cyan-text);
+    --syn-number: var(--hue-violet);
+    --syn-punct: var(--ok);
+    --syn-comment: var(--text-3);
 
-        [data-theme="light"] {
-            color-scheme: light;
+    /* Lines */
+    --border-subtle: rgba(var(--cyan-rgb), 0.18);  /* decorative; never the only cue that something is a control */
+    --border-strong: #51709a;                      /* >= 3:1 on bg-0, surface-1 and surface-2 */
+    --border-accent: rgba(var(--cyan-rgb), 0.55);
 
-            --focus-ring: #944903;
+    /* Keyboard focus ring (global.css): amber, >= 3:1 on every
+       background in its theme. */
+    --focus-ring: #ffc107;
+    --focus-halo: rgba(255, 193, 7, 0.35);
 
-            --bg-primary: #f8fafc;
-            --bg-secondary: rgba(255, 255, 255, 0.95);
-            --bg-card: rgba(255, 255, 255, 0.9);
-            --bg-card-rgb-val: 248, 250, 252;
-            --background-primary: var(--bg-card);
+    /* Light and depth */
+    --glow-1: 0 0 0 1px rgba(var(--cyan-rgb), 0.35), 0 0 14px rgba(var(--cyan-rgb), 0.22);
+    --glow-1-strong: 0 0 0 1px rgba(var(--cyan-rgb), 0.55), 0 0 24px rgba(var(--cyan-rgb), 0.28);
+    --glow-2: 0 0 0 1px rgba(var(--amber-rgb), 0.6), 0 0 24px rgba(var(--amber-rgb), 0.28);
+    --glow-text: 0 0 12px rgba(var(--cyan-rgb), 0.45);
+    --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.45);
+    --neon-edge: linear-gradient(90deg, transparent, rgba(var(--cyan-rgb), 0.8), rgba(var(--amber-rgb), 0.6), transparent);
+    --hero-title-shadow: 0 0 30px rgba(var(--cyan-rgb), 0.45), 0 0 10px rgba(var(--cyan-rgb), 0.45);
 
-            --text-primary: #1e293b;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-            --text-on-accent-bg: #ffffff;
-            --text-on-light-bg: #1e293b;
-            --text-tertiary: var(--text-secondary);
-            --text-muted-rgb: 148, 163, 184;
+    /* Glass (recipes.module.css). The blur amounts are literals there. */
+    --glass-fill: rgba(12, 20, 38, 0.78);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-            --accent-primary: #0059b3;
-            --accent-primary-rgb: 0, 89, 179;
-            --accent-secondary: #d97706;
-            --accent-secondary-rgb: 217, 119, 6;
-            --accent-tertiary: #0d9488;
-            --accent-tertiary-rgb: 13, 148, 136;
-            --accent-quaternary: #a855f7;
-            --accent-quaternary-rgb: 168, 85, 247;
+    /* Alternating section bands */
+    --section-shaded-bg: rgba(var(--cyan-rgb), 0.03);
+    --section-shaded-border: rgba(var(--cyan-rgb), 0.12);
+}
 
-            --border-color: #e2e8f0;
-            --border-color-muted: #e2e8f0;
-            --border-subtle: #dbe3ee;
-            --border-card: var(--border-color);
+/* 3. Light theme --------------------------------------------------------- */
+[data-theme="light"] {
+    color-scheme: light;
 
-            --success: #059669;
-            --success-rgb: 5, 150, 105;
-            --warning-color: var(--accent-secondary);
+    --bg-0: #f5f8fc;       --bg-0-rgb: 245, 248, 252;
+    --bg-1: #eaf0f7;
+    --surface-1: #ffffff;  --surface-1-rgb: 255, 255, 255;
+    --surface-2: #f1f5f9;
+    --surface-3: #ffffff;
 
-            --glow-primary: rgba(var(--accent-primary-rgb), 0.4);
-            --glow-secondary: rgba(var(--accent-secondary-rgb), 0.4);
+    --text-1: #0b1324;
+    --text-2: #334155;
+    --text-3: #526178;     --text-3-rgb: 82, 97, 120;
+    --body-ink: var(--text-1);
 
-            --section-shaded-bg: rgba(var(--accent-primary-rgb), 0.03);
-            --section-shaded-border: rgba(var(--accent-primary-rgb), 0.15);
-            --section-hero-bg-gradient: radial-gradient(circle at center, rgba(var(--accent-primary-rgb), 0.04) 0%, transparent 60%);
+    /* The same hues in daylight. The bright fills carry dark ink; the
+       -text shades carry AA text; -rgb is the EDGE shade, for tints,
+       rings and glows. */
+    --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;  --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
+    --amber: #fbbf24;  --amber-rgb: 217, 119, 6; --amber-text: #944903;  --amber-edge: #b45309;  --on-amber: #3a2500;
 
-            --button-nav-bg: rgba(var(--accent-secondary-rgb), 0.1);
-            --button-nav-text: var(--accent-secondary);
-            --button-nav-border: var(--accent-secondary);
-            --button-nav-hover-bg: var(--accent-secondary);
-            --button-nav-hover-text: var(--text-on-accent-bg);
-            --button-nav-hover-border: var(--accent-secondary);
-            --button-nav-hover-shadow: var(--glow-secondary);
+    --hue-violet: #7e22ce; --hue-violet-rgb: 126, 34, 206;
+    --hue-teal: #0f766e;   --hue-teal-rgb: 15, 118, 110;
+    --hue-green: #036a4c;  --hue-green-rgb: 3, 106, 76;
+    --hue-blue: #1d4ed8;   --hue-blue-rgb: 29, 78, 216;
+    --hue-orange: #b23c0a; --hue-orange-rgb: 178, 60, 10;
+    --hue-pink: #be185d;   --hue-pink-rgb: 190, 24, 93;
 
-            --nav-link-text: var(--text-muted);
-            --nav-link-bg-hover: rgba(var(--accent-primary-rgb), 0.1);
-            --nav-link-border-hover: var(--accent-primary);
-            --nav-link-text-hover: var(--accent-primary);
-            --nav-link-bg-active: rgba(var(--accent-secondary-rgb), 0.1);
-            --nav-link-border-active: var(--accent-secondary);
-            --nav-link-text-active: var(--accent-secondary);
-            --nav-link-shadow-active: var(--glow-secondary);
+    --ok: #036a4c;   --ok-rgb: 3, 106, 76;
+    --warn: #944903; --warn-rgb: 148, 73, 3;
+    --err: #be123c;  --err-rgb: 190, 18, 60;
+    --info: #0369a1; --info-rgb: 3, 105, 161;
 
-            --cta-button-bg: #ffffff;
-            --cta-button-text: var(--accent-secondary);
-            --cta-button-border: var(--accent-secondary);
-            --cta-button-hover-bg: var(--accent-secondary);
-            --cta-button-hover-text: var(--text-on-accent-bg);
-            --cta-button-hover-border: var(--accent-secondary);
-            --cta-button-hover-shadow: var(--glow-secondary);
+    --syn-key: #0f766e;
 
-            --json-key-color: #075985;
-            --hero-title-shadow: 0 0 25px var(--glow-secondary), 0 0 8px var(--glow-primary);
-            --card-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.15), 0 0 20px var(--glow-secondary);
-            --header-border-bottom-color: var(--accent-secondary);
-        }
+    --border-subtle: #dbe3ee;
+    --border-strong: #7a889e;
 
-        /* 64px header from 48rem (768px) up; 56px below. */
-        @media (min-width: 48rem) {
-            :root {
-                --header-h: 4rem;
-            }
-        }
+    --focus-ring: #944903;
+    --focus-halo: rgba(251, 191, 36, 0.45);
+
+    --glow-1: 0 0 0 1px rgba(var(--cyan-rgb), 0.45), 0 2px 8px rgba(var(--cyan-rgb), 0.16);
+    --glow-1-strong: 0 0 0 1px rgba(var(--cyan-rgb), 0.7), 0 4px 14px rgba(var(--cyan-rgb), 0.2);
+    --glow-2: 0 0 0 1px rgba(148, 73, 3, 0.55), 0 3px 12px rgba(251, 191, 36, 0.35);
+    --glow-text: none;
+    --shadow-1: 0 1px 3px rgba(11, 19, 36, 0.08);
+    --shadow-2: 0 12px 32px rgba(11, 19, 36, 0.12);
+    --hero-title-shadow: 0 1px 0 rgba(var(--cyan-rgb), 0.18);
+
+    --glass-fill: rgba(255, 255, 255, 0.86);
+    --glass-border: rgba(var(--cyan-rgb), 0.18);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+    --section-shaded-bg: rgba(var(--amber-rgb), 0.03);
+    --section-shaded-border: rgba(var(--amber-rgb), 0.1);
+}
+
+/* 4. Preference overrides (after the theme blocks, so they win) ---------- */
+@media (prefers-contrast: more) {
+    :root {
+        --text-3: var(--text-2);
+        --border-subtle: var(--border-strong);
+        --glass-fill: var(--surface-2);
+        --glow-1: 0 0 0 1px var(--border-strong);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --dur-1: 0ms;
+        --dur-2: 0ms;
+        --dur-3: 0ms;
+        --dur-4: 0ms;
+        --stagger: 0ms;
+    }
+}
+
+/* 5. Legacy names -------------------------------------------------------- */
+/* Every name the stylesheets used before the tokens above existed, now an
+   alias. They sit on <html>, where data-theme is set, so each resolves to
+   its theme's value. Move consumers onto the tokens above and delete an
+   alias once nothing uses it. */
+:root {
+    --bg-primary: var(--bg-0);
+    --bg-secondary: rgba(var(--bg-0-rgb), 0.95);
+    --bg-card: var(--surface-1);
+    --bg-card-rgb-val: var(--surface-1-rgb);
+    --background-primary: var(--surface-1);
+
+    --text-primary: var(--body-ink);
+    --text-secondary: var(--text-2);
+    --text-tertiary: var(--text-2);
+    --text-muted: var(--text-3);
+    --text-muted-rgb: var(--text-3-rgb);
+    --text-on-accent-bg: var(--bg-0);   /* on the accent-text shades: >= 6:1 in both themes */
+    --text-on-light-bg: #0b1324;
+
+    --accent-primary: var(--cyan-text);      --accent-primary-rgb: var(--cyan-rgb);
+    --accent-secondary: var(--amber-text);   --accent-secondary-rgb: var(--amber-rgb);
+    --accent-tertiary: var(--hue-teal);      --accent-tertiary-rgb: var(--hue-teal-rgb);
+    --accent-quaternary: var(--hue-violet);  --accent-quaternary-rgb: var(--hue-violet-rgb);
+
+    --border-color: var(--border-accent);
+    --border-color-muted: var(--border-subtle);
+    --border-card: var(--border-accent);
+
+    --success: var(--ok);
+    --success-rgb: var(--ok-rgb);
+    --warning-color: var(--warn);
+
+    --glow-primary: rgba(var(--cyan-rgb), 0.45);
+    --glow-secondary: rgba(var(--amber-rgb), 0.45);
+    --card-shadow: var(--shadow-1);
+    --json-key-color: var(--syn-key);
+    --header-border-bottom-color: var(--cyan-edge);
+    --section-hero-bg-gradient: radial-gradient(circle at center, rgba(var(--cyan-rgb), 0.05) 0%, transparent 60%);
+
+    /* Nav and CTA controls: hover stays cyan (interactive); amber is kept
+       for the current item. */
+    --button-nav-bg: rgba(var(--cyan-rgb), 0.1);
+    --button-nav-text: var(--cyan-text);
+    --button-nav-border: var(--border-accent);
+    --button-nav-hover-bg: rgba(var(--cyan-rgb), 0.18);
+    --button-nav-hover-text: var(--cyan-text);
+    --button-nav-hover-border: var(--cyan-edge);
+    --button-nav-hover-shadow: rgba(var(--cyan-rgb), 0.45);
+
+    --nav-link-text: var(--text-2);
+    --nav-link-bg-hover: rgba(var(--cyan-rgb), 0.1);
+    --nav-link-border-hover: var(--cyan-edge);
+    --nav-link-text-hover: var(--cyan-text);
+    --nav-link-bg-active: rgba(var(--amber-rgb), 0.12);
+    --nav-link-border-active: var(--amber-edge);
+    --nav-link-text-active: var(--amber-text);
+    --nav-link-shadow-active: rgba(var(--amber-rgb), 0.45);
+
+    --cta-button-bg: rgba(var(--cyan-rgb), 0.1);
+    --cta-button-text: var(--cyan-text);
+    --cta-button-border: var(--cyan-edge);
+    --cta-button-hover-bg: rgba(var(--cyan-rgb), 0.18);
+    --cta-button-hover-text: var(--cyan-text);
+    --cta-button-hover-border: var(--cyan-edge);
+    --cta-button-hover-shadow: rgba(var(--cyan-rgb), 0.45);
+}
