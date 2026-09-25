@@ -66,7 +66,7 @@
 }
 
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 47.99rem) {
   .scrollToTop {
     bottom: 1.5rem;
     right: 1.5rem;
@@ -80,7 +80,7 @@
   }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 29.99rem) {
   .scrollToTop {
     bottom: 1rem;
     right: 1rem;

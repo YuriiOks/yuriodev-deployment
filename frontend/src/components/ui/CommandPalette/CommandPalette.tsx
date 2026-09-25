@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
+import { useSectionNav } from '../../../context/useSectionNav';
+import { EMAILS, SECTIONS, TERMINAL_ANCHOR, shortcutFor, socialsFor } from '../../../data/site';
 import styles from './CommandPalette.module.css';
-import { scrollBehavior } from '../../../utils/motion';
-
-// html's scroll-padding-top keeps the target clear of the fixed header.
-function scrollToSection(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
-}
 
 // External links open in a new tab with no opener and no referrer.
 function openExternal(url: string) {
@@ -23,32 +18,21 @@ interface CommandPaletteProps {
 
 const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen: openProp, onOpenChange, onShowHelp }) => {
     const { toggleTheme } = useTheme();
-    const { pathname } = useLocation();
-    const navigate = useNavigate();
+    const { goTo } = useSectionNav();
 
-    const commands = useMemo(() => {
-        // Sections live on the home page; from any other page, go there first.
-        const goTo = (id: string) => () => {
-            if (pathname === '/') scrollToSection(id);
-            else navigate(`/#${id}`);
-        };
-        return [
-            { title: 'Go to Hero', action: goTo('hero'), shortcut: 'hero' },
-            { title: 'Go to About', action: goTo('about'), shortcut: 'about' },
-            { title: 'Go to Platform', action: goTo('platform'), shortcut: 'platform' },
-            { title: 'Go to Projects', action: goTo('projects'), shortcut: 'projects' },
-            { title: 'Go to Timeline', action: goTo('timeline'), shortcut: 'timeline' },
-            { title: 'Go to Skills', action: goTo('skills'), shortcut: 'skills' },
-            { title: 'Go to Connect', action: goTo('connect'), shortcut: 'connect' },
-            { title: 'Go to Terminal', action: goTo('terminal'), shortcut: 'terminal' },
-            { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
-            { title: 'Show Help', action: () => onShowHelp?.(), shortcut: 'help' },
-            { title: 'Send Email', action: () => { window.location.href = 'mailto:yurii.oksamytnyi@yuriodev.co.uk'; }, shortcut: 'email' },
-            { title: 'View LinkedIn', action: () => openExternal('https://www.linkedin.com/in/y-oks'), shortcut: 'linkedin' },
-            { title: 'View X', action: () => openExternal('https://x.com/YuriODev'), shortcut: 'x' },
-            { title: 'View GitHub', action: () => openExternal('https://github.com/YuriiOks'), shortcut: 'github' }
-        ];
-    }, [toggleTheme, pathname, navigate, onShowHelp]);
+    const commands = useMemo(() => [
+        // Sections in page order; from any other page, goTo opens the home page there.
+        ...SECTIONS.map(({ id, label }) => ({ title: `Go to ${label}`, action: () => goTo(id), shortcut: id })),
+        { title: 'Go to Terminal', action: () => goTo(TERMINAL_ANCHOR), shortcut: TERMINAL_ANCHOR },
+        { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
+        { title: 'Show Help', action: () => onShowHelp?.(), shortcut: 'help' },
+        { title: 'Send Email', action: () => { window.location.href = `mailto:${EMAILS.personal}`; }, shortcut: 'email' },
+        ...socialsFor('palette').map(({ id, shortLabel, url }) => ({
+            title: `View ${shortLabel}`,
+            action: () => openExternal(url),
+            shortcut: id,
+        })),
+    ], [toggleTheme, goTo, onShowHelp]);
     const [ownOpen, setOwnOpen] = useState(false);
     const isOpen = openProp ?? ownOpen;
     const setIsOpen = useCallback((open: boolean) => {
@@ -61,7 +45,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen: openProp, onOpe
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            if (shortcutFor(e) === 'palette') {
                 e.preventDefault();
                 setIsOpen(!isOpen);
             }

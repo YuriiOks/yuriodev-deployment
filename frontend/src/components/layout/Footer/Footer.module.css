@@ -224,12 +224,9 @@
 }
 
 /* Responsive Design */
-/* Stack footer when content would overflow 75% constraint
-   Calculation: If viewport < ~1200px, the 3 footer sections won't fit in 75% width
-   Formula: 75% of screen needs to fit: ~250px (left) + ~300px (center) + ~250px (right) + gaps
-   Total needed: ~850px / 0.75 = ~1133px minimum viewport
-*/
-@media (max-width: 1200px) {
+/* One row (contact | icons | copyright) needs about 850px inside the 75%
+   column, so it waits for the xl breakpoint; below that the three stack. */
+@media (max-width: 79.99rem) {
     .footerMain {
         flex-direction: column;
         gap: 1.5rem;
@@ -259,7 +256,7 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 47.99rem) {
     .terminalFooter {
         padding: 1.25rem 1.5rem 0.75rem;
     }
@@ -293,7 +290,7 @@
     }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 29.99rem) {
     .terminalFooter {
         padding: 1rem 1rem 0.75rem;
     }
@@ -346,12 +343,11 @@
     }
 }
 
-/* Phones: the footer column fits five 44px targets, which leaves the last of
-   the eleven alone on a third row. A pill four targets wide wraps evenly
-   (4 + 4 + 3, the short row centred); the width adds the pill's side padding
-   and border from the max-width: 576px rules above. */
-@media (pointer: coarse) and (max-width: 576px) {
+/* Phones: the footer column fits five 44px targets, so the ten icons wrap
+   as two even rows of five; the width adds the pill's side padding and
+   border from the max-width: 29.99rem rules above. */
+@media (pointer: coarse) and (max-width: 29.99rem) {
     .socialIcons {
-        width: calc(4 * 44px + 2 * 0.7rem + 2px);
+        width: calc(5 * 44px + 2 * 0.7rem + 2px);
     }
 }

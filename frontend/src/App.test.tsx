@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from './context/ThemeContext';
 import App from './App';
+import { SECTIONS, TERMINAL_ANCHOR } from './data/site';
 
 function renderAppAt(path: string) {
   window.history.pushState({}, '', path);
@@ -53,7 +54,9 @@ describe('App routing', () => {
       .map((a) => a.getAttribute('href')!.slice(1))
       .filter(Boolean);
 
-    expect(targets).toContain('terminal');
+    expect(targets).toEqual(expect.arrayContaining(SECTIONS.map(({ id }) => id)));
+    // The palette's "Go to Terminal" target.
+    expect(document.getElementById(TERMINAL_ANCHOR)).not.toBeNull();
     for (const id of targets) {
       expect(document.getElementById(id), `#${id}`).not.toBeNull();
     }
