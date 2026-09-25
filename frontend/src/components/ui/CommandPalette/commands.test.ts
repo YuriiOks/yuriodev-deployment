@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SECTIONS, socialsFor } from '../../../data/site';
-import { MatchTier, buildCommands, matchTier, rankCommands, type CommandActions } from './commands';
+import { MatchTier, buildCommands, groupRuns, matchTier, rankCommands, type CommandActions } from './commands';
 
 const actions = (): CommandActions => ({
   goTo: vi.fn(),
@@ -29,16 +29,14 @@ describe('matchTier', () => {
 
 describe('rankCommands', () => {
   const list = [
-    { title: 'Toggle theme', keywords: [] },
     { title: 'Go to Platform', keywords: [] },
-    { title: 'Open X', keywords: [] },
     { title: 'Platform', keywords: [] },
     { title: 'Go to Portfolio', keywords: [] },
+    // Shares "pla" with Platform but matches none of the queries below.
     { title: 'Plan a talk', keywords: [] },
   ];
 
   it('orders exact, then prefix, then word prefix, then substring, then fuzzy', () => {
-    // exact: "Platform"; prefix: "Plan a talk" has "pla"... use a query that separates the tiers.
     const ranked = titles(rankCommands(list, 'platform'));
     expect(ranked).toEqual(['Platform', 'Go to Platform']);
 
@@ -77,6 +75,23 @@ describe('rankCommands', () => {
 });
 
 describe('buildCommands', () => {
+  it('lists its groups in one run each: Navigate, Connect, Settings, Help', () => {
+    const commands = buildCommands(SECTIONS, actions());
+    expect(groupRuns(commands).map(({ group }) => group)).toEqual(['Navigate', 'Connect', 'Settings', 'Help']);
+    const runs = groupRuns(commands);
+    expect(runs.reduce((n, { items }) => n + items.length, 0)).toBe(commands.length);
+    expect(runs[1].start).toBe(runs[0].items.length);
+  });
+
+  it('advertises no single key while the single-key shortcuts are off', () => {
+    const hint = (singleKeys: boolean, id: string) =>
+      buildCommands(SECTIONS, actions(), { singleKeys }).find((command) => command.id === id)?.hint;
+    expect(hint(true, 'toggle-theme')).toBe('T');
+    expect(hint(true, 'show-help')).toBe('?');
+    expect(hint(false, 'toggle-theme')).toBe('');
+    expect(hint(false, 'show-help')).toBe('');
+  });
+
   it('has a Go to command per section in page order, then the terminal', () => {
     const commands = buildCommands(SECTIONS, actions());
     const goTo = titles(commands.filter(({ group }) => group === 'Navigate'));

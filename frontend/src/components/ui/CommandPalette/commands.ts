@@ -23,8 +23,20 @@ export interface CommandActions {
   sendEmail: () => void;
 }
 
-/** Every palette command, grouped Navigate / Settings / Help / Connect, built from data/site.ts. */
-export function buildCommands(sections: readonly SectionDef[], actions: CommandActions): PaletteCommand[] {
+export interface BuildOptions {
+  /** Whether the single-key shortcuts are on; while off, no row advertises one. Default true. */
+  singleKeys?: boolean;
+}
+
+/**
+ * Every palette command, built from data/site.ts, in the order the palette
+ * lists them: grouped Navigate, Connect, Settings, Help.
+ */
+export function buildCommands(
+  sections: readonly SectionDef[],
+  actions: CommandActions,
+  { singleKeys = true }: BuildOptions = {},
+): PaletteCommand[] {
   return [
     ...sections.map(({ id, label }) => ({
       id: `go-${id}`,
@@ -41,22 +53,6 @@ export function buildCommands(sections: readonly SectionDef[], actions: CommandA
       keywords: [TERMINAL_ANCHOR, 'shell', 'console', 'command line'],
       hint: `#${TERMINAL_ANCHOR}`,
       run: () => actions.goTo(TERMINAL_ANCHOR),
-    },
-    {
-      id: 'toggle-theme',
-      title: 'Toggle theme',
-      group: 'Settings',
-      keywords: ['theme', 'dark', 'light', 'mode', 'colour', 'color'],
-      hint: shortcutDisplay('theme'),
-      run: actions.toggleTheme,
-    },
-    {
-      id: 'show-help',
-      title: 'Show help',
-      group: 'Help',
-      keywords: ['help', 'shortcuts', 'keyboard', 'keys', 'commands'],
-      hint: shortcutDisplay('help'),
-      run: actions.showHelp,
     },
     {
       id: 'copy-email',
@@ -82,7 +78,36 @@ export function buildCommands(sections: readonly SectionDef[], actions: CommandA
       hint: 'new tab',
       run: () => actions.openExternal(url),
     })),
+    {
+      id: 'toggle-theme',
+      title: 'Toggle theme',
+      group: 'Settings',
+      keywords: ['theme', 'dark', 'light', 'mode', 'colour', 'color'],
+      hint: singleKeys ? shortcutDisplay('theme') : '',
+      run: actions.toggleTheme,
+    },
+    {
+      id: 'show-help',
+      title: 'Show help',
+      group: 'Help',
+      keywords: ['help', 'shortcuts', 'keyboard', 'keys', 'commands'],
+      hint: singleKeys ? shortcutDisplay('help') : '',
+      run: actions.showHelp,
+    },
   ];
+}
+
+/** Consecutive runs of one group, in list order: how the palette shows an unfiltered list. */
+export function groupRuns<T extends Pick<PaletteCommand, 'group'>>(
+  commands: readonly T[],
+): { group: CommandGroup; start: number; items: T[] }[] {
+  const runs: { group: CommandGroup; start: number; items: T[] }[] = [];
+  commands.forEach((command, index) => {
+    const last = runs[runs.length - 1];
+    if (last && last.group === command.group) last.items.push(command);
+    else runs.push({ group: command.group, start: index, items: [command] });
+  });
+  return runs;
 }
 
 // ---------------------------------------------------------------------------

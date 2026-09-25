@@ -63,13 +63,13 @@
 }
 
 .glass {
-    background: rgba(10, 15, 28, 0.78);
+    background: rgba(var(--bg-card-rgb-val), 0.78);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
 }
 
 [data-theme="light"] .glass {
-    background: rgba(255, 255, 255, 0.86);
+    background: rgba(var(--bg-card-rgb-val), 0.86);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
@@ -94,6 +94,11 @@
     font-size: 1.15rem;
     font-weight: 600;
     color: var(--accent-secondary);
+}
+
+/* Amber on the light surface is about 3:1, too low for text this size. */
+[data-theme="light"] .title {
+    color: var(--text-primary);
 }
 
 /* Not a page section: none of global.css's "# " prefix and underline for h2. */
@@ -151,11 +156,17 @@
     overscroll-behavior: contain;
 }
 
+/* Like the title: it takes focus only so the arrow keys scroll it, and is
+   not a control, so it shows no ring. */
+.body:focus-visible {
+    outline: none;
+}
+
 .footer {
     flex-shrink: 0;
     padding: 0.75rem 1.5rem;
     border-top: 1px solid var(--border-subtle);
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.8rem;
 }
 

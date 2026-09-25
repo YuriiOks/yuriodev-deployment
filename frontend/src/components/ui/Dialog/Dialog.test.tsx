@@ -1,16 +1,36 @@
-import { useRef, useState } from 'react';
+import { StrictMode, useRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Dialog from './Dialog';
 
-function Harness({ onClose, withInput = false }: { onClose?: () => void; withInput?: boolean }) {
+interface HarnessProps {
+  onClose?: () => void;
+  withInput?: boolean;
+  initialFocus?: 'title' | 'body';
+  /** The opener cannot take focus back once the dialog is open (as a link in a closed menu). */
+  openerGoesAway?: boolean;
+}
+
+function Harness({ onClose, withInput = false, initialFocus = 'title', openerGoesAway = false }: HarnessProps) {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fallbackRef = useRef<HTMLButtonElement>(null);
+  const [gone, setGone] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          setGone(openerGoesAway);
+        }}
+        disabled={gone}
+      >
         opener
+      </button>
+      <button type="button" ref={fallbackRef}>
+        fallback
       </button>
       <Dialog
         open={open}
@@ -19,7 +39,8 @@ function Harness({ onClose, withInput = false }: { onClose?: () => void; withInp
           setOpen(false);
         }}
         title="Test dialog"
-        initialFocus={withInput ? inputRef : 'title'}
+        initialFocus={withInput ? inputRef : initialFocus}
+        returnFocus={() => [null, fallbackRef.current]}
       >
         <p>content</p>
         <input ref={inputRef} aria-label="field" />
@@ -100,12 +121,67 @@ describe('Dialog', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<Harness onClose={onClose} />);
+    const dialog = (await openDialog(user)) as HTMLDialogElement;
+
+    // As a browser does: the element is closed first, then 'close' fires
+    // (the setupTests stub of close() does both).
+    act(() => dialog.close());
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveAttribute('data-overlay');
+  });
+
+  it('a late close event that arrives while it is open again is ignored', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onClose={onClose} />);
     const dialog = await openDialog(user);
 
     fireEvent(dialog, new Event('close'));
 
+    expect(onClose).not.toHaveBeenCalled();
+    expect(dialog).toHaveAttribute('open');
+  });
+
+  it('under StrictMode, a close the browser makes on its own still closes it', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <Harness onClose={onClose} />
+      </StrictMode>,
+    );
+    const dialog = (await openDialog(user)) as HTMLDialogElement;
+    expect(dialog).toHaveAttribute('open');
+
+    act(() => dialog.close());
+
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveAttribute('data-overlay');
+  });
+
+  it('can start on its scrolling body, focusable but not a Tab stop', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialFocus="body" />);
+    await openDialog(user);
+
+    const body = screen.getByText('content').parentElement!;
+    expect(body).toHaveFocus();
+    expect(body).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('sends focus to the returnFocus fallback when the opener cannot take it back', async () => {
+    const user = userEvent.setup();
+    render(<Harness openerGoesAway />);
+    await openDialog(user);
+    expect(screen.getByRole('button', { name: 'opener' })).toBeDisabled();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'fallback' })).toHaveFocus();
   });
 
   it('closing it itself is not reported back as a close request', async () => {

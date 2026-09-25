@@ -76,7 +76,7 @@ describe('CommandPalette', () => {
     expect(input).toHaveAttribute('aria-controls', screen.getByRole('listbox').id);
   });
 
-  it('lists the sections in page order, then the terminal, theme, help, email and profiles', async () => {
+  it('lists the sections in page order, then the terminal, email, profiles, theme and help', async () => {
     const user = userEvent.setup();
     renderPalette();
     await openPalette(user);
@@ -84,14 +84,50 @@ describe('CommandPalette', () => {
     expect(optionTitles()).toEqual([
       ...SECTIONS.map(({ label }) => `Go to ${label}`),
       'Go to Terminal',
-      'Toggle theme',
-      'Show help',
       'Copy email address',
       'Send email',
       'Open LinkedIn',
       'Open X',
       'Open GitHub',
+      'Toggle theme',
+      'Show help',
     ]);
+  });
+
+  it('shows the full list under named groups, and a filtered list without them', async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    const input = await openPalette(user);
+
+    const names = ['Navigate', 'Connect', 'Settings', 'Help'];
+    expect(screen.getAllByRole('group')).toEqual(names.map((name) => screen.getByRole('group', { name })));
+    expect(screen.getByRole('group', { name: 'Settings' })).toContainElement(
+      screen.getByRole('option', { name: /Toggle theme/ }),
+    );
+
+    await user.type(input, 'theme');
+    expect(screen.queryAllByRole('group')).toHaveLength(0);
+  });
+
+  it('keeps the list out of the Tab order: the field drives it', async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    await openPalette(user);
+
+    expect(screen.getByRole('listbox')).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('names each option after its command, so the active id changes with the results', async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    const input = await openPalette(user);
+
+    const before = input.getAttribute('aria-activedescendant');
+    await user.type(input, 'github');
+    const after = input.getAttribute('aria-activedescendant');
+
+    expect(before).not.toBe(after);
+    expect(document.getElementById(after!)).toHaveTextContent('Open GitHub');
   });
 
   it('ranks the best match first as the user types', async () => {

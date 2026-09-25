@@ -33,7 +33,6 @@
 }
 
 .commandResults {
-    list-style: none;
     margin: 0;
     padding: 0.25rem 0;
     max-height: min(22rem, 50vh);
@@ -41,6 +40,23 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     position: relative;
+}
+
+/* Set by the component while options sit below the visible part: the last
+   rows fade out, so the list never looks complete when it is not. */
+.commandResults[data-more] {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+}
+
+/* Lines up with the option titles, which sit after a 3px selection bar. */
+.groupLabel {
+    padding: 0.6rem 1.25rem 0.25rem calc(1.25rem + 3px);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .commandItem {
@@ -72,14 +88,14 @@
 
 .commandHint {
     flex-shrink: 0;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.8rem;
 }
 
 .empty {
     margin: 0;
     padding: 1rem 1.25rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.9rem;
     overflow-wrap: anywhere;
 }
@@ -88,7 +104,7 @@
     margin: 0;
     padding: 0.5rem 1.25rem;
     border-top: 1px solid var(--border-subtle);
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.75rem;
 }
 
@@ -108,7 +124,11 @@
 
 @media (max-width: 29.99rem) {
     .commandItem {
-        padding: 0.5rem 1rem;
+        padding-inline: 1rem;
+    }
+
+    .groupLabel {
+        padding-inline: calc(1rem + 3px) 1rem;
     }
 
     .commandHint {
