@@ -73,7 +73,7 @@ describe('App routing', () => {
 
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/\b8\+ years/);
-    expect(text).not.toMatch(/phone|\+44|7767/i);
+    expect(text).not.toMatch(/phone|\+44|\d{4} ?\d{6}/i);
     expect(container.querySelector('a[href^="tel:"]')).toBeNull();
   });
 });
