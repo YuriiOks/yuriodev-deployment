@@ -1,0 +1,44 @@
+# Hand curation for GET /api/posts. Ships with the backend image: a change goes live with the
+# next release. The file is parsed strictly (unknown keys, bad URLs or timestamps without a zone
+# fail the backend tests), so CI catches mistakes before they reach a server.
+#
+# Precedence: the Typefully tag `hide-from-site` (SOCIAL_FEED_EXCLUDE_TAG), then `hide` here,
+# then `pin`/`featured` here, then the imported data. Ids are the ones /api/posts serves:
+# "x:<status id>" or "li:<share|activity|ugcPost>:<id>"; an override matches an item by its
+# own id or by any of its variants' ids.
+#
+# Everything below the marker is a commented example: "##" lines explain, "#" lines are TOML.
+# To use one, copy it above the marker without the leading "# ".
+#
+# ---- examples ----
+## Pin, feature or hide an imported post.
+# [[override]]
+# id = "x:1234567890123456789"
+# pin = 1              # optional: pinned posts come first, lowest number first
+# featured = true      # optional
+#
+# [[override]]
+# id = "li:share:1234567890123456789"
+# hide = true          # never show this post
+#
+## Add a post that did not go through Typefully. One [[native]] entry is one card: give it
+## an [native.x] table, a [native.linkedin] table, or both. The text is shown exactly as
+## written. If an imported post has the same X or LinkedIn id, the imported one wins.
+# [[native]]
+# published_at = 2026-01-15T09:00:00Z
+# pin = 2              # optional
+# featured = false     # optional
+# has_media = false    # optional: true when the original has images the card can point to
+#
+# [native.x]
+# url = "https://x.com/YuriODev/status/1234567890123456789"
+# parts = [
+#   "First post of the thread.",
+#   "Second post of the thread.",
+# ]
+#
+# [native.linkedin]
+# url = "https://www.linkedin.com/feed/update/urn:li:share:1234567890123456789"
+# parts = ["""The LinkedIn text.
+#
+# Paragraphs are kept."""]
