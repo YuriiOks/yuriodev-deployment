@@ -1,5 +1,6 @@
 import React from 'react';
 import InteractiveTerminal from '../../ui/InteractiveTerminal/InteractiveTerminal';
+import { usePageTitle } from '../../../hooks/usePageTitle';
 import styles from './ComingSoonSection.module.css';
 
 interface ComingSoonSectionProps {
@@ -15,6 +16,8 @@ const ComingSoonSection: React.FC<ComingSoonSectionProps> = ({
   description,
   features = []
 }) => {
+  usePageTitle(title);
+
   return (
     <section id={pageName} className={styles.comingSoonSection}>
       <div className={styles.contentWrapper}>

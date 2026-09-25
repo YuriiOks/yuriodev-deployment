@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import styles from './Footer.module.css';
 
 const Footer: React.FC = () => {
@@ -118,6 +119,7 @@ const Footer: React.FC = () => {
             <span className={styles.tech}>
               Built with <span className={styles.techHighlight}>React</span> + <span className={styles.techHighlight}>TypeScript</span> + <span className={styles.techHighlight}>Vite</span>
             </span>
+            <Link to="/privacy" className={styles.privacyLink}>Privacy notice</Link>
           </div>
         </div>
 

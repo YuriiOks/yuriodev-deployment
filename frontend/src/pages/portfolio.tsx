@@ -6,9 +6,11 @@ import TimelineSection from '../components/sections/TimelineSection/TimelineSect
 import ConnectSection from '../components/sections/ConnectSection/ConnectSection';
 import SkillsSection from '../components/sections/SkillsSection/SkillsSection';
 import { useScrollToHash } from '../hooks/useScrollToHash';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const Portfolio = () => {
   useScrollToHash();
+  usePageTitle();
 
   return (
     <>

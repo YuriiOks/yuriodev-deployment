@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from './context/ThemeContext';
@@ -75,5 +75,58 @@ describe('App routing', () => {
     expect(text).not.toMatch(/\b8\+ years/);
     expect(text).not.toMatch(/phone|\+44|\d{4} ?\d{6}/i);
     expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+  });
+
+  it.each([
+    ['/', 'Yurii Oksamytnyi — AI/ML Systems Engineer'],
+    ['/privacy', 'Privacy | Yurii Oksamytnyi'],
+    ['/courses', 'Courses | Yurii Oksamytnyi'],
+    ['/community', 'Community | Yurii Oksamytnyi'],
+    ['/dashboard', 'Dashboard | Yurii Oksamytnyi'],
+    ['/does-not-exist', 'Page not found | Yurii Oksamytnyi'],
+  ])('sets the document title on %s', (path, title) => {
+    renderAppAt(path);
+    expect(document.title).toBe(title);
+  });
+
+  it('renders a not-found page with a link home and a noindex tag for unknown paths', () => {
+    renderAppAt('/does-not-exist');
+    expect(screen.getByRole('heading', { level: 1, name: /page not found/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to the home page/i })).toHaveAttribute('href', '/');
+    expect(screen.getByText(/cd: \/does-not-exist: No such file or directory/)).toBeInTheDocument();
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+  });
+
+  it('drops the noindex tag once the visitor leaves the not-found page', async () => {
+    const user = userEvent.setup();
+    renderAppAt('/does-not-exist');
+    await user.click(screen.getByRole('link', { name: /back to the home page/i }));
+    expect(window.location.pathname).toBe('/');
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+  });
+
+  it('does not mark real pages noindex', () => {
+    renderAppAt('/privacy');
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+  });
+
+  it('renders the privacy notice on /privacy', () => {
+    renderAppAt('/privacy');
+    expect(screen.getByRole('heading', { level: 1, name: 'Privacy notice' })).toBeInTheDocument();
+    expect(screen.getByText(/25 September 2026/)).toHaveAttribute('dateTime', '2026-09-25');
+    expect(screen.getByText(/sets no cookies of its own/)).toBeInTheDocument();
+    expect(screen.getByText(/loaded from Google Fonts/)).toBeInTheDocument();
+  });
+
+  it('links the privacy notice from the footer, then starts the new page at the top with focus on main', async () => {
+    const user = userEvent.setup();
+    const { container } = renderAppAt('/');
+    vi.mocked(window.scrollTo).mockClear();
+
+    await user.click(screen.getByRole('link', { name: 'Privacy notice' }));
+
+    expect(window.location.pathname).toBe('/privacy');
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'instant' });
+    expect(document.activeElement).toBe(container.querySelector('main'));
   });
 });

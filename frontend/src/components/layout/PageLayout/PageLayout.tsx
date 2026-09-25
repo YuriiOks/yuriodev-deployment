@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/useTheme';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
@@ -7,6 +7,7 @@ import CanvasBackground from '../../ui/CanvasBackground/CanvasBackground';
 import CommandPalette from '../../ui/CommandPalette/CommandPalette';
 import HelpPanel from '../../ui/HelpPanel/HelpPanel';
 import ScrollToTop from '../../ui/ScrollToTop/ScrollToTop';
+import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
 import styles from './PageLayout.module.css';
 
 interface PageLayoutProps {
@@ -17,6 +18,8 @@ interface PageLayoutProps {
 const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) => {
   const { toggleTheme } = useTheme();
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  useRouteChangeFocus(mainRef);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -113,7 +116,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
       <ScrollToTop />
       <Header onHelpToggle={() => setIsHelpPanelOpen(true)} currentPath={currentPath} />
       <LeftSidebar />
-      <main className={styles.mainContent}>
+      <main id="main-content" ref={mainRef} tabIndex={-1} className={styles.mainContent}>
         {children}
       </main>
       <Footer />

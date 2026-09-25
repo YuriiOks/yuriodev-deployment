@@ -6,6 +6,8 @@ import Portfolio from './pages/portfolio';
 import Community from './pages/community';
 import Courses from './pages/courses';
 import Dashboard from './pages/dashboard';
+import Privacy from './pages/privacy';
+import NotFound from './pages/not-found';
 import './App.css';
 
 function AppContent() {
@@ -53,6 +55,8 @@ function AppContent() {
         <Route path="/community" element={<Community />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </PageLayout>
   );
