@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '../../../context/ThemeContext';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
+import { OverlayProvider } from '../../../context/OverlayProvider';
+import { useOverlay } from '../../../context/useOverlay';
 import { SECTIONS } from '../../../data/site';
 import Header from './Header';
 
@@ -19,16 +21,23 @@ function HeaderAtLocation() {
   );
 }
 
+function ActiveOverlay() {
+  return <div data-testid="overlay">{String(useOverlay().active)}</div>;
+}
+
 function renderHeader(path = '/') {
   return render(
     <ThemeProvider>
       <MemoryRouter initialEntries={[path]}>
         <SectionNavProvider mainRef={{ current: null }}>
-          <Routes>
-            <Route path="*" element={<HeaderAtLocation />} />
-          </Routes>
-          <p>outside</p>
-          <input aria-label="outside input" />
+          <OverlayProvider>
+            <Routes>
+              <Route path="*" element={<HeaderAtLocation />} />
+            </Routes>
+            <p>outside</p>
+            <input aria-label="outside input" />
+            <ActiveOverlay />
+          </OverlayProvider>
         </SectionNavProvider>
       </MemoryRouter>
     </ThemeProvider>,
@@ -170,5 +179,41 @@ describe('Header theme toggle', () => {
     await user.click(toggle);
     expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBe(toggle);
     localStorage.clear();
+  });
+});
+
+describe('Header overlay buttons', () => {
+  it('the search button opens the command palette, and says how to open it from the keyboard', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+
+    const button = screen.getByRole('button', { name: 'Open command palette' });
+    expect(button).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+    await user.click(button);
+
+    expect(screen.getByTestId('overlay')).toHaveTextContent('palette');
+  });
+
+  it('the help button opens the help panel', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+
+    await user.click(screen.getByLabelText('Show help panel'));
+
+    expect(screen.getByTestId('overlay')).toHaveTextContent('help');
+  });
+
+  it('opening the palette from the open menu closes the menu', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+    expect(screen.getByTestId('overlay')).toHaveTextContent('menu');
+
+    await user.click(screen.getByRole('button', { name: 'Open command palette' }));
+
+    expect(screen.getByTestId('overlay')).toHaveTextContent('palette');
+    expect(isOpen()).toBe(false);
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
   });
 });

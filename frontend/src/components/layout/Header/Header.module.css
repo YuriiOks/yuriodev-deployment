@@ -66,7 +66,7 @@
     margin-left: auto;
 }
 
-.themeToggle, .mobileMenuToggle, .helpToggle {
+.themeToggle, .paletteToggle, .mobileMenuToggle, .helpToggle {
     border-radius: 6px;
     font-family: 'Fira Code', monospace;
     font-weight: 500;
@@ -89,6 +89,7 @@
 
 /* Square buttons for icons */
 .themeToggle,
+.paletteToggle,
 .helpToggle {
     width: 40px;
     min-width: 40px;
@@ -102,7 +103,7 @@
     min-width: auto;
 }
 
-.themeToggle:hover, .mobileMenuToggle:hover, .helpToggle:hover {
+.themeToggle:hover, .paletteToggle:hover, .mobileMenuToggle:hover, .helpToggle:hover {
     background: var(--button-nav-hover-bg);
     border-color: var(--button-nav-hover-border);
     color: var(--button-nav-hover-text);
@@ -110,13 +111,13 @@
 }
 
 /* The global focus ring stays; this only adds the hover look. */
-.themeToggle:focus-visible, .mobileMenuToggle:focus-visible, .helpToggle:focus-visible {
+.themeToggle:focus-visible, .paletteToggle:focus-visible, .mobileMenuToggle:focus-visible, .helpToggle:focus-visible {
     border-color: var(--button-nav-hover-border);
     box-shadow: 0 0 0 3px var(--button-nav-hover-shadow);
 }
 
 /* Remove :active state that causes color change */
-.themeToggle:active, .mobileMenuToggle:active, .helpToggle:active {
+.themeToggle:active, .paletteToggle:active, .mobileMenuToggle:active, .helpToggle:active {
     transform: scale(0.95);
 }
 
@@ -276,7 +277,7 @@
         gap: 0.25rem;
     }
 
-    .themeToggle, .helpToggle, .mobileMenuToggle {
+    .themeToggle, .paletteToggle, .helpToggle, .mobileMenuToggle {
         padding: 0.3rem 0.5rem;
         font-size: 0.75rem;
     }

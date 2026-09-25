@@ -1,87 +1,98 @@
-import React, { useEffect } from 'react';
+import React, { useId } from 'react';
 import { SHORTCUTS } from '../../../data/site';
+import { TERMINAL_COMMANDS } from '../../../services/terminalService';
+import { useSingleKeyShortcuts } from '../../../hooks/useSingleKeyShortcuts';
+import Dialog from '../Dialog/Dialog';
 import styles from './HelpPanel.module.css';
 
 interface HelpPanelProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
 }
 
-const HelpPanel: React.FC<HelpPanelProps> = ({ isOpen, onClose }) => {
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
+const SINGLE_KEYS = SHORTCUTS.filter(({ singleKey }) => singleKey).map(({ display }) => display);
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+/** Lists the keyboard shortcuts and the terminal's commands; a drawer on the right. */
+const HelpPanel: React.FC<HelpPanelProps> = ({ open, onClose }) => (
+  <Dialog
+    open={open}
+    onClose={onClose}
+    title="Help"
+    placement="right"
+    surface="solid"
+    footer={
+      <p className={styles.helpFooter}>
+        Press <kbd className={styles.shortcut}>Esc</kbd> or click outside to close
+      </p>
+    }
+  >
+    <HelpContent />
+  </Dialog>
+);
+
+const HelpContent: React.FC = () => {
+  const [singleKeysOn, setSingleKeysOn] = useSingleKeyShortcuts();
+  const shortcutsId = useId();
+  const switchLabelId = useId();
+  const switchHintId = useId();
+  const commandsId = useId();
 
   return (
-    <>
-      {isOpen && (
-        <div className={styles.backdrop} onClick={onClose} />
-      )}
-      {/* inert while closed: off screen, so nothing in it may take focus. */}
-      <div
-        className={`${styles.helpPanel} ${isOpen ? styles.active : ''}`}
-        inert={!isOpen}
-      >
-        <div className={styles.helpPanelContent}>
-          <button className={styles.closeButton} onClick={onClose} aria-label="Close help panel">
-            ✕
-          </button>
-
-        <h3>Keyboard Shortcuts</h3>
-        <div className={styles.helpSection}>
-          {SHORTCUTS.map(({ id, label, display }) => (
-            <div key={id} className={styles.helpItem}>
-              <span>{label}</span>
-              <span className={styles.shortcut}>{display}</span>
+    <div className={styles.helpPanelContent}>
+      <section aria-labelledby={shortcutsId}>
+        <h3 id={shortcutsId}>Keyboard Shortcuts</h3>
+        <dl className={styles.helpSection}>
+          {SHORTCUTS.map(({ id, label, display, singleKey }) => (
+            <div key={id} className={styles.helpItem} data-off={singleKey && !singleKeysOn ? '' : undefined}>
+              <dt>{label}</dt>
+              <dd>
+                <kbd className={styles.shortcut}>{display}</kbd>
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
 
-        <h3>Terminal Commands</h3>
-        <div className={styles.helpSection}>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>help</span>
-            <span>Show available commands</span>
+        <div className={styles.switchRow}>
+          <div>
+            <p id={switchLabelId} className={styles.switchLabel}>
+              Single-key shortcuts
+            </p>
+            <p id={switchHintId} className={styles.switchHint}>
+              {SINGLE_KEYS.join(', ')}. Turn them off if you use speech input. Ctrl/Cmd + K, Home and End
+              always work.
+            </p>
           </div>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>skills</span>
-            <span>List technical skills</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>contact</span>
-            <span>Show contact information</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>projects</span>
-            <span>List recent projects</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>surprise</span>
-            <span>Easter egg command</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>clear</span>
-            <span>Clear terminal output</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span className={styles.command}>about</span>
-            <span>Display information</span>
-          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={singleKeysOn}
+            aria-labelledby={switchLabelId}
+            aria-describedby={switchHintId}
+            className={styles.switch}
+            onClick={() => setSingleKeysOn(!singleKeysOn)}
+          >
+            <span className={styles.switchTrack} aria-hidden="true">
+              <span className={styles.switchThumb} />
+            </span>
+            <span className={styles.switchState} aria-hidden="true">
+              {singleKeysOn ? 'On' : 'Off'}
+            </span>
+          </button>
         </div>
+      </section>
 
-        <div className={styles.helpFooter}>
-          <p>Press <span className={styles.shortcut}>ESC</span> or click outside to close</p>
-        </div>
-        </div>
-      </div>
-    </>
+      <section aria-labelledby={commandsId}>
+        <h3 id={commandsId}>Terminal Commands</h3>
+        <dl className={styles.helpSection}>
+          {TERMINAL_COMMANDS.map(({ name, description }) => (
+            <div key={name} className={styles.helpItem}>
+              <dt className={styles.command}>{name}</dt>
+              <dd>{description}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </div>
   );
 };
 

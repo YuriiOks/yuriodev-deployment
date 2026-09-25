@@ -1,113 +1,190 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTheme } from '../../../context/useTheme';
 import { useSectionNav } from '../../../context/useSectionNav';
-import { EMAILS, SECTIONS, TERMINAL_ANCHOR, shortcutFor, socialsFor } from '../../../data/site';
+import { useToast } from '../../../context/useToast';
+import { EMAILS } from '../../../data/site';
+import Dialog from '../Dialog/Dialog';
+import { buildCommands, rankCommands, type PaletteCommand } from './commands';
 import styles from './CommandPalette.module.css';
 
 // External links open in a new tab with no opener and no referrer.
 function openExternal(url: string) {
-    window.open(url, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 interface CommandPaletteProps {
-    /** Open state owned by the parent (PageLayout keeps one overlay open at a time). Omit to let the palette own it. */
-    isOpen?: boolean;
-    onOpenChange?: (open: boolean) => void;
-    onShowHelp?: () => void;
+  open: boolean;
+  onClose: () => void;
+  onShowHelp: () => void;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen: openProp, onOpenChange, onShowHelp }) => {
-    const { toggleTheme } = useTheme();
-    const { goTo } = useSectionNav();
+/**
+ * Ctrl/Cmd+K, or the header's search button: a filterable list of every
+ * section, setting and profile. A combobox (the input) that controls a
+ * listbox; the arrow keys move the selection and Enter runs it.
+ */
+const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, onShowHelp }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Command palette"
+      hideTitle
+      placement="top"
+      surface="glass"
+      initialFocus={inputRef}
+      className={styles.palette}
+    >
+      <PaletteBody inputRef={inputRef} onClose={onClose} onShowHelp={onShowHelp} />
+    </Dialog>
+  );
+};
 
-    const commands = useMemo(() => [
-        // Sections in page order; from any other page, goTo opens the home page there.
-        ...SECTIONS.map(({ id, label }) => ({ title: `Go to ${label}`, action: () => goTo(id), shortcut: id })),
-        { title: 'Go to Terminal', action: () => goTo(TERMINAL_ANCHOR), shortcut: TERMINAL_ANCHOR },
-        { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
-        { title: 'Show Help', action: () => onShowHelp?.(), shortcut: 'help' },
-        { title: 'Send Email', action: () => { window.location.href = `mailto:${EMAILS.personal}`; }, shortcut: 'email' },
-        ...socialsFor('palette').map(({ id, shortLabel, url }) => ({
-            title: `View ${shortLabel}`,
-            action: () => openExternal(url),
-            shortcut: id,
-        })),
-    ], [toggleTheme, goTo, onShowHelp]);
-    const [ownOpen, setOwnOpen] = useState(false);
-    const isOpen = openProp ?? ownOpen;
-    const setIsOpen = useCallback((open: boolean) => {
-        if (openProp === undefined) setOwnOpen(open);
-        onOpenChange?.(open);
-    }, [openProp, onOpenChange]);
-    const [inputValue, setInputValue] = useState('');
-    const [filteredCommands, setFilteredCommands] = useState(commands);
-    const [selectedIndex, setSelectedIndex] = useState(0);
+interface PaletteBodyProps {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onClose: () => void;
+  onShowHelp: () => void;
+}
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (shortcutFor(e) === 'palette') {
-                e.preventDefault();
-                setIsOpen(!isOpen);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, setIsOpen]);
+/** Mounted only while the palette is open, so every opening starts with an empty query. */
+const PaletteBody: React.FC<PaletteBodyProps> = ({ inputRef, onClose, onShowHelp }) => {
+  const { toggleTheme } = useTheme();
+  const { sections, goTo } = useSectionNav();
+  const toast = useToast();
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState(0);
+  const listRef = useRef<HTMLUListElement>(null);
+  const baseId = useId();
+  const listId = `${baseId}-list`;
+  const optionId = (index: number) => `${baseId}-option-${index}`;
 
-    useEffect(() => {
-        if (isOpen) {
-            setFilteredCommands(
-                commands.filter(cmd =>
-                    cmd.title.toLowerCase().includes(inputValue.toLowerCase()) ||
-                    cmd.shortcut.toLowerCase().includes(inputValue.toLowerCase())
-                )
-            );
-            setSelectedIndex(0);
-        }
-    }, [inputValue, isOpen, commands]);
+  const commands = useMemo(
+    () =>
+      buildCommands(sections, {
+        goTo,
+        toggleTheme,
+        showHelp: onShowHelp,
+        openExternal,
+        sendEmail: () => {
+          window.location.href = `mailto:${EMAILS.personal}`;
+        },
+        copyEmail: () => {
+          const failed = () =>
+            toast.show({ message: `Could not copy. The address is ${EMAILS.personal}`, tone: 'err', durationMs: 8000 });
+          if (!navigator.clipboard?.writeText) {
+            failed();
+            return;
+          }
+          navigator.clipboard.writeText(EMAILS.personal).then(
+            () => toast.show({ message: `Copied ${EMAILS.personal}` }),
+            failed,
+          );
+        },
+      }),
+    [sections, goTo, toggleTheme, onShowHelp, toast],
+  );
 
+  const results = useMemo(() => rankCommands(commands, query), [commands, query]);
+  const active = results.length === 0 ? -1 : Math.min(selected, results.length - 1);
 
-    const handleCommandClick = (command: { title: string; action: () => void; shortcut: string; }) => {
-        command.action();
-        setIsOpen(false);
-        setInputValue('');
-    };
+  // Keep the selected option in view inside the list (not scrollIntoView:
+  // that may scroll the page too).
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const option = active >= 0 ? list?.querySelector<HTMLElement>(`[data-index="${active}"]`) : null;
+    if (!list || !option) return;
+    if (option.offsetTop < list.scrollTop) list.scrollTop = option.offsetTop;
+    else if (option.offsetTop + option.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = option.offsetTop + option.offsetHeight - list.clientHeight;
+    }
+  }, [active]);
 
-    if (!isOpen) return null;
+  const run = (command: PaletteCommand) => {
+    // Close first, synchronously: the page is scrollable again and focus is
+    // back where it was before the command scrolls, opens or copies.
+    flushSync(onClose);
+    command.run();
+  };
 
-    return (
-        <div className={styles.commandPalette} onClick={() => setIsOpen(false)}>
-            <div className={styles.commandPaletteContent} onClick={(e) => e.stopPropagation()}>
-                <input
-                    type="text"
-                    className={styles.commandInput}
-                    placeholder="Type a command or search..."
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            e.preventDefault();
-                            setIsOpen(false);
-                            setInputValue('');
-                        }
-                    }}
-                    autoFocus
-                />
-                <div className={styles.commandResults}>
-                    {filteredCommands.map((cmd, index) => (
-                        <div
-                            key={cmd.title}
-                            className={`${styles.commandItem} ${index === selectedIndex ? styles.selected : ''}`}
-                            onClick={() => handleCommandClick(cmd)}
-                        >
-                            <span className={styles.commandTitle}>{cmd.title}</span>
-                            <span className={styles.commandShortcut}>{cmd.shortcut}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return;
+    const count = results.length;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (count) setSelected((active + 1) % count);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (count) setSelected((active - 1 + count) % count);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (active >= 0) run(results[active]);
+        break;
+      default:
+        break;
+    }
+  };
+
+  return (
+    <div className={styles.content}>
+      <input
+        ref={inputRef}
+        type="text"
+        className={styles.commandInput}
+        placeholder="Type a command or search..."
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setSelected(0);
+        }}
+        onKeyDown={onKeyDown}
+        role="combobox"
+        aria-label="Search commands"
+        aria-expanded="true"
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={active >= 0 ? optionId(active) : undefined}
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="go"
+      />
+      <ul ref={listRef} id={listId} role="listbox" aria-label="Commands" className={styles.commandResults}>
+        {results.map((command, index) => (
+          // Options are picked with the arrow keys from the input (which
+          // keeps focus), or by pointer.
+          <li
+            key={command.id}
+            id={optionId(index)}
+            data-index={index}
+            role="option"
+            aria-selected={index === active}
+            className={`${styles.commandItem} ${index === active ? styles.selected : ''}`}
+            onClick={() => run(command)}
+            onPointerMove={() => {
+              if (index !== active) setSelected(index);
+            }}
+          >
+            <span className={styles.commandTitle}>{command.title}</span>
+            <span className={styles.commandHint}>{command.hint}</span>
+          </li>
+        ))}
+      </ul>
+      {results.length === 0 && (
+        <p className={styles.empty} role="status">
+          No commands match "{query.trim()}"
+        </p>
+      )}
+      <p className={styles.footer} aria-hidden="true">
+        <kbd>↑</kbd> <kbd>↓</kbd> to move · <kbd>Enter</kbd> to run · <kbd>Esc</kbd> to close
+      </p>
+    </div>
+  );
 };
 
 export default CommandPalette;

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import { useSectionNav } from '../../../context/useSectionNav';
+import { useOverlay } from '../../../context/useOverlay';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { minWidth } from '../../../constants/breakpoints';
 import { NAV_PAGES, pageAt } from '../../../data/site';
@@ -9,14 +10,14 @@ import SectionLink from '../SectionLink/SectionLink';
 import styles from './Header.module.css';
 
 interface HeaderProps {
-  onHelpToggle?: () => void;
   currentPath?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [menuPath, setMenuPath] = useState(currentPath);
+const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   const { theme, toggleTheme } = useTheme();
+  // The menu is one of the page's overlays: opening the palette or the help
+  // panel closes it, and opening it closes them.
+  const { active, open, close, toggle } = useOverlay();
   const { sections, activeId } = useSectionNav();
   // From the sidebar breakpoint up the sidebar navigates the sections and the
   // page links sit inline, so there is no menu; below it the menu is the one
@@ -28,14 +29,16 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   // there; lets focus follow when that control unmounts at the breakpoint.
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const currentPage = pageAt(currentPath)?.id;
+  const isMenuOpen = active === 'menu' && !wide;
 
   // Close the menu whenever the route changes, and when the window grows
-  // past the point where the menu exists.
-  if (menuPath !== currentPath) {
-    setMenuPath(currentPath);
-    setIsMenuOpen(false);
-  }
-  if (wide && isMenuOpen) setIsMenuOpen(false);
+  // past the point where the menu exists (before paint, so it never shows).
+  useLayoutEffect(() => {
+    close('menu');
+  }, [currentPath, close]);
+  useLayoutEffect(() => {
+    if (wide) close('menu');
+  }, [wide, close]);
 
   // While open, Escape or a click/tap outside the menu closes it.
   useEffect(() => {
@@ -43,15 +46,15 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Only pull focus back when it was in the menu (or nowhere), not
-        // when another overlay, such as the command palette, holds it.
-        const active = document.activeElement;
-        const focusInMenu = !active || active === document.body || navControlsRef.current?.contains(active);
-        setIsMenuOpen(false);
+        // when something else on the page holds it.
+        const focused = document.activeElement;
+        const focusInMenu = !focused || focused === document.body || navControlsRef.current?.contains(focused);
+        close('menu');
         if (focusInMenu) menuButtonRef.current?.focus();
       }
     };
     const onPointerDown = (e: PointerEvent) => {
-      if (!navControlsRef.current?.contains(e.target as Node)) setIsMenuOpen(false);
+      if (!navControlsRef.current?.contains(e.target as Node)) close('menu');
     };
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('pointerdown', onPointerDown);
@@ -59,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, close]);
 
   // Growing past the breakpoint unmounts the menu button and the section
   // links. If one of them had focus, hand it to the first page link rather
@@ -81,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
     const next = e.relatedTarget as Node | null;
     if (next && !navControlsRef.current?.contains(next)) {
       lastFocusRef.current = null;
-      setIsMenuOpen(false);
+      close('menu');
       return;
     }
     if (!next) {
@@ -94,11 +97,8 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
     }
   };
 
-  const closeMenu = () => setIsMenuOpen(false);
-
-  const toggleMobileMenu = () => {
-    setIsMenuOpen((open) => !open);
-  };
+  const closeMenu = () => close('menu');
+  const toggleMobileMenu = () => toggle('menu');
 
   // Generate dynamic terminal prompt based on current page and section
   const getTerminalPrompt = () => {
@@ -124,7 +124,31 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
           >
             <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
           </button>
-          <button className={styles.helpToggle} onClick={onHelpToggle} aria-label="Show help panel">?</button>
+          {/* The palette's visible trigger, for touch screens and anyone
+              who does not know Ctrl/Cmd+K. */}
+          <button
+            type="button"
+            className={styles.paletteToggle}
+            onClick={() => open('palette')}
+            aria-label="Open command palette"
+            aria-haspopup="dialog"
+            aria-keyshortcuts="Control+K Meta+K"
+            title="Command palette (Ctrl/Cmd + K)"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="M15.5 15.5 20 20" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={styles.helpToggle}
+            onClick={() => open('help')}
+            aria-label="Show help panel"
+            aria-haspopup="dialog"
+          >
+            ?
+          </button>
           {!wide && (
             <button
               ref={menuButtonRef}

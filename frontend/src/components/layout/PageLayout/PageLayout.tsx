@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useTheme } from '../../../context/useTheme';
+import React, { useCallback, useRef } from 'react';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
 import LeftSidebar from '../LeftSidebar/LeftSidebar';
@@ -8,24 +7,12 @@ import CommandPalette from '../../ui/CommandPalette/CommandPalette';
 import HelpPanel from '../../ui/HelpPanel/HelpPanel';
 import ScrollToTop from '../../ui/ScrollToTop/ScrollToTop';
 import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
+import { useGlobalShortcuts } from '../../../hooks/useGlobalShortcuts';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
-import { useSectionNav } from '../../../context/useSectionNav';
-import { shortcutFor } from '../../../data/site';
+import { OverlayProvider } from '../../../context/OverlayProvider';
+import { ToastProvider } from '../../../context/ToastProvider';
+import { useOverlay } from '../../../context/useOverlay';
 import styles from './PageLayout.module.css';
-import { scrollBehavior } from '../../../utils/motion';
-
-/** The one overlay that may be open; opening another replaces it. */
-type Overlay = 'palette' | 'help' | null;
-
-/** True for targets where a typed character belongs to the field, not to a shortcut. */
-function isTypingTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
-  );
-}
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -36,9 +23,13 @@ const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) 
   const mainRef = useRef<HTMLElement>(null);
   return (
     <SectionNavProvider mainRef={mainRef}>
-      <PageLayoutContent mainRef={mainRef} currentPath={currentPath}>
-        {children}
-      </PageLayoutContent>
+      <OverlayProvider>
+        <ToastProvider>
+          <PageLayoutContent mainRef={mainRef} currentPath={currentPath}>
+            {children}
+          </PageLayoutContent>
+        </ToastProvider>
+      </OverlayProvider>
     </SectionNavProvider>
   );
 };
@@ -48,57 +39,13 @@ interface PageLayoutContentProps extends PageLayoutProps {
 }
 
 const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, currentPath = '/', mainRef }) => {
-  const { toggleTheme } = useTheme();
-  const { step } = useSectionNav();
-  const [overlay, setOverlay] = useState<Overlay>(null);
-  const setPaletteOpen = useCallback(
-    (open: boolean) => setOverlay((current) => (open ? 'palette' : current === 'palette' ? null : current)),
-    [],
-  );
-  const openHelp = useCallback(() => setOverlay('help'), []);
-  const closeHelp = useCallback(() => setOverlay((current) => (current === 'help' ? null : current)), []);
+  const { active, open, close } = useOverlay();
+  const closePalette = useCallback(() => close('palette'), [close]);
+  const closeHelp = useCallback(() => close('help'), [close]);
+  const openHelp = useCallback(() => open('help'), [open]);
+  const dialogOpen = active === 'palette' || active === 'help';
   useRouteChangeFocus(mainRef);
-
-  // Single-key shortcuts (the list lives in data/site.ts). Never while typing
-  // in a field or while an input method is composing; shortcutFor ignores
-  // keys pressed with a modifier, so Ctrl/Cmd+K stays the palette's.
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target) || e.isComposing) return;
-
-      switch (shortcutFor(e)) {
-        case 'help':
-          e.preventDefault();
-          setOverlay((current) => (current === 'help' ? null : 'help'));
-          break;
-        case 'theme':
-          e.preventDefault();
-          toggleTheme();
-          break;
-        case 'next':
-          e.preventDefault();
-          step(1);
-          break;
-        case 'prev':
-          e.preventDefault();
-          step(-1);
-          break;
-        case 'top':
-          e.preventDefault();
-          window.scrollTo({ top: 0, behavior: scrollBehavior() });
-          break;
-        case 'bottom':
-          e.preventDefault();
-          window.scrollTo({ top: document.body.scrollHeight, behavior: scrollBehavior() });
-          break;
-        default:
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [toggleTheme, step]);
+  useGlobalShortcuts();
 
   // The skip link moves focus (and the view) to main without touching the URL.
   const skipToMain = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -113,10 +60,10 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
         Skip to main content
       </a>
       <CanvasBackground />
-      <CommandPalette isOpen={overlay === 'palette'} onOpenChange={setPaletteOpen} onShowHelp={openHelp} />
-      <HelpPanel isOpen={overlay === 'help'} onClose={closeHelp} />
-      <ScrollToTop suppressed={overlay !== null} />
-      <Header onHelpToggle={openHelp} currentPath={currentPath} />
+      <CommandPalette open={active === 'palette'} onClose={closePalette} onShowHelp={openHelp} />
+      <HelpPanel open={active === 'help'} onClose={closeHelp} />
+      <ScrollToTop suppressed={dialogOpen} />
+      <Header currentPath={currentPath} />
       <LeftSidebar />
       <main id="main-content" ref={mainRef} tabIndex={-1} className={styles.mainContent}>
         {children}
