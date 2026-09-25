@@ -124,7 +124,9 @@ images carry a Dockerfile `HEALTHCHECK`, so it polls `docker inspect`'s
 `.State.Health.Status` for up to ~90s; only an image without a `HEALTHCHECK`
 (an older, pre-hardening image) falls back to a request through the proxy
 container (`GET /` for frontends, `GET /health` for backends, up to 6 tries
-5s apart). It never touches a service that isn't already updated, and it
+5s apart). If the new container doesn't come healthy, it puts the previous
+image back (see "Automatic rollback and quarantine" below). It never touches
+a service that isn't already updated, and it
 never builds anything, and it never reacts to an `env/` file changing — only
 to a changed image ID (see "Environment config" below).
 
@@ -132,15 +134,108 @@ to a changed image ID (see "Environment config" below).
   immediately on its next run without touching any container. Running
   containers keep running. Remove the file to resume.
 - **Log:** `~/.local/state/yuriodev-deploy.log` (the agent's own structured
-  lines: `<timestamp> <env> <svc> DEPLOYED|FAILED|ERROR ...`). The crontab
-  additionally redirects raw stdout/stderr to
-  `~/.local/state/yuriodev-deploy.cron.log`.
+  lines: `<timestamp> <env> <svc> DEPLOYED|FAILED|ROLLED BACK|ROLLBACK
+  FAILED|SKIPPED|QUARANTINE lifted|ERROR|REFUSED ...`, plus `WARN` lines
+  about the optional alert files). Once it passes 5 MB it is rotated to
+  `.log.1` (older ones shift to `.2` and `.3`; the fourth is dropped). The
+  crontab additionally redirects raw stdout/stderr to
+  `~/.local/state/yuriodev-deploy.cron.log`, which is not rotated.
 - **Heartbeat:** `~/.local/state/yuriodev-deploy.heartbeat` — touched at the
   end of every run that wasn't paused/locked-out; a stale timestamp means the
-  agent stopped running (check the crontab and the cron log first).
+  agent stopped running, or aborted on an unexpected error (look for
+  `ERROR agent aborted at line N` in the log, then the crontab and the cron log).
 - **Lock:** the script takes a non-blocking `flock` on
-  `~/.local/state/yuriodev-deploy.lock`, so an overrunning invocation is
-  skipped rather than overlapped.
+  `~/.local/state/yuriodev-deploy.lock`, so an overrunning invocation (a
+  rollback can take a few minutes of health waits) is skipped rather than
+  overlapped.
+- **Exit status:** 0, or 1 when any enabled environment logged an
+  `ERROR`/`FAILED`/`REFUSED` line (a failed pull included). One environment
+  failing never stops the others from being processed.
+
+### Automatic rollback and quarantine
+
+Before recreating a service the agent records the image ID the running
+container uses. If the recreate fails, or the new container does not come
+healthy within the wait above, the agent:
+
+1. logs `<env> <svc> FAILED health check after deploying <repo@sha256:...>;
+   rolling back to <previous image ID>`;
+2. points the local tag (`:dev` / `:stage` / `:production`) back at that
+   previous image ID and recreates the service from it
+   (`docker compose up -d --no-deps --force-recreate <svc>`), then waits for
+   health again: `ROLLED BACK to ...` on success, `ROLLBACK FAILED to ...`
+   (the service is still unhealthy — needs a human) otherwise;
+3. quarantines the failed digest in
+   `~/.local/state/yuriodev-deploy.quarantine/<env>.<svc>` and keeps a local
+   copy of the failed image as `<repo>:quarantined-<env>`, so the next pulls
+   don't download it again;
+4. sends the optional alert (below) and exits 1.
+
+A service that had no container yet has nothing to roll back to: the agent
+logs `FAILED ... no previous container to roll back to`, quarantines and
+alerts.
+
+While the registry tag still points at the quarantined digest, every run
+pulls it, sees it is quarantined, points the local tag back at the running
+image (so a manual `docker compose up` can't start the failed one either) and
+skips the service. It logs `SKIPPED quarantined ...` once, not every minute.
+The quarantine lifts by itself as soon as the registry tag moves to any other
+digest (a new master commit for dev, a new rc tag for stage,
+`rollback-production.yml` or a new release for prod): the agent logs
+`QUARANTINE lifted: the tag moved from ... to ...`, drops the held copy, and
+deploys the new digest as usual (or does nothing, if the tag moved back to
+what is already running).
+
+To retry the **same** digest by hand, for example after fixing an
+environment-side cause such as a missing secret:
+```bash
+ls ~/.local/state/yuriodev-deploy.quarantine/                  # one file per quarantined <env>.<svc>
+cat ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev  # the quarantined digest
+rm -f ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev \
+      ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev.noted
+tail -f ~/.local/state/yuriodev-deploy.log                        # the next run (within a minute) deploys it again
+```
+(`rm -rf ~/.local/state/yuriodev-deploy.quarantine` resets every service.) The
+held `<repo>:quarantined-<env>` image is removed on the next successful
+deploy of that service.
+
+This only catches an image that fails its health check. A release that is
+healthy but wrong still needs the release rollback below.
+
+### Alerts and a dead-man's switch (optional, off by default)
+
+Two optional files, each holding one `http(s)://` URL on its first line. The
+agent ignores a file (and logs a `WARN`) unless it is owned by `yurii` and has
+mode 600 (or 400), and it never writes either URL to its log. Nothing lives in
+the repo.
+
+- `~/.config/yuriodev/deploy-alert-url`: on every `FAILED`, `ROLLED BACK` or
+  `ROLLBACK FAILED`, the agent POSTs a one-line plain-text message
+  (`curl -fsS -m 10 --retry 2 --data-binary "<message>" <url>`). Anything that
+  accepts a plain POST body works, for example an ntfy.sh topic URL
+  (`https://ntfy.sh/<long-random-topic>`) or a healthchecks.io check's
+  `/fail` URL (`https://hc-ping.com/<uuid>/fail`). A failed delivery is
+  logged as `WARN alert delivery failed` and never stops the run.
+- `~/.config/yuriodev/deploy-ping-url`: a plain GET at the end of every run
+  that exited 0 (a quarantined service that is being skipped counts as 0).
+  Point it at a healthchecks.io check (`https://hc-ping.com/<uuid>`) with a
+  period of 1 minute and a grace time of about 10 minutes: the check goes
+  down, and emails you, when the agent stops running, aborts, or keeps
+  failing (a GHCR outage longer than the grace time included). Paused or
+  locked-out runs don't ping, so pausing the agent for longer than the grace
+  time also alerts; pause the check in healthchecks.io first if that is
+  planned.
+
+Using one healthchecks.io check for both (the ping URL, and the same URL with
+`/fail` as the alert URL) gives an immediate "down" on a failed deploy and a
+dead-man's switch for everything else. Setup:
+```bash
+mkdir -p ~/.config/yuriodev && chmod 700 ~/.config/yuriodev
+( umask 077 && printf '%s\n' 'https://hc-ping.com/<uuid>/fail' > ~/.config/yuriodev/deploy-alert-url )
+( umask 077 && printf '%s\n' 'https://hc-ping.com/<uuid>'      > ~/.config/yuriodev/deploy-ping-url )
+stat -c '%a %U %n' ~/.config/yuriodev/deploy-*-url                 # expect 600 yurii
+```
+Remove a file to switch that part off again.
 
 ## Environment config (`env/`)
 
@@ -233,7 +328,10 @@ approval before it retags `:production` back to that release's recorded
 digests. The deploy agent then recreates whatever changed on its next run,
 same as any other promotion — no separate rollback procedure on the box.
 Check that release's notes (or the workflow's own summary) for the exact
-digests it moved to.
+digests it moved to. The deploy agent's own automatic rollback (see
+"Automatic rollback and quarantine" above) only covers an image that fails
+its health check; moving `:production` back with this workflow also lifts
+any quarantine the agent is holding for prod.
 
 ## Break-glass: building directly on the box
 
@@ -277,6 +375,8 @@ from what `:production` points at.
 | stage not moving on an rc tag | Tag doesn't match the rc regex, CI/Images not green for that SHA yet, or `promote-stage.yml` failed | `gh run list --workflow=promote-stage.yml`; confirm the tag is exactly `vX.Y.Z-rc.N`; confirm the tagged commit is on `master` and both `CI` and `Images` succeeded for it |
 | production promotion blocked at the gate | `:stage` isn't running the digest of the tagged commit | Promote that commit to stage first (or wait for `STAGE_AUTO_PROMOTE`), then retag `vX.Y.Z` |
 | production promotion stuck | Waiting on `production` environment approval | Approve the run in the Actions UI (reviewer `YuriiOks`) |
+| Agent log shows `ROLLED BACK` / `SKIPPED quarantined` and an env stays on the old revision | The new image failed its health check on the box; the agent put the previous image back and quarantined the digest | `docker compose [-f deploy/<env>/compose.yml] logs --tail 200 <svc>` from the failed attempt; `ls ~/.local/state/yuriodev-deploy.quarantine/`; fix and ship a new commit/tag (lifts it by itself), or reset it by hand — see "Automatic rollback and quarantine" |
+| Agent log shows `ROLLBACK FAILED` | The previous image is unhealthy too (likely an environment-side cause: env file, proxy, network) | Same logs as above, plus `/smoke-test`; the service needs a human |
 | Agent log shows `REFUSED image without explicit tag` | A compose file's `image:` was edited to drop its tag | Compose files must pin `:dev` / `:stage` / `:production` explicitly — the agent refuses to guess `:latest` |
 | Cloudflare 526 | Origin certificate invalid/expired | See `/cert-status`; certs live at `nginx-proxy/certs/origin.{pem,key}` |
 | `/health` or `/api/health` reports the wrong `environment` | Wrong or missing `env/<env>.env` value, or the service was never recreated after an env-file edit (the deploy agent doesn't do this) | Check the compose file's `env_file` order, then follow "Environment config" above to recreate the one service |
