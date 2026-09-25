@@ -45,4 +45,16 @@ describe('App routing', () => {
     renderAppAt('/dashboard');
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
+
+  it('every in-page link on the home page points at an element that exists', () => {
+    const { container } = renderAppAt('/');
+    const targets = [...container.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')]
+      .map((a) => a.getAttribute('href')!.slice(1))
+      .filter(Boolean);
+
+    expect(targets).toContain('terminal');
+    for (const id of targets) {
+      expect(document.getElementById(id), `#${id}`).not.toBeNull();
+    }
+  });
 });

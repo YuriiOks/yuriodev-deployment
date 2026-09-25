@@ -16,8 +16,8 @@ const ConnectSection: React.FC = () => {
           </p>
         </div>
 
-        {/* Interactive Terminal */}
-        <div className={styles.terminalContainer}>
+        {/* Interactive Terminal (the target of '#terminal' links) */}
+        <div className={styles.terminalContainer} id="terminal">
           <InteractiveTerminal />
         </div>
       </div>

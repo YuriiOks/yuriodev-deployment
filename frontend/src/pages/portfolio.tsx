@@ -5,8 +5,11 @@ import ProjectsSection from '../components/sections/ProjectsSection/ProjectsSect
 import TimelineSection from '../components/sections/TimelineSection/TimelineSection';
 import ConnectSection from '../components/sections/ConnectSection/ConnectSection';
 import SkillsSection from '../components/sections/SkillsSection/SkillsSection';
+import { useScrollToHash } from '../hooks/useScrollToHash';
 
 const Portfolio = () => {
+  useScrollToHash();
+
   return (
     <>
       <HeroSection />

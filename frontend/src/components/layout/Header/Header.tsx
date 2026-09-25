@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import styles from './Header.module.css';
@@ -8,17 +8,58 @@ interface HeaderProps {
   currentPath?: string;
 }
 
+// Home-page sections listed in the mobile menu. '#terminal' is the
+// interactive terminal inside the Connect section.
+const SECTION_LINKS = [
+  { id: 'hero', label: '--hero' },
+  { id: 'about', label: '--about' },
+  { id: 'platform', label: '--yuriodev_vision' },
+  { id: 'projects', label: '--projects' },
+  { id: 'timeline', label: '--timeline' },
+  { id: 'skills', label: '--skills' },
+  { id: 'terminal', label: '--terminal' },
+  { id: 'connect', label: '--connect' },
+];
+
 const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPath, setMenuPath] = useState(currentPath);
   const [activeSection, setActiveSection] = useState('hero');
   const { theme, toggleTheme } = useTheme();
+  const navControlsRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const onHome = currentPath === '/';
+
+  // Close the menu whenever the route changes.
+  if (menuPath !== currentPath) {
+    setMenuPath(currentPath);
+    setIsMenuOpen(false);
+  }
+
+  // While open, Escape or a click/tap outside the menu closes it.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!navControlsRef.current?.contains(e.target as Node)) setIsMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [isMenuOpen]);
+
+  const closeMenu = () => setIsMenuOpen(false);
 
   // Determine current page name from path
-  const getCurrentPage = () => {
-    const page = currentPath === '/' ? 'portfolio' : currentPath.substring(1);
-    console.log('📍 Header - Current Path:', currentPath, '→ Page:', page);
-    return page;
-  };
+  const getCurrentPage = () => (currentPath === '/' ? 'portfolio' : currentPath.substring(1));
 
   // Track active section based on scroll
   useEffect(() => {
@@ -39,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   }, []);
 
   const toggleMobileMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+    setIsMenuOpen((open) => !open);
   };
 
   // Generate dynamic terminal prompt based on current page and section
@@ -61,54 +102,48 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
         <div className={styles.terminalPrompt}>
           {getTerminalPrompt()}<span className={styles.cursor}>_</span>
         </div>
-        <div className={styles.navControls}>
+        <div className={styles.navControls} ref={navControlsRef}>
           <button className={styles.themeToggle} onClick={toggleTheme} aria-label="Toggle dark/light theme">
             {theme === 'dark' ? '☾' : '☀'}
           </button>
           <button className={styles.helpToggle} onClick={onHelpToggle} aria-label="Show help panel">?</button>
-          <button className={styles.mobileMenuToggle} onClick={toggleMobileMenu} aria-label="Toggle mobile menu">≡ MENU</button>
-          <ul className={`${styles.navMenu} ${isMenuOpen ? styles.active : ''}`} id="navMenu" role="menubar">
+          <button
+            ref={menuButtonRef}
+            className={styles.mobileMenuToggle}
+            onClick={toggleMobileMenu}
+            aria-label="Toggle mobile menu"
+            aria-expanded={isMenuOpen}
+            aria-controls="navMenu"
+          >
+            ≡ MENU
+          </button>
+          <ul className={`${styles.navMenu} ${isMenuOpen ? styles.active : ''}`} id="navMenu">
             {/* Main sections - visible on mobile only */}
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#hero" className={`${styles.navLink} ${isActive('hero') ? styles.active : ''}`} role="menuitem">--hero</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#about" className={`${styles.navLink} ${isActive('about') ? styles.active : ''}`} role="menuitem">--about</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#platform" className={`${styles.navLink} ${isActive('platform') ? styles.active : ''}`} role="menuitem">--yuriodev_vision</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#projects" className={`${styles.navLink} ${isActive('projects') ? styles.active : ''}`} role="menuitem">--projects</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#timeline" className={`${styles.navLink} ${isActive('timeline') ? styles.active : ''}`} role="menuitem">--timeline</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#skills" className={`${styles.navLink} ${isActive('skills') ? styles.active : ''}`} role="menuitem">--skills</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#terminal" className={`${styles.navLink} ${isActive('terminal') ? styles.active : ''}`} role="menuitem">--terminal</a>
-            </li>
-            <li className={styles.mainSectionLinkLi} role="none">
-              <a href="#connect" className={`${styles.navLink} ${isActive('connect') ? styles.active : ''}`} role="menuitem">--connect</a>
-            </li>
-            
+            {SECTION_LINKS.map(({ id, label }) => (
+              <li key={id} className={styles.mainSectionLinkLi}>
+                {onHome ? (
+                  <a href={`#${id}`} className={`${styles.navLink} ${isActive(id) ? styles.active : ''}`} onClick={closeMenu}>{label}</a>
+                ) : (
+                  <Link to={`/#${id}`} className={styles.navLink} onClick={closeMenu}>{label}</Link>
+                )}
+              </li>
+            ))}
+
             {/* Separator - visible on desktop */}
-            <li className={`${styles.navSeparator} ${styles.mainSectionSeparator}`} role="none">|</li>
+            <li className={`${styles.navSeparator} ${styles.mainSectionSeparator}`} aria-hidden="true">|</li>
             
             {/* Page links - visible on desktop */}
-            <li role="none">
-              <Link to="/" className={`${styles.navLink} ${isPageActive('portfolio') ? styles.pageActive : ''}`} role="menuitem">--portfolio</Link>
+            <li>
+              <Link to="/" className={`${styles.navLink} ${isPageActive('portfolio') ? styles.pageActive : ''}`} onClick={closeMenu}>--portfolio</Link>
             </li>
-            <li role="none">
-              <Link to="/courses" className={`${styles.navLink} ${isPageActive('courses') ? styles.pageActive : ''}`} role="menuitem">--courses</Link>
+            <li>
+              <Link to="/courses" className={`${styles.navLink} ${isPageActive('courses') ? styles.pageActive : ''}`} onClick={closeMenu}>--courses</Link>
             </li>
-            <li role="none">
-              <Link to="/dashboard" className={`${styles.navLink} ${isPageActive('dashboard') ? styles.pageActive : ''}`} role="menuitem">--dashboard</Link>
+            <li>
+              <Link to="/dashboard" className={`${styles.navLink} ${isPageActive('dashboard') ? styles.pageActive : ''}`} onClick={closeMenu}>--dashboard</Link>
             </li>
-            <li role="none">
-              <Link to="/community" className={`${styles.navLink} ${isPageActive('community') ? styles.pageActive : ''}`} role="menuitem">--community</Link>
+            <li>
+              <Link to="/community" className={`${styles.navLink} ${isPageActive('community') ? styles.pageActive : ''}`} onClick={closeMenu}>--community</Link>
             </li>
           </ul>
         </div>
