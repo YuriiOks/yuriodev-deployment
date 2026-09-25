@@ -70,6 +70,7 @@ __MACOSX/
 !.claude/rules/*.md
 !/CLAUDE.md
 !/ERRORS.md
+!/SECURITY.md
 CLAUDE.local.md
 
 # Build and runtime byproducts
