@@ -1,31 +1,50 @@
-# Website API Tests - CORS preflight behaviour
-# File: tests/test_cors.py
-#
-# The allowed origins come from the environment (env/<env>.env: CORS_ORIGINS),
-# so the "allowed" case uses whatever the app was configured with; this keeps the
-# suite valid in CI (code defaults) and inside the local/dev containers alike.
+"""CORS: only when CORS_ORIGINS lists origins, never with credentials."""
 
-from src.core.config import settings
+ALLOWED = "https://allowed.example"
 
 
-def test_preflight_allows_configured_origin(client):
-    origin = settings.cors_origins[0]
-    response = client.options(
-        "/health",
-        headers={
-            "Origin": origin,
-            "Access-Control-Request-Method": "GET",
-        },
+def preflight(client, origin, method="GET"):
+    return client.options(
+        "/api/health",
+        headers={"Origin": origin, "Access-Control-Request-Method": method},
     )
-    assert response.headers.get("access-control-allow-origin") == origin
 
 
-def test_preflight_denies_foreign_origin(client):
-    response = client.options(
-        "/health",
-        headers={
-            "Origin": "https://evil.example",
-            "Access-Control-Request-Method": "GET",
-        },
-    )
+def test_preflight_allows_a_configured_origin(make_client):
+    response = preflight(make_client(cors_origins=[ALLOWED]), ALLOWED)
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == ALLOWED
+    assert "access-control-allow-credentials" not in response.headers
+    allowed_methods = response.headers["access-control-allow-methods"]
+    assert "GET" in allowed_methods
+    assert "POST" not in allowed_methods
+
+
+def test_simple_request_from_a_configured_origin_gets_the_header(make_client):
+    response = make_client(cors_origins=[ALLOWED]).get("/api/health", headers={"Origin": ALLOWED})
+
+    assert response.headers["access-control-allow-origin"] == ALLOWED
+
+
+def test_preflight_denies_a_foreign_origin(make_client):
+    response = preflight(make_client(cors_origins=[ALLOWED]), "https://evil.example")
+
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_preflight_denies_an_unsafe_method(make_client):
+    response = preflight(make_client(cors_origins=[ALLOWED]), ALLOWED, method="POST")
+
+    assert response.status_code == 400
+
+
+def test_no_cors_middleware_without_origins(make_client):
+    client = make_client()
+
+    response = preflight(client, ALLOWED)
+    assert response.status_code == 405
+    assert "access-control-allow-origin" not in response.headers
+    simple = client.get("/api/health", headers={"Origin": ALLOWED})
+    assert "access-control-allow-origin" not in simple.headers
+    assert "vary" not in simple.headers

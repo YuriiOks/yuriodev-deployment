@@ -3,5 +3,4 @@ starlette==1.7.0
 uvicorn[standard]==0.53.0
 pydantic==2.13.5
 python-dotenv==1.2.3
-rich==13.9.0
 pydantic-settings==2.15.0
