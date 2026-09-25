@@ -1,5 +1,6 @@
 :root {
-            /* Layout */
+            /* Layout. LeftSidebar.module.css derives its position from this
+               width (and the sections' 2rem padding); update it there too. */
             --content-max-width: 75%;
             
             /* Dark Mode (Default Theme) */

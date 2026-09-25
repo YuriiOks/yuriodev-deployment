@@ -6,8 +6,15 @@ interface SectionInfo {
   label: string;
 }
 
-// Minimum clear space, in px, between the sidebar and the content column.
-const SIDEBAR_GAP = 16;
+// Minimum clear space between the sidebar and the content column, read from
+// the sidebar's --sidebar-gap (px or rem) so CSS and this guard agree.
+function sidebarGapPx(sidebar: HTMLElement): number {
+  const value = getComputedStyle(sidebar).getPropertyValue('--sidebar-gap').trim();
+  const amount = parseFloat(value);
+  if (Number.isNaN(amount)) return 16;
+  if (value.endsWith('rem')) return amount * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return amount;
+}
 
 const hasVisibleBox = (style: CSSStyleDeclaration) =>
   (style.borderLeftStyle !== 'none' && parseFloat(style.borderLeftWidth) > 0) ||
@@ -39,7 +46,8 @@ const LeftSidebar: React.FC = () => {
   const [sections, setSections] = useState<SectionInfo[]>([]);
   const sidebarRef = useRef<HTMLDivElement>(null);
   // False when the sidebar would overlap the content column (see below).
-  const [isVisible, setIsVisible] = useState(true);
+  // Starts hidden so it cannot flash over the content before the first check.
+  const [isVisible, setIsVisible] = useState(false);
 
   // Dynamically discover all sections on the page
   useEffect(() => {
@@ -73,7 +81,7 @@ const LeftSidebar: React.FC = () => {
   }, []);
 
   // Overlap guard: hide the sidebar whenever its right edge would come closer
-  // than SIDEBAR_GAP to the content column. The sidebar stays laid out while
+  // than --sidebar-gap to the content column. The sidebar stays laid out while
   // hidden (visibility only), so the measurement is the same either way and
   // the decision cannot flip back and forth.
   const sectionKey = sections.map(({ id }) => id).join(',');
@@ -85,13 +93,17 @@ const LeftSidebar: React.FC = () => {
       // Zero width: the small-screen media query already hides it.
       if (rect.width === 0) return;
       const contentLeft = contentColumnLeft();
-      setIsVisible(contentLeft === null || rect.right + SIDEBAR_GAP <= contentLeft);
+      setIsVisible(contentLeft === null || rect.right + sidebarGapPx(sidebar) <= contentLeft);
     };
 
-    const initialTimer = setTimeout(checkOverlap, 100);
+    // A ResizeObserver reports once right after observe() and again whenever
+    // the page or the sidebar (as its links arrive) changes size.
+    const resizeObserver = new ResizeObserver(checkOverlap);
+    resizeObserver.observe(document.documentElement);
+    if (sidebarRef.current) resizeObserver.observe(sidebarRef.current);
     window.addEventListener('resize', checkOverlap);
     return () => {
-      clearTimeout(initialTimer);
+      resizeObserver.disconnect();
       window.removeEventListener('resize', checkOverlap);
     };
   }, [sectionKey]);
