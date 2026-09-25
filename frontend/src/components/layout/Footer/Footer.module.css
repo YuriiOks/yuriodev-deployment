@@ -351,3 +351,11 @@
         width: calc(5 * 44px + 2 * 0.7rem + 2px);
     }
 }
+
+/* Larger phones and small tablets (30-48rem): same five-per-row wrap, with
+   the 0.8rem side padding of the max-width: 47.99rem rules above. */
+@media (pointer: coarse) and (min-width: 30rem) and (max-width: 47.99rem) {
+    .socialIcons {
+        width: calc(5 * 44px + 2 * 0.8rem + 2px);
+    }
+}

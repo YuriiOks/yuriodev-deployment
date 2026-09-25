@@ -1,13 +1,14 @@
 .leftSidebarNav {
-    --sidebar-w: 150px;
+    --sidebar-w: 9.375rem; /* 150px at a 16px root, and it grows with the labels */
     --sidebar-gap: 1rem;
     position: fixed;
     /* Sit in the left gutter, --sidebar-gap clear of the content column.
        Sections pad 2rem on each side and centre a column of
        --content-max-width (75%) inside that, so the column's left edge is
        2rem + (100% - 4rem) * 0.125. LeftSidebar.tsx renders the sidebar only
-       from 88rem (1408px), where that edge is 200px: the sidebar spans
-       34-184px, exactly --sidebar-gap clear, and the gap only grows wider. */
+       from 88rem (1408px at a 16px root), where that edge is 12.5rem: the
+       sidebar spans 2.125-11.5rem (34-184px), exactly --sidebar-gap clear,
+       whatever the root font size, and the gap only grows wider. */
     left: max(var(--sidebar-gap), calc(2rem + (100% - 4rem) * 0.125 - var(--sidebar-w) - var(--sidebar-gap)));
     top: 50%;
     transform: translateY(-50%);

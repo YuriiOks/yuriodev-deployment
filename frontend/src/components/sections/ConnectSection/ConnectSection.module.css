@@ -105,6 +105,24 @@
   flex-shrink: 0;
 }
 
+/* Light theme: amber text on the pale amber tint, or white on solid amber,
+   stays under 4.5:1, so the label uses the body ink (and dark ink on the
+   amber hover fill) while the icon keeps the amber accent. */
+[data-theme="light"] .socialLink {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .socialLink .socialLinkIcon {
+  color: var(--button-nav-text);
+}
+
+[data-theme="light"] .socialLink:hover,
+[data-theme="light"] .socialLink:focus-visible,
+[data-theme="light"] .socialLink:hover .socialLinkIcon,
+[data-theme="light"] .socialLink:focus-visible .socialLinkIcon {
+  color: #0a0f1c;
+}
+
 /* Terminal Container */
 .terminalContainer {
   max-width: var(--content-max-width);
@@ -140,5 +158,20 @@
   .terminalContainer {
     margin: 0 auto;
     padding: 0;
+  }
+}
+
+/* Phones: one column of equal-width buttons instead of ragged centred rows. */
+@media (max-width: 29.99rem) {
+  .socialLinks {
+    display: grid;
+    grid-template-columns: minmax(0, 15rem);
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .socialLink {
+    display: flex;
+    justify-content: center;
   }
 }
