@@ -136,7 +136,12 @@ to a changed image ID (see "Environment config" below).
 - **Log:** `~/.local/state/yuriodev-deploy.log` (the agent's own structured
   lines: `<timestamp> <env> <svc> DEPLOYED|FAILED|ROLLED BACK|ROLLBACK
   FAILED|SKIPPED|QUARANTINE lifted|ERROR|REFUSED ...`, plus `WARN` lines
-  about the optional alert files). Once it passes 5 MB it is rotated to
+  about the optional alert files and about state files it could not write;
+  a `WARN` for a condition that persists, such as a mis-permissioned URL file
+  or an unreachable ping endpoint, is logged once, and again only after the
+  condition has cleared and come back). Writing the log, the quarantine files
+  or a `WARN` marker never stops a run: with a full disk the agent still rolls
+  back and alerts. Once it passes 5 MB it is rotated to
   `.log.1` (older ones shift to `.2` and `.3`; the fourth is dropped). The
   crontab additionally redirects raw stdout/stderr to
   `~/.local/state/yuriodev-deploy.cron.log`, which is not rotated.
@@ -149,51 +154,92 @@ to a changed image ID (see "Environment config" below).
   rollback can take a few minutes of health waits) is skipped rather than
   overlapped.
 - **Exit status:** 0, or 1 when any enabled environment logged an
-  `ERROR`/`FAILED`/`REFUSED` line (a failed pull included). One environment
+  `ERROR`/`FAILED`/`REFUSED` line (a failed pull included), or has a service
+  marked `.broken` (below: no healthy image left running). One environment
   failing never stops the others from being processed.
 
 ### Automatic rollback and quarantine
 
 Before recreating a service the agent records the image ID the running
-container uses. If the recreate fails, or the new container does not come
-healthy within the wait above, the agent:
+container uses. It then runs `docker compose up -d --no-deps <svc>` and waits
+for health as above.
+
+**`compose up` fails and nothing changed** (the container still runs the
+previous image, so the new one never ran; typically a daemon, port or compose
+problem): the agent logs `<env> <svc> FAILED compose up while deploying
+<repo@sha256:...>; nothing was recreated (still running <image ID>); retrying
+next run`, alerts once for that digest, exits 1, and retries every minute.
+Nothing is rolled back or quarantined, because the release itself may be fine.
+Dev and stage keep serving the old image meanwhile.
+
+**The new container does not come healthy** (or `compose up` failed after it
+had already replaced the container), the agent:
 
 1. logs `<env> <svc> FAILED health check after deploying <repo@sha256:...>;
-   rolling back to <previous image ID>`;
-2. points the local tag (`:dev` / `:stage` / `:production`) back at that
+   rolling back to <previous image ID>` (`FAILED compose up while deploying`
+   in the second case);
+2. saves the failed container's health status and last 200 log lines to
+   `~/.local/state/yuriodev-deploy.quarantine/<env>.<svc>.failed.log`.
+   The rollback recreates the container, and that deletes the container and
+   its logs, so after a rollback `docker compose logs` only shows the
+   rolled-back container. This file is the only record of why the new image
+   failed;
+3. points the local tag (`:dev` / `:stage` / `:production`) back at the
    previous image ID and recreates the service from it
    (`docker compose up -d --no-deps --force-recreate <svc>`), then waits for
-   health again: `ROLLED BACK to ...` on success, `ROLLBACK FAILED to ...`
-   (the service is still unhealthy — needs a human) otherwise;
-3. quarantines the failed digest in
+   health again. On success it logs `ROLLED BACK to ...`. Otherwise it logs
+   `ROLLBACK FAILED to ... (<cause>)`, where the cause is `re-tagging the
+   previous image failed`, `compose up of the previous image failed` or `the
+   previous image is unhealthy too`;
+4. quarantines the failed digest in
    `~/.local/state/yuriodev-deploy.quarantine/<env>.<svc>` and keeps a local
    copy of the failed image as `<repo>:quarantined-<env>`, so the next pulls
    don't download it again;
-4. sends the optional alert (below) and exits 1.
+5. sends the optional alert (below) and exits 1.
 
 A service that had no container yet has nothing to roll back to: the agent
-logs `FAILED ... no previous container to roll back to`, quarantines and
-alerts.
+logs `FAILED ... no previous container to roll back to`, saves the same
+`.failed.log`, quarantines and alerts.
+
+**Broken services.** After `ROLLBACK FAILED`, or a failed first deploy, no
+healthy image is left running. The agent then also writes
+`<env>.<svc>.broken`, and every later run exits 1 and skips the success ping
+while that file exists. The dead-man's switch below therefore stays down
+until the problem is resolved; it does not clear itself a minute later. The
+first skipped run logs `SKIPPED quarantined ...; ERROR no healthy image is
+running, needs a human`. The marker is removed when the quarantine lifts
+(below), when that service deploys successfully, or when you reset it by
+hand.
 
 While the registry tag still points at the quarantined digest, every run
-pulls it, sees it is quarantined, points the local tag back at the running
-image (so a manual `docker compose up` can't start the failed one either) and
-skips the service. It logs `SKIPPED quarantined ...` once, not every minute.
+pulls it, sees it is quarantined, and skips the service. It also points the
+local tag back at the running image, or removes the local tag if no container
+exists, so a manual `docker compose up` can't start the failed image either.
+It logs `SKIPPED quarantined ...` once, not every minute.
 The quarantine lifts by itself as soon as the registry tag moves to any other
 digest (a new master commit for dev, a new rc tag for stage,
 `rollback-production.yml` or a new release for prod): the agent logs
-`QUARANTINE lifted: the tag moved from ... to ...`, drops the held copy, and
-deploys the new digest as usual (or does nothing, if the tag moved back to
-what is already running).
+`QUARANTINE lifted: the tag moved from ... to ...`, drops the held copy, the
+`.failed.log` and any `.broken` marker, and deploys the new digest as usual
+(or does nothing, if the tag moved back to what is already running).
+
+Diagnosing a quarantined digest:
+```bash
+ls ~/.local/state/yuriodev-deploy.quarantine/                              # one set of files per <env>.<svc>
+cat ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev             # the quarantined digest
+cat ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev.failed.log  # health + last 200 log lines of the failed container
+docker run --rm ghcr.io/yuriioks/yuriodev-frontend:quarantined-dev         # reproduce by hand (Ctrl-C to stop; backends need their env: add --env-file env/<env>.env)
+```
+The held image runs with no network, env file or limits from the compose
+file, so a failure that comes from the environment (a missing secret, the
+proxy, the network) may not reproduce this way.
 
 To retry the **same** digest by hand, for example after fixing an
 environment-side cause such as a missing secret:
 ```bash
-ls ~/.local/state/yuriodev-deploy.quarantine/                  # one file per quarantined <env>.<svc>
-cat ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev  # the quarantined digest
 rm -f ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev \
-      ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev.noted
-tail -f ~/.local/state/yuriodev-deploy.log                        # the next run (within a minute) deploys it again
+      ~/.local/state/yuriodev-deploy.quarantine/dev.frontend-dev.*   # the digest, .noted, .broken, .failed.log, .upfailed
+tail -f ~/.local/state/yuriodev-deploy.log                            # the next run (within a minute) deploys it again
 ```
 (`rm -rf ~/.local/state/yuriodev-deploy.quarantine` resets every service.) The
 held `<repo>:quarantined-<env>` image is removed on the next successful
@@ -205,34 +251,41 @@ healthy but wrong still needs the release rollback below.
 ### Alerts and a dead-man's switch (optional, off by default)
 
 Two optional files, each holding one `http(s)://` URL on its first line. The
-agent ignores a file (and logs a `WARN`) unless it is owned by `yurii` and has
-mode 600 (or 400), and it never writes either URL to its log. Nothing lives in
-the repo.
+agent ignores a file (and logs a `WARN`, once) unless it is owned by `yurii`
+and has mode 600 (or 400), and it never writes either URL to its log. Nothing
+lives in the repo.
 
 - `~/.config/yuriodev/deploy-alert-url`: on every `FAILED`, `ROLLED BACK` or
   `ROLLBACK FAILED`, the agent POSTs a one-line plain-text message
-  (`curl -fsS -m 10 --retry 2 --data-binary "<message>" <url>`). Anything that
-  accepts a plain POST body works, for example an ntfy.sh topic URL
-  (`https://ntfy.sh/<long-random-topic>`) or a healthchecks.io check's
-  `/fail` URL (`https://hc-ping.com/<uuid>/fail`). A failed delivery is
-  logged as `WARN alert delivery failed` and never stops the run.
+  (`curl -fsS -m 10 --retry 2 --data-binary "<message>" <url>`). Messages
+  that need action end in `needs a human`. A `FAILED compose up` that
+  changed nothing alerts once per digest, not every minute. Anything that
+  accepts a plain POST body works; an ntfy.sh topic URL
+  (`https://ntfy.sh/<long-random-topic>`) is the simplest. A failed delivery
+  is logged as `WARN alert delivery failed` and never stops the run.
 - `~/.config/yuriodev/deploy-ping-url`: a plain GET at the end of every run
-  that exited 0 (a quarantined service that is being skipped counts as 0).
-  Point it at a healthchecks.io check (`https://hc-ping.com/<uuid>`) with a
-  period of 1 minute and a grace time of about 10 minutes: the check goes
-  down, and emails you, when the agent stops running, aborts, or keeps
-  failing (a GHCR outage longer than the grace time included). Paused or
-  locked-out runs don't ping, so pausing the agent for longer than the grace
-  time also alerts; pause the check in healthchecks.io first if that is
-  planned.
+  that exited 0. Point it at a healthchecks.io check
+  (`https://hc-ping.com/<uuid>`) with a period of 1 minute and a grace time
+  of about 10 minutes. The check goes down, and emails you, when the agent
+  stops running, aborts, keeps failing (a GHCR outage longer than the grace
+  time included), or has a `.broken` service. A service that was **rolled
+  back** successfully and is now quarantined still counts as 0 and still
+  pings: it is serving a healthy image, and the alert URL has already told
+  you about it. Paused or locked-out runs don't ping, so pausing the agent
+  for longer than the grace time also alerts; pause the check in
+  healthchecks.io first if that is planned. An unreachable ping endpoint is
+  logged as `WARN success ping failed`, once, until a ping gets through again.
 
-Using one healthchecks.io check for both (the ping URL, and the same URL with
-`/fail` as the alert URL) gives an immediate "down" on a failed deploy and a
-dead-man's switch for everything else. Setup:
+Recommended setup: an ntfy topic (or any other push channel) for the alert
+URL, and a separate healthchecks.io check only for the ping URL. If you point
+both at one healthchecks.io check instead (`https://hc-ping.com/<uuid>/fail`
+as the alert URL), a rollback flips the check down and the next successful run
+flips it straight back up. That is correct for a rolled-back service, but the
+"down" can be easy to miss, so read the alert itself.
 ```bash
 mkdir -p ~/.config/yuriodev && chmod 700 ~/.config/yuriodev
-( umask 077 && printf '%s\n' 'https://hc-ping.com/<uuid>/fail' > ~/.config/yuriodev/deploy-alert-url )
-( umask 077 && printf '%s\n' 'https://hc-ping.com/<uuid>'      > ~/.config/yuriodev/deploy-ping-url )
+( umask 077 && printf '%s\n' 'https://ntfy.sh/<long-random-topic>' > ~/.config/yuriodev/deploy-alert-url )
+( umask 077 && printf '%s\n' 'https://hc-ping.com/<uuid>'          > ~/.config/yuriodev/deploy-ping-url )
 stat -c '%a %U %n' ~/.config/yuriodev/deploy-*-url                 # expect 600 yurii
 ```
 Remove a file to switch that part off again.
@@ -375,8 +428,9 @@ from what `:production` points at.
 | stage not moving on an rc tag | Tag doesn't match the rc regex, CI/Images not green for that SHA yet, or `promote-stage.yml` failed | `gh run list --workflow=promote-stage.yml`; confirm the tag is exactly `vX.Y.Z-rc.N`; confirm the tagged commit is on `master` and both `CI` and `Images` succeeded for it |
 | production promotion blocked at the gate | `:stage` isn't running the digest of the tagged commit | Promote that commit to stage first (or wait for `STAGE_AUTO_PROMOTE`), then retag `vX.Y.Z` |
 | production promotion stuck | Waiting on `production` environment approval | Approve the run in the Actions UI (reviewer `YuriiOks`) |
-| Agent log shows `ROLLED BACK` / `SKIPPED quarantined` and an env stays on the old revision | The new image failed its health check on the box; the agent put the previous image back and quarantined the digest | `docker compose [-f deploy/<env>/compose.yml] logs --tail 200 <svc>` from the failed attempt; `ls ~/.local/state/yuriodev-deploy.quarantine/`; fix and ship a new commit/tag (lifts it by itself), or reset it by hand — see "Automatic rollback and quarantine" |
-| Agent log shows `ROLLBACK FAILED` | The previous image is unhealthy too (likely an environment-side cause: env file, proxy, network) | Same logs as above, plus `/smoke-test`; the service needs a human |
+| Agent log shows `ROLLED BACK` / `SKIPPED quarantined` and an env stays on the old revision | The new image failed its health check on the box; the agent put the previous image back and quarantined the digest | `cat ~/.local/state/yuriodev-deploy.quarantine/<env>.<svc>.failed.log` (health and last 200 log lines of the failed container, saved before the rollback deleted it; `docker compose logs` now shows only the rolled-back container); fix and ship a new commit/tag (lifts it by itself), or reset it by hand — see "Automatic rollback and quarantine" |
+| Agent log shows `ROLLBACK FAILED (<cause>)` or `ERROR no healthy image is running` | The previous image could not be restored or is unhealthy too (likely an environment-side cause: env file, proxy, network, daemon); the `.broken` marker keeps the agent exiting 1 and the ping off | The `.failed.log` above, `docker compose [-f deploy/<env>/compose.yml] logs --tail 200 <svc>` for the container running now, and `/smoke-test`; the service needs a human |
+| Agent log shows `FAILED compose up while deploying ...; nothing was recreated` every minute | `docker compose up` itself fails (daemon, port, compose file); the running container was not touched | Run the same `docker compose [-f deploy/<env>/compose.yml] up -d --no-deps <svc>` by hand after `touch ~/.yuriodev-deploy-paused` to see the error (a production change for prod: ask first) |
 | Agent log shows `REFUSED image without explicit tag` | A compose file's `image:` was edited to drop its tag | Compose files must pin `:dev` / `:stage` / `:production` explicitly — the agent refuses to guess `:latest` |
 | Cloudflare 526 | Origin certificate invalid/expired | See `/cert-status`; certs live at `nginx-proxy/certs/origin.{pem,key}` |
 | `/health` or `/api/health` reports the wrong `environment` | Wrong or missing `env/<env>.env` value, or the service was never recreated after an env-file edit (the deploy agent doesn't do this) | Check the compose file's `env_file` order, then follow "Environment config" above to recreate the one service |
