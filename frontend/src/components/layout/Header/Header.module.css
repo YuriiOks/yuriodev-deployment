@@ -173,7 +173,17 @@
 }
 
 .caret {
+    width: 0.75rem;
+    height: 0.75rem;
+    flex: none;
     transition: transform var(--dur-2) var(--ease-std);
+}
+
+/* Sized in rem (not the svg's width/height attributes) so it scales with the page. */
+.searchIcon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
 }
 
 .moreButton[aria-expanded="true"] .caret {
