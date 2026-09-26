@@ -39,7 +39,7 @@ whoami     - Display current user info`,
    • React, TypeScript, Next.js   [██████████░░] Advanced
    • ETL Pipelines                [████████████] Expert
 
-�‍🏫 Leadership & Education:
+👨‍🏫 Leadership & Education:
    • Technical Mentoring          [████████████] Expert
    • Course Design                [████████████] Expert
    • Team Leadership              [████████████] Expert
@@ -48,8 +48,8 @@ whoami     - Display current user info`,
     contact: () => `Contact Information:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📧 Email:    yurii.oksamytnyi@yuriodev.co.uk
-📱 Phone:    +44 7767 336011
 🔗 LinkedIn: linkedin.com/in/y-oks
+𝕏  X:        x.com/YuriODev
 💻 GitHub:   github.com/YuriiOks
 🌐 Website:  yuriodev.co.uk
 📍 Location: London, UK
@@ -91,15 +91,13 @@ Available for:
 🐍 Automated Python Course
    github.com/YurioDev/Python-Course
    1000+ students • 25+ modules
-   CI/CD grading • Open source
-
-Type 'projects --details <name>' for more info`,
+   CI/CD grading • Open source`,
 
     about: () => `About Yurii Oksamytnyi:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👨‍💻 AI/ML Systems Engineer | Agentic Architect
 🎓 MLX Applied Machine Learning Graduate
-📊 8+ years building production AI systems
+📊 10+ years building production AI systems
 📍 Based in London, UK
 
 Mission: Democratizing AI/ML education through
@@ -208,3 +206,12 @@ Access level: Public portfolio viewer
 Interested in: Production AI/ML systems & education
 Type 'contact' to discuss collaboration! 🚀`
 };
+
+/**
+ * Output of the named terminal command, or undefined when there is no such
+ * command. Only the table's own keys count: inherited names such as
+ * 'constructor' or '__proto__' are unknown commands, not Object internals.
+ */
+export function runTerminalCommand(name: string): string | undefined {
+    return Object.hasOwn(terminalCommands, name) ? terminalCommands[name]() : undefined;
+}

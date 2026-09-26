@@ -1,7 +1,14 @@
 .leftSidebarNav {
+    --sidebar-w: 150px;
+    --sidebar-gap: 1rem;
     position: fixed;
-    /* left: 2rem; Simple fixed left margin */
-    left: calc((100vw - (var(--content-max-width) * 1vw)) / 2 - 60px + 10px) ;
+    /* Sit in the left gutter, --sidebar-gap clear of the content column.
+       Sections pad 2rem on each side and centre a column of
+       --content-max-width (75%) inside that, so the column's left edge is
+       2rem + (100% - 4rem) * 0.125. Never closer than --sidebar-gap to the
+       viewport edge; when even that would touch the column, the overlap
+       guard in LeftSidebar.tsx hides the sidebar. */
+    left: max(var(--sidebar-gap), calc(2rem + (100% - 4rem) * 0.125 - var(--sidebar-w) - var(--sidebar-gap)));
     top: 50%;
     transform: translateY(-50%);
     height: auto;
@@ -16,7 +23,15 @@
     justify-content: center;
     gap: 18px;
     width: fit-content; /* Dynamically adjust to content */
-    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease, background-color 0.3s ease, padding 0.3s ease, width 0.3s ease, left 0.3s ease;
+    /* No transition on left/width: the overlap guard measures the settled box. */
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease, background-color 0.3s ease, padding 0.3s ease;
+}
+
+/* Set by the overlap guard; stays laid out so it can be measured. */
+.leftSidebarNav.overlapHidden {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .leftSidebarNav::before {
@@ -153,7 +168,7 @@
                 inset 0 1px 0 rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.06);
     width: auto;
-    min-width: 150px;
+    min-width: var(--sidebar-w);
 }
 
 /* Light theme sidebar background */

@@ -280,7 +280,7 @@ const AboutSection: React.FC = () => {
                 <div className={styles.paragraph}>
                   <h3 className={styles.subheading}>🔮 The Philosophy: Engineering Meets Art</h3>
                   <p>
-                    Here's what I've learned after <span className={styles.highlight}>8+ years in the trenches</span>: Great engineering isn't about 
+                    Here's what I've learned after <span className={styles.highlight}>10+ years in the trenches</span>: Great engineering isn't about 
                     writing perfect code — it's about understanding that every system we build is ultimately about humans. Whether it's a RAG pipeline 
                     or a multi-agent orchestrator, the metric that matters isn't just F1 scores or latency — it's <span className={styles.highlightSecondary}>impact</span>.
                   </p>

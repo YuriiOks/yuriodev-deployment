@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from './ThemeContext';
@@ -57,12 +57,11 @@ describe('ThemeContext / useTheme', () => {
     }
     // React logs the thrown error to console.error; silence it for this
     // expected-failure assertion only.
-    const original = console.error;
-    console.error = () => {};
+    const silenced = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       expect(() => render(<Bare />)).toThrow('useTheme must be used within a ThemeProvider');
     } finally {
-      console.error = original;
+      silenced.mockRestore();
     }
   });
 });

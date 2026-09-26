@@ -1,5 +1,6 @@
 :root {
-            /* Layout */
+            /* Layout. LeftSidebar.module.css derives its position from this
+               width (and the sections' 2rem padding); update it there too. */
             --content-max-width: 75%;
             
             /* Dark Mode (Default Theme) */
@@ -7,12 +8,15 @@
             --bg-secondary: rgba(10, 15, 28, 0.95);
             --bg-card: rgba(10, 15, 28, 0.9);
             --bg-card-rgb-val: 10, 15, 28;
+            --background-primary: var(--bg-card);
 
             --text-primary: #00d4ff;
             --text-secondary: #cbd5e1;
             --text-muted: #6b7280;
             --text-on-accent-bg: #0a0f1c;
             --text-on-light-bg: #1e293b;
+            --text-tertiary: var(--text-secondary);
+            --text-muted-rgb: 107, 114, 128;
 
             --accent-primary: #00d4ff;
             --accent-primary-rgb: 0, 212, 255;
@@ -25,6 +29,7 @@
 
             --border-color: #00d4ff;
             --border-color-muted: rgba(var(--accent-primary-rgb), 0.3);
+            --border-subtle: rgba(var(--accent-primary-rgb), 0.18);
             --border-card: var(--accent-primary);
 
             --success: #00ff88;
@@ -33,7 +38,6 @@
 
             --glow-primary: rgba(var(--accent-primary-rgb), 0.5);
             --glow-secondary: rgba(var(--accent-secondary-rgb), 0.5);
-            --glow-tertiary: rgba(var(--accent-tertiary-rgb), 0.5);
 
             --section-shaded-bg: rgba(var(--accent-primary-rgb), 0.03);
             --section-shaded-border: rgba(var(--accent-primary-rgb), 0.15);
@@ -64,17 +68,8 @@
             --cta-button-hover-border: var(--accent-secondary);
             --cta-button-hover-shadow: var(--glow-secondary);
 
-            --contact-link-bg: rgba(var(--accent-primary-rgb), 0.1);
-            --contact-link-text: var(--accent-primary);
-            --contact-link-border: var(--accent-primary);
-            --contact-link-hover-bg: rgba(var(--accent-secondary-rgb), 0.2);
-            --contact-link-hover-text: var(--accent-secondary);
-            --contact-link-hover-border: var(--accent-secondary);
-            --contact-link-hover-shadow: var(--glow-secondary);
-
             --json-key-color: #33f0c8;
             --hero-title-shadow: 0 0 30px var(--glow-primary), 0 0 10px var(--glow-primary);
-            --scanline-base-color-rgb: var(--accent-primary-rgb);
             --card-shadow: 0 0 20px var(--glow-primary);
             --header-border-bottom-color: var(--accent-primary);
         }
@@ -84,12 +79,15 @@
             --bg-secondary: rgba(255, 255, 255, 0.95);
             --bg-card: rgba(255, 255, 255, 0.9);
             --bg-card-rgb-val: 248, 250, 252;
+            --background-primary: var(--bg-card);
 
             --text-primary: #1e293b;
             --text-secondary: #475569;
             --text-muted: #94a3b8;
             --text-on-accent-bg: #ffffff;
             --text-on-light-bg: #1e293b;
+            --text-tertiary: var(--text-secondary);
+            --text-muted-rgb: 148, 163, 184;
 
             --accent-primary: #0059b3;
             --accent-primary-rgb: 0, 89, 179;
@@ -102,6 +100,7 @@
 
             --border-color: #e2e8f0;
             --border-color-muted: #e2e8f0;
+            --border-subtle: #dbe3ee;
             --border-card: var(--border-color);
 
             --success: #059669;
@@ -110,7 +109,6 @@
 
             --glow-primary: rgba(var(--accent-primary-rgb), 0.4);
             --glow-secondary: rgba(var(--accent-secondary-rgb), 0.4);
-            --glow-tertiary: rgba(var(--accent-tertiary-rgb), 0.4);
 
             --section-shaded-bg: rgba(var(--accent-primary-rgb), 0.03);
             --section-shaded-border: rgba(var(--accent-primary-rgb), 0.15);
@@ -141,17 +139,8 @@
             --cta-button-hover-border: var(--accent-secondary);
             --cta-button-hover-shadow: var(--glow-secondary);
 
-            --contact-link-bg: #ffffff;
-            --contact-link-text: var(--accent-secondary);
-            --contact-link-border: var(--accent-secondary);
-            --contact-link-hover-bg: var(--accent-secondary);
-            --contact-link-hover-text: var(--text-on-accent-bg);
-            --contact-link-hover-border: var(--accent-secondary);
-            --contact-link-hover-shadow: var(--glow-secondary);
-
             --json-key-color: #075985;
             --hero-title-shadow: 0 0 25px var(--glow-secondary), 0 0 8px var(--glow-primary);
-            --scanline-base-color-rgb: var(--accent-primary-rgb);
             --card-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.15), 0 0 20px var(--glow-secondary);
             --header-border-bottom-color: var(--accent-secondary);
         }

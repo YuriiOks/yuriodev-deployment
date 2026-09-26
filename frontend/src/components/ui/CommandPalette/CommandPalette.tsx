@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import styles from './CommandPalette.module.css';
 
@@ -7,29 +8,45 @@ function scrollToSection(selector:string) {
     if (element) {
         const header = document.querySelector('.terminal-header') as HTMLElement;
         const headerOffset = header ? header.offsetHeight : 70;
-        const elementPosition = (element as HTMLElement).offsetTop - headerOffset;
+        // Document position, not offsetTop: '#terminal' sits inside a positioned section.
+        const elementPosition = element.getBoundingClientRect().top + window.scrollY - headerOffset;
         window.scrollTo({ top: elementPosition, behavior: 'smooth' });
     }
 }
 
+// External links open in a new tab with no opener and no referrer.
+function openExternal(url: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 const CommandPalette: React.FC = () => {
     const { toggleTheme } = useTheme();
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
 
-    const commands = useMemo(() => [
-        { title: 'Go to Hero', action: () => scrollToSection('#hero'), shortcut: 'hero' },
-        { title: 'Go to About', action: () => scrollToSection('#about'), shortcut: 'about' },
-        { title: 'Go to Platform', action: () => scrollToSection('#platform'), shortcut: 'platform' },
-        { title: 'Go to Projects', action: () => scrollToSection('#projects'), shortcut: 'projects' },
-        { title: 'Go to Timeline', action: () => scrollToSection('#timeline'), shortcut: 'timeline' },
-        { title: 'Go to Skills', action: () => scrollToSection('#skills'), shortcut: 'skills' },
-        { title: 'Go to Connect', action: () => scrollToSection('#connect'), shortcut: 'connect' },
-        { title: 'Go to Terminal', action: () => scrollToSection('#terminal'), shortcut: 'terminal' },
-        { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
-        { title: 'Show Help', action: () => {/**/}, shortcut: 'help' },
-        { title: 'Send Email', action: () => window.location.href = 'mailto:yurii.oksamytnyi@yuriodev.co.uk', shortcut: 'email' },
-        { title: 'View LinkedIn', action: () => window.open('https://www.linkedin.com/in/yurii-oksamytnyi/', '_blank'), shortcut: 'linkedin' },
-        { title: 'View GitHub', action: () => window.open('https://github.com/YuriiOks', '_blank'), shortcut: 'github' }
-    ], [toggleTheme]);
+    const commands = useMemo(() => {
+        // Sections live on the home page; from any other page, go there first.
+        const goTo = (id: string) => () => {
+            if (pathname === '/') scrollToSection(`#${id}`);
+            else navigate(`/#${id}`);
+        };
+        return [
+            { title: 'Go to Hero', action: goTo('hero'), shortcut: 'hero' },
+            { title: 'Go to About', action: goTo('about'), shortcut: 'about' },
+            { title: 'Go to Platform', action: goTo('platform'), shortcut: 'platform' },
+            { title: 'Go to Projects', action: goTo('projects'), shortcut: 'projects' },
+            { title: 'Go to Timeline', action: goTo('timeline'), shortcut: 'timeline' },
+            { title: 'Go to Skills', action: goTo('skills'), shortcut: 'skills' },
+            { title: 'Go to Connect', action: goTo('connect'), shortcut: 'connect' },
+            { title: 'Go to Terminal', action: goTo('terminal'), shortcut: 'terminal' },
+            { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
+            { title: 'Show Help', action: () => {/**/}, shortcut: 'help' },
+            { title: 'Send Email', action: () => { window.location.href = 'mailto:yurii.oksamytnyi@yuriodev.co.uk'; }, shortcut: 'email' },
+            { title: 'View LinkedIn', action: () => openExternal('https://www.linkedin.com/in/y-oks'), shortcut: 'linkedin' },
+            { title: 'View X', action: () => openExternal('https://x.com/YuriODev'), shortcut: 'x' },
+            { title: 'View GitHub', action: () => openExternal('https://github.com/YuriiOks'), shortcut: 'github' }
+        ];
+    }, [toggleTheme, pathname, navigate]);
     const [isOpen, setIsOpen] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [filteredCommands, setFilteredCommands] = useState(commands);

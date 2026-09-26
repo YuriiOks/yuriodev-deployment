@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { terminalCommands } from './terminalService';
+import { runTerminalCommand, terminalCommands } from './terminalService';
 
 describe('terminalCommands', () => {
   it('returns non-empty output for every known command', () => {
@@ -30,5 +30,42 @@ describe('terminalCommands', () => {
 
   it('looking up an unknown command name yields no handler', () => {
     expect(terminalCommands['not-a-real-command']).toBeUndefined();
+  });
+
+  it('contact lists the LinkedIn and X profiles', () => {
+    const contact = terminalCommands.contact();
+    expect(contact).toContain('linkedin.com/in/y-oks');
+    expect(contact).toContain('x.com/YuriODev');
+  });
+
+  it('runTerminalCommand runs known commands', () => {
+    expect(runTerminalCommand('help')).toBe(terminalCommands.help());
+  });
+
+  it.each(['constructor', '__proto__', 'hasOwnProperty', 'toString', 'valueOf'])(
+    'runTerminalCommand treats the inherited name %s as unknown',
+    (name) => {
+      expect(runTerminalCommand(name)).toBeUndefined();
+    },
+  );
+
+  it('no output contains a replacement character or the retired --details hint', () => {
+    for (const name of Object.keys(terminalCommands)) {
+      const output = terminalCommands[name]();
+      expect(output, name).not.toContain('\uFFFD');
+      expect(output, name).not.toContain('--details');
+    }
+  });
+
+  it('contact shows no phone number', () => {
+    const contact = terminalCommands.contact();
+    expect(contact).not.toMatch(/phone|\+44|\d{4} ?\d{6}/i);
+  });
+
+  it('states experience as 10+ years', () => {
+    expect(terminalCommands.about()).toContain('10+ years building production AI systems');
+    for (const name of Object.keys(terminalCommands)) {
+      expect(terminalCommands[name](), name).not.toMatch(/\b8\+ years/);
+    }
   });
 });

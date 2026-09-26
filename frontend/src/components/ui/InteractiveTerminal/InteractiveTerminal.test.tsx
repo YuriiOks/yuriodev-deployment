@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import InteractiveTerminal from './InteractiveTerminal';
 
@@ -40,5 +40,39 @@ describe('InteractiveTerminal colouring', () => {
       !!el?.className.includes('terminalLine') && /not found/i.test(el.textContent ?? ''),
     )[0];
     expect(hasType(errorLine, 'error')).toBe(true);
+  });
+
+  test.each(['constructor', '__proto__'])(
+    'typing %s reports an unknown command instead of crashing',
+    async (name) => {
+      const user = userEvent.setup();
+      render(<InteractiveTerminal />);
+
+      await user.type(screen.getByLabelText('Terminal command input'), `${name}{Enter}`);
+
+      expect(screen.getByText(`Command not found: ${name}. Type "help" for available commands.`)).toBeInTheDocument();
+    },
+  );
+
+  test('Enter that confirms an IME composition does not run the command', () => {
+    render(<InteractiveTerminal />);
+    const input = screen.getByLabelText('Terminal command input');
+    fireEvent.change(input, { target: { value: 'help' } });
+
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(screen.queryByText('Available commands:')).not.toBeInTheDocument();
+    expect(input).toHaveValue('help');
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(screen.getByText('Available commands:')).toBeInTheDocument();
+  });
+
+  test('the teacher emoji header renders intact and coloured as a header', async () => {
+    const user = userEvent.setup();
+    render(<InteractiveTerminal />);
+
+    await user.type(screen.getByLabelText('Terminal command input'), 'skills{Enter}');
+
+    expect(hasType(lineWithText('👨‍🏫 Leadership & Education:'), 'info')).toBe(true);
   });
 });

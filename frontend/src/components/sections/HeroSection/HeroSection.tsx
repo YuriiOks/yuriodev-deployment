@@ -43,7 +43,7 @@ const HeroSection: React.FC = () => {
           <div className={styles.jsonColumn}>
             <div className={styles.commandLine}>$ cat ./systems.json</div>
             <div className={styles.outputRoot}><span className={styles.jsonBraceOuter}>{'{'}</span></div>
-            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"experience"</span>: <span className={styles.jsonString}>"8+ years in production AI"</span>,</div>
+            <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"experience"</span>: <span className={styles.jsonString}>"10+ years in production AI"</span>,</div>
             <div className={styles.output}>{'  '}<span className={styles.jsonKey}>"core_expertise"</span>: <span className={styles.jsonBrace}>{'{'}</span></div>
             <div className={styles.outputNested}>{'    '}<span className={styles.jsonKey}>"agentic_systems"</span>: <span className={styles.jsonBracket}>[</span><span className={styles.jsonString}>"LangGraph"</span>, <span className={styles.jsonString}>"MCP"</span>, <span className={styles.jsonString}>"Multi-Agent"</span><span className={styles.jsonBracket}>]</span>,</div>
             <div className={styles.outputNested}>{'    '}<span className={styles.jsonKey}>"rag_pipelines"</span>: <span className={styles.jsonBracket}>[</span><span className={styles.jsonString}>"Vector DBs"</span>, <span className={styles.jsonString}>"Retrieval"</span>, <span className={styles.jsonString}>"Reranking"</span><span className={styles.jsonBracket}>]</span>,</div>

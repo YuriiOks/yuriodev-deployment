@@ -6,79 +6,48 @@ interface SectionInfo {
   label: string;
 }
 
+// Minimum clear space between the sidebar and the content column, read from
+// the sidebar's --sidebar-gap (px or rem) so CSS and this guard agree.
+function sidebarGapPx(sidebar: HTMLElement): number {
+  const value = getComputedStyle(sidebar).getPropertyValue('--sidebar-gap').trim();
+  const amount = parseFloat(value);
+  if (Number.isNaN(amount)) return 16;
+  if (value.endsWith('rem')) return amount * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return amount;
+}
+
+const hasVisibleBox = (style: CSSStyleDeclaration) =>
+  (style.borderLeftStyle !== 'none' && parseFloat(style.borderLeftWidth) > 0) ||
+  style.backgroundImage !== 'none' ||
+  !/^(transparent|rgba\(.*,\s*0\))$/.test(style.backgroundColor);
+
+// Left edge of the content column: the leftmost of the section wrappers and
+// cards sized by --content-max-width. A wrapper with no border or background
+// counts from its content box (its padding is empty space); a card counts
+// from its border. Null when the page has no such element.
+function contentColumnLeft(): number | null {
+  const columnWidth = getComputedStyle(document.documentElement).getPropertyValue('--content-max-width').trim();
+  let left: number | null = null;
+  for (const el of document.querySelectorAll<HTMLElement>('main section[id] > *, main section[id] > * > *')) {
+    const style = getComputedStyle(el);
+    if (style.maxWidth !== columnWidth) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0) continue;
+    const edge = hasVisibleBox(style)
+      ? rect.left
+      : rect.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
+    left = left === null ? edge : Math.min(left, edge);
+  }
+  return left;
+}
+
 const LeftSidebar: React.FC = () => {
   const [activeSection, setActiveSection] = useState('hero');
   const [sections, setSections] = useState<SectionInfo[]>([]);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(true); // Track if sidebar should be visible based on conditions
-
-  // Check if sidebar should be visible based on dynamic conditions
-  useEffect(() => {
-    const checkVisibility = () => {
-      // Get viewport measurements first
-      const viewportWidth = window.innerWidth;
-      const isMobileView = viewportWidth <= 992;
-
-      // If we don't have a ref yet, or if we're in mobile view, handle that first
-      if (!sidebarRef.current || isMobileView) {
-        if (!sidebarRef.current) {
-          console.log('⚠️ Sidebar ref not ready, keeping visible');
-          setIsVisible(true);
-        } else if (isMobileView) {
-          console.log('📱 Mobile view detected (≤1010px), hiding sidebar:', {
-            viewportWidth: `${viewportWidth}px`,
-            threshold: '1010x'
-          });
-          setIsVisible(false);
-        }
-        return;
-      }
-
-      // Now we can safely measure sidebar dimensions
-      const sidebarWidth = sidebarRef.current.offsetWidth;
-      
-      // If sidebar width is 0, it might be hidden by CSS or transitioning
-      // In this case, keep it visible and let CSS handle display
-      if (sidebarWidth === 0) {
-        console.log('⚠️ Sidebar width is 0px - element may be hidden by CSS or transitioning');
-        return;
-      }
-      
-      const sidebarPercentage = (sidebarWidth / viewportWidth) * 100;
-
-      // Hide sidebar if it takes >35% of viewport width
-      const shouldHide = sidebarPercentage > 35;
-
-      // Always log measurements for debugging
-      console.log('🔍 Sidebar Visibility Check:', {
-        action: shouldHide ? '❌ HIDING' : '✅ SHOWING',
-        measurements: {
-          viewportWidth: `${viewportWidth}px`,
-          sidebarWidth: `${sidebarWidth}px`,
-          sidebarPercentage: `${sidebarPercentage.toFixed(2)}%`,
-          threshold: '35%'
-        },
-        conditions: {
-          isMobileView: `${isMobileView} (breakpoint: ≤992px)`,
-          exceedsPercentageThreshold: `${sidebarPercentage > 35} (threshold: >35%)`,
-          finalDecision: shouldHide ? 'HIDE' : 'SHOW'
-        }
-      });
-
-      setIsVisible(!shouldHide);
-    };
-
-    // Initial check after a short delay to ensure DOM is ready
-    const initialTimer = setTimeout(checkVisibility, 100);
-
-    // Check on resize
-    window.addEventListener('resize', checkVisibility);
-
-    return () => {
-      clearTimeout(initialTimer);
-      window.removeEventListener('resize', checkVisibility);
-    };
-  }, []);
+  // False when the sidebar would overlap the content column (see below).
+  // Starts hidden so it cannot flash over the content before the first check.
+  const [isVisible, setIsVisible] = useState(false);
 
   // Dynamically discover all sections on the page
   useEffect(() => {
@@ -110,6 +79,34 @@ const LeftSidebar: React.FC = () => {
       observer.disconnect();
     };
   }, []);
+
+  // Overlap guard: hide the sidebar whenever its right edge would come closer
+  // than --sidebar-gap to the content column. The sidebar stays laid out while
+  // hidden (visibility only), so the measurement is the same either way and
+  // the decision cannot flip back and forth.
+  const sectionKey = sections.map(({ id }) => id).join(',');
+  useEffect(() => {
+    const checkOverlap = () => {
+      const sidebar = sidebarRef.current;
+      if (!sidebar) return;
+      const rect = sidebar.getBoundingClientRect();
+      // Zero width: the small-screen media query already hides it.
+      if (rect.width === 0) return;
+      const contentLeft = contentColumnLeft();
+      setIsVisible(contentLeft === null || rect.right + sidebarGapPx(sidebar) <= contentLeft);
+    };
+
+    // A ResizeObserver reports once right after observe() and again whenever
+    // the page or the sidebar (as its links arrive) changes size.
+    const resizeObserver = new ResizeObserver(checkOverlap);
+    resizeObserver.observe(document.documentElement);
+    if (sidebarRef.current) resizeObserver.observe(sidebarRef.current);
+    window.addEventListener('resize', checkOverlap);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', checkOverlap);
+    };
+  }, [sectionKey]);
 
   // Track active section based on scroll position
   useEffect(() => {
@@ -154,13 +151,10 @@ const LeftSidebar: React.FC = () => {
     }
   };
 
-  // Don't render sidebar if screen is too small (extra safety layer)
-  if (!isVisible) return null;
-
   return (
     <div
       ref={sidebarRef}
-      className={styles.leftSidebarNav}
+      className={`${styles.leftSidebarNav} ${isVisible ? '' : styles.overlapHidden}`}
       id="leftSidebarNav"
       role="navigation"
       aria-label="Section navigation"

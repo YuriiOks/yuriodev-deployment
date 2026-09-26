@@ -13,6 +13,7 @@
 export const HEADER_EMOJI_LIST: readonly string[] = [
   // Multi-codepoint sequences first (longest first).
   '👨‍💻', // man technologist (ZWJ sequence: U+1F468 U+200D U+1F4BB)
+  '👨‍🏫', // man teacher (ZWJ sequence: U+1F468 U+200D U+1F3EB)
   '🏗️', // building construction (U+1F3D7 U+FE0F)
   '☁️', // cloud (U+2601 U+FE0F)
   // Single-codepoint emoji.
@@ -29,6 +30,7 @@ export const HEADER_EMOJI_LIST: readonly string[] = [
   '📄',
   '🏠',
   '🐍',
+  '𝕏', // mathematical double-struck X (U+1D54F), marks the X profile line
 ];
 
 export const HEADER_EMOJI_REGEX = new RegExp(`^(?:${HEADER_EMOJI_LIST.join('|')})`, 'u');
