@@ -16,37 +16,27 @@
   border-radius: var(--radius-lg);
 }
 
-/* Brand-tinted: cyan in the dark theme, amber in the light one. */
+/* Brand-tinted: a cyan edge and a soft cyan glow, in both themes. */
 .accent {
   border-color: rgba(var(--cyan-rgb), 0.4);
   box-shadow: 0 4px 16px rgba(var(--cyan-rgb), 0.1);
 }
 
-[data-theme="light"] .accent {
-  border-color: rgba(var(--amber-rgb), 0.4);
-  box-shadow: 0 2px 8px rgba(var(--amber-rgb), 0.12);
-}
-
-.featured,
-[data-theme="light"] .featured {
-  border-color: var(--amber-text);
+.featured {
+  border-color: var(--amber-edge);
   box-shadow: 0 4px 20px rgba(var(--amber-rgb), 0.2);
 }
 
 /* The amber edge also marks where a keyboard user is. */
 .interactive:has(:focus-visible) {
-  border-color: var(--amber-text);
+  border-color: var(--amber-edge);
 }
 
 @media (hover: hover) {
   .interactive:hover {
     transform: translateY(-4px);
-    border-color: var(--amber-text);
+    border-color: var(--amber-edge);
     box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
-  }
-
-  [data-theme="light"] .interactive:hover {
-    box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.3);
   }
 }
 

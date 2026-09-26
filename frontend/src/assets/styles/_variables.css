@@ -11,6 +11,14 @@
    item, the focus ring, section headings). The category hues are for tags,
    the canvas and syntax colouring only, never for UI state.
 
+   The light theme is neon on light: slate ink on white surfaces over a
+   cool near-white page, deep cyan for text accents (titles, prompts,
+   links) and the bright cyan for glows and fills; amber there is for
+   fills, edges, glows and large display marks, and its dark text shade
+   is kept for the few small labels that must be amber. Titles use
+   --title-ink and their '#' marks --title-mark: amber and cyan in the
+   dark theme, deep cyan and amber in the light one.
+
    Every *-rgb triplet is COMMA-separated, so rgba() can take it plus an alpha.
    contrast.test.ts holds the text and UI pairs below to WCAG AA in both
    themes; change a colour here and that test tells you if it still passes.
@@ -151,8 +159,12 @@
        neon itself passes everywhere, so all four shades are one colour. */
     --cyan: #00d4ff;   --cyan-rgb: 0, 212, 255;   --cyan-text: #00d4ff;   --cyan-edge: #00d4ff;   --on-cyan: #0a0f1c;
     --amber: #ffc107;  --amber-rgb: 255, 193, 7;  --amber-text: #ffc107;  --amber-edge: #ffc107;  --on-amber: #0a0f1c;
-    /* Large display text (24px and up, never on glass): the hero name. */
+    /* Large display text (24px and up, never on glass): metrics, '#' marks. */
     --amber-display: var(--amber);
+
+    /* Titles (section headings, card titles) and the '#' before them. */
+    --title-ink: var(--amber-text);
+    --title-mark: var(--cyan-text);
 
     /* Category hues: tags, the canvas and syntax colouring only. */
     --hue-violet: #c084fc; --hue-violet-rgb: 192, 132, 252;
@@ -245,23 +257,28 @@
     --body-ink: var(--text-1);
 
     /* The same hues in daylight. The bright fills carry dark ink; the
-       -text shades carry AA text; -rgb is the EDGE shade, for tints,
-       rings and glows. */
-    --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;  --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
-    --amber: #fbbf24;  --amber-rgb: 217, 119, 6; --amber-text: #944903;  --amber-edge: #b45309;  --on-amber: #3a2500;
-    /* Large text only needs 3:1, so display text keeps a brighter orange
-       than --amber-text (which must also pass 4.5:1 through the glass). */
-    --amber-display: #b45309;
+       -text shades carry AA text; cyan's -rgb is its EDGE shade, for
+       tints, rings and glows; amber's -rgb is the bright fill itself, so
+       its tints and glows read as neon amber, never as brown. */
+    --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;   --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
+    --amber: #fbbf24;  --amber-rgb: 245, 158, 11; --amber-text: #a85400;  --amber-edge: #c2710c;  --on-amber: #3a2500;
+    /* Large text only needs 3:1, so display marks take the brighter
+       amber edge rather than the darker --amber-text. */
+    --amber-display: var(--amber-edge);
+
+    /* Titles in deep cyan ink, their '#' marks in amber. */
+    --title-ink: var(--cyan-text);
+    --title-mark: var(--amber-display);
 
     --hue-violet: #7e22ce; --hue-violet-rgb: 126, 34, 206;
-    --hue-teal: #0f766e;   --hue-teal-rgb: 15, 118, 110;
+    --hue-teal: #0c655e;   --hue-teal-rgb: 12, 101, 94;
     --hue-green: #036a4c;  --hue-green-rgb: 3, 106, 76;
     --hue-blue: #1d4ed8;   --hue-blue-rgb: 29, 78, 216;
     --hue-orange: #b23c0a; --hue-orange-rgb: 178, 60, 10;
     --hue-pink: #be185d;   --hue-pink-rgb: 190, 24, 93;
 
     --ok: #036a4c;   --ok-rgb: 3, 106, 76;
-    --warn: #944903; --warn-rgb: 148, 73, 3;
+    --warn: #a85400; --warn-rgb: 168, 84, 0;
     --err: #be123c;  --err-rgb: 190, 18, 60;
     --info: #0369a1; --info-rgb: 3, 105, 161;
 
@@ -270,23 +287,26 @@
     --border-subtle: #dbe3ee;
     --border-strong: #7a889e;
 
-    --focus-ring: #944903;
+    --focus-ring: #c2710c;
     --focus-halo: rgba(251, 191, 36, 0.45);
 
     --glow-1: 0 0 0 1px rgba(var(--cyan-rgb), 0.45), 0 2px 8px rgba(var(--cyan-rgb), 0.16);
     --glow-1-strong: 0 0 0 1px rgba(var(--cyan-rgb), 0.7), 0 4px 14px rgba(var(--cyan-rgb), 0.2);
-    --glow-2: 0 0 0 1px rgba(148, 73, 3, 0.55), 0 3px 12px rgba(251, 191, 36, 0.35);
+    --glow-2: 0 0 0 1px rgba(194, 113, 12, 0.55), 0 3px 12px rgba(251, 191, 36, 0.35);
     --glow-text: none;
     --shadow-1: 0 1px 3px rgba(11, 19, 36, 0.08);
     --shadow-2: 0 12px 32px rgba(11, 19, 36, 0.12);
-    --hero-title-shadow: 0 1px 0 rgba(var(--cyan-rgb), 0.18);
+    /* The hero name: a soft glow of the bright cyan, no dark halo. */
+    --hero-title-shadow: 0 0 28px rgba(34, 211, 238, 0.4), 0 0 8px rgba(34, 211, 238, 0.3);
 
-    --glass-fill: rgba(255, 255, 255, 0.86);
+    /* Near-opaque: the header glass stays white, and amber text on it
+       keeps 4.5:1 over the darkest glyph that can scroll behind it. */
+    --glass-fill: rgba(255, 255, 255, 0.94);
     --glass-border: rgba(var(--cyan-rgb), 0.18);
     --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
-    --section-shaded-bg: rgba(var(--amber-rgb), 0.03);
-    --section-shaded-border: rgba(var(--amber-rgb), 0.1);
+    --section-shaded-bg: rgba(var(--cyan-rgb), 0.035);
+    --section-shaded-border: rgba(var(--cyan-rgb), 0.12);
 
     /* Daylight marks the current item in the cyan family, not in
        amber's dark (brown) text shade. */

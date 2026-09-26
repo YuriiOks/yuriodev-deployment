@@ -16,8 +16,8 @@
   text-transform: uppercase;
 }
 
-/* Amber in the dark theme, the body ink in the light one; the '#' is the
-   other accent, and a neon line sits under the title. */
+/* The title ink (amber in the dark theme, deep cyan in the light one);
+   the '#' is the other accent, and a neon line sits under the title. */
 .title {
   position: relative;
   margin: 0 0 var(--space-4);
@@ -25,21 +25,13 @@
   font-family: var(--font-mono);
   font-size: var(--fs-2xl);
   font-weight: var(--fw-bold);
-  color: var(--text-1);
-}
-
-:root:not([data-theme="light"]) .title {
-  color: var(--amber-text);
+  color: var(--title-ink);
 }
 
 .prompt::before {
   content: '# ';
   content: '# ' / '';
-  color: var(--amber-text);
-}
-
-:root:not([data-theme="light"]) .prompt::before {
-  color: var(--cyan-text);
+  color: var(--title-mark);
 }
 
 /* global.css still gives every h2 a '# '; without the prompt there is none. */
@@ -55,7 +47,7 @@
   width: 80px;
   height: 2px;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, transparent, var(--cyan-text), var(--amber-text), transparent);
+  background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--amber-edge), transparent);
 }
 
 .header[data-align="start"] .title::after {

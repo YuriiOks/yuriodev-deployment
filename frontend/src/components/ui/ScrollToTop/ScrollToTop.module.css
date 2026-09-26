@@ -49,19 +49,15 @@
   transform: translateY(-2px);
 }
 
-/* Light theme adjustments */
+/* Light theme: a white disc, and the page's softer shadow. */
 [data-theme="light"] .scrollToTop {
-  background: var(--bg-primary);
-  border-color: var(--accent-secondary);
-  color: var(--accent-secondary);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: var(--surface-1);
+  box-shadow: 0 4px 20px rgba(11, 19, 36, 0.1);
 }
 
 [data-theme="light"] .scrollToTop:hover {
-  background: var(--accent-secondary);
-  color: var(--bg-primary);
-  border-color: var(--accent-secondary);
-  box-shadow: 0 8px 25px rgba(44, 82, 130, 0.3);
+  background: var(--accent-primary);
+  box-shadow: 0 8px 25px rgba(var(--accent-primary-rgb), 0.3);
 }
 
 /* Responsive design */

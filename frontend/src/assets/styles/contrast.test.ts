@@ -130,11 +130,32 @@ const TEXT_TOKENS = [
   '--success', '--nav-link-text', '--nav-link-text-active', '--button-nav-text', '--cta-button-text',
   // The current page and section (header, More menu, rail) and the rail's labels.
   '--current-ink', '--rail-label',
+  // Section and card titles, and the small amber labels that remain (status, warnings).
+  '--title-ink', '--warn',
 ];
 const HUES = ['--hue-violet', '--hue-teal', '--hue-green', '--hue-blue', '--hue-orange', '--hue-pink'];
 
 /* Glass, worst case: a sharp, bright page glyph right behind the text, no credit for the blur. */
 const GLASS_TEXT = ['--text-1', '--text-2', '--cyan-text', '--amber-text', '--current-ink'];
+
+/* Large display text: the '#' before a title, metric figures. */
+const DISPLAY = ['--amber-display', '--title-mark'];
+
+/* Button text over the ghost tint (resting, then hover) and the filled
+   primary, on the page and on a card. */
+const BUTTON_PAIRS = (page: string): Pair[] => [
+  ...cross(['--cyan-text'], [['rgba(var(--cyan-rgb), 0.1)', page], ['rgba(var(--cyan-rgb), 0.18)', page]], TEXT),
+  { fg: '--on-cyan', bg: ['--cyan'], min: TEXT },
+];
+
+/* Amber highlights on a card: amber ink on its tint (metrics in project
+   text), and the light theme's slate ink in an amber frame (skill tags). */
+const AMBER_TINTS: Pair[] = [
+  { fg: '--amber-text', bg: ['rgba(var(--amber-rgb), 0.15)', '--surface-1'], min: TEXT },
+  { fg: '--amber-text', bg: ['rgba(var(--amber-rgb), 0.2)', '--surface-1'], min: TEXT },
+  // A timeline card's type label: teal on its tint, on the header's cyan tint.
+  { fg: '--hue-teal', bg: ['rgba(var(--hue-teal-rgb), 0.2)', 'rgba(var(--cyan-rgb), 0.08)', '--surface-1'], min: TEXT },
+];
 
 /* The rail sits straight on the page, the light theme's white body included. */
 const RAIL_UI = ['--rail-tick', '--current-edge'];
@@ -144,7 +165,10 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(TEXT_TOKENS, SOLID_DARK, TEXT),
     ...cross(HUES, [['--bg-0'], ['--surface-1'], ['--surface-3']], TEXT),
     ...cross(GLASS_TEXT, [['--glass-fill', '--text-1'], ['--glass-fill', '--bg-0']], TEXT),
-    ...cross(['--amber-display'], SOLID_DARK, LARGE),
+    ...cross(DISPLAY, SOLID_DARK, LARGE),
+    ...BUTTON_PAIRS('--bg-0'),
+    ...BUTTON_PAIRS('--surface-1'),
+    ...AMBER_TINTS,
     // Hover and current-item tints.
     { fg: '--cyan-text', bg: ['rgba(var(--cyan-rgb), 0.18)', '--bg-0'], min: TEXT },
     { fg: '--nav-link-text-active', bg: ['--nav-link-bg-active', '--bg-0'], min: TEXT },
@@ -164,7 +188,11 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(TEXT_TOKENS, SOLID_LIGHT, TEXT),
     ...cross(HUES, [['--bg-0'], ['--bg-1'], ['--surface-1']], TEXT),
     ...cross(GLASS_TEXT, [['--glass-fill', '--text-1'], ['--glass-fill', '--bg-0']], TEXT),
-    ...cross(['--amber-display'], SOLID_LIGHT, LARGE),
+    ...cross(DISPLAY, SOLID_LIGHT, LARGE),
+    ...BUTTON_PAIRS('--bg-0'),
+    ...BUTTON_PAIRS('--surface-1'),
+    ...AMBER_TINTS,
+    { fg: '--text-1', bg: ['rgba(var(--amber-rgb), 0.2)', '--surface-1'], min: TEXT },
     { fg: '--cyan-text', bg: ['rgba(var(--cyan-rgb), 0.18)', '--surface-1'], min: TEXT },
     { fg: '--nav-link-text-active', bg: ['--nav-link-bg-active', '--bg-0'], min: TEXT },
     { fg: '--on-cyan', bg: ['--cyan'], min: TEXT },

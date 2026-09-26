@@ -3,16 +3,12 @@
   display: inline-block;
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-sm);
-  background: var(--amber-text);
-  color: var(--bg-0);
+  background: var(--amber);
+  color: var(--on-amber);
   font-size: 0.7rem;
   font-weight: var(--fw-medium);
   letter-spacing: 0.5px;
   text-transform: uppercase;
-}
-
-[data-theme="light"] .badge {
-  color: var(--surface-1);
 }
 
 .badge[data-tone="ok"] {
