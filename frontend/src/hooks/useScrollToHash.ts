@@ -5,6 +5,9 @@ import { noteJump, recentJump, scrollToId } from '../utils/scroll';
 /** How long after a fragment jump a late web font may still put it back on target. */
 const FONT_SETTLE_MS = 3000;
 
+/** Input that means the visitor has taken over the scroll position. */
+const VISITOR_INPUT = ['wheel', 'touchstart', 'touchmove', 'keydown', 'pointerdown'] as const;
+
 function idFromHash(hash: string): string | null {
   if (hash.length < 2) return null;
   try {
@@ -33,16 +36,24 @@ export function useScrollToHash(): void {
     // A page that opens at a fragment jumps before the web font is in; the
     // font then reflows the text above the target, and the browser's scroll
     // anchoring does not always keep the target in place. Once the font is
-    // in, jump again, unless another jump has been asked for since.
+    // in, jump again, unless another jump has been asked for since or the
+    // visitor has started to scroll or use the page themselves.
     const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
     if (!fonts || fonts.status !== 'loading') return;
     let cancelled = false;
+    const cancel = () => {
+      cancelled = true;
+      stopListening();
+    };
+    const stopListening = () => {
+      for (const type of VISITOR_INPUT) window.removeEventListener(type, cancel, true);
+    };
+    for (const type of VISITOR_INPUT) window.addEventListener(type, cancel, { capture: true, passive: true });
     fonts.ready.then(() => {
+      stopListening();
       if (!cancelled && recentJump(FONT_SETTLE_MS) === id) scrollToId(id);
     });
-    return () => {
-      cancelled = true;
-    };
+    return cancel;
   }, [hash, key]);
 
   useEffect(() => {

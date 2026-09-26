@@ -69,6 +69,26 @@ describe('useScrollToHash', () => {
     expect(scrolled).toEqual(['skills']);
   });
 
+  it.each(['wheel', 'touchstart', 'keydown', 'pointerdown'])(
+    'does not pull the visitor back after a %s before the font is in',
+    async (type) => {
+      mockFonts('loading');
+      const scrolled = openAt('#skills');
+      window.dispatchEvent(new Event(type));
+      await act(async () => resolveFonts());
+      expect(scrolled).toEqual(['skills']);
+    },
+  );
+
+  it('stops listening for input once the font is in', async () => {
+    mockFonts('loading');
+    const remove = vi.spyOn(window, 'removeEventListener');
+    openAt('#skills');
+    await act(async () => resolveFonts());
+    const removed = remove.mock.calls.map(([type]) => type);
+    expect(removed).toEqual(expect.arrayContaining(['wheel', 'touchstart', 'touchmove', 'keydown', 'pointerdown']));
+  });
+
   it('does nothing without a fragment', async () => {
     mockFonts('loading');
     const scrolled = openAt('');
