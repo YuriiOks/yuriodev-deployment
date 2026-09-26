@@ -203,11 +203,18 @@
 /* Side by side only once both columns fit at a readable size: the longest
    lines are 63 and 62 characters, 76em of Fira Code (0.6em a character)
    including 1.25rem either side of the divider, so this query starts
-   where that comes to >= 13.5px (13.5px x 76 + 2.5rem, a 1% margin) -
-   about 67rem, comfortably more than the 60rem the card reaches at
-   1366px stacked. Below it the card stacks at the stacked --code-fs
-   (14px from 48rem up) instead of shrinking. */
-@container (min-width: 67rem) {
+   where that comes to >= 13.5px (13.5px x 76 + 2.5rem, a 1% margin) - 67rem
+   at a 16px root, comfortably narrower than the card stays below 1440px
+   wide. Below it the card stacks at the stacked --code-fs (14px from
+   48rem up) instead of shrinking.
+   A literal 1072px (67 x 16), not 67rem: container query lengths, unlike
+   @media ones, do follow the html font-size, but this card's own width
+   does not grow by that same factor above the fluid breakpoint - it
+   follows --content-max-width's share of the viewport, not the root font
+   (_variables.css) - so a rem threshold here drifts away from the
+   physical width it was tuned to and can flip a wide-enough card back to
+   one column on a very large screen. */
+@container (min-width: 1072px) {
     .jsonGrid,
     .deploymentSection {
         font-size: clamp(13.5px, (100cqi - 2.5rem - 1px) / 76, 0.9rem);
