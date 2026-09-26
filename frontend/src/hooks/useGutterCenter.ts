@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { getRootScale } from '../utils/rootScale';
 
 export interface GutterCenter {
   /** Attach to a hidden probe sized `width: var(--content-max-width)`. */
@@ -10,13 +11,14 @@ export interface GutterCenter {
 /**
  * Left offset that centres `railRef`'s element in the page's left gutter -
  * the space between the window edge and the content column
- * (--content-max-width, _variables.css) - never closer than 16px to the
- * window edge.
+ * (--content-max-width, _variables.css) - never closer than 1rem to the
+ * window edge (in real pixels: 16px below the fluid breakpoint, more above
+ * it, in step with everything else - getRootScale).
  *
  * A hidden probe the caller sizes to that same custom property is measured
  * instead of the formula being repeated here: a ResizeObserver on it and on
  * the rail element itself keeps `left` current across window resizes, the
- * root font size growing above 100rem, and the rail's own width changing
+ * root font size growing above 90rem, and the rail's own width changing
  * with its labels.
  */
 export function useGutterCenter(railRef: RefObject<HTMLElement | null>): GutterCenter {
@@ -29,9 +31,10 @@ export function useGutterCenter(railRef: RefObject<HTMLElement | null>): GutterC
     if (!probe || !rail || typeof ResizeObserver === 'undefined') return undefined;
 
     const update = () => {
+      const minGutter = 16 * getRootScale();
       const gutter = (window.innerWidth - probe.getBoundingClientRect().width) / 2;
       const railWidth = rail.getBoundingClientRect().width;
-      setLeft(Math.max(16, (gutter - railWidth) / 2));
+      setLeft(Math.max(minGutter, (gutter - railWidth) / 2));
     };
 
     update();
