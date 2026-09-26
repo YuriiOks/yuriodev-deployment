@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { TimelineEvent } from '../../../data/timelineData';
+import { tagCategory } from '../../../utils/tagTone';
 import styles from './TimelineItem.module.css';
 
 interface TimelineItemProps {
@@ -92,50 +93,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ event, index }) => {
     return parts.length > 0 ? parts : text;
   };
 
-  // Get tag category for color coding
-  const getTagCategory = (tag: string): string => {
-    const tagLower = tag.toLowerCase();
-    
-    // AI/ML Technologies
-    if (['rag', 'langgraph', 'mcp', 'llms', 'ai', 'ml models', 'mlops', 'pytorch', 
-         'machine learning', 'deep learning', 'nlp', 'computer vision', 'chromadb',
-         'multi-agent systems', 'production ai'].some(term => tagLower.includes(term))) {
-      return 'ai';
-    }
-    
-    // Cloud & Infrastructure
-    if (['aws', 'gcp', 'cloud', 'etl', 'pipelines', 'real-time systems', 
-         'performance optimization'].some(term => tagLower.includes(term))) {
-      return 'cloud';
-    }
-    
-    // Programming Languages
-    if (['python', 'swift', 'objective-c', 'c++', 'sql', 'fastapi'].some(term => tagLower.includes(term))) {
-      return 'language';
-    }
-    
-    // Domain/Industry
-    if (['healthcare', 'fintech', 'financial', 'fraud detection', 'privacy engineering',
-         'gdpr', 'time series', 'predictive analytics'].some(term => tagLower.includes(term))) {
-      return 'domain';
-    }
-    
-    // Development & Tools
-    if (['ios', 'uikit', 'core data', 'rest apis', 'github actions', 'ci/cd',
-         'open source', 'sales automation'].some(term => tagLower.includes(term))) {
-      return 'tools';
-    }
-    
-    // Education & Soft Skills
-    if (['education', 'teaching', 'mentoring', 'course design', 'academic',
-         'algorithms', 'data structures', 'systems programming', 'competitive programming'].some(term => tagLower.includes(term))) {
-      return 'education';
-    }
-    
-    // Default
-    return 'default';
-  };
-
   const isLeft = index % 2 === 0;
 
   return (
@@ -219,7 +176,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ event, index }) => {
               {event.tags.map((tag, idx) => (
                 <span 
                   key={idx} 
-                  className={`${styles.tag} ${styles[`tag-${getTagCategory(tag)}`]}`}
+                  className={`${styles.tag} ${styles[`tag-${tagCategory(tag)}`]}`}
                 >
                   {tag}
                 </span>
