@@ -28,9 +28,15 @@
 }
 
 /* Plain-colour fallback: applies whenever background-clip: text is not
-   supported, and stays the active rule under forced-colors below. */
+   supported, and stays the active rule under forced-colors below.
+   animation: none turns off the base rule's infinite hue-rotate shimmer
+   for the light theme only: a running keyframe animation holds its
+   targeted property (filter) for the animation's whole duration, so the
+   drop-shadow glow set below would never paint while subtleGlow kept
+   looping every 4s. The gradient name gets a steady glow instead. */
 [data-theme="light"] .heroTitle {
     color: var(--name-ink);
+    animation: none;
 }
 
 @supports (background-clip: text) or (-webkit-background-clip: text) {
