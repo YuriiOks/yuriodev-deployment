@@ -27,4 +27,16 @@ export default defineConfig([
       'no-console': 'error',
     },
   },
+  {
+    // Playwright tests and config: Node, plus browser code in page.evaluate().
+    // Playwright fixtures call their `use` argument, which is not React's use().
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

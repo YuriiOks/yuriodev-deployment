@@ -77,3 +77,7 @@ __pycache__/
 *.pyc
 *.tsbuildinfo
 backend/logs/
+# Playwright output (frontend/playwright.config.ts)
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

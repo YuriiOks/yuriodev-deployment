@@ -1,5 +1,6 @@
-/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
+// Also brings in the types of the `test` block below.
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
@@ -9,6 +10,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     css: true,
+    // e2e/ holds the Playwright browser tests (npm run e2e), not vitest's.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
   server: {
     proxy: {
