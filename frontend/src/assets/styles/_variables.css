@@ -290,17 +290,16 @@
        have more headroom) - contrast.test.ts holds every stop here on
        every one of those surfaces, not just the lightest. */
     --amber-display: #db6600;
-    /* The hero name: its own gradient, left (gold, hue 36) to right
-       (orange, hue 28) - so a component never has to spell out the vivid
-       shades itself (design-budget.test.ts bans that outside this file).
-       Both stops are large text (>= 3:1) on every light solid surface,
-       darkened slightly off the nominal #cc7a00/#e06900 for the same
-       --bg-1 reason as --amber-display. --name-ink is the plain-colour
-       fallback (@supports without background-clip: text, and
-       forced-colors) and also feeds the name's warm glow. */
-    --name-gold: #c67600;      --name-gold-rgb: 198, 118, 0;
-    --name-orange: #db6600;    --name-orange-rgb: 219, 102, 0;
-    --name-ink: #d06d00;       --name-ink-rgb: 208, 109, 0;
+    /* The hero name: its own gradient, left (deep gold, hue 38) to right
+       (vivid orange, hue 24) - so a component never has to spell out the
+       vivid shades itself (design-budget.test.ts bans that outside this
+       file). The two stops differ in hue and lightness so the gradient
+       reads; both are large text (>= 3:1) on every light solid surface,
+       --bg-1 included. --name-ink is the plain-colour fallback (@supports
+       without background-clip: text, and forced-colors). */
+    --name-gold: #bd7800;      --name-gold-rgb: 189, 120, 0;
+    --name-orange: #e65c00;    --name-orange-rgb: 230, 92, 0;
+    --name-ink: #d66b00;       --name-ink-rgb: 214, 107, 0;
     /* The bright cyan fill's triplet (--cyan is a lighter fill than the
        --cyan-rgb edge shade here): a custom glow a component composes
        itself, rather than a literal rgb() repeated at each call site. */
@@ -342,18 +341,13 @@
     --glow-text: none;
     --shadow-1: 0 1px 3px rgba(var(--ink-shadow-rgb), 0.08);
     --shadow-2: 0 12px 32px rgba(var(--ink-shadow-rgb), 0.12);
-    /* The hero name's fallback path (no background-clip: text support): a
-       soft warm glow of the plain --name-ink fill, no dark halo. */
-    --hero-title-shadow: 0 0 28px rgba(var(--name-ink-rgb), 0.4), 0 0 8px rgba(var(--name-ink-rgb), 0.3);
-    /* The hero name's usual path: the gradient fill has no colour of its
-       own for a text-shadow to bleed through, so the glow is a
-       filter: drop-shadow stack instead, in em so it scales with the
-       name's own (fluid, then proportionally-scaled) font-size. Warm
-       gold, noticeably stronger than --hero-title-shadow above, crisp
-       letters (a tight inner layer plus a soft outer one), no dark tone. */
-    --hero-name-glow: drop-shadow(0 0 0.05em rgba(var(--name-gold-rgb), 0.85))
-        drop-shadow(0 0 0.22em rgba(var(--name-gold-rgb), 0.65))
-        drop-shadow(0 0 0.5em rgba(var(--name-gold-rgb), 0.45));
+    /* On a light page a halo around the name reads as a smudge, so the
+       name stays crisp (no text-shadow, no filter) and the neon lives in
+       a thin glowing gold -> orange bar under it (HeroSection .heroTitle
+       ::after), sized in em so it scales with the name. */
+    --hero-title-shadow: none;
+    --hero-name-bar-glow: 0 0 0.22em rgba(var(--name-gold-rgb), 0.55),
+        0 0 0.06em rgba(var(--name-orange-rgb), 0.6);
 
     /* Near-opaque: the header glass stays white, and amber text on it
        keeps 4.5:1 over the darkest glyph that can scroll behind it. */
