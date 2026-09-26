@@ -7,9 +7,15 @@
 
 /* The name in the brand cyan with its neon glow (--hero-title-shadow: a
    soft halo in both themes, never a dark drop shadow) in the dark theme;
-   daylight gives it its own token instead (--name-ink, vivid orange - the
-   name is always large text, so it can take the fully vivid shade rather
-   than the burnt one normal-size orange text holds to). */
+   daylight gives it a left-to-right gold -> orange gradient instead (the
+   name is always large text, so both stops can take a fully vivid shade
+   rather than the burnt one normal-size orange text holds to). The
+   gradient is real text the whole time (background-clip: text plus
+   -webkit-text-fill-color/color: transparent) - never an image, so it
+   stays selectable and is read by screen readers as plain text; a plain
+   --name-ink colour is the fallback where a browser lacks background-clip
+   support, and forced-colors mode drops the gradient and glow for the
+   system's own text colour. */
 .heroTitle {
     font-size: 4rem;
     font-weight: 700;
@@ -21,8 +27,34 @@
     color: var(--accent-primary);
 }
 
+/* Plain-colour fallback: applies whenever background-clip: text is not
+   supported, and stays the active rule under forced-colors below. */
 [data-theme="light"] .heroTitle {
     color: var(--name-ink);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+    [data-theme="light"] .heroTitle {
+        background-image: linear-gradient(90deg, var(--name-gold), var(--name-orange));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        text-shadow: none;
+        filter: var(--hero-name-glow);
+    }
+}
+
+/* High-contrast/forced-colors mode: no gradient fill or glow, just the
+   system's own text colour (overrides the @supports block above, same
+   selector and specificity, later in source order). */
+@media (forced-colors: active) {
+    [data-theme="light"] .heroTitle {
+        background-image: none;
+        -webkit-text-fill-color: currentColor;
+        color: CanvasText;
+        filter: none;
+    }
 }
 
 @keyframes subtleGlow {
