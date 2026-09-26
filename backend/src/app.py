@@ -60,6 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 "event": "app.start",
                 "environment": settings.environment,
                 "revision": settings.revision,
+                "ref": settings.build_ref,
                 "feed": feed.describe(),
             },
         )

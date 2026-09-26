@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     api_version: str = "0.1.0"
     environment: str = "unknown"
     revision: str = "unknown"
+    # branch the image was built from (images.yml: GIT_REF build arg -> BUILD_REF), so dev
+    # shows which branch it is running
+    build_ref: str = "unknown"
 
     # http surface
     # JSON list, e.g. CORS_ORIGINS=["http://localhost:5173"]. Empty means no CORS middleware:

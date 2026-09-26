@@ -16,6 +16,7 @@ class HealthResponse(BaseModel):
     service: str
     environment: str
     revision: str
+    ref: str
 
 
 class ErrorBody(BaseModel):

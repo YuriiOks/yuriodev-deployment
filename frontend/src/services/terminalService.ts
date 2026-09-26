@@ -368,11 +368,14 @@ async function statusCommand(): Promise<TerminalLine[]> {
         if (!health) return unreachable('the answer had no status');
         const environment = field(body, 'environment') ?? 'unknown';
         const revision = field(body, 'revision');
+        // The branch the running image was built from (dev runs the last pushed branch).
+        const ref = field(body, 'ref');
         // The verdict on its own line: its type adds a mark (✓ or ⚠) in front,
         // which would push it out of line with the padded columns below.
         return [
             health === 'healthy' ? line('The API is healthy.', 'success') : line(`The API reports: ${health}`, 'warning'),
             line(`Environment: ${environment}`, 'info'),
+            ...(ref && ref !== 'unknown' ? [line(`Branch:      ${ref}`, 'info')] : []),
             line(`Revision:    ${revision ? shortRevision(revision) : 'unknown'}`, 'info'),
         ];
     } catch {

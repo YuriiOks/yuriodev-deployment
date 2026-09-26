@@ -1,8 +1,11 @@
 name: CI
 
+# Every pushed branch is checked; a green push is what images.yml builds and deploys
+# (master -> stage; the repository owner's other branches -> dev). Dependabot and
+# production are checked through their pull requests only, and never deploy.
 on:
   push:
-    branches: [master]
+    branches-ignore: [production, 'dependabot/**']
   pull_request:
 
 permissions:

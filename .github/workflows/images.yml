@@ -1,64 +1,135 @@
 name: Images
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && format('Images: put {0} back on dev', inputs.branch)
+  || format('Images: {0} @ {1}', github.event.workflow_run.head_branch, github.event.workflow_run.head_sha) }}
 
-# Build each image once per green master commit, push it as sha-<commit>,
-# then point :dev at that exact digest. Promotions to :stage / :production
-# only retag existing digests (see the promote workflows); nothing rebuilds.
+# One scanned image per commit, then an environment tag:
+#   master           -> sha-<commit>, and :stage follows the newest built master head
+#   any other branch -> dev-<commit> (or the commit's existing sha-<commit>), and :dev = that
+#                       branch while it is still the branch head (the last build to finish wins)
+# Images are pushed by digest, scanned with Trivy, and only then given their immutable
+# <sha|dev>-<commit> tag; a commit that already has one is reused, never rebuilt. :dev and
+# :stage move only when BOTH services exist for the commit.
+# Production only moves through promote-production.yml (release tag + approval), whose gate
+# requires :stage to be running exactly sha-<tagged commit>. An rc tag (promote-stage.yml)
+# can pin :stage to an older master commit until the next master build.
+# Never built: pull_request runs, forks, the production and dependabot/** branches, and
+# branches pushed by anyone but the repository owner (bots included).
+# Registry tags are the source of truth: a workflow_run run is filed under master's tip,
+# not the commit it built, so never look runs up by head_sha here.
+# workflow_dispatch puts an already-built branch back on dev without rebuilding.
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [master]
+    branches-ignore: [production, 'dependabot/**']
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to put back on dev (its head commit must already have a scanned image)
+        required: true
+        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: images
-  cancel-in-progress: false
-
 jobs:
-  build-push:
+  plan:
     if: >-
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch != 'production' &&
+      !startsWith(github.event.workflow_run.head_branch, 'dependabot/') &&
+      (github.event.workflow_run.head_branch == 'master' ||
+        (github.event.workflow_run.actor.login == github.repository_owner &&
+         github.event.workflow_run.triggering_actor.login == github.repository_owner))
+    runs-on: ubuntu-24.04
+    outputs:
+      target: ${{ steps.p.outputs.target }}
+      prefix: ${{ steps.p.outputs.prefix }}
+    steps:
+      - id: p
+        env:
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          if [ "$BRANCH" = master ]; then
+            echo "target=stage" >> "$GITHUB_OUTPUT"; echo "prefix=sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "target=dev" >> "$GITHUB_OUTPUT"; echo "prefix=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
+    # One build per (service, prefix, commit) at a time, so a re-run or a second branch at the
+    # same commit can never race the first one to the immutable tag.
+    concurrency:
+      group: build-${{ matrix.service }}-${{ needs.plan.outputs.prefix }}-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: false
     strategy:
+      fail-fast: false
       matrix:
         service: [frontend, backend]
     env:
       IMAGE: ghcr.io/yuriioks/yuriodev-${{ matrix.service }}
       SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      PREFIX: ${{ needs.plan.outputs.prefix }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push ${{ matrix.service }}:sha-<commit>
+      - name: Reuse a scanned image of this commit if one exists
+        id: existing
+        run: |
+          # tag -> digest; empty only when the tag does not exist. Any other registry error fails
+          # the job instead of rebuilding (a rebuild would overwrite an immutable tag).
+          ref() {
+            local out
+            if out=$(docker buildx imagetools inspect "$1" --format '{{json .Manifest.Digest}}' 2>"$RUNNER_TEMP/inspect.err"); then
+              printf '%s' "$out" | tr -d '"'; return 0
+            fi
+            grep -qiE 'not found|manifest unknown|404' "$RUNNER_TEMP/inspect.err" && return 0
+            cat "$RUNNER_TEMP/inspect.err" >&2; return 1
+          }
+          d=$(ref "$IMAGE:sha-$SHA")
+          # dev may also reuse an earlier branch build of the same commit; stage only a master build
+          if [ -z "$d" ] && [ "$PREFIX" = dev ]; then d=$(ref "$IMAGE:dev-$SHA"); fi
+          echo "digest=$d" >> "$GITHUB_OUTPUT"
+          if [ -n "$d" ]; then echo "### ${{ matrix.service }}: reusing $d for $SHA (no rebuild)" >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.existing.outputs.digest == ''
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Build and push ${{ matrix.service }} by digest (no tag yet)
+        if: steps.existing.outputs.digest == ''
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.service }}
           target: runtime
-          push: true
           provenance: false
-          build-args: GIT_SHA=${{ env.SHA }}
-          tags: ${{ env.IMAGE }}:sha-${{ env.SHA }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # GIT_REF is only read by the backend (/api/health "ref"); the frontend ignores it.
+          build-args: |
+            GIT_SHA=${{ env.SHA }}
+            GIT_REF=${{ env.BRANCH }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.SHA }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-      - name: Vulnerability scan (blocks :dev on fixable HIGH/CRITICAL)
+      - name: Vulnerability scan (no tag on fixable HIGH/CRITICAL)
+        if: steps.existing.outputs.digest == ''
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
@@ -68,19 +139,110 @@ jobs:
           format: table
           output: trivy-${{ matrix.service }}.txt
       - name: Scan summary
-        if: always()
+        if: always() && steps.existing.outputs.digest == ''
         run: |
-          { echo "### Trivy (${{ matrix.service }}, fixable HIGH/CRITICAL)"; echo '```'; cat "trivy-${{ matrix.service }}.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - name: Point :dev at this digest
+          { echo "### Trivy (${{ matrix.service }}, fixable HIGH/CRITICAL)"; echo '```'; cat "trivy-${{ matrix.service }}.txt" 2>/dev/null || echo "(no report)"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Tag the scanned image <sha|dev>-<commit>
+        if: steps.existing.outputs.digest == ''
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:dev" "$IMAGE@$DIGEST"
-          echo "### ${{ matrix.service }}: \`:dev\` -> \`$DIGEST\` (sha-$SHA)" >> "$GITHUB_STEP_SUMMARY"
-      - name: Also point :stage at it (only while STAGE_AUTO_PROMOTE=true)
-        if: vars.STAGE_AUTO_PROMOTE == 'true'
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
+          now=$(docker buildx imagetools inspect "$IMAGE:$PREFIX-$SHA" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"') || now=""
+          if [ -n "$now" ]; then echo "::notice::$PREFIX-$SHA already exists ($now); not overwriting it"; exit 0; fi
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$PREFIX-$SHA" "$IMAGE@$DIGEST"
+          echo "### ${{ matrix.service }}: \`$PREFIX-$SHA\` -> \`$DIGEST\` ($BRANCH)" >> "$GITHUB_STEP_SUMMARY"
+
+  retag:
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: retag-${{ needs.plan.outputs.target }}
+      cancel-in-progress: false
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      TARGET: ${{ needs.plan.outputs.target }}
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point :${{ needs.plan.outputs.target }} at a commit whose images both exist
         run: |
-          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:stage" "$IMAGE@$DIGEST"
-          echo "### ${{ matrix.service }}: \`:stage\` -> \`$DIGEST\` (auto-promoted, sha-$SHA)" >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          ref() { docker buildx imagetools inspect "$1" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"'; }
+          head=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY" "refs/heads/$BRANCH" | awk -v r="refs/heads/$BRANCH" '$2 == r { print $1 }')
+          if [ "$TARGET" = stage ]; then
+            # Converge on the newest master head that has been built, whatever order builds finish in.
+            # If that head never builds (CI or scan failed), stage stays on the last good build
+            # until a fix lands on master, or an rc tag pins an older good commit.
+            want=$head
+          else
+            # A branch that moved on (or a re-run of an old build) never takes dev back.
+            [ "$head" = "$SHA" ] || { echo "::notice::$BRANCH is now at ${head:-nothing}, not $SHA; :dev stays"; exit 0; }
+            want=$SHA
+          fi
+          [ -n "$want" ] || { echo "::notice::$BRANCH no longer exists; nothing to do"; exit 0; }
+          declare -A dig
+          for svc in frontend backend; do
+            img="ghcr.io/yuriioks/yuriodev-$svc"
+            d=$(ref "$img:sha-$want") || d=""
+            if [ -z "$d" ] && [ "$TARGET" = dev ]; then d=$(ref "$img:dev-$want") || d=""; fi
+            if [ -z "$d" ]; then
+              echo "::notice::no scanned $svc image for $want yet; :$TARGET stays (its own build will move it)"; exit 0
+            fi
+            dig[$svc]=$d
+          done
+          for svc in frontend backend; do
+            img="ghcr.io/yuriioks/yuriodev-$svc"
+            docker buildx imagetools create --prefer-index=false --tag "$img:$TARGET" "$img@${dig[$svc]}"
+            echo "### $svc: \`:$TARGET\` -> \`${dig[$svc]}\` ($BRANCH @ $want)" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  redeploy-dev:
+    # Manual: put a branch that was already built (both images scanned and tagged) back on dev.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: retag-dev
+      cancel-in-progress: false
+    env:
+      BRANCH: ${{ inputs.branch }}
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Point :dev at the branch head's scanned images
+        run: |
+          set -euo pipefail
+          [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::invalid branch name"; exit 1; }
+          case "$BRANCH" in
+            master|production|dependabot/*) echo "::error::'$BRANCH' cannot be put on dev (master runs on stage)"; exit 1 ;;
+          esac
+          sha=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY" "refs/heads/$BRANCH" | awk -v r="refs/heads/$BRANCH" '$2 == r { print $1 }')
+          [ -n "$sha" ] || { echo "::error::no branch '$BRANCH'"; exit 1; }
+          ref() { docker buildx imagetools inspect "$1" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"'; }
+          declare -A dig
+          for svc in frontend backend; do
+            img="ghcr.io/yuriioks/yuriodev-$svc"
+            d=$(ref "$img:sha-$sha") || d=""
+            [ -n "$d" ] || { d=$(ref "$img:dev-$sha") || d=""; }
+            [ -n "$d" ] || { echo "::error::no scanned $svc image for $BRANCH at $sha: push the branch, or wait for its build"; exit 1; }
+            dig[$svc]=$d
+          done
+          for svc in frontend backend; do
+            img="ghcr.io/yuriioks/yuriodev-$svc"
+            docker buildx imagetools create --prefer-index=false --tag "$img:dev" "$img@${dig[$svc]}"
+            echo "### $svc: \`:dev\` -> \`${dig[$svc]}\` ($BRANCH @ $sha)" >> "$GITHUB_STEP_SUMMARY"
+          done
