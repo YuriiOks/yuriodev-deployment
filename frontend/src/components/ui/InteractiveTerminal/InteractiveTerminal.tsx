@@ -1,18 +1,56 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { runTerminalCommand } from '../../../services/terminalService';
-import { isHeaderEmojiLine } from '../../../utils/headerEmoji';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTheme } from '../../../context/useTheme';
+import type { Theme } from '../../../context/theme-context';
+import {
+  complete,
+  execute,
+  type Execution,
+  type TerminalContext,
+  type TerminalLine,
+} from '../../../services/terminalService';
 import styles from './InteractiveTerminal.module.css';
 
-interface TerminalLine {
-  content: string;
-  type: 'command' | 'output' | 'success' | 'error' | 'warning' | 'info' | 'comment';
+interface ShownLine extends TerminalLine {
+  id: number;
 }
+
+const PROMPT = 'visitor@yuriodev:~$';
+const HISTORY_LIMIT = 50;
+const BLANK: TerminalLine = { text: '\u00A0', type: 'output' };
 
 const InteractiveTerminal: React.FC = () => {
   const [input, setInput] = useState('');
-  const [output, setOutput] = useState<TerminalLine[]>([]);
+  const [output, setOutput] = useState<ShownLine[]>([]);
   const terminalOutputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const nextId = useRef(0);
+  // Earlier command lines, oldest first; ArrowUp/ArrowDown walk them.
+  const history = useRef<string[]>([]);
+  // Where ArrowUp/ArrowDown are in the history; null while editing a new line.
+  const historyIndex = useRef<number | null>(null);
+  // The half-typed line ArrowUp left, restored by ArrowDown past the newest entry.
+  const draft = useRef('');
+  // Bumped by `clear`, so a slow command's answer never lands on a cleared screen.
+  const screen = useRef(0);
+  const mounted = useRef(true);
+
+  const { theme, toggleTheme } = useTheme();
+  const context = useMemo<TerminalContext>(
+    () => ({
+      theme,
+      setTheme: (wanted: Theme) => {
+        if (wanted !== theme) toggleTheme();
+      },
+    }),
+    [theme, toggleTheme],
+  );
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (terminalOutputRef.current) {
@@ -20,104 +58,115 @@ const InteractiveTerminal: React.FC = () => {
     }
   }, [output]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
+  const append = (lines: readonly TerminalLine[]) => {
+    const shown = lines.map((line) => ({ ...line, id: nextId.current++ }));
+    setOutput((current) => [...current, ...shown]);
   };
 
-    const parseOutputWithColors = (text: string): TerminalLine[] => {
-    const lines: TerminalLine[] = [];
-    
-    if (!text) return lines;
-    
-    const textLines = text.split('\n');
-    
-    textLines.forEach(line => {
-      if (!line.trim()) {
-        lines.push({ content: '\u00A0', type: 'output' });
+  const show = (echo: TerminalLine, result: Execution) => {
+    if (result.kind === 'clear') {
+      screen.current += 1;
+      setOutput([]);
+    } else {
+      append([echo, ...result.lines, BLANK]);
+    }
+  };
+
+  const submit = () => {
+    const line = input;
+    if (!line.trim()) return;
+    const past = history.current;
+    if (past[past.length - 1] !== line) past.push(line);
+    if (past.length > HISTORY_LIMIT) past.shift();
+    historyIndex.current = null;
+    draft.current = '';
+    setInput('');
+
+    const echo: TerminalLine = { text: `${PROMPT} ${line}`, type: 'command' };
+    const result = execute(line, context);
+    if (!(result instanceof Promise)) {
+      show(echo, result);
+      return;
+    }
+    // A command that asks the network: the typed line and a placeholder show
+    // now; the answer replaces the placeholder when it arrives.
+    const screenNow = screen.current;
+    const shownEcho: ShownLine = { ...echo, id: nextId.current++ };
+    const placeholder: ShownLine = { text: 'Working...', type: 'comment', id: nextId.current++ };
+    setOutput((current) => [...current, shownEcho, placeholder]);
+    void result.then((answer) => {
+      if (!mounted.current || screen.current !== screenNow) return;
+      if (answer.kind === 'clear') {
+        show(echo, answer);
         return;
       }
-      
-      // Success indicators
-      if (line.startsWith('✓') || line.toLowerCase().includes('successfully') || line.toLowerCase().includes('complete')) {
-        lines.push({ content: line, type: 'success' });
-      }
-      // Error indicators
-      else if (line.startsWith('✗') || line.toLowerCase().includes('error') || line.toLowerCase().includes('not found') || line.toLowerCase().includes('failed')) {
-        lines.push({ content: line, type: 'error' });
-      }
-      // Warning indicators
-      else if (line.startsWith('⚠') || line.toLowerCase().includes('warning') || line.toLowerCase().includes('note:')) {
-        lines.push({ content: line, type: 'warning' });
-      }
-      // Comments
-      else if (line.trim().startsWith('#') || line.trim().startsWith('//')) {
-        lines.push({ content: line, type: 'comment' });
-      }
-      // Headers (lines with emojis or section titles)
-      else if (line.includes('━') || isHeaderEmojiLine(line)) {
-        lines.push({ content: line, type: 'info' });
-      }
-      // Email, links, contact info
-      else if (line.includes('@') || line.includes('http') || line.includes('.com') || line.includes('.uk') || line.includes('github') || line.includes('linkedin')) {
-        lines.push({ content: line, type: 'success' });
-      }
-      // Section headers (Available commands, Technical Skills, etc.)
-      else if (line.includes(':') && !line.includes('~$') && (line.match(/^[A-Z]/))) {
-        lines.push({ content: line, type: 'warning' });
-      }
-      // Progress bars and percentages
-      else if (line.includes('█') || line.includes('[') && line.includes(']') || line.includes('%')) {
-        lines.push({ content: line, type: 'success' });
-      }
-      // Box drawing characters (for surprise command)
-      else if (line.includes('╔') || line.includes('╠') || line.includes('╚') || line.includes('║')) {
-        lines.push({ content: line, type: 'warning' });
-      }
-      // Info lines (bullets, dashes, arrows)
-      else if (line.includes('→') || line.includes('•') || line.includes('ℹ') || line.trim().startsWith('-') || line.trim().startsWith('◦')) {
-        lines.push({ content: line, type: 'info' });
-      }
-      // Default: Matrix green
-      else {
-        lines.push({ content: line, type: 'output' });
-      }
+      const shown = [...answer.lines, BLANK].map((l) => ({ ...l, id: nextId.current++ }));
+      setOutput((current) => current.flatMap((l) => (l.id === placeholder.id ? shown : [l])));
     });
-    
-    return lines;
+  };
+
+  const recall = (direction: -1 | 1): boolean => {
+    const past = history.current;
+    const index = historyIndex.current;
+    if (direction === -1) {
+      if (past.length === 0) return false;
+      if (index === null) draft.current = input;
+      const next = index === null ? past.length - 1 : Math.max(0, index - 1);
+      historyIndex.current = next;
+      setInput(past[next]);
+      return true;
+    }
+    if (index === null) return false;
+    if (index + 1 >= past.length) {
+      historyIndex.current = null;
+      setInput(draft.current);
+    } else {
+      historyIndex.current = index + 1;
+      setInput(past[index + 1]);
+    }
+    return true;
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Enter that confirms an IME composition (CJK input and similar) is not
-    // a command submission. Safari reports it as keyCode 229 instead.
+    // A key that confirms an IME composition (CJK input and similar) belongs
+    // to the composition. Safari reports it as keyCode 229 instead.
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-    if (e.key === 'Enter') {
-      const command = input.trim().toLowerCase();
-      if (command) {
-        // Add command to output
-        const newOutput: TerminalLine[] = [
-          ...output,
-          { content: `visitor@yuriodev:~$ ${input}`, type: 'command' }
-        ];
-        
-        // Execute command
-        const commandOutput = runTerminalCommand(command);
-        
-        if (commandOutput === 'CLEAR_TERMINAL') {
-          setOutput([]);
-        } else {
-          const parsedOutput = parseOutputWithColors(
-            commandOutput || `Command not found: ${command}. Type "help" for available commands.`
-          );
-          
-          setOutput([
-            ...newOutput,
-            ...parsedOutput,
-            { content: '\u00A0', type: 'output' }
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    switch (e.key) {
+      case 'Enter':
+        e.preventDefault();
+        submit();
+        break;
+      case 'ArrowUp':
+        if (recall(-1)) e.preventDefault();
+        break;
+      case 'ArrowDown':
+        if (recall(1)) e.preventDefault();
+        break;
+      case 'Tab': {
+        // Only when there is something to complete: otherwise Tab moves
+        // focus on as usual, so the field never traps the keyboard.
+        if (e.shiftKey) break;
+        const completion = complete(input);
+        if (!completion) break;
+        e.preventDefault();
+        setInput(completion.value);
+        if (completion.candidates.length > 0) {
+          append([
+            { text: `${PROMPT} ${input}`, type: 'command' },
+            { text: completion.candidates.join('  '), type: 'info' },
           ]);
         }
-        setInput('');
+        break;
       }
+      default:
+        break;
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    historyIndex.current = null;
+    setInput(e.target.value);
   };
 
   // Focus input when clicking on terminal
@@ -154,18 +203,18 @@ const InteractiveTerminal: React.FC = () => {
           <div className={`${styles.terminalLine} ${styles.info}`}>
             Type 'help' for available commands, or try: skills, contact, projects, surprise
           </div>
+          <div className={`${styles.terminalLine} ${styles.comment}`}>
+            Tab completes a command; the up and down arrows recall earlier ones.
+          </div>
           <div className={styles.terminalLine}>&nbsp;</div>
-          {output.map((line, index) => (
-            <div 
-              key={index} 
-              className={`${styles.terminalLine} ${styles[line.type]}`}
-            >
-              {line.content}
+          {output.map((line) => (
+            <div key={line.id} className={`${styles.terminalLine} ${styles[line.type]}`} data-line-type={line.type}>
+              {line.text}
             </div>
           ))}
         </div>
         <div className={styles.terminalInputLine}>
-          <span className={styles.terminalPromptInteractive}>visitor@yuriodev:~$</span>
+          <span className={styles.terminalPromptInteractive}>{PROMPT}</span>
           <input
             ref={inputRef}
             type="text"
@@ -176,6 +225,10 @@ const InteractiveTerminal: React.FC = () => {
             placeholder="Type a command..."
             aria-label="Terminal command input"
             autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="send"
           />
         </div>
       </div>

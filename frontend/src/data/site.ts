@@ -194,8 +194,13 @@ export interface ShortcutDef {
   readonly id: ShortcutId;
   /** KeyboardEvent.key values that trigger it. */
   readonly keys: readonly string[];
-  /** Needs Ctrl (or Cmd on a Mac); every other shortcut is a single key with no modifier. */
+  /** Needs Ctrl (or Cmd on a Mac); every other shortcut is a key pressed with no modifier. */
   readonly mod?: boolean;
+  /**
+   * A character key on its own (not Home/End). The help panel's switch turns
+   * these off, since speech input can trigger them by accident (WCAG 2.1.4).
+   */
+  readonly singleKey?: boolean;
   /** How the help panel shows the keys. */
   readonly display: string;
   readonly label: string;
@@ -203,13 +208,13 @@ export interface ShortcutDef {
 
 /** In the order the help panel lists them. */
 export const SHORTCUTS: readonly ShortcutDef[] = [
-  { id: 'palette', keys: ['k'], mod: true, display: 'Ctrl/Cmd + K', label: 'Command Palette' },
-  { id: 'help', keys: ['?'], display: '?', label: 'Help Panel' },
-  { id: 'next', keys: ['j', 'J'], display: 'J', label: 'Next Section' },
-  { id: 'prev', keys: ['k', 'K'], display: 'K', label: 'Previous Section' },
+  { id: 'palette', keys: ['k', 'K'], mod: true, display: 'Ctrl/Cmd + K', label: 'Command Palette' },
+  { id: 'help', keys: ['?'], singleKey: true, display: '?', label: 'Help Panel' },
+  { id: 'next', keys: ['j', 'J'], singleKey: true, display: 'J', label: 'Next Section' },
+  { id: 'prev', keys: ['k', 'K'], singleKey: true, display: 'K', label: 'Previous Section' },
   { id: 'top', keys: ['Home'], display: 'Home', label: 'Go to Top' },
   { id: 'bottom', keys: ['End'], display: 'End', label: 'Go to Bottom' },
-  { id: 'theme', keys: ['t', 'T'], display: 'T', label: 'Toggle Theme' },
+  { id: 'theme', keys: ['t', 'T'], singleKey: true, display: 'T', label: 'Toggle Theme' },
 ];
 
 type KeyInput = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>;
@@ -218,11 +223,16 @@ type KeyInput = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>;
  * The shortcut a key press triggers, if any. A single-key shortcut never
  * fires with Ctrl, Cmd or Alt held, so Ctrl/Cmd+K is only ever the palette.
  */
-export function shortcutFor(e: KeyInput): ShortcutId | null {
+export function shortcutDefFor(e: KeyInput): ShortcutDef | null {
   const mod = e.ctrlKey || e.metaKey;
   for (const shortcut of SHORTCUTS) {
     if (!shortcut.keys.includes(e.key)) continue;
-    if (shortcut.mod ? mod : !mod && !e.altKey) return shortcut.id;
+    if (shortcut.mod ? mod : !mod && !e.altKey) return shortcut;
   }
   return null;
+}
+
+/** How the help panel and the palette show a shortcut's keys ("Ctrl/Cmd + K", "T"). */
+export function shortcutDisplay(id: ShortcutId): string {
+  return SHORTCUTS.find((shortcut) => shortcut.id === id)!.display;
 }

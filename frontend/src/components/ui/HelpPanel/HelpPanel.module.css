@@ -1,120 +1,39 @@
-/* HelpPanel.module.css */
-
-.backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: var(--z-overlay);
-  animation: fadeIn 0.3s ease;
-}
-
-[data-theme="light"] .backdrop {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.helpPanel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 400px;
-  max-width: 90vw;
-  height: 100vh;
-  background: var(--bg-card);
-  border-left: 2px solid var(--accent-primary);
-  box-shadow: -4px 0 20px rgba(var(--bg-card-rgb-val, 10, 15, 28), 0.95);
-  z-index: var(--z-modal);
-  overflow-y: auto;
-  padding: 2rem;
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
-  font-family: 'Fira Code', monospace;
-}
-
-[data-theme="light"] .helpPanel {
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
-  border-left: 2px solid var(--accent-secondary);
-}
-
-.helpPanel.active {
-  transform: translateX(0);
-}
+/* The help drawer's contents; ui/Dialog draws the drawer (solid, full
+   height, on the right) with its sticky title bar, close button and backdrop. */
 
 .helpPanelContent {
-  position: relative;
-}
-
-.closeButton {
-  position: absolute;
-  top: -1rem;
-  right: -1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--accent-primary);
-  color: var(--accent-primary);
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 1.25rem 1.5rem 1.5rem;
   font-family: 'Fira Code', monospace;
 }
 
-.closeButton:hover {
-  background: var(--accent-primary);
-  color: var(--text-on-accent-bg);
-  box-shadow: 0 0 10px var(--glow-primary);
-  transform: scale(1.05);
-}
-
-[data-theme="light"] .closeButton {
-  border-color: var(--accent-secondary);
+.helpPanelContent h3 {
   color: var(--accent-secondary);
-}
-
-[data-theme="light"] .closeButton:hover {
-  background: var(--accent-secondary);
-  color: var(--text-on-accent-bg);
-  box-shadow: 0 0 10px var(--glow-secondary);
-}
-
-.helpPanel h3 {
-  color: var(--accent-secondary);
-  font-size: 1.3rem;
-  margin-bottom: 1rem;
-  margin-top: 2rem;
+  font-size: 1.1rem;
+  margin: 1.75rem 0 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-card);
   font-weight: 600;
 }
 
-.helpPanel h3:first-of-type {
+/* Amber on the light surface is about 3:1, too low for text this size. */
+[data-theme="light"] .helpPanelContent h3 {
+  color: var(--text-primary);
+}
+
+.helpPanelContent section:first-child h3 {
   margin-top: 0;
 }
 
 .helpSection {
-  margin-bottom: 1.5rem;
+  margin: 0 0 1rem;
 }
 
 .helpItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
+  gap: 1rem;
+  padding: 0.6rem 0;
   color: var(--text-secondary);
   font-size: 0.9rem;
   border-bottom: 1px solid var(--border-color-muted);
@@ -124,24 +43,42 @@
   border-bottom: none;
 }
 
-.helpItem span:first-child {
+.helpItem dt {
   color: var(--text-secondary);
   font-weight: 500;
 }
 
-[data-theme="light"] .helpItem span:first-child {
+.helpItem dd {
+  margin: 0;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-theme="light"] .helpItem dt {
   color: var(--text-primary);
 }
 
+/* A single-key shortcut while the switch has them off. */
+.helpItem[data-off] {
+  opacity: 0.5;
+}
+
+.helpItem[data-off] dt {
+  text-decoration: line-through;
+}
+
 .shortcut {
+  display: inline-block;
   background: rgba(var(--accent-primary-rgb), 0.1);
   border: 1px solid var(--accent-primary);
   color: var(--accent-primary);
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-size: 0.85rem;
   font-weight: 600;
   font-family: 'Fira Code', monospace;
+  white-space: nowrap;
 }
 
 [data-theme="light"] .shortcut {
@@ -150,79 +87,116 @@
   color: var(--accent-secondary);
 }
 
-.command {
-  color: var(--accent-tertiary) !important;
+.helpItem dt.command {
+  color: var(--accent-tertiary);
   font-weight: 600;
-  font-family: 'Fira Code', monospace;
+  flex-shrink: 0;
 }
 
-[data-theme="light"] .command {
-  color: var(--accent-secondary) !important;
+[data-theme="light"] .helpItem dt.command {
+  color: var(--accent-secondary);
+}
+
+.helpItem:has(dt.command) dd {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* The single-key shortcuts switch. */
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color-muted);
+  border-radius: 8px;
+}
+
+.switchLabel {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.switchHint {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.switch {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.switchTrack {
+  position: relative;
+  width: 2.5rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  border: 2px solid var(--text-muted);
+  background: transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.switchThumb {
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transform: translateY(-50%);
+  transition: left 0.2s ease, background 0.2s ease;
+}
+
+.switch[aria-checked="true"] .switchTrack {
+  border-color: var(--accent-primary);
+  background: rgba(var(--accent-primary-rgb), 0.2);
+}
+
+.switch[aria-checked="true"] .switchThumb {
+  left: calc(100% - 0.9rem - 0.15rem);
+  background: var(--accent-primary);
+}
+
+.switchState {
+  min-width: 1.75rem;
+  text-align: left;
 }
 
 .helpFooter {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-card);
+  margin: 0;
   text-align: center;
-}
-
-.helpFooter p {
-  color: var(--text-muted);
-  font-size: 0.85rem;
   font-style: italic;
 }
 
 .helpFooter .shortcut {
-  display: inline-block;
   margin: 0 0.25rem;
+  font-style: normal;
 }
 
-/* Scrollbar styling */
-.helpPanel::-webkit-scrollbar {
-  width: 8px;
-}
-
-.helpPanel::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-
-.helpPanel::-webkit-scrollbar-thumb {
-  background: var(--accent-primary);
-  border-radius: 4px;
-}
-
-.helpPanel::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary);
-}
-
-[data-theme="light"] .helpPanel::-webkit-scrollbar-thumb {
-  background: var(--accent-secondary);
-}
-
-[data-theme="light"] .helpPanel::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-tertiary);
-}
-
-/* Responsive */
 @media (max-width: 47.99rem) {
-  .helpPanel {
-    width: 100vw;
-    max-width: 100vw;
-    padding: 1.5rem;
-  }
-
-  .helpPanel h3 {
-    font-size: 1.1rem;
+  .helpPanelContent {
+    padding: 1rem 1.25rem 1.25rem;
   }
 
   .helpItem {
     font-size: 0.85rem;
-    padding: 0.6rem 0;
-  }
-
-  .closeButton {
-    top: 0.5rem;
-    right: 0.5rem;
   }
 }

@@ -35,6 +35,22 @@ html {
     overflow-x: hidden;
 }
 
+/* Set by ui/Dialog while a modal dialog is open: the page underneath does
+   not scroll. The gutter keeps the room of the scrollbar that overflow:
+   hidden removes, so the page does not shift sideways. */
+:root[data-overlay] {
+    overflow: hidden;
+    scrollbar-gutter: stable;
+    /* The dialog's ::backdrop does not reach into that gutter; paint it the
+       colour of the backdrop over --bg-primary so it is dimmed too.
+       Dialog.module.css holds the backdrop colours. */
+    background: rgb(5, 9, 18);
+}
+
+:root[data-overlay][data-theme="light"] {
+    background: rgb(155, 159, 168);
+}
+
 /* One keyboard focus ring for every interactive element, in both themes.
    Specificity (0,2,0) beats a module's bare `.x { outline: none }`; a module's
    own `.x:focus-visible` (loaded later) may adjust it but must keep a visible

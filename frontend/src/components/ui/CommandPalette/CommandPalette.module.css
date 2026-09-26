@@ -1,34 +1,24 @@
-.commandPalette {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
-    z-index: var(--z-modal);
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 10vh;
+/* The palette's contents; ui/Dialog draws the panel (glass, near the top of
+   the view) and the backdrop. */
+.palette {
+    color: var(--text-primary);
 }
 
-.commandPaletteContent {
-    background: var(--bg-card);
-    border: 1px solid var(--accent-primary);
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 0 50px var(--glow-primary);
+.content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .commandInput {
     width: 100%;
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     background: transparent;
     border: none;
+    border-bottom: 1px solid var(--border-color-muted);
     color: var(--text-primary);
     font-family: 'Fira Code', monospace;
+    /* 16px or more at every width, or iOS zooms in on focus. */
     font-size: 1.1rem;
 }
 
@@ -43,82 +33,105 @@
 }
 
 .commandResults {
-    max-height: 300px;
+    margin: 0;
+    padding: 0.25rem 0;
+    max-height: min(22rem, 50vh);
+    max-height: min(22rem, 50dvh);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    position: relative;
+}
+
+/* Set by the component while options sit below the visible part: the last
+   rows fade out, so the list never looks complete when it is not. */
+.commandResults[data-more] {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+}
+
+/* Lines up with the option titles, which sit after a 3px selection bar. */
+.groupLabel {
+    padding: 0.6rem 1.25rem 0.25rem calc(1.25rem + 3px);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .commandItem {
-    padding: 0.8rem 1rem;
-    cursor: pointer;
-    border-top: 1px solid var(--border-color-muted);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+    min-height: 44px;
+    padding: 0.5rem 1.25rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
 }
 
-.commandItem:hover, .commandItem.selected {
-    background: rgba(var(--accent-primary-rgb), 0.1);
+.commandItem.selected {
+    background: rgba(var(--accent-primary-rgb), 0.14);
+    border-left-color: var(--accent-primary);
+}
+
+[data-theme="light"] .commandItem.selected {
+    background: rgba(var(--accent-secondary-rgb), 0.12);
+    border-left-color: var(--accent-secondary);
 }
 
 .commandTitle {
     color: var(--text-primary);
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
-.commandShortcut {
-    color: var(--text-muted);
+.commandHint {
+    flex-shrink: 0;
+    color: var(--text-secondary);
     font-size: 0.8rem;
 }
 
-@media (max-width: 47.99rem) {
-    .commandPaletteContent {
-        width: 95%;
-        max-width: none;
-    }
+.empty {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
 
-    .commandInput {
-        padding: 0.8rem;
-        font-size: 1rem;
-    }
+.footer {
+    margin: 0;
+    padding: 0.5rem 1.25rem;
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
 
-    .commandItem {
-        padding: 0.7rem 0.8rem;
-    }
+.footer kbd {
+    font-family: inherit;
+    padding: 0 0.3rem;
+    border: 1px solid var(--border-color-muted);
+    border-radius: 3px;
+}
 
-    .commandTitle {
-        font-size: 0.9rem;
-    }
-
-    .commandShortcut {
-        font-size: 0.75rem;
+/* No keyboard hints on touch screens, where there are no arrow keys. */
+@media (hover: none) and (pointer: coarse) {
+    .footer {
+        display: none;
     }
 }
 
 @media (max-width: 29.99rem) {
-    .commandPaletteContent {
-        width: 98%;
-    }
-
-    .commandInput {
-        padding: 0.7rem;
-        font-size: 0.95rem;
-    }
-
     .commandItem {
-        padding: 0.6rem 0.7rem;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.3rem;
+        padding-inline: 1rem;
     }
 
-    .commandTitle {
-        font-size: 0.85rem;
+    .groupLabel {
+        padding-inline: calc(1rem + 3px) 1rem;
     }
 
-    .commandShortcut {
-        font-size: 0.7rem;
-    }
-
-    .commandResults {
-        max-height: 250px;
+    .commandHint {
+        display: none;
     }
 }

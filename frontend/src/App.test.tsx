@@ -176,10 +176,10 @@ describe('App routing', () => {
     );
   });
 
-  it('keeps the closed help panel out of the tab order', () => {
+  it('keeps the closed help panel and palette out of the page (and the tab order)', () => {
     renderAppAt('/');
-    const close = screen.getByLabelText('Close help panel');
-    expect(close.closest('[inert]')).not.toBeNull();
+    expect(document.querySelector('dialog')).toBeNull();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('links the privacy notice from the footer, then starts the new page at the top with focus on main', async () => {

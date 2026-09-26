@@ -67,6 +67,18 @@ window.cancelAnimationFrame = vi.fn();
 Element.prototype.scrollIntoView = vi.fn();
 window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
 
+// jsdom's <dialog> has no working showModal/close. Stub both, always (not
+// only when missing), so every test runs against the same behaviour: they
+// toggle the open attribute, and close() fires a 'close' event like a browser.
+HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+  this.setAttribute('open', '');
+};
+HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+  if (!this.hasAttribute('open')) return;
+  this.removeAttribute('open');
+  this.dispatchEvent(new Event('close'));
+};
+
 // jsdom does not implement IntersectionObserver; Header and LeftSidebar use
 // it to track which section is currently in view.
 class MockIntersectionObserver implements IntersectionObserver {

@@ -253,6 +253,10 @@
 .terminalLine {
     margin-bottom: 0.5rem;
     line-height: 1.6;
+    /* Keep the output's indentation and aligned columns, and wrap a long
+       token (a pasted URL) instead of letting it run past the window. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     font-size: 0.95rem;
     transition: all 0.2s ease;
     font-weight: 500;

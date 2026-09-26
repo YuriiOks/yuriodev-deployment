@@ -13,7 +13,7 @@ import {
   SOCIALS,
   displayUrl,
   pageAt,
-  shortcutFor,
+  shortcutDefFor,
   socialsFor,
 } from './site';
 
@@ -108,9 +108,9 @@ describe('helpers', () => {
     expect(pageAt('/nope')).toBeUndefined();
   });
 
-  it('shortcutFor: Ctrl/Cmd+K is the palette, bare K is the previous section', () => {
+  it('shortcutDefFor: Ctrl/Cmd+K is the palette, bare K is the previous section', () => {
     const key = (k: string, mods: Partial<Record<'ctrlKey' | 'metaKey' | 'altKey', boolean>> = {}) =>
-      shortcutFor({ key: k, ctrlKey: false, metaKey: false, altKey: false, ...mods });
+      shortcutDefFor({ key: k, ctrlKey: false, metaKey: false, altKey: false, ...mods })?.id ?? null;
     expect(key('k', { ctrlKey: true })).toBe('palette');
     expect(key('k', { metaKey: true })).toBe('palette');
     expect(key('k')).toBe('prev');
