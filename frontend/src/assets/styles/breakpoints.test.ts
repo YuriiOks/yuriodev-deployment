@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BREAKPOINTS } from '../../constants/breakpoints';
 
 // Every stylesheet's @media widths come from one scale (documented in
-// _variables.css): 30/48/64/80/88/100rem for "from X up", X - 0.01rem for "below X".
+// _variables.css): 30/48/64/80/88/90/100rem for "from X up", X - 0.01rem for "below X".
 const styles = import.meta.glob('/src/**/*.css', {
   query: '?raw',
   import: 'default',
@@ -47,7 +47,7 @@ function offScale(file: string, text: string): string[] {
 
 describe('breakpoint scale', () => {
   it('matches the documented scale', () => {
-    expect(BREAKPOINTS).toEqual({ sm: 30, md: 48, lg: 64, xl: 80, sidebar: 88, wide: 100 });
+    expect(BREAKPOINTS).toEqual({ sm: 30, md: 48, lg: 64, xl: 80, sidebar: 88, fluid: 90, wide: 100 });
   });
 
   it('every @media width outside the not-yet-migrated files is on the scale', () => {

@@ -51,9 +51,10 @@
 
     /* Type. Fira Code is the site's voice; long prose (the About story,
        post text) is set in the system sans, which needs no download.
-       Sizes are fluid between a 360px and a 1280px viewport; from 100rem
-       (1600px) up the root font size grows too (global.css), so every
-       rem-based size scales with very large screens. */
+       Sizes are fluid between a 360px and a 1280px viewport; from 90rem
+       (1440px) up the root font size grows with the screen itself
+       (global.css), so every rem-based size - not just type - scales
+       with very large screens. */
     --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --font-prose: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --fs-2xs: clamp(0.75rem, 0.738rem + 0.054vw, 0.781rem);    /* 12 -> 12.5px  chips, badges */
@@ -87,20 +88,22 @@
     --space-section: clamp(3rem, 2rem + 4vw, 6rem);
 
     /* Shape */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-pill: 999px;
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-pill: 999px;   /* always fully round, whatever the element's size: a sentinel, not a real length */
     --radius-round: 50%;
 
-    /* Layout. The content column: 75% of its section, never wider than
-       its cap. The cap is 72rem (1152px at a 16px root) and, on very large
-       screens, eases up to 80rem: it starts to grow once the viewport is
-       wider than 120rem at the current root size (about 2040px, where the
-       root is 17px) and reaches 80rem around 2500px. Continuous, so no
-       width makes the column jump. The e2e geometry spec keeps the section
-       rail (SectionRail.module.css) clear of this column. */
-    --content-cap: clamp(72rem, 72rem + (100vw - 120rem) * 0.5, 80rem);
+    /* Layout. The content column: 75% of its section, never wider than its
+       cap, 72rem. Since the root font itself now grows with the screen from
+       90rem (1440px) up (global.css) at the same rate as a matching-aspect
+       viewport, the cap grows right along with it in real pixels, so the
+       column keeps to 75% of the screen at 1440, 1920, 2560 and 3840 alike
+       instead of the cap ever cutting it back to a fixed width. Continuous,
+       so no width makes the column jump. The e2e geometry spec keeps the
+       section rail (SectionRail.module.css) clear of this column, and
+       fluid-scaling.spec.ts checks the column's share of the screen. */
+    --content-cap: 72rem;
     --content-max-width: min(75%, var(--content-cap));
 
     /* Breakpoints. Custom properties cannot be used inside @media, so
@@ -112,8 +115,10 @@
          xl       80rem  1280px   the footer lays out in one row
          sidebar  88rem  1408px   the section rail replaces the
                                   header's menu (never both)
-         wide    100rem  1600px   the rail shows its labels at rest;
+         fluid    90rem  1440px   the reference screen (1440x810):
                                   the root font size starts to grow
+                                  with the screen itself (global.css)
+         wide    100rem  1600px   the rail shows its labels at rest
        "From X up" is (min-width: Xrem); "below X" is
        (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
        overlap. src/assets/styles/breakpoints.test.ts rejects any
