@@ -8,7 +8,7 @@ export type TagCategory = 'ai' | 'cloud' | 'language' | 'domain' | 'tools' | 'ed
 
 /**
  * Words that put a tag in a category, checked in this order: the first
- * category with a word contained in the tag (case-insensitive) wins.
+ * category with a word found in the tag (whole words, case-insensitive) wins.
  */
 const CATEGORY_TERMS: ReadonlyArray<readonly [Exclude<TagCategory, 'default'>, readonly string[]]> = [
   ['ai', ['rag', 'langgraph', 'mcp', 'llms', 'ai', 'ml models', 'mlops', 'pytorch', 'machine learning', 'deep learning',
@@ -22,11 +22,23 @@ const CATEGORY_TERMS: ReadonlyArray<readonly [Exclude<TagCategory, 'default'>, r
     'systems programming', 'competitive programming']],
 ];
 
+/**
+ * One pattern per category. A term matches only as a whole word, so 'ai'
+ * finds "Production AI" but not "Tailwind" or "LangChain", and 'sql' finds
+ * "SQL" but not "PostgreSQL".
+ */
+const CATEGORY_PATTERNS: ReadonlyArray<readonly [Exclude<TagCategory, 'default'>, RegExp]> = CATEGORY_TERMS.map(
+  ([category, terms]) => {
+    const alternatives = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('|');
+    return [category, new RegExp(`(?<![a-z0-9])(?:${alternatives})(?![a-z0-9])`)] as const;
+  },
+);
+
 /** The category of a free-text tag, from the words it contains; 'default' when none matches. */
 export function tagCategory(label: string): TagCategory {
   const lower = label.toLowerCase();
-  for (const [category, terms] of CATEGORY_TERMS) {
-    if (terms.some((term) => lower.includes(term))) return category;
+  for (const [category, pattern] of CATEGORY_PATTERNS) {
+    if (pattern.test(lower)) return category;
   }
   return 'default';
 }

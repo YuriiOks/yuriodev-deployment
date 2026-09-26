@@ -18,6 +18,11 @@ describe('tagCategory', () => {
     ['Mentoring', 'education'],
     ['Course Design', 'education'],
     ['Kubernetes', 'default'],
+    ['C++', 'language'],
+    ['CI/CD', 'tools'],
+    ['AI/ML', 'ai'],
+    ['Tailwind CSS', 'default'],
+    ['PostgreSQL', 'default'],
   ])('%s is %s', (label, category) => {
     expect(tagCategory(label)).toBe(category);
   });
@@ -56,6 +61,15 @@ describe('tagTone', () => {
 
   it('the words in the label win over the kind', () => {
     expect(tagTone('Python', 'tool')).toBe('green');
+  });
+
+  it.each([
+    ['Tailwind CSS', 'tool', 'amber'],
+    ['Async/Await', 'concept', 'pink'],
+    ['PostgreSQL', 'database', 'blue'],
+    ['LangChain', 'framework', 'teal'],
+  ] as const)('a word inside another word does not count: %s (%s) gives %s', (label, kind, tone) => {
+    expect(tagTone(label, kind)).toBe(tone);
   });
 
   it('a word shared by the timeline and the skills gets the same tone in both', () => {
