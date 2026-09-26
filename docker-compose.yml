@@ -44,13 +44,16 @@ services:
         required: false
 
   proxy:
-    image: nginx:stable-alpine
+    # Pinned by digest: Dependabot's docker-compose entry proposes new digests and the
+    # proxy-image.yml workflow scans this exact image. The deploy agent ignores non-ghcr.io
+    # images, so a new pin goes live only by hand (deploy/README.md, "The proxy image").
+    image: nginx:stable-alpine@sha256:985220252f3863977e468f611ef118ebd01421289dd86ee1ae99cb068c3bce2b
     container_name: yuriodev-proxy
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx-proxy:/etc/nginx/conf.d
+      - ./nginx-proxy:/etc/nginx/conf.d:ro          # nginx never writes here; edit on the host, then reload
       - ./certbot/conf:/etc/letsencrypt:ro
     depends_on:
       - frontend
