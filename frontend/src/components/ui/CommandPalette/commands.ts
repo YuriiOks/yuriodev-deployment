@@ -1,6 +1,6 @@
-import { EMAILS, TERMINAL_ANCHOR, shortcutDisplay, socialsFor, type AnchorId, type SectionDef } from '../../../data/site';
+import { EMAILS, NAV_PAGES, TERMINAL_ANCHOR, shortcutDisplay, socialsFor, type AnchorId, type SectionDef } from '../../../data/site';
 
-export type CommandGroup = 'Navigate' | 'Connect' | 'Settings' | 'Help';
+export type CommandGroup = 'Navigate' | 'Pages' | 'Connect' | 'Settings' | 'Help';
 
 export interface PaletteCommand {
   readonly id: string;
@@ -16,6 +16,8 @@ export interface PaletteCommand {
 /** What the commands do; the component supplies the real ones. */
 export interface CommandActions {
   goTo: (id: AnchorId) => void;
+  /** Opens one of the site's pages (a route path such as '/courses'). */
+  openPage: (path: string) => void;
   toggleTheme: () => void;
   showHelp: () => void;
   openExternal: (url: string) => void;
@@ -30,7 +32,7 @@ export interface BuildOptions {
 
 /**
  * Every palette command, built from data/site.ts, in the order the palette
- * lists them: grouped Navigate, Connect, Settings, Help.
+ * lists them: grouped Navigate, Pages, Connect, Settings, Help.
  */
 export function buildCommands(
   sections: readonly SectionDef[],
@@ -54,6 +56,15 @@ export function buildCommands(
       hint: `#${TERMINAL_ANCHOR}`,
       run: () => actions.goTo(TERMINAL_ANCHOR),
     },
+    // Every page the header lists, including the ones in its More menu.
+    ...NAV_PAGES.map(({ id, label, path }) => ({
+      id: `page-${id}`,
+      title: `Go to ${label} page`,
+      group: 'Pages' as const,
+      keywords: [id, label, 'page'],
+      hint: path,
+      run: () => actions.openPage(path),
+    })),
     {
       id: 'copy-email',
       title: 'Copy email address',

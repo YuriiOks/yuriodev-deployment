@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import { useSectionNav } from '../../../context/useSectionNav';
 import { useToast } from '../../../context/useToast';
@@ -56,6 +57,7 @@ interface PaletteBodyProps {
 const PaletteBody: React.FC<PaletteBodyProps> = ({ inputRef, onClose, onShowHelp }) => {
   const { toggleTheme } = useTheme();
   const { sections, goTo } = useSectionNav();
+  const navigate = useNavigate();
   const toast = useToast();
   const [singleKeys] = useSingleKeyShortcuts();
   const [query, setQuery] = useState('');
@@ -71,6 +73,7 @@ const PaletteBody: React.FC<PaletteBodyProps> = ({ inputRef, onClose, onShowHelp
     () =>
       buildCommands(sections, {
         goTo,
+        openPage: (path) => navigate(path),
         toggleTheme,
         showHelp: onShowHelp,
         openExternal,
@@ -90,7 +93,7 @@ const PaletteBody: React.FC<PaletteBodyProps> = ({ inputRef, onClose, onShowHelp
           );
         },
       }, { singleKeys }),
-    [sections, goTo, toggleTheme, onShowHelp, toast, singleKeys],
+    [sections, goTo, navigate, toggleTheme, onShowHelp, toast, singleKeys],
   );
 
   const results = useMemo(() => rankCommands(commands, query), [commands, query]);

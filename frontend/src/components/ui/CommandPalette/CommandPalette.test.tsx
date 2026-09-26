@@ -7,7 +7,7 @@ import { SectionNavProvider } from '../../../context/SectionNavProvider';
 import { OverlayProvider } from '../../../context/OverlayProvider';
 import { ToastProvider } from '../../../context/ToastProvider';
 import { useOverlay } from '../../../context/useOverlay';
-import { EMAILS, SECTIONS, socialById } from '../../../data/site';
+import { EMAILS, NAV_PAGES, SECTIONS, socialById } from '../../../data/site';
 import CommandPalette from './CommandPalette';
 
 function LocationProbe() {
@@ -76,7 +76,7 @@ describe('CommandPalette', () => {
     expect(input).toHaveAttribute('aria-controls', screen.getByRole('listbox').id);
   });
 
-  it('lists the sections in page order, then the terminal, email, profiles, theme and help', async () => {
+  it('lists the sections in page order, then the terminal, the pages, email, profiles, theme and help', async () => {
     const user = userEvent.setup();
     renderPalette();
     await openPalette(user);
@@ -84,6 +84,7 @@ describe('CommandPalette', () => {
     expect(optionTitles()).toEqual([
       ...SECTIONS.filter(({ optional }) => !optional).map(({ label }) => `Go to ${label}`),
       'Go to Terminal',
+      ...NAV_PAGES.map(({ label }) => `Go to ${label} page`),
       'Copy email address',
       'Send email',
       'Open LinkedIn',
@@ -99,7 +100,7 @@ describe('CommandPalette', () => {
     renderPalette();
     const input = await openPalette(user);
 
-    const names = ['Navigate', 'Connect', 'Settings', 'Help'];
+    const names = ['Navigate', 'Pages', 'Connect', 'Settings', 'Help'];
     expect(screen.getAllByRole('group')).toEqual(names.map((name) => screen.getByRole('group', { name })));
     expect(screen.getByRole('group', { name: 'Settings' })).toContainElement(
       screen.getByRole('option', { name: /Toggle theme/ }),
@@ -107,6 +108,17 @@ describe('CommandPalette', () => {
 
     await user.type(input, 'theme');
     expect(screen.queryAllByRole('group')).toHaveLength(0);
+  });
+
+  it('opens a page the header keeps in its More menu', async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    const input = await openPalette(user);
+
+    await user.type(input, 'dashboard{Enter}');
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/dashboard');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('keeps the list out of the Tab order: the field drives it', async () => {
