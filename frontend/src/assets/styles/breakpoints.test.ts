@@ -21,7 +21,6 @@ const NOT_YET_ON_SCALE = new Set([
   '/src/components/sections/AboutSection/AboutSection.module.css',
   '/src/components/sections/ComingSoonSection/ComingSoonSection.module.css',
   '/src/components/sections/ConnectSection/ConnectSection.module.css',
-  '/src/components/sections/HeroSection/HeroSection.module.css',
   '/src/components/sections/PlatformSection/PlatformSection.module.css',
   '/src/components/sections/ProjectsSection/ProjectsSection.module.css',
   '/src/components/sections/SkillsSection/SkillsSection.module.css',

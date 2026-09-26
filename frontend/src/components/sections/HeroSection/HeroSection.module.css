@@ -5,6 +5,8 @@
     position: relative;
 }
 
+/* The name in the brand cyan with its neon glow (--hero-title-shadow: a
+   soft cyan halo in both themes, never a dark drop shadow). */
 .heroTitle {
     font-size: 4rem;
     font-weight: 700;
@@ -14,73 +16,6 @@
     text-shadow: var(--hero-title-shadow);
     animation: subtleGlow 4s ease-in-out infinite;
     color: var(--accent-primary);
-}
-
-[data-theme="light"] .heroTitle {
-    color: var(--amber-display);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.12),
-                 0 0 12px rgba(var(--amber-rgb), 0.08);
-    animation: none;
-}
-
-/* Option 1: Subtle Warm Glow */
-.heroTitleOption1 {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    color: var(--accent-primary);
-}
-
-[data-theme="light"] .heroTitleOption1 {
-    color: var(--accent-secondary);
-    text-shadow: 0 2px 8px rgba(var(--amber-rgb), 0.15),
-                 0 1px 2px rgba(0, 0, 0, 0.1);
-    animation: none;
-}
-
-/* Option 2: Layered Depth */
-.heroTitleOption2 {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    color: var(--accent-primary);
-}
-
-[data-theme="light"] .heroTitleOption2 {
-    color: var(--accent-secondary);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1),
-                 0 4px 8px rgba(var(--amber-rgb), 0.08),
-                 0 8px 16px rgba(var(--amber-rgb), 0.05);
-    animation: none;
-}
-
-/* Option 3: Crisp + Accent */
-.heroTitleOption3 {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    color: var(--accent-primary);
-}
-
-[data-theme="light"] .heroTitleOption3 {
-    color: var(--accent-secondary);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.12),
-                 0 0 12px rgba(var(--amber-rgb), 0.08);
-    animation: none;
-}
-
-/* Option 4: Enhanced Simple */
-.heroTitleOption4 {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    color: var(--accent-primary);
-}
-
-[data-theme="light"] .heroTitleOption4 {
-    color: var(--accent-secondary);
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    animation: none;
 }
 
 @keyframes subtleGlow {
@@ -96,81 +31,92 @@
     font-weight:500;
 }
 
+/* A centred box as wide as the longest line (--typewriter-width, set by
+   HeroSection in ch), the text left-aligned inside it: the line grows
+   from a fixed edge and never shifts sideways while it types. */
 .typewriter {
-    font-size:1.2rem;
-    margin-bottom:2rem;
-    min-height:2rem;
-    color:var(--accent-tertiary);
+    width: var(--typewriter-width, auto);
+    max-width: 100%;
+    min-height: 1lh;
+    margin: 0 auto 2rem;
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--accent-tertiary);
 }
 
 [data-theme="light"] .typewriter {
     color: var(--accent-primary);
 }
 
+/* The caret: a thin block after the typed text. Reduced motion stops the
+   blink (global.css) and leaves it showing. */
+.caret {
+    display: inline-block;
+    width: 0.55ch;
+    height: 1.1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background: currentColor;
+    animation: caretBlink 1s steps(1) infinite;
+}
+
+@keyframes caretBlink {
+    50% { opacity: 0; }
+}
+
+/* The profile card. Code lines never wrap: the two files sit side by side
+   only where both fit at a readable size, stack below that, and a phone
+   scrolls the card sideways (the page itself never overflows). The card is
+   the container its own lines are measured against. */
 .codeBlock {
     composes: glassAccent from '../../../assets/styles/recipes.module.css';
     /* The accent glass, with the neon edge the hero has always had. */
     border-color: var(--border-accent);
     border-radius: var(--radius-lg);
-    padding: var(--space-6);
+    padding: var(--space-5) var(--space-4);
     margin: var(--space-6) auto;
     max-width:var(--content-max-width);
     width: 100%;
     text-align:left;
     font-family: var(--font-mono);
-    font-size:0.9rem;
     line-height:1.6;
     position: relative;
+    overflow-x: auto;
+    container-type: inline-size;
+    /* The code's size while the files are stacked. */
+    --code-fs: 0.75rem;
 }
 
 .jsonGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
-    margin-bottom: 1.5rem;
-    position: relative;
-}
-
-.jsonGrid::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: linear-gradient(
-        to bottom,
-        transparent 0%,
-        var(--border-card) 10%,
-        var(--border-card) 90%,
-        transparent 100%
-    );
-    transform: translateX(-50%);
-}
-
-[data-theme="light"] .jsonGrid::before {
-    background: linear-gradient(
-        to bottom,
-        transparent 0%,
-        var(--accent-secondary) 10%,
-        var(--accent-secondary) 90%,
-        transparent 100%
-    );
+    grid-template-columns: minmax(max-content, 1fr);
+    align-items: start;
+    row-gap: var(--space-5);
+    margin-bottom: var(--space-5);
+    font-size: var(--code-fs);
 }
 
 .jsonColumn {
     min-width: 0;
-    padding: 0 1rem;
+}
+
+/* One line of `cat` output: its own spaces indent it, and it never breaks. */
+.line,
+.commandLine,
+.output {
+    white-space: pre;
+}
+
+.line {
+    color: var(--text-primary);
 }
 
 .deploymentSection {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
+    padding-top: var(--space-5);
     border-top: 1px solid var(--border-card);
-}
-
-[data-theme="light"] .deploymentSection {
-    border-top-color: var(--amber-edge);
+    font-size: var(--code-fs);
 }
 
 .commandLine {
@@ -178,27 +124,9 @@
     margin-bottom:0.5rem;
 }
 
-[data-theme="light"] .commandLine {
-    color: var(--accent-secondary);
-}
-
 .output {
     color:var(--text-primary);
-    margin-left:2rem;
-}
-
-[data-theme="light"] .output {
-    color: #1e293b;
-}
-
-.outputNested {
-    color:var(--text-primary);
-    margin-left:4rem;
-}
-
-.outputRoot {
-    color:var(--text-primary);
-    margin-left:0;
+    margin-left:2ch;
 }
 
 .jsonKey {
@@ -210,11 +138,7 @@
 }
 
 [data-theme="light"] .jsonString {
-    color: #0369a1;
-}
-
-.jsonBoolean, .jsonNumber {
-    color:var(--accent-secondary);
+    color: var(--info);
 }
 
 .jsonBrace {
@@ -223,15 +147,15 @@
     opacity: 0.9;
 }
 
-[data-theme="light"] .jsonBrace {
-    color: #1e40af;
+[data-theme="light"] .jsonBrace,
+[data-theme="light"] .jsonBracket {
+    color: var(--hue-blue);
     opacity: 1;
 }
 
 .jsonBraceOuter {
     color: var(--accent-secondary);
     font-weight: 700;
-    font-size: 1.1em;
 }
 
 .jsonBracket {
@@ -239,21 +163,54 @@
     font-weight: 600;
 }
 
-[data-theme="light"] .jsonBracket {
-    color: #1e40af;
-}
-
-.codeBlock .output .success {
-    color:var(--success);
-}
-
 .success {
     color:var(--success);
 }
 
+@media (min-width: 30rem) {
+    .codeBlock {
+        --code-fs: 0.8125rem;
+    }
+}
+
+@media (min-width: 48rem) {
+    .codeBlock {
+        padding: var(--space-6) 1.25rem;
+        --code-fs: 0.875rem;
+    }
+}
+
+/* Side by side once both files fit: the longest lines are 63 and 62
+   characters, 75em of Fira Code (0.6em a character), plus 1.25rem either
+   side of the divider. The size follows the card's width, from 0.75rem
+   (where this query starts: 0.75rem x 76 + 2.5rem, a 1% margin) up to
+   0.9rem. */
+@container (min-width: 60rem) {
+    .jsonGrid,
+    .deploymentSection {
+        font-size: clamp(0.75rem, (100cqi - 2.5rem - 1px) / 76, 0.9rem);
+    }
+
+    .jsonGrid {
+        grid-template-columns: repeat(2, minmax(max-content, 1fr));
+    }
+
+    .jsonColumn:first-child {
+        padding-inline-end: 1.25rem;
+    }
+
+    .jsonColumn + .jsonColumn {
+        padding-inline-start: 1.25rem;
+        border-inline-start: 1px solid var(--border-card);
+        align-self: stretch;
+    }
+}
+
+/* One primary action (filled) and two outlined ones, all the same height. */
 .ctaButtons {
     display:flex;
     justify-content:center;
+    align-items: stretch;
     gap:1rem;
     margin:2rem auto 0;
     flex-wrap:wrap;
@@ -261,7 +218,7 @@
     width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 47.99rem) {
     .heroSection {
         padding: 3rem 1.5rem;
     }
@@ -274,30 +231,16 @@
         font-size: 1.1rem;
     }
 
+    /* A phone wraps the longest lines in two: keep room for both. */
     .typewriter {
         font-size: 1rem;
+        min-height: 2lh;
     }
 
-    .codeBlock {
-        padding: 1.5rem;
-        font-size: 0.8rem;
-    }
-
-    .jsonGrid {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-    }
-
-    .jsonGrid::before {
-        display: none;
-    }
-
-    .jsonColumn {
-        padding: 0;
-    }
-
-    .output {
-        margin-left: 1rem;
+    /* The whole width of a phone: the card scrolls inside it instead. */
+    .codeBlock,
+    .ctaButtons {
+        max-width: 100%;
     }
 
     .ctaButtons {
@@ -310,7 +253,7 @@
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 29.99rem) {
     .heroSection {
         padding: 2rem 1rem;
     }
@@ -325,14 +268,5 @@
 
     .typewriter {
         font-size: 0.9rem;
-    }
-
-    .codeBlock {
-        padding: 1rem;
-        font-size: 0.75rem;
-    }
-
-    .output {
-        margin-left: 0.5rem;
     }
 }
