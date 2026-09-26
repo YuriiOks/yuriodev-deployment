@@ -1,4 +1,9 @@
-# dev.yuriodev.co.uk: runs the :dev images (every green master commit).
+# dev.yuriodev.co.uk: runs the :dev images, moved by .github/workflows/images.yml to the
+# repository owner's most recently built branch other than master (the last build to
+# finish wins; /api/health "ref" names the branch). A preview swaps only the images:
+# this file, env/dev.env and the proxy config always come from master on the box.
+# `gh workflow run images.yml -f branch=<name>` puts a branch whose head already has
+# scanned images back without rebuilding.
 # Service names are unique per environment on purpose: the service name becomes
 # a DNS alias on the shared network, and a second "frontend" would make Docker
 # round-robin between environments. The proxy addresses container_name.
