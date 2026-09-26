@@ -1,11 +1,15 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import Card from '../Card/Card';
+import Chip from '../Chip/Chip';
 import LinkifiedText from '../LinkifiedText/LinkifiedText';
 import {
   PLATFORM_LABELS,
   platformsOf,
   primaryVariant,
+  type PostPlatform,
   type PostItem,
 } from '../../../services/postsApi';
+import type { Tone } from '../../../utils/tagTone';
 import { accessibleSummary, formatFullDate, formatRelativeTime } from '../../../utils/postText';
 import { scrollBehavior } from '../../../utils/motion';
 import styles from './PostCard.module.css';
@@ -15,6 +19,9 @@ interface PostCardProps {
   /** Date.now() of the answer the item came in: relative dates count from it. */
   now: number;
 }
+
+/** Platform chips: text, not logos. */
+const PLATFORM_TONES: Record<PostPlatform, Tone> = { x: 'neutral', linkedin: 'cyan' };
 
 /** Collapsed text is clamped to 6 lines; before it can be measured, this long counts as more. */
 function looksLong(text: string): boolean {
@@ -81,7 +88,7 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
   const when = formatFullDate(item.publishedAt);
 
   return (
-    <article ref={articleRef} className={styles.card} aria-labelledby={titleId}>
+    <Card as="article" ref={articleRef} padding="sm" labelledBy={titleId} className={styles.card}>
       <h3 id={titleId} className="sr-only">
         {`Post on ${where}, ${when}: ${accessibleSummary(parts[0])}`}
       </h3>
@@ -89,10 +96,10 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
       <div className={styles.meta}>
         <ul className={styles.platforms} aria-label="Published on">
           {platforms.map((p) => (
-            <li key={p} className={styles.platform} data-platform={p}>
+            <Chip as="li" key={p} tone={PLATFORM_TONES[p]}>
               {PLATFORM_LABELS[p]}
               {p === 'x' && xThread > 0 && <span className={styles.threadCount}> · thread of {xThread}</span>}
-            </li>
+            </Chip>
           ))}
         </ul>
         <time className={styles.time} dateTime={item.publishedAt} title={when}>
@@ -141,7 +148,7 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
           </li>
         ))}
       </ul>
-    </article>
+    </Card>
   );
 };
 

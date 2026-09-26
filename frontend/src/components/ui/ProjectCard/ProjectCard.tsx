@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import type { Project } from '../../../services/projectsData';
+import Badge from '../Badge/Badge';
+import Card from '../Card/Card';
 import styles from './ProjectCard.module.css';
 
 interface ProjectCardProps {
@@ -54,12 +56,21 @@ const highlightMetrics = (text: string) => {
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const titleId = useId();
 
   return (
-    <div className={`${styles.projectCard} ${project.featured ? styles.featured : ''}`}>
+    <Card
+      as="article"
+      tone="accent"
+      interactive
+      featured={project.featured}
+      padding="none"
+      labelledBy={titleId}
+      className={styles.projectCard}
+    >
       <div className={styles.projectHeader}>
         <div className={styles.headerContent}>
-          <h3 className={styles.projectTitle}>
+          <h3 id={titleId} className={styles.projectTitle}>
             {project.title}
           </h3>
           {project.subtitle && <p className={styles.projectSubtitle}>{project.subtitle}</p>}
@@ -68,7 +79,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
             {project.client && <span className={styles.client}>• {project.client}</span>}
           </div>
         </div>
-        {project.featured && <span className={styles.featuredBadge}>Featured</span>}
+        {project.featured && <Badge className={styles.featuredBadge}>Featured</Badge>}
       </div>
 
       <p className={styles.projectDescription}>{project.description}</p>
@@ -144,7 +155,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 };
 

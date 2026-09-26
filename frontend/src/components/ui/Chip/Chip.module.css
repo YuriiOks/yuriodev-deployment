@@ -1,0 +1,62 @@
+/* A tag in a pill: the tone's colour on a faint tint of it. Every tone's
+   colour is a text-safe shade in both themes (_variables.css). */
+.chip {
+  --chip: var(--cyan-text);
+  --chip-rgb: var(--cyan-rgb);
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid rgba(var(--chip-rgb), 0.45);
+  border-radius: var(--radius-pill);
+  background: rgba(var(--chip-rgb), 0.1);
+  color: var(--chip);
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+}
+
+.chip[data-tone="violet"] {
+  --chip: var(--hue-violet);
+  --chip-rgb: var(--hue-violet-rgb);
+}
+
+.chip[data-tone="teal"] {
+  --chip: var(--hue-teal);
+  --chip-rgb: var(--hue-teal-rgb);
+}
+
+.chip[data-tone="green"] {
+  --chip: var(--hue-green);
+  --chip-rgb: var(--hue-green-rgb);
+}
+
+.chip[data-tone="blue"] {
+  --chip: var(--hue-blue);
+  --chip-rgb: var(--hue-blue-rgb);
+}
+
+.chip[data-tone="amber"] {
+  --chip: var(--amber-text);
+  --chip-rgb: var(--amber-rgb);
+}
+
+.chip[data-tone="orange"] {
+  --chip: var(--hue-orange);
+  --chip-rgb: var(--hue-orange-rgb);
+}
+
+.chip[data-tone="pink"] {
+  --chip: var(--hue-pink);
+  --chip-rgb: var(--hue-pink-rgb);
+}
+
+/* Grey: the secondary text on no tint, with a quiet border. */
+.chip[data-tone="neutral"] {
+  border-color: var(--border-subtle);
+  background: transparent;
+  color: var(--text-2);
+}
+
+@media (forced-colors: active) {
+  .chip {
+    border-color: CanvasText;
+  }
+}

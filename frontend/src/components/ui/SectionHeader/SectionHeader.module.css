@@ -1,0 +1,76 @@
+/* A section's heading block. Every section title has the same size. */
+.header {
+  margin-bottom: var(--space-7);
+  text-align: center;
+}
+
+.header[data-align="start"] {
+  text-align: start;
+}
+
+.eyebrow {
+  margin-bottom: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* Amber in the dark theme, the body ink in the light one; the '#' is the
+   other accent, and a neon line sits under the title. */
+.title {
+  position: relative;
+  margin: 0 0 var(--space-4);
+  padding-bottom: 20px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-1);
+}
+
+:root:not([data-theme="light"]) .title {
+  color: var(--amber-text);
+}
+
+.prompt::before {
+  content: '# ';
+  content: '# ' / '';
+  color: var(--amber-text);
+}
+
+:root:not([data-theme="light"]) .prompt::before {
+  color: var(--cyan-text);
+}
+
+/* global.css still gives every h2 a '# '; without the prompt there is none. */
+.title:not(.prompt)::before {
+  content: none;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 80px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, var(--cyan-text), var(--amber-text), transparent);
+}
+
+.header[data-align="start"] .title::after {
+  left: 0;
+  transform: none;
+}
+
+.subtitle {
+  max-width: 50rem;
+  margin: 0 auto;
+  color: var(--text-2);
+  font-size: 1.125rem;
+  line-height: 1.8;
+}
+
+.header[data-align="start"] .subtitle {
+  margin-inline: 0;
+}

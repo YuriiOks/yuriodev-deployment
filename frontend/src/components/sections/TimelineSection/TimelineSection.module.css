@@ -1,62 +1,10 @@
 /* TimelineSection.module.css */
 
-.sectionFullwidthBase {
-  width: 100%;
+.section {
   background: var(--section-hero-bg-gradient);
   padding: 4rem 2rem;
   position: relative;
   z-index: var(--z-raised);
-}
-
-.sectionContentWrapper {
-  max-width: var(--content-max-width);
-  width: 100%;
-  margin: 0 auto;
-}
-
-.sectionHeader {
-  text-align: center;
-  margin-bottom: 3rem;
-}
-
-.sectionTitle {
-  font-size: 2.5rem;
-  color: var(--text-primary);
-  font-family: 'Fira Code', monospace;
-  margin-bottom: 1rem;
-  position: relative;
-  padding-bottom: 20px;
-}
-
-.sectionTitle::before {
-  content: '# ';
-  color: var(--accent-secondary);
-}
-
-/* Dark theme - cyan # prefix and golden/yellow title */
-[data-theme="dark"] .sectionTitle {
-  color: var(--accent-secondary);
-}
-
-[data-theme="dark"] .sectionTitle::before {
-  color: var(--accent-primary);
-}
-
-.sectionTitle::after {
-  content: '';
-  position: absolute;
-  bottom: 0px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
-}
-
-.sectionSubtitle {
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-  font-family: 'Fira Code', monospace;
 }
 
 /* Filter Buttons */
@@ -165,12 +113,8 @@
 }
 
 @media (max-width: 768px) {
-  .sectionFullwidthBase {
+  .section {
     padding: 3rem 1rem;
-  }
-
-  .sectionTitle {
-    font-size: 2rem;
   }
 
   .filterButtons {

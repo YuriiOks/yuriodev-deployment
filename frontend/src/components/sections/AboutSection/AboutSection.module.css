@@ -1,55 +1,9 @@
 /* AboutSection.module.css */
 
-.sectionFullwidthShaded {
-  width: 100%;
+.section {
   padding: 4rem 2rem;
   position: relative;
   z-index: var(--z-raised);
-}
-
-.sectionContentWrapper {
-  max-width: var(--content-max-width);
-  width: 100%;
-  margin: 0 auto;
-}
-
-.sectionHeader {
-  text-align: center;
-  margin-bottom: 3rem;
-}
-
-.sectionTitle {
-  font-size: 2.5rem;
-  color: var(--text-primary);
-  font-family: 'Fira Code', monospace;
-  margin-bottom: 1rem;
-  position: relative;
-  padding-bottom: 20px;
-}
-
-.sectionTitle::before {
-  content: '# ';
-  color: var(--accent-secondary);
-}
-
-/* Dark theme - cyan # prefix and golden/yellow title */
-[data-theme="dark"] .sectionTitle {
-  color: var(--accent-secondary);
-}
-
-[data-theme="dark"] .sectionTitle::before {
-  color: var(--accent-primary);
-}
-
-.sectionTitle::after {
-  content: '';
-  position: absolute;
-  bottom: 0px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
 }
 
 .headline {
@@ -407,7 +361,7 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .sectionFullwidthShaded {
+  .section {
     padding: 3rem 1.5rem;
   }
 
@@ -418,10 +372,6 @@
 
   .achievementsGrid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .sectionTitle {
-    font-size: 2rem;
   }
 
   .headline {
@@ -846,8 +796,6 @@
   color: var(--text-muted);
   font-size: 1rem;
 }
-
-
 
 @media (max-width: 480px) {
   .achievementsGrid {

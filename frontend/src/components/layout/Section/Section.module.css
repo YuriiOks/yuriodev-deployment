@@ -1,0 +1,9 @@
+/* A page section, the full width of the page. Its band colour comes from
+   its position among main's sections (global.css); its padding, and any
+   stacking (position, z-index), from the caller. Section adds no
+   positioning of its own: a positioned section changes which element the
+   browser's scroll anchoring keeps in place when content above it grows
+   (a late web font), and so where a jump to a section below it lands. */
+.section {
+  width: 100%;
+}

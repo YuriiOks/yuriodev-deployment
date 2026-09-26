@@ -1,15 +1,10 @@
-/* A post: a solid card (no glass: the text is dense and the grid scrolls). */
+/* A post: ui/Card, solid (no glass: the text is dense and the grid scrolls). */
 .card {
   display: grid;
   gap: 0.875rem;
   align-content: start;
   height: 100%;
-  padding: 1.25rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--bg-card);
   font-family: 'Fira Code', monospace;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Lit while a keyboard user is inside it; a mouse click leaves it dark. */
@@ -42,21 +37,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-/* Platform chips: text, not logos. X neutral, LinkedIn blue. */
-.platform {
-  padding: 0.125rem 0.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.platform[data-platform="linkedin"] {
-  border-color: rgba(var(--accent-primary-rgb), 0.45);
-  background: rgba(var(--accent-primary-rgb), 0.1);
-  color: var(--accent-primary);
 }
 
 .threadCount {

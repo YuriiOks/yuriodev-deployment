@@ -1,0 +1,131 @@
+/* Buttons and button-shaped links. Hover stays in the variant's own colour
+   and only applies where a pointer can hover. inline-block, not flex: the
+   prompt and the label stay one run of text, so a label that wraps keeps
+   its prompt in front of the first line. */
+.btn {
+  display: inline-block;
+  vertical-align: middle;
+  min-height: 44px;
+  padding: 0.8rem 1.5rem;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: inherit;
+  font-weight: var(--fw-medium);
+  line-height: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--dur-2) var(--ease-std),
+    background-color var(--dur-2) var(--ease-std),
+    border-color var(--dur-2) var(--ease-std),
+    color var(--dur-2) var(--ease-std),
+    box-shadow var(--dur-2) var(--ease-std);
+}
+
+/* The prompt glyph; the empty alternative text keeps it out of the name. */
+.prompt::before {
+  content: '> ';
+  content: '> ' / '';
+}
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 5px var(--focus-halo);
+}
+
+.btn:active:not(:disabled, [aria-disabled="true"]) {
+  transform: translateY(1px);
+}
+
+/* Outlined: cyan in the dark theme, amber on white in the light one. */
+.ghost {
+  background: rgba(var(--cyan-rgb), 0.1);
+  border-color: var(--cyan-edge);
+  color: var(--cyan-text);
+}
+
+[data-theme="light"] .ghost {
+  background: var(--surface-1);
+  border-color: var(--amber-text);
+  color: var(--amber-text);
+}
+
+/* Filled neon. */
+.primary {
+  background: var(--cyan);
+  border-color: var(--cyan-edge);
+  color: var(--on-cyan);
+  font-weight: var(--fw-semibold);
+}
+
+/* A square around a glyph. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border-color: var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--cyan-text);
+}
+
+.sm {
+  min-height: 36px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.icon.sm {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.block {
+  width: 100%;
+}
+
+@media (hover: hover) {
+  .ghost:hover:not(:disabled, [aria-disabled="true"]) {
+    transform: translateY(-2px);
+    background: rgba(var(--cyan-rgb), 0.18);
+    box-shadow: 0 0 20px rgba(var(--cyan-rgb), 0.45);
+  }
+
+  [data-theme="light"] .ghost:hover:not(:disabled, [aria-disabled="true"]) {
+    background: var(--amber-text);
+    color: var(--surface-1);
+    box-shadow: 0 0 20px rgba(var(--amber-rgb), 0.45);
+  }
+
+  .primary:hover:not(:disabled, [aria-disabled="true"]) {
+    transform: translateY(-1px);
+    box-shadow: var(--glow-1-strong);
+  }
+
+  .icon:hover:not(:disabled, [aria-disabled="true"]) {
+    background: rgba(var(--cyan-rgb), 0.1);
+    border-color: var(--cyan-edge);
+  }
+}
+
+/* Not available (yet): muted and dashed, but still readable (no opacity). */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  background: rgba(var(--text-3-rgb), 0.05);
+  border-color: var(--border-strong);
+  border-style: dashed;
+  color: var(--text-3);
+  box-shadow: none;
+}
+
+@media (forced-colors: active) {
+  .btn {
+    border-color: ButtonText;
+  }
+}

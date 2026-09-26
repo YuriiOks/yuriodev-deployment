@@ -1,0 +1,21 @@
+/* The content frame: centred, never wider than its size. Horizontal padding
+   (the gutter) belongs to whoever wraps it, so the sections that pad their
+   inner column keep doing it through className. */
+.container {
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* The page's content column (_variables.css: 75%, at most 72rem). */
+.content {
+  max-width: var(--content-max-width);
+}
+
+/* Long prose at a comfortable measure, never wider than the column. */
+.prose {
+  max-width: min(var(--measure), 100%);
+}
+
+.full {
+  max-width: none;
+}
