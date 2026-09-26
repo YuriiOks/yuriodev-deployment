@@ -10,7 +10,7 @@
 }
 
 .content {
-  max-width: 1200px;
+  max-width: 75rem;
 }
 
 /* Profiles: labelled buttons above the terminal, wrapping on narrow screens */
@@ -30,10 +30,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0 1rem;
   border: 2px solid var(--button-nav-border);
-  border-radius: 6px;
+  border-radius: 0.375rem;
   background: var(--button-nav-bg);
   color: var(--button-nav-text);
   font-family: 'Fira Code', monospace;
@@ -51,8 +51,8 @@
 }
 
 .socialLinkIcon {
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   flex-shrink: 0;
 }
 

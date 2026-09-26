@@ -52,7 +52,7 @@
 
 /* Lines up with the option titles, which sit after a 3px selection bar. */
 .groupLabel {
-    padding: 0.6rem 1.25rem 0.25rem calc(1.25rem + 3px);
+    padding: 0.6rem 1.25rem 0.25rem calc(1.25rem + 0.1875rem);
     color: var(--text-secondary);
     font-size: 0.75rem;
     font-weight: 600;
@@ -65,7 +65,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    min-height: 44px;
+    min-height: 2.75rem;
     padding: 0.5rem 1.25rem;
     cursor: pointer;
     border-left: 3px solid transparent;
@@ -108,7 +108,7 @@
     font-family: inherit;
     padding: 0 0.3rem;
     border: 1px solid var(--border-color-muted);
-    border-radius: 3px;
+    border-radius: 0.1875rem;
 }
 
 /* No keyboard hints on touch screens, where there are no arrow keys. */
@@ -124,7 +124,7 @@
     }
 
     .groupLabel {
-        padding-inline: calc(1rem + 3px) 1rem;
+        padding-inline: calc(1rem + 0.1875rem) 1rem;
     }
 
     .commandHint {

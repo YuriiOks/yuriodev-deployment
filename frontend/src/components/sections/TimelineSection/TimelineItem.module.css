@@ -19,9 +19,9 @@
 
 /* Timeline Dot - Now inside card header */
 .timelineDot {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;  /* Prevent shrinking */
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;  /* Prevent shrinking */
   border-radius: 50%;
   border: 3px solid var(--bg-primary);
   display: flex;
@@ -51,7 +51,7 @@
 /* Timeline Card */
 .timelineCard {
   width: calc(50%);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   overflow: hidden;
   transition: all 0.3s ease;
   animation: slideIn 0.5s ease-out;
@@ -68,7 +68,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 0.1875rem;
   background: var(--amber-edge);
   transform: scaleX(0);
   transition: transform 0.3s ease;
@@ -80,16 +80,16 @@
 }
 
 .timelineItem.left .timelineCard {
-  margin-right: 0px;
+  margin-right: 0;
 }
 
 .timelineItem.right .timelineCard {
-  margin-left: 0px;
+  margin-left: 0;
 }
 
 /* Hover: the amber edge and glow, in both themes. */
 .timelineCard:hover {
-  transform: translateY(-4px);
+  transform: translateY(-0.25rem);
   box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
   border-color: var(--amber-edge);
 }
@@ -97,7 +97,7 @@
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(1.25rem);
   }
   to {
     opacity: 1;
@@ -195,10 +195,10 @@
   padding: 0.2rem 0.6rem;
   background: var(--amber);
   color: var(--on-amber);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem;
 }
 
 .typeLabel {
@@ -206,10 +206,10 @@
   padding: 0.3rem 0.8rem;
   background: rgba(var(--accent-tertiary-rgb), 0.2);
   border: 1px solid var(--accent-tertiary);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   color: var(--accent-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem;
   font-family: 'Fira Code', monospace;
 }
 
@@ -287,7 +287,7 @@
   border: 1px solid var(--accent-primary);
   color: var(--accent-primary);
   padding: 0.6rem 1.2rem;
-  border-radius: 4px;
+  border-radius: 0.25rem;
   cursor: pointer;
   font-family: 'Fira Code', monospace;
   font-size: 0.85rem;
@@ -312,7 +312,7 @@
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-0.625rem);
   }
   to {
     opacity: 1;
@@ -351,7 +351,7 @@
   padding: 0.3rem 0.8rem;
   background: rgba(var(--accent-primary-rgb), 0.1);
   border: 1px solid var(--accent-primary);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   color: var(--accent-primary);
   font-family: 'Fira Code', monospace;
   transition: all 0.3s ease;
@@ -368,7 +368,7 @@
 
 .tag-ai:hover {
   background: rgba(var(--hue-violet-rgb), 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--hue-violet-rgb), 0.3);
 }
 
@@ -381,7 +381,7 @@
 
 .tag-cloud:hover {
   background: rgba(var(--hue-blue-rgb), 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--hue-blue-rgb), 0.3);
 }
 
@@ -394,7 +394,7 @@
 
 .tag-language:hover {
   background: rgba(var(--hue-green-rgb), 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--hue-green-rgb), 0.3);
 }
 
@@ -407,7 +407,7 @@
 
 .tag-domain:hover {
   background: rgba(var(--hue-orange-rgb), 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--hue-orange-rgb), 0.3);
 }
 
@@ -420,7 +420,7 @@
 
 .tag-tools:hover {
   background: rgba(var(--cyan-rgb), 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--cyan-rgb), 0.3);
 }
 
@@ -433,7 +433,7 @@
 
 .tag-education:hover {
   background: rgba(var(--hue-pink-rgb), 0.25);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--hue-pink-rgb), 0.3);
 }
 
@@ -446,7 +446,7 @@
 
 .tag-default:hover {
   background: rgba(var(--accent-primary-rgb), 0.2);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
   box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.3);
 }
 
@@ -462,7 +462,7 @@
   font-size: 0.9rem;
   padding: 0.5rem 1rem;
   border: 1px solid var(--amber-edge);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   transition: all 0.3s ease;
   background: rgba(var(--accent-secondary-rgb), 0.05);
 }
@@ -470,7 +470,7 @@
 .eventLink:hover {
   background: rgba(var(--accent-secondary-rgb), 0.1);
   box-shadow: 0 0 10px rgba(var(--accent-secondary-rgb), 0.3);
-  transform: translateX(4px);
+  transform: translateX(0.25rem);
 }
 
 /* Light theme: the hover fills with the bright amber. */
@@ -493,7 +493,7 @@
   background: #4752C4;
   color: white;
   box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
-  transform: translateX(4px) translateY(-2px);
+  transform: translateX(0.25rem) translateY(-0.125rem);
 }
 
 [data-theme="light"] .discordLink {
@@ -508,8 +508,8 @@
 }
 
 .linkIcon {
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   flex-shrink: 0;
 }
 
@@ -534,7 +534,7 @@
 
   .timelineCard {
     width: 100%;
-    max-width: 600px;  /* Limit width for better readability */
+    max-width: 37.5rem;  /* Limit width for better readability */
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
@@ -548,7 +548,7 @@
   
   /* Mobile hover effects */
   .timelineCard:hover {
-    transform: translateY(-4px) !important;
+    transform: translateY(-0.25rem) !important;
     box-shadow: 0 8px 24px rgba(var(--accent-primary-rgb), 0.3) !important;
     border-color: var(--cyan-edge) !important;
   }
@@ -589,9 +589,9 @@
   .timelineItem.right .timelineDot {
     order: 1 !important;
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
   }
   
   /* Type label always on the right on mobile for BOTH card types */
@@ -632,9 +632,9 @@
   }
   
   .timelineDot {
-    width: 28px !important;
-    height: 28px !important;
-    min-width: 28px !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    min-width: 1.75rem !important;
   }
   
   .timelineDot .typeIcon {

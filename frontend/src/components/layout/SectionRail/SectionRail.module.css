@@ -1,5 +1,5 @@
 /* The section rail: centred in the left gutter, between the window edge
-   and the content column (useGutterCenter; never closer than 16px to the
+   and the content column (useGutterCenter; never closer than 1rem to the
    edge), on a light glass backing so it reads over the canvas.
    SectionRail.tsx renders it only from 88rem (1408px) up, and only sets
    its own `left`; `top` and the glass box come from here.
@@ -42,11 +42,11 @@
    to the section in view. */
 .track {
     position: absolute;
-    left: calc(var(--rail-tick-col) / 2 - 1px);
+    left: calc(var(--rail-tick-col) / 2 - 0.0625rem);
     top: calc(var(--rail-row) / 2);
     bottom: calc(var(--rail-row) / 2);
-    width: 2px;
-    border-radius: 1px;
+    width: 0.125rem;
+    border-radius: 0.0625rem;
     background: var(--rail-track);
 }
 
@@ -92,8 +92,8 @@
 /* The diamond: solid, so it covers the track behind it. */
 .tick::before {
     content: '';
-    width: 7px;
-    height: 7px;
+    width: 0.4375rem;
+    height: 0.4375rem;
     background: var(--rail-tick);
     transform: rotate(45deg);
     transition:

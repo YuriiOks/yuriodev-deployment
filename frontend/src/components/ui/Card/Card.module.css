@@ -41,7 +41,7 @@
 
 @media (hover: hover) {
   .interactive:hover {
-    transform: translateY(-4px);
+    transform: translateY(-0.25rem);
     border-color: var(--amber-edge);
     box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
   }

@@ -28,7 +28,7 @@
     gap: 2rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border-color-muted);
-    min-height: 60px;
+    min-height: 3.75rem;
 }
 
 /* Left: Contact */
@@ -83,9 +83,9 @@
 /* Each link is a 24x24 target (44x44 on touch screens, below); the icon
    inside is drawn smaller through the padding. */
 .socialIcon {
-    width: 24px;
-    height: 24px;
-    padding: 2px;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0.125rem;
     flex-shrink: 0;
     text-decoration: none;
     transition: all 0.3s ease;
@@ -109,9 +109,9 @@
 
 .socialIcon:hover {
     opacity: 1;
-    transform: translateY(-3px) scale(1.15);
+    transform: translateY(-0.1875rem) scale(1.15);
     color: var(--accent-primary);
-    filter: drop-shadow(0 0 8px var(--glow-primary));
+    filter: drop-shadow(0 0 0.5rem var(--glow-primary));
 }
 
 /* Right: Copyright & Tech */
@@ -131,7 +131,7 @@
     color: var(--text-muted);
     font-size: 0.85rem;
     font-weight: 500;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.01875rem;
 }
 
 .brand {
@@ -156,7 +156,7 @@
     font-weight: 600;
     padding: 0.1rem 0.3rem;
     background: rgba(var(--accent-tertiary-rgb), 0.1);
-    border-radius: 3px;
+    border-radius: 0.1875rem;
     transition: all 0.3s ease;
 }
 
@@ -178,7 +178,7 @@
     font-size: 0.75rem;
     font-family: 'Fira Code', monospace;
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-underline-offset: 0.1875rem;
     padding: 0.25rem 0;
 }
 
@@ -248,7 +248,7 @@
     }
 
     .socialIcon {
-        padding: 3px;
+        padding: 0.1875rem;
     }
 
     .emailLink,
@@ -289,7 +289,7 @@
     }
 
     .socialIcon {
-        padding: 4px;
+        padding: 0.25rem;
     }
 
     .emailLink,
@@ -318,9 +318,9 @@
     }
 
     .socialIcon {
-        width: 44px;
-        height: 44px;
-        padding: 12px;
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0.75rem;
     }
 }
 
@@ -329,7 +329,7 @@
    border from the max-width: 29.99rem rules above. */
 @media (pointer: coarse) and (max-width: 29.99rem) {
     .socialIcons {
-        width: calc(5 * 44px + 2 * 0.7rem + 2px);
+        width: calc(5 * 2.75rem + 2 * 0.7rem + 0.125rem);
     }
 }
 
@@ -337,6 +337,6 @@
    the 0.8rem side padding of the max-width: 47.99rem rules above. */
 @media (pointer: coarse) and (min-width: 30rem) and (max-width: 47.99rem) {
     .socialIcons {
-        width: calc(5 * 44px + 2 * 0.8rem + 2px);
+        width: calc(5 * 2.75rem + 2 * 0.8rem + 0.125rem);
     }
 }

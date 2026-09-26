@@ -67,7 +67,7 @@
     display: inline-block;
     width: 0.55ch;
     height: 1.1em;
-    margin-left: 2px;
+    margin-left: 0.125rem;
     vertical-align: -0.15em;
     background: currentColor;
     animation: caretBlink 1s steps(1) infinite;

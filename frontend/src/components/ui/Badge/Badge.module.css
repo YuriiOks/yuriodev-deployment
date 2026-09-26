@@ -7,7 +7,7 @@
   color: var(--on-amber);
   font-size: 0.7rem;
   font-weight: var(--fw-medium);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem;
   text-transform: uppercase;
 }
 
