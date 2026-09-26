@@ -1,0 +1,73 @@
+/* A solid card (never glass: dense text reads better on a solid fill). No
+   overflow: hidden here; a card that must clip its children (a full-bleed
+   header) adds it itself. */
+.card {
+  position: relative;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition:
+    transform var(--dur-3) var(--ease-out),
+    border-color var(--dur-3) var(--ease-std),
+    box-shadow var(--dur-3) var(--ease-std);
+}
+
+.radiusLg {
+  border-radius: var(--radius-lg);
+}
+
+/* Brand-tinted: cyan in the dark theme, amber in the light one. */
+.accent {
+  border-color: rgba(var(--cyan-rgb), 0.4);
+  box-shadow: 0 4px 16px rgba(var(--cyan-rgb), 0.1);
+}
+
+[data-theme="light"] .accent {
+  border-color: rgba(var(--amber-rgb), 0.4);
+  box-shadow: 0 2px 8px rgba(var(--amber-rgb), 0.12);
+}
+
+.featured,
+[data-theme="light"] .featured {
+  border-color: var(--amber-edge);
+  box-shadow: 0 4px 20px rgba(var(--amber-rgb), 0.2);
+}
+
+/* The amber edge also marks where a keyboard user is. */
+.interactive:has(:focus-visible) {
+  border-color: var(--amber-edge);
+}
+
+@media (hover: hover) {
+  .interactive:hover {
+    transform: translateY(-4px);
+    border-color: var(--amber-edge);
+    box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
+  }
+
+  [data-theme="light"] .interactive:hover {
+    box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.3);
+  }
+}
+
+.pad-none {
+  padding: 0;
+}
+
+.pad-sm {
+  padding: 1.25rem;
+}
+
+.pad-md {
+  padding: var(--space-5);
+}
+
+.pad-lg {
+  padding: var(--space-6);
+}
+
+@media (forced-colors: active) {
+  .card {
+    border-color: CanvasText;
+  }
+}

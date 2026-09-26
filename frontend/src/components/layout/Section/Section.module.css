@@ -1,0 +1,8 @@
+/* A page section: full width, above the canvas. Its band colour comes from
+   its position among main's sections (global.css), its padding from the
+   caller. */
+.section {
+  position: relative;
+  z-index: var(--z-raised);
+  width: 100%;
+}

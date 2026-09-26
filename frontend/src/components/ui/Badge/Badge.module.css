@@ -1,0 +1,34 @@
+/* A small uppercase status label. */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--amber-text);
+  color: var(--bg-0);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .badge {
+  color: var(--surface-1);
+}
+
+.badge[data-tone="ok"] {
+  background: rgba(var(--ok-rgb), 0.14);
+  color: var(--ok);
+  box-shadow: inset 0 0 0 1px rgba(var(--ok-rgb), 0.45);
+}
+
+.badge[data-tone="muted"] {
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+@media (forced-colors: active) {
+  .badge {
+    border: 1px solid CanvasText;
+  }
+}
