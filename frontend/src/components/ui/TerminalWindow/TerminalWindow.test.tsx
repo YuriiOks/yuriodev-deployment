@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import TerminalWindow from './TerminalWindow';
+import TerminalWindow, { TerminalLine } from './TerminalWindow';
 import styles from './TerminalWindow.module.css';
 
 describe('TerminalWindow', () => {
@@ -40,5 +40,16 @@ describe('TerminalWindow', () => {
     const body = screen.getByText('{}');
     expect(body).not.toHaveClass(styles.scanlines);
     expect(body).toHaveClass('mine');
+  });
+
+  it('a TerminalLine keeps its spaces and takes more classes', () => {
+    render(
+      <TerminalWindow title="t">
+        <TerminalLine className="ok">{'  Python    ████'}</TerminalLine>
+      </TerminalWindow>,
+    );
+    const line = screen.getByText('Python ████', { normalizer: (text) => text.trim().replace(/\s+/g, ' ') });
+    expect(line).toHaveClass(styles.line, 'ok');
+    expect(line.textContent).toBe('  Python    ████');
   });
 });

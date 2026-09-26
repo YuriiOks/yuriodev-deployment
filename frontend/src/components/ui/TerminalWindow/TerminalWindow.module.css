@@ -74,6 +74,13 @@
   line-height: 1.6;
 }
 
+/* One line of terminal output: keeps its indentation and aligned columns,
+   and wraps a long token instead of running past the window's edge. */
+.line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 :root:not([data-theme="light"]) .scanlines {
   background-image: linear-gradient(rgba(var(--bg-0-rgb), 0.25) 50%, transparent 50%);
   background-size: 100% 4px;

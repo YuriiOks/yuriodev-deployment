@@ -49,4 +49,12 @@ const TerminalWindow: React.FC<TerminalWindowProps> = ({
     <div className={cx(styles.body, scanlines && styles.scanlines, bodyClassName)}>{children}</div>,
   );
 
+/**
+ * One line of terminal output, for the window's body: keeps its spaces (so
+ * indented and aligned output stays aligned) and wraps a long token.
+ */
+export const TerminalLine: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...rest }) => (
+  <div {...rest} className={cx(styles.line, className)} />
+);
+
 export default TerminalWindow;
