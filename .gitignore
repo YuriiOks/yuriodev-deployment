@@ -87,3 +87,6 @@ frontend/blob-report/
 htmlcov/
 .ruff_cache/
 .mypy_cache/
+# Regenerated documentation dumps and scratch output: never tracked again
+PROJECT_DOCUMENTATION.html
+/frontend/tmp/
