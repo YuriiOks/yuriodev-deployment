@@ -9,8 +9,10 @@ Deployment repo for **yuriodev.co.uk**: a personal portfolio (Vite/React fronten
 ```
 Internet -> Cloudflare (proxied, SSL mode Full (strict): needs a valid origin cert)
          -> yuriodev-proxy (nginx:stable-alpine pinned by digest; the ONLY container publishing ports, 80 and 443)
-              :80   any host                                    -> 301 https
-              :443  yuriodev.co.uk        /                     -> yuriodev-frontend:80        (production)
+              :80   our 4 hostnames                             -> 301 https; anything else -> closed (444), except /healthz -> 200 (proxy HEALTHCHECK)
+              :443  unknown/no SNI -> TLS handshake refused; known SNI + foreign Host -> 444 (nginx-proxy/10-catchall.conf)
+                    www.yuriodev.co.uk                          -> 301 https://yuriodev.co.uk$request_uri
+                    yuriodev.co.uk        /                     -> yuriodev-frontend:80        (production)
                                            /api/                 -> yuriodev-backend:8000       (production; GET|HEAD /health, public as /api/health, and GET|HEAD /api/posts, the social feed, which ships off: see .claude/rules/backend.md)
                     dev.yuriodev.co.uk    (basic auth, noindex)  -> yuriodev-dev-frontend:80 / yuriodev-dev-backend:8000
                     stage.yuriodev.co.uk  (basic auth, noindex)  -> yuriodev-stage-frontend:80 / yuriodev-stage-backend:8000
@@ -34,7 +36,7 @@ Public, non-secret backend config is tracked in `env/{local,dev,stage,prod}.env`
 ## Golden rules (reasons in parentheses; * = hard rule, no exceptions)
 1. Compose v2 only, from the repo root: `docker compose ...`. Never `docker-compose` (legacy v1.29.2 on this host)*.
 2. App code ships via git tags through GitHub Actions, never a manual build on this box — see the release runbook, `/deploy`. Manual `docker compose build <svc>` + `up -d --no-deps <svc>` here is break-glass only: `touch ~/.yuriodev-deploy-paused` FIRST (else the deploy agent reverts a locally built image to the registry tag within a minute), one service at a time. Never a bare `up -d` / `build` / `restart` (running containers can carry an older config hash than the file), never `restart` to deploy code (it keeps the old image), never `docker cp` into containers.*
-3. Proxy config: edit `nginx-proxy/default.conf` -> `docker exec yuriodev-proxy nginx -t` -> reload only with Yurii's OK: `docker exec yuriodev-proxy nginx -s reload`. Don't recreate the proxy for a config change (the whole site blips).*
+3. Proxy config: edit files under `nginx-proxy/` (`*.conf` and `snippets/`; layout in `.claude/rules/infra.md`) -> `docker exec yuriodev-proxy nginx -t` -> reload only with Yurii's OK: `docker exec yuriodev-proxy nginx -s reload`. Don't recreate the proxy for a config change (the whole site blips).*
 4. Say exactly what ships: for a normal release that's the commit the git tag points at (images are built once in CI from that exact commit — `.github/workflows/`); for a break-glass on-box build it's the working tree, including uncommitted and unstaged changes.
 5. Secrets: never read or print any `env/*.secrets.env`; use `env/secrets.env.example` for variable names. Never `docker compose config` without `--quiet`, bare `docker inspect`, or `docker exec ... env`.*
 6. Origin TLS is a Cloudflare Origin CA certificate, `nginx-proxy/certs/origin.{pem,key}` (gitignored, valid to 2041-09-20, trusted only by Cloudflare Full (strict)). Never commit or print `origin.key`. `certbot/` is the root-owned legacy Let's Encrypt store; leave it alone. Diagnose with `/cert-status`.

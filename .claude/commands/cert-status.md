@@ -6,7 +6,7 @@ Setup (since 2026-09-24): the proxy serves a Cloudflare Origin CA certificate fr
 Read-only checks (run from /home/yurii/yuriodev-deployment):
 1. Served by the proxy: `echo | openssl s_client -connect 127.0.0.1:443 -servername yuriodev.co.uk 2>/dev/null | openssl x509 -noout -issuer -dates -ext subjectAltName` (issuer should be "CloudFlare Origin SSL ECC Certificate Authority").
 2. File on disk matches the key: `a=$(openssl x509 -in nginx-proxy/certs/origin.pem -noout -pubkey | sha256sum); b=$(openssl pkey -in nginx-proxy/certs/origin.key -pubout | sha256sum); [ "$a" = "$b" ] && echo match || echo MISMATCH` (prints hashes only, never the key).
-3. Proxy wiring: `grep -n ssl_certificate nginx-proxy/default.conf` and `docker exec yuriodev-proxy nginx -t`.
+3. Proxy wiring: `grep -n ssl_certificate nginx-proxy/*.conf` and `docker exec yuriodev-proxy nginx -t`.
 4. Edge: `curl -s -o /dev/null -w '%{http_code}\n' --max-time 15 --doh-url https://1.1.1.1/dns-query https://yuriodev.co.uk/` (plain DNS on this box resolves to the origin). 200 = fine; 526 = Cloudflare rejects the origin cert; 525 = TLS handshake failed; 521/522 = proxy down or unreachable.
 
 If something is wrong, report what and propose the fix, then wait for Yurii's go:
