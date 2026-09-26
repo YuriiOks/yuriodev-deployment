@@ -10,8 +10,10 @@ describe('Card', () => {
     const card = container.firstElementChild!;
     expect(card.tagName).toBe('DIV');
     expect(card).toHaveAttribute('data-tone', 'plain');
-    expect(card).toHaveClass(styles.card, styles.plain, styles['pad-md']);
-    expect(card).not.toHaveClass(styles.interactive, styles.featured, styles.radiusLg);
+    expect(card).toHaveClass(styles.card, styles['pad-md']);
+    expect(card).not.toHaveClass(styles.interactive);
+    expect(card).not.toHaveClass(styles.featured);
+    expect(card).not.toHaveClass(styles.radiusLg);
   });
 
   it('an article card is named by its title', () => {

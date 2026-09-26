@@ -96,7 +96,7 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
       <div className={styles.meta}>
         <ul className={styles.platforms} aria-label="Published on">
           {platforms.map((p) => (
-            <Chip as="li" key={p} tone={PLATFORM_TONES[p]} data-platform={p}>
+            <Chip as="li" key={p} tone={PLATFORM_TONES[p]}>
               {PLATFORM_LABELS[p]}
               {p === 'x' && xThread > 0 && <span className={styles.threadCount}> · thread of {xThread}</span>}
             </Chip>

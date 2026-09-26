@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import SectionHeader from './SectionHeader';
+import styles from './SectionHeader.module.css';
 
 describe('SectionHeader', () => {
   it('is an h2 with the given id that script can focus', () => {
@@ -17,9 +18,12 @@ describe('SectionHeader', () => {
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
   });
 
-  it('keeps the "# " out of the accessible name (it is drawn by CSS)', () => {
+  it('draws the "# " with the prompt class, not in the markup', () => {
+    // jsdom has no generated content; the CSS gives the prompt an empty alt text.
     render(<SectionHeader id="t" title="Journey" />);
-    expect(screen.getByRole('heading').textContent).toBe('Journey');
+    const heading = screen.getByRole('heading');
+    expect(heading).toHaveClass(styles.title, styles.prompt);
+    expect(heading.textContent).toBe('Journey');
   });
 
   it('shows an eyebrow, a subtitle and more lines, in that order around the title', () => {
