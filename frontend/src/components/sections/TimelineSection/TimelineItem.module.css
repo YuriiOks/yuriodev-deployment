@@ -38,11 +38,6 @@
   box-shadow: 0 0 0 4px var(--bg-primary), 0 0 20px rgba(var(--accent-primary-rgb), 0.5);
 }
 
-/* Light theme - Orange glow */
-[data-theme="light"] .timelineDot {
-  box-shadow: 0 0 0 4px var(--bg-primary), 0 0 20px rgba(var(--accent-secondary-rgb), 0.4);
-}
-
 .timelineDot .typeIcon {
   font-size: 1.2rem;
 }
@@ -74,7 +69,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--accent-secondary);
+  background: var(--amber-edge);
   transform: scaleX(0);
   transition: transform 0.3s ease;
   z-index: var(--z-decor);
@@ -82,13 +77,6 @@
 
 .timelineCard:hover::before {
   transform: scaleX(1);
-}
-
-/* Light theme - Enhanced card with orange accent */
-[data-theme="light"] .timelineCard {
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(var(--accent-secondary-rgb), 0.4);  /* Orange border - more visible */
-  box-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.12);
 }
 
 .timelineItem.left .timelineCard {
@@ -99,18 +87,11 @@
   margin-left: 0px;
 }
 
-/* Dark theme hover - Cyan glow */
+/* Hover: the amber edge and glow, in both themes. */
 .timelineCard:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.2);
-  border-color: var(--accent-secondary);
-}
-
-/* Light theme hover - Orange glow */
-[data-theme="light"] .timelineCard:hover {
-  box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.3) !important;
-  border-color: var(--amber-edge) !important;
-  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
+  border-color: var(--amber-edge);
 }
 
 @keyframes slideIn {
@@ -140,12 +121,6 @@
 .cardHeader {
   background: rgba(var(--accent-primary-rgb), 0.08);  /* Cyan overlay */
   border-bottom-color: rgba(var(--accent-primary-rgb), 0.3);  /* Cyan border */
-}
-
-/* Light theme - Orange overlay */
-[data-theme="light"] .cardHeader {
-  background: rgba(var(--accent-secondary-rgb), 0.06);
-  border-bottom-color: rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 /* Header content wrapper (for date + badges grouping) */
@@ -211,11 +186,6 @@
   font-weight: 600;
 }
 
-/* Light theme - Orange dates */
-[data-theme="light"] .date {
-  color: var(--accent-secondary);
-}
-
 .dateSeparator {
   color: var(--text-muted);
 }
@@ -223,18 +193,12 @@
 .ongoingBadge {
   font-size: 0.7rem;
   padding: 0.2rem 0.6rem;
-  background: var(--accent-secondary);
-  color: var(--bg-primary);
+  background: var(--amber);
+  color: var(--on-amber);
   border-radius: 4px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-/* Light theme - Orange ongoing badge */
-[data-theme="light"] .ongoingBadge {
-  background: var(--amber);
-  color: var(--on-amber);
 }
 
 .typeLabel {
@@ -249,13 +213,6 @@
   font-family: 'Fira Code', monospace;
 }
 
-/* Light theme - Orange type label */
-[data-theme="light"] .typeLabel {
-  background: rgba(var(--accent-secondary-rgb), 0.1);
-  border-color: var(--amber-edge);
-  color: var(--accent-secondary);
-}
-
 /* Card Content */
 .cardContent {
   padding: 1.5rem;
@@ -263,7 +220,7 @@
 
 .title {
   font-size: 1.3rem;
-  color: var(--accent-secondary);
+  color: var(--title-ink);
   font-family: 'Fira Code', monospace;
   margin-bottom: 0.75rem;
   font-weight: 600;
@@ -345,19 +302,6 @@
   box-shadow: 0 0 10px rgba(var(--accent-primary-rgb), 0.4);
 }
 
-/* Light theme - Orange styling */
-[data-theme="light"] .expandButton {
-  background: rgba(var(--accent-secondary-rgb), 0.08);
-  border-color: var(--amber-edge);
-  color: var(--accent-secondary);
-}
-
-[data-theme="light"] .expandButton:hover {
-  background: var(--amber);
-  color: var(--on-amber);
-  box-shadow: 0 4px 12px rgba(var(--accent-secondary-rgb), 0.3);
-}
-
 .highlightsList {
   list-style: none;
   padding: 0;
@@ -392,11 +336,6 @@
   flex-shrink: 0;
   line-height: 1;
   margin-top: 0.1rem;
-}
-
-/* Light theme - Orange bullets */
-[data-theme="light"] .highlightBullet {
-  color: var(--accent-secondary);
 }
 
 /* Tags */
@@ -522,7 +461,7 @@
   font-family: 'Fira Code', monospace;
   font-size: 0.9rem;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--accent-secondary);
+  border: 1px solid var(--amber-edge);
   border-radius: 4px;
   transition: all 0.3s ease;
   background: rgba(var(--accent-secondary-rgb), 0.05);
@@ -534,13 +473,7 @@
   transform: translateX(4px);
 }
 
-/* Light theme - Orange link styling */
-[data-theme="light"] .eventLink {
-  color: var(--accent-secondary);
-  border-color: var(--amber-edge);
-  background: rgba(var(--accent-secondary-rgb), 0.06);
-}
-
+/* Light theme: the hover fills with the bright amber. */
 [data-theme="light"] .eventLink:hover {
   background: var(--amber);
   color: var(--on-amber);
@@ -613,22 +546,11 @@
     box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.15) !important;
   }
   
-  [data-theme="light"] .timelineCard {
-    background: rgba(255, 255, 255, 0.99) !important;
-    border: 1px solid rgba(var(--accent-secondary-rgb), 0.5) !important;  /* Brighter orange border */
-    box-shadow: 0 4px 16px rgba(var(--accent-secondary-rgb), 0.18) !important;
-  }
-  
   /* Mobile hover effects */
   .timelineCard:hover {
     transform: translateY(-4px) !important;
     box-shadow: 0 8px 24px rgba(var(--accent-primary-rgb), 0.3) !important;
     border-color: var(--cyan-edge) !important;
-  }
-  
-  [data-theme="light"] .timelineCard:hover {
-    box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.35) !important;
-    border-color: var(--amber-edge) !important;
   }
   
   /* Mobile: Consistent left-to-right layout for ALL cards */

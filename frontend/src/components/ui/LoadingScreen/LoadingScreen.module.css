@@ -146,14 +146,14 @@
   animation: gradientShift 8s ease-in-out infinite;
 }
 
-/* Light theme: Using our actual color scheme (orange/gold from dark theme) */
+/* Light theme: neon on light, deep cyan through teal to an amber tip. */
 [data-theme="light"] .asciiArt {
   background: linear-gradient(
     135deg,
-    var(--amber-text) 0%,
-    var(--amber-edge) 30%,
-    var(--amber) 65%,
-    #fcd34d 100%
+    var(--cyan-text) 0%,
+    var(--cyan-edge) 35%,
+    var(--hue-teal) 70%,
+    var(--amber-edge) 100%
   );
   background-size: 200% 200%;
   -webkit-background-clip: text;
@@ -161,8 +161,8 @@
   background-clip: text;
   
   /* Subtle glow for light theme - no harsh shadows */
-  filter: drop-shadow(0 2px 8px rgba(var(--amber-rgb), 0.15))
-          drop-shadow(0 4px 16px rgba(251, 191, 36, 0.12));
+  filter: drop-shadow(0 2px 8px rgba(var(--cyan-rgb), 0.15))
+          drop-shadow(0 4px 16px rgba(34, 211, 238, 0.12));
   
   animation: gradientShift 8s ease-in-out infinite;
 }
@@ -208,8 +208,8 @@
 }
 
 [data-theme="light"] .prompt {
-  color: var(--amber-text);
-  text-shadow: 0 0 8px rgba(var(--amber-rgb), 0.2);
+  color: var(--cyan-text);
+  text-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.2);
 }
 
 .text {
@@ -309,15 +309,15 @@
 [data-theme="light"] .progressFill {
   background: linear-gradient(
     90deg,
-    var(--amber-text) 0%,
-    var(--amber-edge) 30%,
-    var(--amber) 65%,
-    #fcd34d 100%
+    var(--cyan-edge) 0%,
+    var(--cyan) 40%,
+    var(--hue-teal) 70%,
+    var(--amber) 100%
   );
   background-size: 200% 100%;
   box-shadow: 
-    0 0 15px rgba(var(--amber-rgb), 0.4),
-    0 0 30px rgba(251, 191, 36, 0.2),
+    0 0 15px rgba(var(--cyan-rgb), 0.35),
+    0 0 30px rgba(34, 211, 238, 0.2),
     inset 0 1px 1px rgba(255, 255, 255, 0.5);
 }
 

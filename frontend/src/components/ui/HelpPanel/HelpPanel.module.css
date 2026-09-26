@@ -7,7 +7,7 @@
 }
 
 .helpPanelContent h3 {
-  color: var(--accent-secondary);
+  color: var(--title-ink);
   font-size: 1.1rem;
   margin: 1.75rem 0 0.75rem;
   padding-bottom: 0.5rem;
@@ -81,20 +81,10 @@
   white-space: nowrap;
 }
 
-[data-theme="light"] .shortcut {
-  background: rgba(var(--accent-secondary-rgb), 0.1);
-  border: 1px solid var(--accent-secondary);
-  color: var(--accent-secondary);
-}
-
 .helpItem dt.command {
   color: var(--accent-tertiary);
   font-weight: 600;
   flex-shrink: 0;
-}
-
-[data-theme="light"] .helpItem dt.command {
-  color: var(--accent-secondary);
 }
 
 .helpItem:has(dt.command) dd {

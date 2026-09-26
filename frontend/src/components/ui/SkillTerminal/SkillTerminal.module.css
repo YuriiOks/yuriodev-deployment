@@ -20,7 +20,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: var(--accent-secondary);
+    background: var(--amber-edge);
     transform: scaleX(0);
     transition: transform 0.3s ease;
     z-index: var(--z-decor);
@@ -32,25 +32,13 @@
 
 .skillTerminal:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.2);
-    border-color: var(--accent-secondary);
-}
-
-[data-theme="light"] .skillTerminal {
-    background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(var(--accent-secondary-rgb), 0.4);
-    box-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.12);
-}
-
-[data-theme="light"] .skillTerminal:hover {
-    box-shadow: 0 8px 24px rgba(var(--accent-secondary-rgb), 0.3) !important;
-    border-color: var(--amber-edge) !important;
-    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
+    border-color: var(--amber-edge);
 }
 
 .skillHeader {
     background: rgba(var(--accent-primary-rgb), 0.08);
-    color: var(--accent-secondary);
+    color: var(--title-ink);
     font-weight: 600;
     padding: 0 1.5rem;
     height: 3.5rem;
@@ -61,13 +49,8 @@
     border-bottom: 1px solid rgba(var(--accent-primary-rgb), 0.3);
 }
 
-[data-theme="light"] .skillHeader {
-    background: rgba(var(--accent-secondary-rgb), 0.06);
-    border-bottom-color: rgba(var(--accent-secondary-rgb), 0.2);
-}
-
 .terminalPrompt {
-    color: var(--accent-secondary);
+    color: var(--title-ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -95,7 +78,7 @@
 
 .progressFill {
     height:100%;
-    background:linear-gradient(90deg,var(--accent-primary),var(--accent-secondary),var(--accent-tertiary));
+    background:linear-gradient(90deg,var(--cyan-edge),var(--amber-edge),var(--accent-tertiary));
     border-radius:4px;
     position:relative;
     width: 0%;
@@ -155,10 +138,15 @@
 }
 
 .skillTagDetail.highlightSkill {
-    background:rgba(var(--accent-secondary-rgb),0.2);
-    border-color:var(--accent-secondary);
+    background:rgba(var(--amber-rgb),0.2);
+    border-color:var(--amber-edge);
     color:var(--accent-secondary);
     font-weight:600;
+}
+
+/* Daylight: slate ink inside the amber frame, not amber's dark text shade. */
+[data-theme="light"] .skillTagDetail.highlightSkill {
+    color: var(--text-1);
 }
 
 /* ============================================ */
@@ -301,8 +289,12 @@
     font-weight: 600;
 }
 
+/* Daylight: the highlight look of .highlightSkill (slate ink in an amber
+   frame), not the orange hue's dark text shade. */
 [data-theme="light"] .tag_metric {
-    background: rgba(var(--hue-orange-rgb), 0.1);
+    background: rgba(var(--amber-rgb), 0.16);
+    border-color: var(--amber-edge);
+    color: var(--text-1);
 }
 
 .tag_metric:hover {

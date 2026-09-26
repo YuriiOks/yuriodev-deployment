@@ -34,26 +34,9 @@
 }
 
 .filterButton.active {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  background: var(--cyan);
+  color: var(--on-cyan);
   box-shadow: 0 0 15px rgba(var(--accent-primary-rgb), 0.5);
-}
-
-[data-theme="light"] .filterButton {
-  background: rgba(var(--accent-secondary-rgb), 0.08);
-  border-color: var(--amber-edge);
-  color: var(--accent-secondary);
-}
-
-[data-theme="light"] .filterButton.active {
-  background: var(--amber);
-  color: var(--on-amber);
-  box-shadow: 0 4px 12px rgba(var(--accent-secondary-rgb), 0.4);
-}
-
-[data-theme="light"] .filterButton:hover {
-  background: rgba(var(--accent-secondary-rgb), 0.15);
-  box-shadow: 0 2px 8px rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 /* Timeline Container */
@@ -84,17 +67,6 @@
   );
   transform: translateX(-50%);
   opacity: 0.8;
-}
-
-[data-theme="light"] .timeline::before {
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    var(--amber-edge),
-    var(--amber),
-    rgba(var(--amber-rgb), 0.35),
-    transparent
-  );
 }
 
 .emptyState {

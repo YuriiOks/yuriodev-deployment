@@ -54,10 +54,6 @@
     text-shadow: 0 0 8px var(--glow-primary);
 }
 
-[data-theme="light"] .emailLink {
-    color: var(--accent-secondary);
-}
-
 [data-theme="light"] .emailLink:hover {
     color: var(--accent-primary);
     text-shadow: none;
@@ -118,10 +114,6 @@
     filter: drop-shadow(0 0 8px var(--glow-primary));
 }
 
-[data-theme="light"] .socialIcon:hover {
-    color: var(--accent-secondary);
-}
-
 /* Right: Copyright & Tech */
 .footerRight {
     display: flex;
@@ -149,7 +141,6 @@
 }
 
 [data-theme="light"] .brand {
-    color: var(--accent-secondary);
     text-shadow: none;
     font-weight: 700;
 }
@@ -211,10 +202,6 @@
 .statusSuccess {
     color: var(--accent-tertiary);
     font-weight: 600;
-}
-
-[data-theme="light"] .statusSuccess {
-    color: var(--accent-secondary);
 }
 
 /* Responsive Design */

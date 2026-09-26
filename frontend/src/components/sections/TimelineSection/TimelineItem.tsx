@@ -23,12 +23,14 @@ const getTypeIcon = (type: string): string => {
   }
 };
 
+// The dot's fill: the bright neon of each accent (the same colours as ever
+// in the dark theme; never amber's dark text shade in the light one).
 const getTypeColor = (type: string): string => {
   switch (type) {
     case 'experience':
-      return 'var(--accent-secondary)';
+      return 'var(--amber)';
     case 'education':
-      return 'var(--accent-primary)';
+      return 'var(--cyan)';
     case 'certification':
       return 'var(--accent-tertiary)';
     case 'achievement':
