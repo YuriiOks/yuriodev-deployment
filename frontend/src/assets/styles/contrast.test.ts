@@ -189,8 +189,10 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(HUES, [['--bg-0'], ['--bg-1'], ['--surface-1']], TEXT),
     ...cross(GLASS_TEXT, [['--glass-fill', '--text-1'], ['--glass-fill', '--bg-0']], TEXT),
     ...cross(DISPLAY, SOLID_LIGHT, LARGE),
-    // The hero name: its own token, light theme only (dark keeps --cyan-text).
-    ...cross(['--name-ink'], SOLID_LIGHT, LARGE),
+    // The hero name: light theme only (dark keeps --cyan-text). Its plain
+    // fallback colour, and both gradient stops (each one is what actually
+    // paints, left and right, so each must clear large-text AA on its own).
+    ...cross(['--name-ink', '--name-gold', '--name-orange'], SOLID_LIGHT, LARGE),
     ...BUTTON_PAIRS('--bg-0'),
     ...BUTTON_PAIRS('--surface-1'),
     ...AMBER_TINTS,
