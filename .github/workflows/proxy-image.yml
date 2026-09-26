@@ -47,6 +47,7 @@ jobs:
           image-ref: ${{ steps.ref.outputs.image }}
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          trivyignores: .github/trivy/proxy.trivyignore
           exit-code: '1'
           format: table
           output: trivy-proxy.txt
