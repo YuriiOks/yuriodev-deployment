@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Button from '../../ui/Button/Button';
 import styles from './HeroSection.module.css';
 import useTypewriter from '../../../hooks/useTypewriter';
+import { useHorizontalScrollFade } from '../../../hooks/useHorizontalScrollFade';
 import { EMAILS, IDENTITY } from '../../../data/site';
 import { HERO_MESSAGES, messagesForScreenReaders, typewriterWidth } from './typewriter';
+import { cx } from '../../../utils/cx';
 
 // Screen readers get every line once, as plain text, instead of the
 // character-by-character animation.
@@ -12,18 +14,30 @@ const typewriterStyle = { '--typewriter-width': typewriterWidth(HERO_MESSAGES) }
 
 const HeroSection: React.FC = () => {
   const typedMessage = useTypewriter(HERO_MESSAGES);
+  const codeBlockRef = useRef<HTMLDivElement>(null);
+  // A fade at the trailing edge while the card has more to reveal by
+  // scrolling sideways, gone once it can't scroll any further.
+  const canScrollMore = useHorizontalScrollFade(codeBlockRef);
 
   return (
     <section className={styles.heroSection} id="hero">
       <h1 className={styles.heroTitle}>{IDENTITY.name}</h1>
-      <p className={styles.heroSubtitle}>AI/ML Systems Engineer | Agentic Architect</p>
+      <p className={styles.heroSubtitle}>
+        AI/ML Systems Engineer <span className={styles.heroSubtitleSep}>|</span> Agentic Architect
+      </p>
       <div className={styles.typewriter} id="typewriter" aria-hidden="true" style={typewriterStyle}>
         {typedMessage}<span className={styles.caret} />
       </div>
       <p className="sr-only">{screenReaderText}</p>
       {/* Code lines never wrap: on a narrow screen the card scrolls sideways,
           so it takes keyboard focus too. */}
-      <div className={styles.codeBlock} role="region" aria-label="Profile information" tabIndex={0}>
+      <div
+        ref={codeBlockRef}
+        className={cx(styles.codeBlock, canScrollMore && styles.scrollable)}
+        role="region"
+        aria-label="Profile information"
+        tabIndex={0}
+      >
         <div className={styles.jsonGrid}>
           {/* First JSON File - Profile */}
           <div className={styles.jsonColumn}>

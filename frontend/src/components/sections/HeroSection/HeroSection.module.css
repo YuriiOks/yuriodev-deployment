@@ -31,6 +31,17 @@
     font-weight:500;
 }
 
+/* Daylight: the amber text ink reads as brown on white, so the subtitle
+   takes the title ink instead; the '|' separator keeps the bright amber
+   (a fill, not a text colour, so it stays legible). */
+[data-theme="light"] .heroSubtitle {
+    color: var(--title-ink);
+}
+
+.heroSubtitleSep {
+    color: var(--amber);
+}
+
 /* A centred box as wide as the longest line (--typewriter-width, set by
    HeroSection in ch), the text left-aligned inside it: the line grows
    from a fixed edge and never shifts sideways while it types. */
@@ -89,6 +100,15 @@
     --code-fs: 0.75rem;
 }
 
+/* A scroll cue: fades the trailing edge while there is more to reveal by
+   scrolling sideways (useHorizontalScrollFade), gone once scrolled all the
+   way there. Both prefixes: mask-image still needs -webkit- in Firefox
+   and Safari. */
+.scrollable {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent 100%);
+}
+
 .jsonGrid {
     display: grid;
     grid-template-columns: minmax(max-content, 1fr);
@@ -122,6 +142,12 @@
 .commandLine {
     color:var(--accent-secondary);
     margin-bottom:0.5rem;
+}
+
+/* Daylight: the amber text ink reads as brown; command lines take the
+   cyan ink instead. */
+[data-theme="light"] .commandLine {
+    color: var(--cyan-text);
 }
 
 .output {
@@ -158,6 +184,12 @@
     font-weight: 700;
 }
 
+/* Daylight: the amber text ink reads as brown; the outer braces take the
+   teal ink instead. */
+[data-theme="light"] .jsonBraceOuter {
+    color: var(--hue-teal);
+}
+
 .jsonBracket {
     color: var(--accent-primary);
     font-weight: 600;
@@ -180,15 +212,17 @@
     }
 }
 
-/* Side by side once both files fit: the longest lines are 63 and 62
-   characters, 75em of Fira Code (0.6em a character), plus 1.25rem either
-   side of the divider. The size follows the card's width, from 0.75rem
-   (where this query starts: 0.75rem x 76 + 2.5rem, a 1% margin) up to
-   0.9rem. */
-@container (min-width: 60rem) {
+/* Side by side only once both columns fit at a readable size: the longest
+   lines are 63 and 62 characters, 76em of Fira Code (0.6em a character)
+   including 1.25rem either side of the divider, so this query starts
+   where that comes to >= 13.5px (13.5px x 76 + 2.5rem, a 1% margin) -
+   about 67rem, comfortably more than the 60rem the card reaches at
+   1366px stacked. Below it the card stacks at the stacked --code-fs
+   (14px from 48rem up) instead of shrinking. */
+@container (min-width: 67rem) {
     .jsonGrid,
     .deploymentSection {
-        font-size: clamp(0.75rem, (100cqi - 2.5rem - 1px) / 76, 0.9rem);
+        font-size: clamp(13.5px, (100cqi - 2.5rem - 1px) / 76, 0.9rem);
     }
 
     .jsonGrid {
@@ -231,9 +265,17 @@
         font-size: 1.1rem;
     }
 
-    /* A phone wraps the longest lines in two: keep room for both. */
+    /* A phone wraps the longest lines in two: keep room for both. Below
+       about 34rem the box's ch width (54 characters) no longer fits at
+       1rem, so the font scales down with the viewport instead of letting
+       width:100% clamp the box - clamping it left the typed line flush
+       against the left edge instead of staying centred with the text
+       above it. The 3rem (not the section's own 2rem of padding) leaves
+       the box a little narrower than the available width, so margin:auto
+       actually has room to centre it instead of landing right back on the
+       clamp. */
     .typewriter {
-        font-size: 1rem;
+        font-size: min(1rem, calc((100vw - 3rem) / 54 / 0.6));
         min-height: 2lh;
     }
 
@@ -264,9 +306,5 @@
 
     .heroSubtitle {
         font-size: 0.95rem;
-    }
-
-    .typewriter {
-        font-size: 0.9rem;
     }
 }

@@ -2,9 +2,9 @@ import { test, expect, open } from './fixtures';
 
 /*
  * The hero at every reference size: the profile card's code lines never
- * wrap, the two files sit side by side only where both fit (and from
- * 1440px up they do), a phone scrolls the card rather than the page, and
- * the typewriter keeps one box while it types.
+ * wrap, the two files sit side by side only where both fit at a readable
+ * size (and from 1600px up they do), a phone scrolls the card rather than
+ * the page, and the typewriter keeps one box while it types.
  */
 
 test.describe('hero profile card', () => {
@@ -31,6 +31,7 @@ test.describe('hero profile card', () => {
         columnsInside: columns.every((column) => column.right <= el.getBoundingClientRect().right + 0.5),
         cardScrolls: el.scrollWidth > el.clientWidth + 1,
         pageOverflow: document.documentElement.scrollWidth - window.innerWidth,
+        codeFontPx: parseFloat(getComputedStyle(lines[1]).fontSize),
       };
     });
 
@@ -38,10 +39,17 @@ test.describe('hero profile card', () => {
     expect(geometry.wrapped, 'lines broken inside the card').toEqual([]);
     expect(geometry.pageOverflow, 'the page never scrolls sideways').toBeLessThanOrEqual(0);
     const width = page.viewportSize()!.width;
-    if (width >= 1440) expect(geometry.sideBySide, 'two columns from 1440px up').toBe(true);
+    // The threshold sits where both columns first fit at >= 13.5px (about
+    // 1540px); 1600px is the nearest reference size comfortably past it.
+    if (width >= 1600) expect(geometry.sideBySide, 'two columns from 1600px up').toBe(true);
     if (geometry.sideBySide) {
       expect(geometry.cardScrolls, 'side by side only where both fit').toBe(false);
       expect(geometry.columnsInside).toBe(true);
+      expect(geometry.codeFontPx, 'two columns only where both read at >= 13.5px').toBeGreaterThanOrEqual(13.5);
+    } else if (width >= 768) {
+      // Stacked at the tablet/small-desktop tier reads at the full 14px,
+      // never the size two columns would have shrunk it to.
+      expect(geometry.codeFontPx, 'stacked reads at 14px, not shrunk').toBeGreaterThanOrEqual(13.9);
     }
     if (geometry.cardScrolls) expect(geometry.sideBySide, 'a card that scrolls has its files stacked').toBe(false);
   });
