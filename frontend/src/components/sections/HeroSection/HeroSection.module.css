@@ -34,9 +34,23 @@
    targeted property (filter) for the animation's whole duration, so the
    drop-shadow glow set below would never paint while subtleGlow kept
    looping every 4s. The gradient name gets a steady glow instead. */
+/* Light: a crisp gradient name (no halo) as wide as its text, with the
+   neon in a thin glowing gold -> orange bar underneath. */
 [data-theme="light"] .heroTitle {
     color: var(--name-ink);
     animation: none;
+    width: fit-content;
+    margin-inline: auto;
+}
+
+[data-theme="light"] .heroTitle::after {
+    content: '';
+    display: block;
+    height: 0.06em;
+    margin: 0.16em 6% 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--name-gold) 18%, var(--name-orange) 82%, transparent);
+    box-shadow: var(--hero-name-bar-glow);
 }
 
 @supports (background-clip: text) or (-webkit-background-clip: text) {
@@ -47,7 +61,6 @@
         -webkit-text-fill-color: transparent;
         color: transparent;
         text-shadow: none;
-        filter: var(--hero-name-glow);
     }
 }
 
@@ -59,7 +72,11 @@
         background-image: none;
         -webkit-text-fill-color: currentColor;
         color: CanvasText;
-        filter: none;
+    }
+
+    [data-theme="light"] .heroTitle::after {
+        background: CanvasText;
+        box-shadow: none;
     }
 }
 
