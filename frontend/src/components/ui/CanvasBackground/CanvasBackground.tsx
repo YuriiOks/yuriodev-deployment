@@ -1,92 +1,110 @@
 import React, { useRef, useEffect } from 'react';
 import { onMotionChange, prefersReducedMotion } from '../../../utils/motion';
+import {
+  linkDistanceFor,
+  nodeCountFor,
+  rescaleNodes,
+  seedNodes,
+  stepNodes,
+  type FieldNode,
+  type Pointer,
+  type Size,
+  type Tone,
+} from './field';
 import styles from './CanvasBackground.module.css';
 
 /*
- * The animated "neural network" behind the page.
+ * The animated "neural network" behind the page: crisp dots with a soft glow,
+ * spread evenly over the whole window and drifting gently, linked by thin
+ * lines when they come close. The maths (seeding, resizing, movement) lives
+ * in field.ts.
  *
  * Cost controls:
- * - The backing store is a quarter of the CSS size. The browser's upscaling
- *   softens the picture, with a sixteenth of the pixels and no filter pass
- *   over the whole viewport; dimmer lines and dots and a wider glow bring it
- *   close to the old CSS `filter: blur(3px)` haze (it stays a little crisper).
- *   devicePixelRatio is deliberately not applied (well under any 2x cap), so a
- *   high-density screen never paints more.
+ * - The backing store is the CSS size times the device pixel ratio, capped
+ *   at 1.5: sharp on high-density screens without painting 4x the pixels.
+ * - Each tone's glow is a radial-gradient sprite drawn once (again only when
+ *   the theme or the pixel ratio changes) and stamped with drawImage; no
+ *   shadowBlur, which would blur every dot on every frame.
  * - At most 30 frames a second, with movement scaled by the elapsed time.
- * - The node count scales with the viewport area (20 on a phone, 60 at most).
+ * - The node count scales with the viewport area (18 on a phone, 80 at most).
  * - Colours are read from CSS on mount and when the theme changes, never per frame.
  * - Nothing runs while the tab is hidden; under reduced motion one static frame
  *   is drawn and no loop starts.
  * - Every listener, observer and pending frame is released on unmount.
  */
 
-const BACKING_SCALE = 0.25;
-// The old blur spread each line and dot over several pixels, which also
-// dimmed them; these bring the upscaled picture back to that soft haze.
-const LINK_ALPHA = { dark: 0.6, light: 1 };
-const NODE_ALPHA = 0.7;
-const GLOW_BLUR = { dark: 22, light: 8 }; // CSS px
-// On the light background the glow barely shows, so the dots themselves are
-// drawn wider; upscaled, they read as the old soft discs, not tiny squares.
-const NODE_SPREAD = { dark: 0, light: 1.5 }; // CSS px added to the radius
+const MAX_PIXEL_RATIO = 1.5;
 const FRAME_INTERVAL_MS = 1000 / 30;
-const BASE_STEP_MS = 1000 / 60; // the speeds below are tuned per 60 fps step
-const MIN_NODES = 20;
-const MAX_NODES = 60;
-const AREA_PER_NODE = 15000; // CSS px² per node
-const INTERACTION_RADIUS = 120;
-const REPULSION_STRENGTH = 0.6;
-const DAMPING = 0.98;
-const LINK_DISTANCE = 180;
-const MAX_LINKS_PER_NODE = 4;
-
-type Tone = 'primary' | 'secondary' | 'tertiary';
-
-interface Node {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  glow: number;
-  tone: Tone;
-  fill: string;
-}
+const BASE_STEP_MS = 1000 / 60; // the speeds in field.ts are per 60 fps step
+const GLOW_RADIUS = 14; // CSS px: how far a dot's glow reaches
+const MAX_LINKS_PER_NODE = 3;
+const LINE_WIDTH = 0.75; // CSS px
 
 interface Palette {
-  dark: boolean;
   colors: Record<Tone, string>;
+  dotAlpha: number;
+  glowAlpha: number;
+  lineAlpha: number;
 }
 
-const FALLBACK_COLORS: Record<Tone, string> = { primary: '#00d4ff', secondary: '#ffc107', tertiary: '#2dd4bf' };
+const FALLBACK: Palette = {
+  colors: { 0: '#00d4ff', 1: '#ffc107', 2: '#2dd4bf' },
+  dotAlpha: 0.85,
+  glowAlpha: 0.5,
+  lineAlpha: 0.2,
+};
 
 function readPalette(): Palette {
-  const root = document.documentElement;
-  const style = getComputedStyle(root);
-  const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  const style = getComputedStyle(document.documentElement);
+  const color = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  const alpha = (name: string, fallback: number) => {
+    const value = Number.parseFloat(style.getPropertyValue(name));
+    return Number.isFinite(value) ? value : fallback;
+  };
   return {
-    dark: root.getAttribute('data-theme') !== 'light',
     colors: {
-      primary: read('--accent-primary', FALLBACK_COLORS.primary),
-      secondary: read('--accent-secondary', FALLBACK_COLORS.secondary),
-      tertiary: read('--accent-tertiary', FALLBACK_COLORS.tertiary),
+      0: color('--canvas-1', FALLBACK.colors[0]),
+      1: color('--canvas-2', FALLBACK.colors[1]),
+      2: color('--canvas-3', FALLBACK.colors[2]),
     },
+    dotAlpha: alpha('--canvas-dot-alpha', FALLBACK.dotAlpha),
+    glowAlpha: alpha('--canvas-glow-alpha', FALLBACK.glowAlpha),
+    lineAlpha: alpha('--canvas-line-alpha', FALLBACK.lineAlpha),
   };
 }
 
-/** Two-digit hex alpha for a 0-1 opacity, appended to a #rrggbb colour. */
-function alphaHex(opacity: number): string {
-  const value = Math.max(0, Math.min(255, Math.floor(opacity * 255)));
-  return value.toString(16).padStart(2, '0');
+/** A soft round glow in `color`, fading to nothing at its edge, `scale` backing pixels per CSS pixel. */
+function glowSprite(color: string, scale: number): HTMLCanvasElement | null {
+  const sprite = document.createElement('canvas');
+  const size = Math.max(2, Math.ceil(GLOW_RADIUS * 2 * scale));
+  sprite.width = size;
+  sprite.height = size;
+  const ctx = sprite.getContext('2d');
+  if (!ctx || typeof ctx.createRadialGradient !== 'function') return null;
+  const r = size / 2;
+  const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+  gradient.addColorStop(0, withAlpha(color, 0.9));
+  gradient.addColorStop(0.18, withAlpha(color, 0.45));
+  gradient.addColorStop(0.5, withAlpha(color, 0.12));
+  gradient.addColorStop(1, withAlpha(color, 0));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return sprite;
 }
 
-function nodeCountFor(width: number, height: number): number {
-  return Math.max(MIN_NODES, Math.min(MAX_NODES, Math.round((width * height) / AREA_PER_NODE)));
-}
-
-function randomTone(): Tone {
-  if (Math.random() > 0.7) return 'secondary';
-  return Math.random() > 0.5 ? 'tertiary' : 'primary';
+/** `color` (#rgb, #rrggbb or rgb()) at `alpha`, as an rgba() string. */
+function withAlpha(color: string, alpha: number): string {
+  const hex = color.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  let rgb: number[] | null = null;
+  if (hex) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    rgb = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  } else {
+    const fn = color.match(/^rgba?\(([^)]+)\)$/i);
+    if (fn) rgb = fn[1].split(',').slice(0, 3).map((part) => Number(part.trim()));
+  }
+  if (!rgb || rgb.some((n) => !Number.isFinite(n))) return color;
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
 const CanvasBackground: React.FC = () => {
@@ -98,136 +116,90 @@ const CanvasBackground: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    const rand = Math.random;
+    let size: Size = { width: window.innerWidth, height: window.innerHeight };
+    let scale = 1;
     let palette = readPalette();
+    let sprites: Record<Tone, HTMLCanvasElement | null> = { 0: null, 1: null, 2: null };
+    let dotFills: Record<Tone, string> = { 0: '', 1: '', 2: '' };
+    let lineColors: Record<Tone, string> = { 0: '', 1: '', 2: '' };
+    let linkDistance = 180;
     let reducedMotion = prefersReducedMotion();
-    const mouse: { x: number | null; y: number | null } = { x: null, y: null };
-    const nodes: Node[] = [];
+    let pointer: Pointer | null = null;
+    let nodes: FieldNode[] = [];
 
     let frameId = 0;
     let running = false;
     let lastFrame = 0;
     let resizeFrameId = 0;
 
-    const nodeFill = (node: Node) =>
-      palette.colors[node.tone] + alphaHex((NODE_ALPHA * node.glow * (palette.dark ? 200 : 100)) / 255);
+    const pixelRatio = () => Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_PIXEL_RATIO);
 
-    const makeNode = (): Node => {
-      const node: Node = {
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.8,
-        vy: (Math.random() - 0.5) * 0.8,
-        radius: Math.random() * 2.5 + 1.5,
-        glow: Math.random() * 0.5 + 0.5,
-        tone: randomTone(),
-        fill: '',
+    const paint = () => {
+      sprites = { 0: glowSprite(palette.colors[0], scale), 1: glowSprite(palette.colors[1], scale), 2: glowSprite(palette.colors[2], scale) };
+      dotFills = {
+        0: withAlpha(palette.colors[0], palette.dotAlpha),
+        1: withAlpha(palette.colors[1], palette.dotAlpha),
+        2: withAlpha(palette.colors[2], palette.dotAlpha),
       };
-      node.fill = nodeFill(node);
-      return node;
+      lineColors = { 0: palette.colors[0], 1: palette.colors[1], 2: palette.colors[2] };
     };
 
     const fitCanvas = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
+      const next = { width: window.innerWidth, height: window.innerHeight };
+      const nextScale = pixelRatio();
       // Resizing the backing store also resets the context state.
-      canvas.width = Math.max(1, Math.round(width * BACKING_SCALE));
-      canvas.height = Math.max(1, Math.round(height * BACKING_SCALE));
-      ctx.setTransform(BACKING_SCALE, 0, 0, BACKING_SCALE, 0, 0);
+      canvas.width = Math.max(1, Math.round(next.width * nextScale));
+      canvas.height = Math.max(1, Math.round(next.height * nextScale));
+      ctx.setTransform(nextScale, 0, 0, nextScale, 0, 0);
 
-      const wanted = nodeCountFor(width, height);
-      while (nodes.length < wanted) nodes.push(makeNode());
-      nodes.length = wanted;
-      for (const node of nodes) {
-        node.x = Math.min(node.x, width - node.radius);
-        node.y = Math.min(node.y, height - node.radius);
+      const count = nodeCountFor(next);
+      nodes = nodes.length === 0 ? seedNodes(count, next, rand) : rescaleNodes(nodes, size, next, count, rand);
+      linkDistance = linkDistanceFor(next, count);
+      size = next;
+      if (nextScale !== scale || sprites[0] === null) {
+        scale = nextScale;
+        paint();
       }
     };
 
-    const step = (dt: number) => {
-      const damping = Math.pow(DAMPING, dt);
-      for (const node of nodes) {
-        if (mouse.x !== null && mouse.y !== null) {
-          const dx = node.x - mouse.x;
-          const dy = node.y - mouse.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance > 0 && distance < INTERACTION_RADIUS) {
-            const force = ((INTERACTION_RADIUS - distance) / INTERACTION_RADIUS) * REPULSION_STRENGTH * dt;
-            node.vx += (dx / distance) * force;
-            node.vy += (dy / distance) * force;
-          }
-        }
+    const draw = () => {
+      ctx.clearRect(0, 0, size.width, size.height);
 
-        node.x += node.vx * dt;
-        node.y += node.vy * dt;
-        node.vx *= damping;
-        node.vy *= damping;
-
-        if (Math.abs(node.vx) < 0.05 && Math.abs(node.vy) < 0.05) {
-          node.vx += (Math.random() - 0.5) * 0.1;
-          node.vy += (Math.random() - 0.5) * 0.1;
-        }
-
-        if (node.x - node.radius < 0) {
-          node.x = node.radius;
-          node.vx *= -0.8;
-        } else if (node.x + node.radius > width) {
-          node.x = width - node.radius;
-          node.vx *= -0.8;
-        }
-        if (node.y - node.radius < 0) {
-          node.y = node.radius;
-          node.vy *= -0.8;
-        } else if (node.y + node.radius > height) {
-          node.y = height - node.radius;
-          node.vy *= -0.8;
-        }
-      }
-    };
-
-    // trails: true paints a translucent wash over the last frame (the moving
-    // version); false starts from a clean canvas (the static frame).
-    const draw = (trails: boolean) => {
-      if (trails) {
-        ctx.fillStyle = palette.dark ? 'rgba(10, 15, 28, 0.15)' : 'rgba(248, 250, 252, 0.05)';
-        ctx.fillRect(0, 0, width, height);
-      } else {
-        ctx.clearRect(0, 0, width, height);
-      }
-
-      // shadowBlur is in backing-store pixels and ignores the transform.
-      ctx.shadowBlur = (palette.dark ? GLOW_BLUR.dark : GLOW_BLUR.light) * BACKING_SCALE;
-      const spread = palette.dark ? NODE_SPREAD.dark : NODE_SPREAD.light;
-      for (const node of nodes) {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius + spread, 0, Math.PI * 2);
-        ctx.fillStyle = node.fill;
-        ctx.shadowColor = palette.colors[node.tone];
-        ctx.fill();
-      }
-      ctx.shadowBlur = 0;
-
-      ctx.lineWidth = 0.8;
-      const maxLinks = nodes.length * 1.5;
-      let links = 0;
-      for (let i = 0; i < nodes.length && links <= maxLinks; i++) {
-        let nodeLinks = 0;
-        for (let j = i + 1; j < nodes.length && nodeLinks < MAX_LINKS_PER_NODE && links <= maxLinks; j++) {
+      // Lines first, under the dots: thin, fading with distance.
+      ctx.lineWidth = LINE_WIDTH;
+      const maxDistance2 = linkDistance * linkDistance;
+      for (let i = 0; i < nodes.length; i++) {
+        let links = 0;
+        for (let j = i + 1; j < nodes.length && links < MAX_LINKS_PER_NODE; j++) {
           const dx = nodes[i].x - nodes[j].x;
           const dy = nodes[i].y - nodes[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance >= LINK_DISTANCE) continue;
-          const opacity = ((palette.dark ? LINK_ALPHA.dark * 0.3 : LINK_ALPHA.light * 0.15) * (LINK_DISTANCE - distance)) / LINK_DISTANCE;
-          const color = distance < LINK_DISTANCE / 2 ? palette.colors.secondary : palette.colors.primary;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= maxDistance2) continue;
+          ctx.globalAlpha = palette.lineAlpha * (1 - Math.sqrt(d2) / linkDistance);
+          ctx.strokeStyle = lineColors[nodes[i].tone];
           ctx.beginPath();
           ctx.moveTo(nodes[i].x, nodes[i].y);
           ctx.lineTo(nodes[j].x, nodes[j].y);
-          ctx.strokeStyle = color + alphaHex(opacity);
           ctx.stroke();
-          nodeLinks++;
           links++;
         }
+      }
+
+      // Glow sprites, then the crisp dot on top.
+      for (const node of nodes) {
+        const sprite = sprites[node.tone];
+        if (sprite) {
+          ctx.globalAlpha = palette.glowAlpha * node.glow;
+          ctx.drawImage(sprite, node.x - GLOW_RADIUS, node.y - GLOW_RADIUS, GLOW_RADIUS * 2, GLOW_RADIUS * 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+      for (const node of nodes) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.fillStyle = dotFills[node.tone];
+        ctx.fill();
       }
     };
 
@@ -236,8 +208,8 @@ const CanvasBackground: React.FC = () => {
       if (lastFrame && now - lastFrame < FRAME_INTERVAL_MS - 1) return;
       const dt = lastFrame ? Math.min((now - lastFrame) / BASE_STEP_MS, 4) : 1;
       lastFrame = now;
-      step(dt);
-      draw(true);
+      stepNodes(nodes, dt, size, pointer, rand);
+      draw();
     };
 
     const start = () => {
@@ -254,7 +226,7 @@ const CanvasBackground: React.FC = () => {
 
     const refresh = () => {
       if (running) return;
-      draw(false);
+      draw();
     };
 
     const onResize = () => {
@@ -267,12 +239,10 @@ const CanvasBackground: React.FC = () => {
     };
 
     const onMouseMove = (event: MouseEvent) => {
-      mouse.x = event.clientX;
-      mouse.y = event.clientY;
+      pointer = { x: event.clientX, y: event.clientY };
     };
     const onMouseLeave = () => {
-      mouse.x = null;
-      mouse.y = null;
+      pointer = null;
     };
 
     const onVisibilityChange = () => {
@@ -293,7 +263,7 @@ const CanvasBackground: React.FC = () => {
     // Re-read the colours only when the theme actually changes.
     const themeObserver = new MutationObserver(() => {
       palette = readPalette();
-      for (const node of nodes) node.fill = nodeFill(node);
+      paint();
       refresh();
     });
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -304,7 +274,7 @@ const CanvasBackground: React.FC = () => {
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     fitCanvas();
-    draw(false);
+    draw();
     start();
 
     return () => {

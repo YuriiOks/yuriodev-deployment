@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import CanvasBackground from './CanvasBackground';
+import { MIN_NODES } from './field';
 
 const originalMatchMedia = window.matchMedia;
+const originalPixelRatio = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
+
+function setPixelRatio(ratio: number) {
+  Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: () => ratio });
+}
 
 function setReducedMotion(reduced: boolean) {
   window.matchMedia = ((query: string) => ({
@@ -41,6 +47,7 @@ describe('CanvasBackground', () => {
   });
   afterEach(() => {
     window.matchMedia = originalMatchMedia;
+    if (originalPixelRatio) Object.defineProperty(window, 'devicePixelRatio', originalPixelRatio);
     vi.restoreAllMocks();
   });
 
@@ -74,21 +81,46 @@ describe('CanvasBackground', () => {
     expect(ctx.arc).toHaveBeenCalled();
   });
 
-  it('uses a low-resolution backing store and fewer nodes on a small screen', () => {
+  it('draws at the screen resolution, capped at 1.5x, with fewer nodes on a small screen', () => {
     setReducedMotion(true);
     const ctx = (HTMLCanvasElement.prototype.getContext as unknown as () => CanvasRenderingContext2D)();
     vi.mocked(ctx.arc).mockClear();
-    const width = vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(375);
-    const height = vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(812);
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(375);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(812);
+    setPixelRatio(3);
 
     const { container } = render(<CanvasBackground />);
     const canvas = container.querySelector('canvas')!;
-    expect(canvas.width).toBe(94);
-    expect(canvas.height).toBe(203);
-    // One arc per node: the 20-node floor for a phone-sized viewport.
-    expect(ctx.arc).toHaveBeenCalledTimes(20);
+    expect(canvas.width).toBe(Math.round(375 * 1.5));
+    expect(canvas.height).toBe(Math.round(812 * 1.5));
+    expect(ctx.setTransform).toHaveBeenLastCalledWith(1.5, 0, 0, 1.5, 0, 0);
+    // One arc per node: the 18-node floor for a phone-sized viewport.
+    expect(ctx.arc).toHaveBeenCalledTimes(MIN_NODES);
+  });
 
-    width.mockRestore();
-    height.mockRestore();
+  it('a 1x screen gets a 1x backing store', () => {
+    setReducedMotion(true);
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1280);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800);
+    setPixelRatio(1);
+
+    const { container } = render(<CanvasBackground />);
+    const canvas = container.querySelector('canvas')!;
+    expect([canvas.width, canvas.height]).toEqual([1280, 800]);
+  });
+
+  it('stamps pre-rendered glow sprites instead of blurring every dot', () => {
+    setReducedMotion(true);
+    const ctx = (HTMLCanvasElement.prototype.getContext as unknown as () => CanvasRenderingContext2D)();
+    vi.mocked(ctx.drawImage).mockClear();
+    vi.mocked(ctx.createRadialGradient).mockClear();
+    vi.mocked(ctx.arc).mockClear();
+    ctx.shadowBlur = 0;
+
+    render(<CanvasBackground />);
+    // One sprite per tone, one stamp per node.
+    expect(ctx.createRadialGradient).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(ctx.drawImage).mock.calls.length).toBe(vi.mocked(ctx.arc).mock.calls.length);
+    expect(ctx.shadowBlur).toBe(0);
   });
 });
