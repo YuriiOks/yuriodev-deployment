@@ -1,0 +1,7 @@
+# Accepted findings for the pinned proxy image only (proxy-image.yml). Every entry
+# needs a reason and an expiry; an expired entry fails the scan again.
+
+# libexpat XML injection. The proxy is stock nginx with no XML/XSLT module loaded,
+# so nothing in it parses XML with expat. Upstream nginx:stable-alpine has not been
+# rebuilt with expat 2.8.5 yet; re-pin when it is (Dependabot proposes the digest).
+CVE-2026-93990 exp:2026-10-26

@@ -43,6 +43,21 @@ updates:
       - dependency-name: node
         update-types: ["version-update:semver-major"]
 
+  # The proxy image in the root docker-compose.yml is pinned as nginx:stable-alpine@sha256:...;
+  # this proposes a fresh digest when stable-alpine moves (the proxy-image.yml workflow scans
+  # it). A merged bump still needs the manual proxy recreate in deploy/README.md: the deploy
+  # agent never touches the proxy. The app images' tags are moved by the release pipeline
+  # instead. Dependabot names compose images WITHOUT the registry host, hence
+  # "yuriioks/yuriodev-*" rather than "ghcr.io/yuriioks/...".
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      - dependency-name: "yuriioks/yuriodev-frontend"
+      - dependency-name: "yuriioks/yuriodev-backend"
+
   # Actions are pinned to full commit SHAs (repo policy); Dependabot bumps the SHA and the version comment.
   - package-ecosystem: github-actions
     directory: /

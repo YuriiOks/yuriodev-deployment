@@ -95,6 +95,18 @@ jobs:
         run: mypy
       - name: Tests (90% branch-coverage gate from pyproject.toml)
         run: python -m pytest -q --cov --cov-report=term-missing
+      # Same gate as images.yml, but at PR time. Trivy reads only the direct pins in
+      # requirements.txt (no lockfile); transitive packages are covered after merge by the
+      # image scan in images.yml.
+      - name: No fixable HIGH/CRITICAL in the backend's pinned dependencies
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ github.workspace }}/backend   # absolute: independent of the job's working-directory
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
 
   guards:
     runs-on: ubuntu-24.04
@@ -106,7 +118,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install pyyaml==6.0.2
-      - name: Compose invariants (targets, image tags, names, agent view, hardening shape)
+      - name: Compose invariants (targets, image tags, names, agent view, ports, proxy pin + :ro)
         run: python scripts/check-compose.py
       - name: Compose files are valid
         run: |

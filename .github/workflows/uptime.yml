@@ -15,6 +15,10 @@ on:
         description: 'Inject a fake problem to test the alert path (opens the monitor issue)'
         type: boolean
         default: false
+      simulate_html_health:
+        description: 'Treat /api/health as if it answered with an HTML error page (tests the non-JSON path; opens the monitor issue)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,27 +40,46 @@ jobs:
         id: probe
         run: |
           problems=()
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/" || echo 000)
+          # curl prints the write-out ("000") even when it fails, so default only an EMPTY result:
+          # `|| echo 000` would append a second 000 on a timeout or refused connection.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/" || true); code=${code:-000}
           [ "$code" = 200 ] || problems+=("site / returned HTTP $code")
-          health=$(curl -s --max-time 20 "$SITE/api/health" || true)
-          status=$(jq -r '.status // empty' <<<"$health" 2>/dev/null)
-          env_name=$(jq -r '.environment // empty' <<<"$health" 2>/dev/null)
-          revision=$(jq -r '.revision // empty' <<<"$health" 2>/dev/null)
-          [ "$status" = healthy ] || problems+=("/api/health status is '${status:-no answer}'")
-          [ "$env_name" = prod ] || problems+=("/api/health environment is '${env_name:-missing}', expected prod")
+          # The default shell is `bash -e`: every command substitution below must not be able to
+          # fail (|| true), or the step dies before `failed` is set and no issue is opened --
+          # exactly when /api/health answers with a Cloudflare/nginx HTML error page.
+          status=; env_name=; revision=
+          health_code=$(curl -s -o health.json -w '%{http_code}' --max-time 20 "$SITE/api/health" || true)
+          health_code=${health_code:-000}
+          if [ "${{ inputs.simulate_html_health }}" = true ]; then
+            printf '<html><head><title>502 Bad Gateway</title></head></html>\n' > health.json
+          fi
+          if jq -e 'type == "object"' health.json >/dev/null 2>&1; then
+            status=$(jq -r '.status // empty' health.json 2>/dev/null || true)
+            env_name=$(jq -r '.environment // empty' health.json 2>/dev/null || true)
+            revision=$(jq -r '.revision // empty' health.json 2>/dev/null || true)
+            [ "$status" = healthy ] || problems+=("/api/health status is '${status:-missing}' (HTTP $health_code)")
+            [ "$env_name" = prod ] || problems+=("/api/health environment is '${env_name:-missing}', expected prod")
+          else
+            snippet=$(head -c 160 health.json 2>/dev/null | LC_ALL=C tr -c 'A-Za-z0-9 .:/_-' ' ' | tr -s ' ' || true)
+            snippet=${snippet# }
+            problems+=("/api/health did not answer JSON (HTTP $health_code): ${snippet:-empty body}")
+          fi
           [ "${{ inputs.simulate_failure }}" = true ] && problems+=("simulated failure (manual alert-path test)")
           release=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name + " " + .published_at' 2>/dev/null || true)
           tag=${release%% *}; published=${release#* }
           if [ -n "$tag" ]; then
-            want=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)
-            age=$(( ( $(date +%s) - $(date -d "$published" +%s) ) / 60 ))
-            if [ -n "$revision" ] && [ "$revision" != "$want" ] && [ "$age" -ge "$GRACE_MINUTES" ]; then
-              problems+=("production runs ${revision:0:7}, latest release $tag is ${want:0:7} (published ${age} min ago): deploy agent stuck?")
+            want=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha 2>/dev/null || true)
+            published_s=$(date -d "$published" +%s 2>/dev/null || true)
+            if [ -n "$want" ] && [ -n "$published_s" ] && [ -n "$revision" ] && [ "$revision" != "$want" ]; then
+              age=$(( ( $(date +%s) - published_s ) / 60 ))
+              if [ "$age" -ge "$GRACE_MINUTES" ]; then
+                problems+=("production runs ${revision:0:7}, latest release $tag is ${want:0:7} (published ${age} min ago): deploy agent stuck?")
+              fi
             fi
           fi
           {
             echo "### Production monitor"
-            echo "- / -> $code; /api/health -> status=${status:-?} environment=${env_name:-?} revision=${revision:0:7}"
+            echo "- / -> $code; /api/health -> HTTP $health_code status=${status:-?} environment=${env_name:-?} revision=${revision:0:7}"
             echo "- latest release: ${tag:-none}"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ ${#problems[@]} -gt 0 ]; then
@@ -67,8 +90,10 @@ jobs:
             echo "failed=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Open or update the monitor issue
-        if: steps.probe.outputs.failed == 'true'
+        # Also runs when the probe step itself crashed (no `failed` output at all).
+        if: ${{ !cancelled() && steps.probe.outputs.failed != 'false' }}
         run: |
+          [ -s problems.txt ] || echo "the probe step failed before it could report (see run log)" > problems.txt
           gh label create monitor --color B60205 --description "Production monitor alert" --force -R "$GITHUB_REPOSITORY" >/dev/null
           body=$(printf 'The production monitor found a problem (last checked %s UTC, run %s):\n\n%s\n\nThis issue closes itself when the checks pass again.' \
             "$(date -u +'%Y-%m-%d %H:%M')" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$(sed 's/^/- /' problems.txt)")

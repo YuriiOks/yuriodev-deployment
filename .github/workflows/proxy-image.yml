@@ -1,0 +1,59 @@
+name: Proxy image
+
+# The proxy runs a public nginx image pinned by digest in docker-compose.yml (Dependabot's
+# docker-compose entry proposes new digests). This fails on a fixable HIGH/CRITICAL CVE in that
+# exact image. It is deliberately NOT part of ci.yml: images.yml builds app images only when the
+# whole CI workflow succeeded, and the pipeline never builds or ships the proxy, so a proxy CVE
+# must not stop :dev/:stage from moving or block a hotfix. A red run here means: merge
+# Dependabot's digest bump (or pin a fresh digest by hand), then recreate the proxy by hand
+# (deploy/README.md, "The proxy image"). It scans the PINNED image, not the running one:
+# .claude/scripts/smoke-test.sh reports when the running proxy lags behind the pin.
+# Note: GitHub disables the schedule after 60 days without a commit to master.
+on:
+  push:
+    branches: [master]
+    paths: [docker-compose.yml, .github/workflows/proxy-image.yml]
+  pull_request:
+    paths: [docker-compose.yml, .github/workflows/proxy-image.yml]
+  schedule:
+    - cron: '17 6 * * 1'   # weekly: new CVEs land in an unchanged digest
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proxy-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the pinned proxy image from docker-compose.yml
+        id: ref
+        run: |
+          image=$(awk '/^  proxy:/{p=1} p&&/^    image:/{print $2; exit}' docker-compose.yml)
+          case "$image" in
+            *@sha256:*) echo "image=$image" >> "$GITHUB_OUTPUT"; echo "Scanning $image" ;;
+            *) echo "::error::the proxy image '$image' is not pinned by digest"; exit 1 ;;
+          esac
+      - name: No fixable HIGH/CRITICAL in the pinned proxy image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.ref.outputs.image }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          trivyignores: .github/trivy/proxy.trivyignore
+          exit-code: '1'
+          format: table
+          output: trivy-proxy.txt
+      - name: Scan summary
+        if: ${{ !cancelled() && steps.ref.outputs.image != '' }}
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          { echo "### Trivy (proxy $IMAGE, fixable HIGH/CRITICAL)"; echo '```'; cat trivy-proxy.txt 2>/dev/null || echo "(no report)"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
