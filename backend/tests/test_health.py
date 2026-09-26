@@ -1,40 +1,37 @@
-# Website API Tests - /health endpoint
-# File: tests/test_health.py
+"""GET|HEAD /health and /api/health."""
 
-from src.core.config import settings
+import pytest
+
+PATHS = ("/health", "/api/health")
 
 
-def test_health_check_returns_200(client):
-    response = client.get("/health")
+@pytest.mark.parametrize("path", PATHS)
+def test_get_returns_the_health_payload(client, path):
+    response = client.get(path)
+
     assert response.status_code == 200
+    assert response.json() == {
+        "status": "healthy",
+        "service": "yuriodev-api",
+        "environment": "test",
+        "revision": "abc1234",
+    }
 
 
-def test_health_check_reports_healthy_status(client):
-    response = client.get("/health")
-    body = response.json()
-    assert body["status"] == "healthy"
+@pytest.mark.parametrize("path", PATHS)
+def test_head_is_allowed(client, path):
+    response = client.head(path)
 
-
-def test_health_check_reports_service_name(client):
-    response = client.get("/health")
-    body = response.json()
-    assert body["service"] == "website-api-relay"
-
-
-def test_health_check_reports_environment(client):
-    response = client.get("/health")
-    body = response.json()
-    assert body["environment"] == settings.environment
-
-
-def test_health_check_reports_revision(client):
-    response = client.get("/health")
-    body = response.json()
-    assert body["revision"] == settings.revision
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
 
 
 def test_public_api_health_matches_internal_health(client):
-    # /api/health is what the proxy exposes publicly (and what the monitor reads)
-    public = client.get("/api/health")
-    assert public.status_code == 200
-    assert public.json() == client.get("/health").json()
+    assert client.get("/api/health").json() == client.get("/health").json()
+
+
+def test_environment_and_revision_default_to_unknown(make_client):
+    body = make_client().get("/api/health").json()
+
+    assert body["environment"] == "unknown"
+    assert body["revision"] == "unknown"

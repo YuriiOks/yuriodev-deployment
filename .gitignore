@@ -70,6 +70,7 @@ __MACOSX/
 !.claude/rules/*.md
 !/CLAUDE.md
 !/ERRORS.md
+!/SECURITY.md
 CLAUDE.local.md
 
 # Build and runtime byproducts
@@ -81,3 +82,8 @@ backend/logs/
 frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/
+.mypy_cache/
