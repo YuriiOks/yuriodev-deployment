@@ -21,6 +21,14 @@
   margin-bottom: 3rem;
 }
 
+/* From 90rem the whole page scales with the screen, so the three cards keep one
+   row at every size (auto-fit alone sits right on the 2/3-column edge there). */
+@media (min-width: 90rem) {
+  .aboutGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Card Styles */
 .summaryCard,
 .missionCard,
