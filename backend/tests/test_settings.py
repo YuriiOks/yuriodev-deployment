@@ -21,6 +21,12 @@ def test_defaults_are_safe(clean_env):
     assert settings.api_docs_enabled is False
     assert settings.log_level == "INFO"
     assert settings.log_format == "json"
+    assert settings.social_feed_enabled is False
+    assert settings.social_feed_provider == "fixture"
+    assert settings.social_feed_refresh_seconds == 1800
+    assert settings.social_feed_snapshot_path is None
+    assert settings.typefully_api_key is None
+    assert settings.typefully_social_set_id is None
 
 
 def test_cors_origins_parsed_from_json_list(clean_env):
@@ -102,3 +108,67 @@ def test_get_settings_is_cached_and_reads_the_environment(clean_env):
 
     assert first is get_settings()
     assert first.environment == "cached-env"
+
+
+def test_feed_settings_read_from_env(clean_env):
+    clean_env.setenv("SOCIAL_FEED_ENABLED", "true")
+    clean_env.setenv("SOCIAL_FEED_PROVIDER", " Typefully ")
+    clean_env.setenv("TYPEFULLY_SOCIAL_SET_ID", "334563")
+    clean_env.setenv("TYPEFULLY_API_KEY", "tf-secret-value")
+    clean_env.setenv("SOCIAL_FEED_REFRESH_SECONDS", "900")
+    clean_env.setenv("SOCIAL_FEED_SNAPSHOT_PATH", "/app/data/posts-snapshot.json")
+
+    settings = fresh()
+
+    assert settings.social_feed_enabled is True
+    assert settings.social_feed_provider == "typefully"
+    assert settings.typefully_social_set_id == 334563
+    assert settings.typefully_api_key.get_secret_value() == "tf-secret-value"
+    assert settings.social_feed_refresh_seconds == 900
+    assert settings.social_feed_snapshot_path == "/app/data/posts-snapshot.json"
+
+
+def test_the_api_key_is_masked(clean_env):
+    clean_env.setenv("TYPEFULLY_API_KEY", "tf-secret-value")
+
+    settings = fresh()
+
+    assert "tf-secret-value" not in repr(settings)
+    assert "tf-secret-value" not in str(settings)
+    assert "tf-secret-value" not in settings.model_dump_json()
+
+
+def test_an_empty_api_key_line_means_unset(clean_env):
+    clean_env.setenv("TYPEFULLY_API_KEY", "")
+    clean_env.setenv("TYPEFULLY_SOCIAL_SET_ID", "")
+
+    settings = fresh()
+
+    assert settings.typefully_api_key is None
+    assert settings.typefully_social_set_id is None
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(" tf-key\n", "tf-key"), (" \t\n", None)])
+def test_the_api_key_is_stripped_and_blank_means_unset(clean_env, raw, expected):
+    clean_env.setenv("TYPEFULLY_API_KEY", raw)
+
+    key = fresh().typefully_api_key
+
+    assert (key.get_secret_value() if key else None) == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("SOCIAL_FEED_PROVIDER", "x-api"),
+        ("SOCIAL_FEED_REFRESH_SECONDS", "10"),
+        ("SOCIAL_FEED_MAX_ITEMS", "0"),
+        ("TYPEFULLY_SOCIAL_SET_ID", "0"),
+        ("TYPEFULLY_SOCIAL_SET_ID", "abc"),
+    ],
+)
+def test_invalid_feed_values_are_rejected(clean_env, name, value):
+    clean_env.setenv(name, value)
+
+    with pytest.raises(ValidationError):
+        fresh()

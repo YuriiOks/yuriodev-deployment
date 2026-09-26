@@ -75,3 +75,9 @@ def make_client(make_settings: Callable[..., Settings]) -> Iterator[Callable[...
 @pytest.fixture
 def client(make_client: Callable[..., TestClient]) -> TestClient:
     return make_client(environment="test", revision="abc1234")
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    """Async tests run on asyncio only (anyio's pytest plugin ships with starlette)."""
+    return "asyncio"

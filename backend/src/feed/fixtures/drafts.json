@@ -1,0 +1,634 @@
+{
+  "drafts": [
+    {
+      "id": 101,
+      "social_set_id": 1,
+      "draft_id": 101,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-20T08:00:00.000Z",
+      "updated_at": "2026-09-20T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-20T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "\ud835\uddd9\ud835\uddf6\ud835\ude05\ud835\ude01\ud835\ude02\ud835\uddff\ud835\uddf2 thread: a synthetic post for dev and stage. \ud83e\uddf5",
+              "media_ids": [
+                "FIXTURE-MEDIA-SENTINEL"
+              ],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            },
+            {
+              "text": "Part two mentions @example_handle and #FixtureTag, and links https://example.com/page.",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            },
+            {
+              "text": "Part three keeps emoji joiners \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67 and selectors \u2714\ufe0f byte for byte.",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "\ud835\uddd9\ud835\uddf6\ud835\ude05\ud835\ude01\ud835\ude02\ud835\uddff\ud835\uddf2: the LinkedIn version of the same synthetic post.\n\nIt is longer and reads as one piece of text.\n\n#Fixture #Testing",
+              "media_ids": [],
+              "linkedin_reshare_urn": null,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "https://x.com/YuriODev/status/1000000000000000001",
+      "linkedin_published_url": "https://www.linkedin.com/feed/update/urn:li:share:7000000000000000001",
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-20T09:00:05.000Z",
+      "linkedin_post_published_at": "2026-09-20T09:00:01.000Z",
+      "x_article_published_at": null
+    },
+    {
+      "id": 102,
+      "social_set_id": 1,
+      "draft_id": 102,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-18T08:00:00.000Z",
+      "updated_at": "2026-09-18T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-18T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "A LinkedIn-only synthetic post, with a line break\nand a link https://example.org.",
+              "media_ids": [],
+              "linkedin_reshare_urn": null,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": null,
+      "linkedin_published_url": "https://www.linkedin.com/feed/update/urn:li:share:7000000000000000002",
+      "x_article_published_url": null,
+      "x_post_published_at": null,
+      "linkedin_post_published_at": "2026-09-18T09:00:01.000Z",
+      "x_article_published_at": null
+    },
+    {
+      "id": 103,
+      "social_set_id": 1,
+      "draft_id": 103,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-16T08:00:00.000Z",
+      "updated_at": "2026-09-16T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-16T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "An X-only synthetic post. This text is fixture data, not a real post.",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "https://x.com/YuriODev/status/1000000000000000003",
+      "linkedin_published_url": null,
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-16T09:00:05.000Z",
+      "linkedin_post_published_at": null,
+      "x_article_published_at": null
+    },
+    {
+      "id": 104,
+      "social_set_id": 1,
+      "draft_id": 104,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-14T08:00:00.000Z",
+      "updated_at": "2026-09-14T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-14T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "Bidi override \u202eFIXTURE-BIDI\u202c and a control char\u0007 are stripped; javascript:alert(1) stays plain text.",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "https://x.com/YuriODev/status/1000000000000000004",
+      "linkedin_published_url": null,
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-14T09:00:05.000Z",
+      "linkedin_post_published_at": null,
+      "x_article_published_at": null
+    },
+    {
+      "id": 105,
+      "social_set_id": 1,
+      "draft_id": 105,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-12T08:00:00.000Z",
+      "updated_at": "2026-09-12T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-12T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "FIXTURE-SUBSCRIBERS-ONLY-SENTINEL",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": true,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "The LinkedIn variant of a post whose X version was subscriber-only.",
+              "media_ids": [],
+              "linkedin_reshare_urn": null,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "https://x.com/YuriODev/status/1000000000000000005",
+      "linkedin_published_url": "https://www.linkedin.com/feed/update/urn:li:share:7000000000000000005",
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-12T09:00:05.000Z",
+      "linkedin_post_published_at": "2026-09-12T09:00:01.000Z",
+      "x_article_published_at": null
+    },
+    {
+      "id": 106,
+      "social_set_id": 1,
+      "draft_id": 106,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-10T08:00:00.000Z",
+      "updated_at": "2026-09-10T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-10T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "FIXTURE-PAID-PARTNERSHIP-SENTINEL",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": true,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "https://x.com/YuriODev/status/1000000000000000006",
+      "linkedin_published_url": null,
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-10T09:00:05.000Z",
+      "linkedin_post_published_at": null,
+      "x_article_published_at": null
+    },
+    {
+      "id": 107,
+      "social_set_id": 1,
+      "draft_id": 107,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-08T08:00:00.000Z",
+      "updated_at": "2026-09-08T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-08T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "FIXTURE-RESHARE-SENTINEL",
+              "media_ids": [],
+              "linkedin_reshare_urn": "urn:li:share:7000000000000000999",
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": null,
+      "linkedin_published_url": "https://www.linkedin.com/feed/update/urn:li:share:7000000000000000007",
+      "x_article_published_url": null,
+      "x_post_published_at": null,
+      "linkedin_post_published_at": "2026-09-08T09:00:01.000Z",
+      "x_article_published_at": null
+    },
+    {
+      "id": 108,
+      "social_set_id": 1,
+      "draft_id": 108,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-06T08:00:00.000Z",
+      "updated_at": "2026-09-06T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-06T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": {
+          "title": "FIXTURE-ARTICLE-SENTINEL",
+          "content_markdown": "FIXTURE-ARTICLE-SENTINEL"
+        }
+      },
+      "x_published_url": null,
+      "linkedin_published_url": null,
+      "x_article_published_url": "https://x.com/i/article/1000000000000000099",
+      "x_post_published_at": null,
+      "linkedin_post_published_at": null,
+      "x_article_published_at": null
+    },
+    {
+      "id": 109,
+      "social_set_id": 1,
+      "draft_id": 109,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-04T08:00:00.000Z",
+      "updated_at": "2026-09-04T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-04T09:00:00.000Z",
+      "tags": [
+        "FIXTURE-TAG-SENTINEL"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "FIXTURE-BAD-URL-SENTINEL",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "javascript:alert(1)",
+      "linkedin_published_url": null,
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-04T09:00:05.000Z",
+      "linkedin_post_published_at": null,
+      "x_article_published_at": null
+    },
+    {
+      "id": 110,
+      "social_set_id": 1,
+      "draft_id": 110,
+      "status": "published",
+      "publish_state": "finished",
+      "created_at": "2026-09-02T08:00:00.000Z",
+      "updated_at": "2026-09-02T08:30:00.000Z",
+      "scheduled_date": null,
+      "published_at": "2026-09-02T09:00:00.000Z",
+      "tags": [
+        "hide-from-site"
+      ],
+      "draft_title": "FIXTURE-TITLE-SENTINEL",
+      "scratchpad_text": "FIXTURE-PRIVATE-SENTINEL",
+      "private_url": "https://typefully.com/?d=FIXTURE-PRIVATE-URL-SENTINEL",
+      "share_url": "https://typefully.com/t/FIXTURE-SHARE-URL-SENTINEL",
+      "preview": "FIXTURE-PREVIEW-SENTINEL",
+      "platforms": {
+        "x": {
+          "enabled": true,
+          "posts": [
+            {
+              "text": "FIXTURE-EXCLUDED-SENTINEL",
+              "media_ids": [],
+              "quote_post_url": null,
+              "subscribers_only": false,
+              "reply_settings": null,
+              "paid_partnership": false,
+              "made_with_ai": false,
+              "hide_link_preview": false
+            }
+          ],
+          "settings": null
+        },
+        "linkedin": {
+          "enabled": false,
+          "posts": [],
+          "settings": null
+        },
+        "mastodon": {
+          "enabled": false
+        },
+        "threads": {
+          "enabled": false
+        },
+        "bluesky": {
+          "enabled": false
+        },
+        "substack": {
+          "enabled": false
+        },
+        "x_article": null
+      },
+      "x_published_url": "https://x.com/YuriODev/status/1000000000000000010",
+      "linkedin_published_url": null,
+      "x_article_published_url": null,
+      "x_post_published_at": "2026-09-02T09:00:05.000Z",
+      "linkedin_post_published_at": null,
+      "x_article_published_at": null
+    }
+  ]
+}

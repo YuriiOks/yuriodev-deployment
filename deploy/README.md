@@ -147,7 +147,8 @@ to a changed image ID (see "Environment config" below).
 
 Each backend service's non-secret config is tracked in `env/<env>.env`
 (`local`, `dev`, `stage`, `prod` — `ENVIRONMENT`, `API_TITLE`, `API_VERSION`,
-`CORS_ORIGINS`, `LOG_LEVEL`). Real secrets, if any, go in a gitignored
+`CORS_ORIGINS`, `LOG_LEVEL`, and the social feed flags once it is turned on).
+Real secrets, if any, go in a gitignored
 `env/<env>.secrets.env` (mode 600, created on whichever machine runs that
 environment; there is no such file on this box yet). `env/secrets.env.example`
 lists the expected secret variable *names* only, never values — start there
@@ -189,6 +190,110 @@ The pre-`env/` files (`backend/.env`, `backend/.env.example`,
 `deploy/{dev,stage}/backend.env`) were retired on 2026-09-24 after a full
 release cycle on `env/`; don't recreate them, and never read or print any
 `env/*.secrets.env`.
+
+## Social feed (`GET /api/posts`)
+
+The backend can serve Yurii's own published X and LinkedIn posts, read from
+Typefully, at `/api/posts`. It ships **off** in every environment: with no
+settings the route answers `200` with `"enabled": false` and no items, and
+nothing calls Typefully. Only production is meant to poll Typefully (every
+30 minutes, one listing call plus a full-draft call per new or edited draft);
+dev and stage use the bundled synthetic fixture, so they never need a key.
+Hand curation (pin, feature, hide, posts that never went through Typefully)
+lives in `backend/src/feed/content/posts.toml` and ships with a release.
+
+Turning it on is an env change plus a backend recreate — a production change
+for every environment, so **ask Yurii first**, and follow "Environment config"
+above for the commit/recreate mechanics.
+
+**dev / stage (and local): fixture.** Add to `env/dev.env` (then
+`env/stage.env`, and `env/local.env` for the Mac):
+```
+SOCIAL_FEED_ENABLED=true
+SOCIAL_FEED_PROVIDER=fixture
+```
+then recreate one backend at a time:
+```bash
+touch ~/.yuriodev-deploy-paused
+docker compose -f deploy/dev/compose.yml up -d --no-deps backend-dev
+curl -sk -u <user>:<pass> https://dev.yuriodev.co.uk/api/posts | python3 -m json.tool   # "provider": "fixture", "status": "fresh"
+rm ~/.yuriodev-deploy-paused
+```
+(and the same with `deploy/stage/compose.yml` / `backend-stage`).
+
+**prod: Typefully.** From this box, check the origin with `--resolve` (as
+below): `/etc/hosts` points `yuriodev.co.uk` at this machine, whose
+certificate is a Cloudflare Origin CA one, so a plain `curl -s
+https://yuriodev.co.uk/...` fails TLS verification and prints nothing — and a
+check piped from it would pass without having checked anything. Through
+Cloudflare instead: `curl -fsS --doh-url https://1.1.1.1/dns-query
+https://yuriodev.co.uk/api/posts`.
+
+Before turning prod on, all of these hold:
+- Typefully has answered the question about showing posts on the site under
+  its Terms (and the plan includes API access).
+- `posts.toml` is back-filled, so curated plus imported posts come to at least
+  3 items.
+- You know whether Typefully lets you tag a draft after it is published
+  (that decides how "Hide a post" below works).
+
+First release the code with the feature still off and check it:
+```bash
+curl -fsSk --resolve yuriodev.co.uk:443:127.0.0.1 https://yuriodev.co.uk/api/posts \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["enabled"])'     # must print False
+```
+Then:
+1. Yurii creates an API key in Typefully (Settings -> API). A Typefully key
+   carries its creator's full permissions (it can publish), so it goes only
+   into the gitignored secrets file on the box, typed there directly — never
+   into chat, a commit or any tracked file:
+   ```bash
+   cd ~/yuriodev-deployment
+   [ -e env/prod.secrets.env ] || install -m 600 /dev/null env/prod.secrets.env
+   ${EDITOR:-nano} env/prod.secrets.env        # add the line TYPEFULLY_API_KEY=<value>
+   ```
+2. Add to `env/prod.env` and commit it (public, non-secret values):
+   ```
+   SOCIAL_FEED_ENABLED=true
+   SOCIAL_FEED_PROVIDER=typefully
+   TYPEFULLY_SOCIAL_SET_ID=334563
+   ```
+3. Recreate the backend and check the feed, by behaviour only (never print
+   the environment or the secrets file):
+   ```bash
+   touch ~/.yuriodev-deploy-paused
+   docker compose up -d --no-deps backend
+   origin() { curl -fsSk --resolve yuriodev.co.uk:443:127.0.0.1 "https://yuriodev.co.uk$1"; }
+   origin /api/health | python3 -m json.tool
+   origin /api/posts | python3 -m json.tool                                 # source.status "fresh" within a minute
+   body=$(origin /api/posts) && printf '%s' "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); s=json.dumps(d); bad=[k for k in ("scratchpad","private_url","share_url","draft_title","typefully.com") if k in s]; print(d["source"], len(d["items"]), "items"); sys.exit(f"LEAK {bad}" if bad else 0)' && echo CLEAN   # must end with CLEAN
+   docker compose logs --since 10m backend | grep '"feed\.'                  # feed.refresh lines; no key material
+   rm ~/.yuriodev-deploy-paused
+   ```
+   The leak check fails loudly (no `CLEAN`) if the fetch fails, the body is not
+   JSON, or a private field shows up.
+
+`source.status` says how the feed is doing: `fresh` (last success within an
+hour), `stale` (older; posts still shown), `error` (the key was rejected, the
+key or set id is missing or the key has a stray character in it — logged once
+as `feed.misconfigured` — or there has been no success for 72 hours; only
+curated posts are shown), `disabled` (off). A rejected key stops polling until
+the next recreate. A `feed.drift` or `feed.listing_invalid` warning means
+Typefully's answers no longer look as expected: the previous posts stay up
+(and go `stale`) until the code is adjusted.
+
+- **Hide a post:** if Typefully lets you tag a published draft, tag it
+  `hide-from-site` (gone at the next poll); otherwise, or as well, add
+  `[[override]] id = "..." hide = true` to `posts.toml` (next release).
+- **Rotate the key:** create the new key, replace the value in
+  `env/prod.secrets.env`, recreate the backend as in step 3, check
+  `source.status`, then revoke the old key in Typefully.
+- **Kill switch:** set `SOCIAL_FEED_ENABLED=false` in `env/prod.env` and
+  recreate the backend as in step 3.
+- **Optional persistence:** `SOCIAL_FEED_SNAPSHOT_PATH=/app/data/posts-snapshot.json`
+  keeps the last good snapshot in the container's writable layer across
+  restarts (not recreates); unset, the feed is memory-only and refills within
+  seconds of a start.
 
 ## Local development
 

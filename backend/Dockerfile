@@ -46,6 +46,9 @@ RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 WORKDIR /app
 
 COPY --chown=app:app src/ ./src/
+# Writable by the app user, for an optional SOCIAL_FEED_SNAPSHOT_PATH=/app/data/posts-snapshot.json
+# (off by default; a prod-only named volume mounted here would keep it across recreates).
+RUN mkdir -p /app/data && chown app:app /app/data
 
 USER app
 

@@ -45,5 +45,7 @@ source = ["src"]
 
 [tool.coverage.report]
 fail_under = 90
+# Protocol method bodies and type-checking-only imports never run.
+exclude_also = ["^\\s*\\.\\.\\.$", "if TYPE_CHECKING:"]
 show_missing = true
 skip_covered = true
