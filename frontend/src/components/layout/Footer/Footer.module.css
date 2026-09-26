@@ -179,6 +179,20 @@
     background: rgba(var(--accent-primary-rgb), 0.2);
 }
 
+.privacyLink {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-family: 'Fira Code', monospace;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0.25rem 0;
+}
+
+.privacyLink:hover,
+.privacyLink:focus-visible {
+    color: var(--accent-primary);
+}
+
 /* Status Line */
 .statusLine {
     text-align: center;

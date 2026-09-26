@@ -154,7 +154,7 @@ const LeftSidebar: React.FC = () => {
   return (
     <div
       ref={sidebarRef}
-      className={`${styles.leftSidebarNav} ${isVisible ? '' : styles.overlapHidden}`}
+      className={`${styles.leftSidebarNav} ${isVisible && sections.length > 0 ? '' : styles.overlapHidden}`}
       id="leftSidebarNav"
       role="navigation"
       aria-label="Section navigation"

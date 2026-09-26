@@ -6,6 +6,12 @@
     z-index: 1;
 }
 
+/* main takes focus programmatically after a route change; it is a landmark,
+   not a control, so it gets no focus ring. */
+.mainContent:focus {
+    outline: none;
+}
+
 /* Constrain all sections to 75% width - same as main portfolio */
 .mainContent section {
     max-width: 100%;
