@@ -23,8 +23,12 @@
     z-index: var(--z-decor);
 }
 
-.projectCard:hover::before {
-    transform: scaleX(1);
+/* Hover only where there is a real hover, like ui/Card's lift, so a tap
+   on a touch screen does not leave the line lit. */
+@media (hover: hover) {
+    .projectCard:hover::before {
+        transform: scaleX(1);
+    }
 }
 
 @keyframes slideIn {
@@ -77,8 +81,11 @@
     font-family: 'Fira Code', monospace;
 }
 
+/* The prompt is decoration: kept out of the heading's (and so the
+   card's) accessible name; the first line is the fallback. */
 .projectTitle::before {
     content: '$ ';
+    content: '$ ' / '';
     color: var(--accent-primary);
 }
 
