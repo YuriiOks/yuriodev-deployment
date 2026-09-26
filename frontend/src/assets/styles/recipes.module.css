@@ -4,7 +4,7 @@
 
    GLASS IS FOR CHROME ONLY. This file is the only place in the codebase
    where backdrop-filter appears (design-budget.test.ts holds that):
-     .glass        header, section sidebar, command palette dialog
+     .glass        header, command palette dialog
      .glassAccent  hero code block: glass in the dark theme with a fine
                    pointer from 48rem up, solid elsewhere
    Cards, terminals, drawers, post cards, the footer's social pill (its bar

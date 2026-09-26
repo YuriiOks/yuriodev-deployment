@@ -128,11 +128,16 @@ const TEXT_TOKENS = [
   '--text-primary', '--text-secondary', '--text-tertiary', '--text-muted',
   '--accent-primary', '--accent-secondary', '--accent-tertiary', '--accent-quaternary',
   '--success', '--nav-link-text', '--nav-link-text-active', '--button-nav-text', '--cta-button-text',
+  // The current page and section (header, More menu, rail) and the rail's labels.
+  '--current-ink', '--rail-label',
 ];
 const HUES = ['--hue-violet', '--hue-teal', '--hue-green', '--hue-blue', '--hue-orange', '--hue-pink'];
 
 /* Glass, worst case: a sharp, bright page glyph right behind the text, no credit for the blur. */
-const GLASS_TEXT = ['--text-1', '--text-2', '--cyan-text', '--amber-text'];
+const GLASS_TEXT = ['--text-1', '--text-2', '--cyan-text', '--amber-text', '--current-ink'];
+
+/* The rail sits straight on the page, the light theme's white body included. */
+const RAIL_UI = ['--rail-tick', '--current-edge'];
 
 const PAIRS: Record<Theme, Pair[]> = {
   dark: [
@@ -151,6 +156,9 @@ const PAIRS: Record<Theme, Pair[]> = {
     // UI parts.
     ...cross(['--border-strong'], [['--bg-0'], ['--surface-1'], ['--surface-2']], UI),
     ...cross(['--focus-ring', '--cyan-edge', '--amber-edge'], SOLID_DARK, UI),
+    ...cross(RAIL_UI, SOLID_DARK, UI),
+    // A header control's text over its resting and hover tints, on the page.
+    ...cross(['--text-2', '--cyan-text', '--current-ink'], [['rgba(var(--cyan-rgb), 0.12)', '--bg-0']], TEXT),
   ],
   light: [
     ...cross(TEXT_TOKENS, SOLID_LIGHT, TEXT),
@@ -165,6 +173,8 @@ const PAIRS: Record<Theme, Pair[]> = {
     { fg: '--text-on-accent-bg', bg: ['--accent-secondary'], min: TEXT },
     ...cross(['--border-strong'], [['--bg-0'], ['--surface-1'], ['--surface-2']], UI),
     ...cross(['--focus-ring', '--cyan-edge', '--amber-edge'], SOLID_LIGHT, UI),
+    ...cross(RAIL_UI, [...SOLID_LIGHT, ['#ffffff']], UI),
+    ...cross(['--text-2', '--cyan-text', '--current-ink'], [['rgba(var(--cyan-rgb), 0.12)', '--surface-1']], TEXT),
   ],
 };
 

@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from 'react';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
-import LeftSidebar from '../LeftSidebar/LeftSidebar';
+import SectionRail from '../SectionRail/SectionRail';
 import CanvasBackground from '../../ui/CanvasBackground/CanvasBackground';
 import CommandPalette from '../../ui/CommandPalette/CommandPalette';
 import HelpPanel from '../../ui/HelpPanel/HelpPanel';
@@ -12,6 +12,7 @@ import { SectionNavProvider } from '../../../context/SectionNavProvider';
 import { OverlayProvider } from '../../../context/OverlayProvider';
 import { ToastProvider } from '../../../context/ToastProvider';
 import { useOverlay } from '../../../context/useOverlay';
+import type { OverlayId } from '../../../context/overlay-context';
 import styles from './PageLayout.module.css';
 
 interface PageLayoutProps {
@@ -45,11 +46,15 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
   const openHelp = useCallback(() => open('help'), [open]);
   const dialogOpen = active === 'palette' || active === 'help';
   // When the element that opened a dialog cannot take focus back (a link in
-  // the header menu, which opening the dialog closed), focus goes to the
-  // header control that opens that dialog, else the menu button.
-  const paletteReturn = useCallback(() => [headerControl('palette'), headerControl('menu')], []);
+  // the header menu or the More menu, which opening the dialog closed),
+  // focus goes to the header control that opens that dialog, else the
+  // button of the menu it was in.
+  const paletteReturn = useCallback(
+    () => [headerControl('palette'), headerControl('menu'), headerControl('more')],
+    [],
+  );
   const helpReturn = useCallback(
-    () => [headerControl('help'), headerControl('menu'), headerControl('palette')],
+    () => [headerControl('help'), headerControl('menu'), headerControl('more'), headerControl('palette')],
     [],
   );
   useRouteChangeFocus(mainRef);
@@ -77,7 +82,7 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
       <HelpPanel open={active === 'help'} onClose={closeHelp} returnFocus={helpReturn} />
       <ScrollToTop suppressed={dialogOpen} />
       <Header currentPath={currentPath} />
-      <LeftSidebar />
+      <SectionRail />
       <main id="main-content" ref={mainRef} tabIndex={-1} className={styles.mainContent}>
         {children}
       </main>
@@ -87,7 +92,7 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
 };
 
 /** The header button that opens an overlay (Header marks them with data-opens). */
-function headerControl(id: 'palette' | 'help' | 'menu'): HTMLElement | null {
+function headerControl(id: OverlayId): HTMLElement | null {
   return document.querySelector<HTMLElement>(`header [data-opens="${id}"]`);
 }
 

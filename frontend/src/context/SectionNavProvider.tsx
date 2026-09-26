@@ -15,7 +15,7 @@ const emptySnapshot = () => '|';
 
 /**
  * The one source of section navigation state, shared by the header menu, the
- * sidebar, the command palette and the J/K shortcuts.
+ * section rail, the command palette and the J/K shortcuts.
  */
 export const SectionNavProvider: React.FC<SectionNavProviderProps> = ({ mainRef, children }) => {
   const { pathname } = useLocation();

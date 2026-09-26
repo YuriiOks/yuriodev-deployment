@@ -29,6 +29,12 @@
 }
 
 html {
+    /* Large screens: from 1600px up the root font size grows smoothly with
+       the window, 16px at 1600px to 18px at 2400px and up (at the browser's
+       default size; the percentages follow the visitor's own setting), so
+       every rem-based size stays in proportion to the screen. Media queries
+       in rem do not follow it: they use the browser's initial font size. */
+    font-size: clamp(100%, 75% + 0.25vw, 112.5%);
     scroll-behavior: smooth;
     /* Anchor jumps and scrollIntoView stop just below the fixed header. */
     scroll-padding-top: calc(var(--header-h) + 8px);

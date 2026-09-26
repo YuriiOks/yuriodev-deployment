@@ -1,0 +1,160 @@
+/* The section rail: pinned to the left edge of the window, no panel.
+   SectionRail.tsx renders it only from 88rem (1408px) up. Its widest
+   state (labels shown) spans left + 1.5rem tick column + 0.625rem gap +
+   eight characters of 0.8125rem Fira Code + 0.5rem: about 125px at 1408px,
+   where the content column starts at 200px, and the column's gutter only
+   grows from there (e2e/geometry.spec.ts checks the clearance at 1408,
+   1600, 1920 and 2560px). */
+.rail {
+    --rail-row: 1.75rem;       /* one section per row, 28px at a 16px root */
+    --rail-tick-col: 1.5rem;   /* the column the ticks and the track sit in */
+    position: fixed;
+    left: clamp(20px, 2.2vw, 48px);
+    top: 50%;
+    z-index: var(--z-rail);
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    transition:
+        opacity var(--dur-3) var(--ease-out),
+        transform var(--dur-3) var(--ease-out);
+}
+
+/* While the hero fills the screen: faded out and nudged left, but still in
+   the tab order. A focused link brings the rail back at once. */
+.away {
+    opacity: 0;
+    transform: translate(-0.75rem, -50%);
+    pointer-events: none;
+}
+
+.rail.away:focus-within {
+    opacity: 1;
+    transform: translateY(-50%);
+    pointer-events: auto;
+    transition: none;
+}
+
+/* The track runs from the first tick to the last; the fill grows down it
+   to the section in view. */
+.track {
+    position: absolute;
+    left: calc(var(--rail-tick-col) / 2 - 1px);
+    top: calc(var(--rail-row) / 2);
+    bottom: calc(var(--rail-row) / 2);
+    width: 2px;
+    border-radius: 1px;
+    background: var(--rail-track);
+}
+
+.fill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(to bottom, rgba(var(--current-rgb), 0.45), var(--current-edge));
+    box-shadow: 0 0 6px rgba(var(--current-rgb), 0.45);
+    transform-origin: top;
+    transform: scaleY(var(--rail-progress, 0));
+    transition: transform var(--dur-4) var(--ease-std);
+}
+
+.list {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: var(--rail-row);
+    padding-right: 0.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--rail-label);
+    font-size: 0.8125rem;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.tick {
+    flex: 0 0 var(--rail-tick-col);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--rail-row);
+}
+
+/* The diamond: solid, so it covers the track behind it. */
+.tick::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background: var(--rail-tick);
+    transform: rotate(45deg);
+    transition:
+        background-color var(--dur-2) var(--ease-std),
+        box-shadow var(--dur-2) var(--ease-std),
+        transform var(--dur-2) var(--ease-std);
+}
+
+.label {
+    white-space: nowrap;
+    transition:
+        color var(--dur-2) var(--ease-std),
+        opacity var(--dur-2) var(--ease-std),
+        transform var(--dur-2) var(--ease-std);
+}
+
+.link:hover .tick::before,
+.link:focus-visible .tick::before {
+    background: var(--cyan-edge);
+    transform: rotate(45deg) scale(1.2);
+}
+
+.link:hover .label,
+.link:focus-visible .label {
+    color: var(--text-1);
+}
+
+.current .tick::before,
+.current:hover .tick::before,
+.current:focus-visible .tick::before {
+    background: var(--current-edge);
+    transform: rotate(45deg) scale(1.35);
+    box-shadow: 0 0 0 3px rgba(var(--current-rgb), 0.18), 0 0 10px rgba(var(--current-rgb), 0.6);
+}
+
+.current .label,
+.current:hover .label,
+.current:focus-visible .label {
+    color: var(--current-ink);
+    font-weight: var(--fw-semibold);
+}
+
+/* 88rem to 100rem: ticks only, labels while the rail is hovered or holds
+   focus. The links keep their names (aria-label) all the time. */
+@media (max-width: 99.99rem) {
+    .label {
+        opacity: 0;
+        transform: translateX(-0.25rem);
+    }
+
+    .rail:hover .label,
+    .rail:focus-within .label {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Touch screens: labels always, 44px rows. */
+@media (pointer: coarse) {
+    .rail {
+        --rail-row: 2.75rem;
+    }
+
+    .rail .label {
+        opacity: 1;
+        transform: none;
+    }
+}

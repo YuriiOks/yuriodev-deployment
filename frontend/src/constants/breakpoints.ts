@@ -1,5 +1,5 @@
 /**
- * The site's five layout breakpoints, in rem (documented in _variables.css).
+ * The site's six layout breakpoints, in rem (documented in _variables.css).
  * CSS cannot read custom properties inside @media, so stylesheets repeat the
  * literal rem values; breakpoints.test.ts fails on any other width.
  */
@@ -12,8 +12,10 @@ export const BREAKPOINTS = {
   lg: 64,
   /** 1280px: desktop; the footer lays out in one row. */
   xl: 80,
-  /** 1408px: the section sidebar replaces the header's menu. */
+  /** 1408px: the section rail replaces the header's menu. */
   sidebar: 88,
+  /** 1600px: the rail shows its labels at rest; the root font starts to grow. */
+  wide: 100,
 } as const;
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
