@@ -1,4 +1,4 @@
-/* Background now controlled by global.css nth-child rules */
+/* Background now controlled by global.css nth-of-type rules */
 
 .sectionContentWrapper {
     max-width: var(--content-max-width);

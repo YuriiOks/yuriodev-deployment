@@ -1,0 +1,156 @@
+/* A post: a solid card (no glass: the text is dense and the grid scrolls). */
+.card {
+  display: grid;
+  gap: 0.875rem;
+  align-content: start;
+  height: 100%;
+  padding: 1.25rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-card);
+  font-family: 'Fira Code', monospace;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Lit while a keyboard user is inside it; a mouse click leaves it dark. */
+.card:has(:focus-visible) {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.25);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.25);
+  }
+}
+
+/* Where and when */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  font-size: 0.8rem;
+}
+
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Platform chips: text, not logos. X neutral, LinkedIn blue. */
+.platform {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.platform[data-platform="linkedin"] {
+  border-color: rgba(var(--accent-primary-rgb), 0.45);
+  background: rgba(var(--accent-primary-rgb), 0.1);
+  color: var(--accent-primary);
+}
+
+.threadCount {
+  color: var(--text-secondary);
+}
+
+.time {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The text */
+.body {
+  display: grid;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.part + .part {
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  /* Unlike hidden, clip cannot be scrolled, so nothing can shift the
+     clamped text (a find-in-page match, a script's scrollIntoView). */
+  overflow: clip;
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.expand {
+  justify-self: start;
+  min-height: 44px;
+  /* No inline padding: the label lines up with the text above it. The
+     negative margin takes back the button's own vertical slack. */
+  margin-top: -0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+/* Links to the originals */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.permalink {
+  display: inline-flex;
+  align-items: center;
+  /* A flex container drops the space before the arrow; the gap restores it. */
+  gap: 0.4em;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border: 1px solid var(--button-nav-border);
+  border-radius: 6px;
+  background: var(--button-nav-bg);
+  color: var(--button-nav-text);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.permalink:hover,
+.permalink:focus-visible {
+  background: var(--button-nav-hover-bg);
+  border-color: var(--button-nav-hover-border);
+  color: var(--button-nav-hover-text);
+}
+
+/* Light theme: amber on the pale tint stays under 4.5:1, so the label uses
+   the body ink (as the Connect buttons do). */
+[data-theme="light"] .permalink {
+  color: var(--text-primary);
+}

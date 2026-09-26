@@ -1,0 +1,17 @@
+/* Post text: line breaks as written, long words and URLs wrap instead of
+   pushing the card wider. */
+.text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.link:hover {
+  text-decoration-thickness: 2px;
+}

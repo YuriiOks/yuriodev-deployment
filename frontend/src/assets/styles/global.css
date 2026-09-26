@@ -121,25 +121,27 @@ main {
     width: 100%;
 }
 
-/* Dynamic alternating section backgrounds */
-main > section:nth-child(even) {
+/* Dynamic alternating section backgrounds. Counted among sections only
+   (nth-of-type), so a non-section child of main, such as the posts
+   section's empty marker, never flips the shading. */
+main > section:nth-of-type(even) {
     background: var(--section-shaded-bg);
     border-top: 1px solid var(--section-shaded-border);
     border-bottom: 1px solid var(--section-shaded-border);
 }
 
-main > section:nth-child(odd) {
+main > section:nth-of-type(odd) {
     background: transparent;
 }
 
 /* Light theme alternating sections */
-[data-theme="light"] main > section:nth-child(even) {
+[data-theme="light"] main > section:nth-of-type(even) {
     background: rgba(var(--accent-secondary-rgb), 0.03);
     border-top: 1px solid rgba(var(--accent-secondary-rgb), 0.1);
     border-bottom: 1px solid rgba(var(--accent-secondary-rgb), 0.1);
 }
 
-[data-theme="light"] main > section:nth-child(odd) {
+[data-theme="light"] main > section:nth-of-type(odd) {
     background: transparent;
 }
 

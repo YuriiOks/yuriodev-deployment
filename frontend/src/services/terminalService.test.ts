@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SECTIONS, SOCIALS, displayUrl } from '../data/site';
+import { resetPostsCache } from './postsApi';
+import { linkedinVariant, payload, rawItem, stubFetch, xVariant } from '../test/postsFixtures';
 import {
   HEALTH_URL,
+  TERMINAL_POSTS,
   TERMINAL_COMMANDS,
   classifyLine,
   complete,
@@ -30,7 +33,9 @@ function text(input: string, ctx?: TerminalContext): string {
   return result.lines.map(({ text: t }) => t).join('\n');
 }
 
-const SYNC_TEXT_COMMANDS = TERMINAL_COMMANDS.map(({ name }) => name).filter((name) => !['clear', 'status'].includes(name));
+const SYNC_TEXT_COMMANDS = TERMINAL_COMMANDS.map(({ name }) => name).filter(
+  (name) => !['clear', 'status', 'posts'].includes(name),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -169,6 +174,51 @@ describe('theme command', () => {
     const result = run('theme blue', ctx);
     expect(result.kind === 'lines' && result.lines[0].type).toBe('error');
     expect(ctx.setTheme).not.toHaveBeenCalled();
+  });
+});
+
+describe('posts command', () => {
+  afterEach(() => resetPostsCache());
+
+  async function posts(): Promise<{ text: string; type: string }[]> {
+    const result = await execute('posts', context());
+    if (result.kind !== 'lines') throw new Error('posts cleared the screen');
+    return result.lines.map(({ text: t, type }) => ({ text: t, type }));
+  }
+
+  it('lists the latest posts: first line, then the link', async () => {
+    const li = linkedinVariant('\n  First line of the LinkedIn post  \nsecond line');
+    const x = xVariant(['An X thread opener', 'part 2']);
+    const many = Array.from({ length: 7 }, (_, i) => rawItem({ x: xVariant([`Older post ${i}`]) }));
+    stubFetch(payload([rawItem({ x, linkedin: li }), rawItem({ x: xVariant(['Just X']) }), ...many]));
+    const lines = await posts();
+    expect(lines[0]).toEqual({ text: 'Latest posts:', type: 'warning' });
+    const body = lines.slice(2);
+    expect(body).toHaveLength(TERMINAL_POSTS * 2);
+    expect(body[0]).toEqual({ text: '1. First line of the LinkedIn post', type: 'output' });
+    expect(body[1]).toEqual({ text: `   ${displayUrl(li.url)}`, type: 'success' });
+    expect(body[2].text).toBe('2. Just X');
+    expect(body[3].text).toContain('x.com/example/status/');
+  });
+
+  it('cuts a long first line short', async () => {
+    stubFetch(payload([rawItem({ x: xVariant(['word '.repeat(40)]) })]));
+    const [, , first] = await posts();
+    expect([...first.text].length).toBeLessThanOrEqual(63);
+    expect(first.text.endsWith('…')).toBe(true);
+  });
+
+  it('says there are no posts yet when the feed is off, empty, missing or unreachable', async () => {
+    for (const setup of [
+      () => stubFetch(payload([rawItem({ x: xVariant(['hidden']) })], { enabled: false })),
+      () => stubFetch(payload([])),
+      () => stubFetch({ error: 'not_found' }, 404),
+      () => vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))),
+    ]) {
+      resetPostsCache();
+      setup();
+      expect(await posts()).toEqual([{ text: 'No posts yet.', type: 'info' }]);
+    }
   });
 });
 
