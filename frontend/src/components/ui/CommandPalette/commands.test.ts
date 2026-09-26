@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SECTIONS, socialsFor } from '../../../data/site';
+import { NAV_PAGES, SECTIONS, socialsFor } from '../../../data/site';
 import { MatchTier, buildCommands, groupRuns, matchTier, rankCommands, type CommandActions } from './commands';
 
 const actions = (): CommandActions => ({
   goTo: vi.fn(),
+  openPage: vi.fn(),
   toggleTheme: vi.fn(),
   showHelp: vi.fn(),
   openExternal: vi.fn(),
@@ -75,9 +76,9 @@ describe('rankCommands', () => {
 });
 
 describe('buildCommands', () => {
-  it('lists its groups in one run each: Navigate, Connect, Settings, Help', () => {
+  it('lists its groups in one run each: Navigate, Pages, Connect, Settings, Help', () => {
     const commands = buildCommands(SECTIONS, actions());
-    expect(groupRuns(commands).map(({ group }) => group)).toEqual(['Navigate', 'Connect', 'Settings', 'Help']);
+    expect(groupRuns(commands).map(({ group }) => group)).toEqual(['Navigate', 'Pages', 'Connect', 'Settings', 'Help']);
     const runs = groupRuns(commands);
     expect(runs.reduce((n, { items }) => n + items.length, 0)).toBe(commands.length);
     expect(runs[1].start).toBe(runs[0].items.length);
@@ -96,6 +97,20 @@ describe('buildCommands', () => {
     const commands = buildCommands(SECTIONS, actions());
     const goTo = titles(commands.filter(({ group }) => group === 'Navigate'));
     expect(goTo).toEqual([...SECTIONS.map(({ label }) => `Go to ${label}`), 'Go to Terminal']);
+  });
+
+  it('opens every page the header lists, the More menu\'s pages included', () => {
+    const a = actions();
+    const pages = buildCommands(SECTIONS, a).filter(({ group }) => group === 'Pages');
+    expect(titles(pages)).toEqual(NAV_PAGES.map(({ label }) => `Go to ${label} page`));
+    for (const path of ['/courses', '/dashboard', '/community']) {
+      pages.find(({ hint }) => hint === path)!.run();
+      expect(a.openPage).toHaveBeenCalledWith(path);
+    }
+    const first = (query: string) => rankCommands(buildCommands(SECTIONS, a), query)[0]?.title;
+    expect(first('courses')).toBe('Go to Courses page');
+    expect(first('dashboard')).toBe('Go to Dashboard page');
+    expect(first('community')).toBe('Go to Community page');
   });
 
   it('opens each palette profile, and has theme, help and email commands', () => {

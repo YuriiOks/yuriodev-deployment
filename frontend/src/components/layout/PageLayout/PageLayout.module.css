@@ -32,8 +32,9 @@
     transform: translateY(-120%);
     padding: 0.5rem 1rem;
     border-radius: 0 0 6px 6px;
-    background: var(--focus-ring);
-    color: var(--bg-primary);
+    /* The bright amber fill and its ink: the focus colour, with AA text. */
+    background: var(--amber);
+    color: var(--on-amber);
     font-weight: 600;
     text-decoration: none;
     transition: transform 0.2s ease;

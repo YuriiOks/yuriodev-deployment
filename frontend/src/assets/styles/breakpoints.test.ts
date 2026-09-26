@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BREAKPOINTS } from '../../constants/breakpoints';
 
 // Every stylesheet's @media widths come from one scale (documented in
-// _variables.css): 30/48/64/80/88rem for "from X up", X - 0.01rem for "below X".
+// _variables.css): 30/48/64/80/88/100rem for "from X up", X - 0.01rem for "below X".
 const styles = import.meta.glob('/src/**/*.css', {
   query: '?raw',
   import: 'default',
@@ -21,7 +21,6 @@ const NOT_YET_ON_SCALE = new Set([
   '/src/components/sections/AboutSection/AboutSection.module.css',
   '/src/components/sections/ComingSoonSection/ComingSoonSection.module.css',
   '/src/components/sections/ConnectSection/ConnectSection.module.css',
-  '/src/components/sections/HeroSection/HeroSection.module.css',
   '/src/components/sections/PlatformSection/PlatformSection.module.css',
   '/src/components/sections/ProjectsSection/ProjectsSection.module.css',
   '/src/components/sections/SkillsSection/SkillsSection.module.css',
@@ -48,7 +47,7 @@ function offScale(file: string, text: string): string[] {
 
 describe('breakpoint scale', () => {
   it('matches the documented scale', () => {
-    expect(BREAKPOINTS).toEqual({ sm: 30, md: 48, lg: 64, xl: 80, sidebar: 88 });
+    expect(BREAKPOINTS).toEqual({ sm: 30, md: 48, lg: 64, xl: 80, sidebar: 88, wide: 100 });
   });
 
   it('every @media width outside the not-yet-migrated files is on the scale', () => {
@@ -67,7 +66,7 @@ describe('breakpoint scale', () => {
   });
 
   it('the layout chrome is on the scale', () => {
-    for (const chrome of ['Header', 'LeftSidebar', 'Footer', 'PageLayout']) {
+    for (const chrome of ['Header', 'SectionRail', 'Footer', 'PageLayout']) {
       const file = `/src/components/layout/${chrome}/${chrome}.module.css`;
       expect(styles[file], file).toBeDefined();
       expect(NOT_YET_ON_SCALE.has(file)).toBe(false);

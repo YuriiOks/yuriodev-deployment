@@ -45,9 +45,11 @@ const mockCanvasContext = {
   setTransform: vi.fn(),
   measureText: vi.fn(() => ({ width: 0 })),
   createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+  createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
   fillStyle: '',
   strokeStyle: '',
   lineWidth: 1,
+  globalAlpha: 1,
   shadowBlur: 0,
   shadowColor: '',
   font: '',
@@ -62,7 +64,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn(
 window.requestAnimationFrame = vi.fn(() => 0) as unknown as typeof window.requestAnimationFrame;
 window.cancelAnimationFrame = vi.fn();
 
-// jsdom does not implement scrollIntoView / scrollTo; Header, LeftSidebar
+// jsdom does not implement scrollIntoView / scrollTo; Header, SectionRail
 // and PageLayout call them in response to navigation and key handling.
 Element.prototype.scrollIntoView = vi.fn();
 window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
@@ -79,7 +81,7 @@ HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
   this.dispatchEvent(new Event('close'));
 };
 
-// jsdom does not implement IntersectionObserver; Header and LeftSidebar use
+// jsdom does not implement IntersectionObserver; Header, SectionRail and the section tracker use
 // it to track which section is currently in view.
 class MockIntersectionObserver implements IntersectionObserver {
   readonly root: Element | Document | null = null;

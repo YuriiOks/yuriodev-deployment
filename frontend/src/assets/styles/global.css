@@ -29,6 +29,12 @@
 }
 
 html {
+    /* Large screens: from 1600px up the root font size grows smoothly with
+       the window, 16px at 1600px to 18px at 2400px and up (at the browser's
+       default size; the percentages follow the visitor's own setting), so
+       every rem-based size stays in proportion to the screen. Media queries
+       in rem do not follow it: they use the browser's initial font size. */
+    font-size: clamp(100%, 75% + 0.25vw, 112.5%);
     scroll-behavior: smooth;
     /* Anchor jumps and scrollIntoView stop just below the fixed header. */
     scroll-padding-top: calc(var(--header-h) + 8px);
@@ -134,17 +140,6 @@ main > section:nth-of-type(odd) {
     background: transparent;
 }
 
-/* Light theme alternating sections */
-[data-theme="light"] main > section:nth-of-type(even) {
-    background: rgba(var(--accent-secondary-rgb), 0.03);
-    border-top: 1px solid rgba(var(--accent-secondary-rgb), 0.1);
-    border-bottom: 1px solid rgba(var(--accent-secondary-rgb), 0.1);
-}
-
-[data-theme="light"] main > section:nth-of-type(odd) {
-    background: transparent;
-}
-
 /* Ensure all images and media are responsive */
 img, video, canvas {
     max-width: 100%;
@@ -164,18 +159,24 @@ h2 {
     margin-bottom: 30px;
 }
 
-h2::before {
-    content: '# ';
-    color: var(--accent-secondary);
+/* Title ink with the other accent on the '#': amber and cyan in the dark
+   theme, deep cyan and amber in the light one (_variables.css). */
+h2 {
+    color: var(--title-ink);
 }
 
-/* Dark theme - cyan # prefix and golden/yellow title text */
+h2::before {
+    content: '# ';
+    color: var(--title-mark);
+}
+
+/* The dark theme also holds these over a module's own h2 colours. */
 [data-theme="dark"] h2 {
-    color: var(--accent-secondary);
+    color: var(--title-ink);
 }
 
 [data-theme="dark"] h2::before {
-    color: var(--accent-primary);
+    color: var(--title-mark);
 }
 
 h2::after {
@@ -186,14 +187,5 @@ h2::after {
     transform: translateX(-50%);
     width: 80px;
     height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
-}
-
-/* Theme-specific background patterns */
-[data-theme="dark"] body {
-    background: var(--bg-primary);
-}
-
-[data-theme="light"] body {
-    background: #ffffff;
+    background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--amber-edge), transparent);
 }

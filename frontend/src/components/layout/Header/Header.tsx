@@ -5,7 +5,9 @@ import { useSectionNav } from '../../../context/useSectionNav';
 import { useOverlay } from '../../../context/useOverlay';
 import { subscribeMediaQuery, useMediaQuery } from '../../../hooks/useMediaQuery';
 import { minWidth } from '../../../constants/breakpoints';
-import { NAV_PAGES, pageAt } from '../../../data/site';
+import { NAV_PAGES, navPages, pageAt } from '../../../data/site';
+import { cx } from '../../../utils/cx';
+import MoreMenu from './MoreMenu';
 import SectionLink from '../SectionLink/SectionLink';
 import styles from './Header.module.css';
 
@@ -19,8 +21,9 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   // panel closes it, and opening it closes them.
   const { active, open, close, toggle } = useOverlay();
   const { sections, activeId } = useSectionNav();
-  // From the sidebar breakpoint up the sidebar navigates the sections and the
-  // page links sit inline, so there is no menu; below it the menu is the one
+  // From the sidebar breakpoint up the section rail navigates the sections
+  // and the pages sit in the header (the main one inline, the rest in the
+  // More menu), so there is no menu button; below it the menu is the one
   // place to reach both.
   const wide = useMediaQuery(minWidth('sidebar'));
   const navControlsRef = useRef<HTMLDivElement>(null);
@@ -31,14 +34,15 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   const currentPage = pageAt(currentPath)?.id;
   const isMenuOpen = active === 'menu' && !wide;
 
-  // The menu is hidden (isMenuOpen) from the moment the window grows past
-  // the point where it exists; closing it on that change keeps it from coming
-  // back when the window narrows again. A route change closes it in
-  // OverlayProvider, which keys the menu to the route it was opened on.
+  // Each menu is hidden (isMenuOpen, MoreMenu unmounted) from the moment the
+  // window crosses the point where it stops existing; closing it on that
+  // change keeps it from coming back when the window crosses back. A route
+  // change closes both in OverlayProvider, which keys them to the route they
+  // were opened on.
   useEffect(
     () =>
       subscribeMediaQuery(minWidth('sidebar'), (matches) => {
-        if (matches) close('menu');
+        close(matches ? 'menu' : 'more');
       }),
     [close],
   );
@@ -67,15 +71,16 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
     };
   }, [isMenuOpen, close]);
 
-  // Growing past the breakpoint unmounts the menu button and the section
-  // links. If one of them had focus, hand it to the first page link rather
-  // than letting it drop to <body>.
+  // Crossing the breakpoint unmounts the controls of the other layout (the
+  // menu button and the section links going wide, the More menu going
+  // narrow). If one of them had focus, hand it to the first page link, or
+  // to the menu button, rather than letting it drop to <body>.
   useLayoutEffect(() => {
-    if (!wide) return;
     const last = lastFocusRef.current;
     const active = document.activeElement;
     if (!last || last.isConnected || (active && active !== document.body)) return;
-    navControlsRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+    if (wide) navControlsRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+    else menuButtonRef.current?.focus();
   }, [wide]);
 
   // Tabbing out of the header closes the menu, so it never hides the
@@ -103,24 +108,21 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   const closeMenu = () => close('menu');
   const toggleMobileMenu = () => toggle('menu');
 
-  // Generate dynamic terminal prompt based on current page and section
-  const getTerminalPrompt = () => {
-    // Always show the page name (portfolio, community, courses, dashboard)
-    const pageName = currentPage ?? currentPath.substring(1);
-    const pageArgument = ` --page=${pageName}`;
-    const themeArgument = ` --theme=${theme}`;
-    return `yurii@yuriodev:~$ ./run --module=AI_Education${pageArgument}${themeArgument}`;
-  };
+  // The prompt runs the current page: './portfolio', './privacy'.
+  const pageName = currentPage ?? (currentPath.replace(/^\/+|\/+$/g, '') || 'portfolio');
 
   return (
     <header className={styles.terminalHeader} role="banner">
       <nav className={styles.terminalNav} role="navigation" aria-label="Main navigation">
         <div className={styles.terminalPrompt}>
-          {getTerminalPrompt()}<span className={styles.cursor}>_</span>
+          <span className={styles.promptFull}>yurii@yuriodev:~$ ./{pageName}</span>
+          <span className={styles.promptShort}>~$ yuriodev</span>
+          <span className={styles.cursor} aria-hidden="true">_</span>
         </div>
         <div className={styles.navControls} ref={navControlsRef} onFocus={onNavFocus} onBlur={onNavBlur}>
           <button
-            className={styles.themeToggle}
+            type="button"
+            className={cx(styles.navControl, styles.iconButton)}
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
@@ -131,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
               who does not know Ctrl/Cmd+K. */}
           <button
             type="button"
-            className={styles.paletteToggle}
+            className={cx(styles.navControl, styles.iconButton)}
             onClick={() => open('palette')}
             data-opens="palette"
             aria-label="Open command palette"
@@ -146,7 +148,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
           </button>
           <button
             type="button"
-            className={styles.helpToggle}
+            className={cx(styles.navControl, styles.iconButton, styles.helpToggle)}
             onClick={() => open('help')}
             data-opens="help"
             aria-label="Show help panel"
@@ -157,7 +159,8 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
           {!wide && (
             <button
               ref={menuButtonRef}
-              className={styles.mobileMenuToggle}
+              type="button"
+              className={cx(styles.navControl, styles.menuButton)}
               onClick={toggleMobileMenu}
               data-opens="menu"
               aria-label="Toggle mobile menu"
@@ -168,17 +171,17 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
             </button>
           )}
           <ul
-            className={`${styles.navMenu} ${wide ? '' : styles.dropdown} ${isMenuOpen ? styles.active : ''}`}
+            className={cx(styles.navMenu, !wide && styles.dropdown, isMenuOpen && styles.active)}
             id="navMenu"
           >
-            {/* The home page's sections: in the menu only, the sidebar lists them when wide. */}
+            {/* The home page's sections: in the menu only, the section rail lists them when wide. */}
             {!wide &&
               sections.map(({ id, navLabel }) => (
                 <li key={id}>
                   <SectionLink
                     id={id}
                     current={activeId === id}
-                    className={`${styles.navLink} ${activeId === id ? styles.active : ''}`}
+                    className={cx(styles.navLink, activeId === id && styles.current)}
                     onClick={closeMenu}
                   >
                     {navLabel}
@@ -188,11 +191,12 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
 
             <li className={styles.navSeparator} aria-hidden="true">|</li>
 
-            {NAV_PAGES.map(({ id, path, navLabel }) => (
+            {/* Narrow: every page in the menu. Wide: the main page inline, the rest under More. */}
+            {(wide ? navPages('primary') : NAV_PAGES).map(({ id, path, navLabel }) => (
               <li key={id}>
                 <Link
                   to={path}
-                  className={`${styles.navLink} ${currentPage === id ? styles.pageActive : ''}`}
+                  className={cx(styles.navLink, currentPage === id && styles.current)}
                   aria-current={currentPage === id ? 'page' : undefined}
                   onClick={closeMenu}
                 >
@@ -200,6 +204,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
                 </Link>
               </li>
             ))}
+            {wide && <MoreMenu pages={navPages('more')} currentPage={currentPage} />}
           </ul>
         </div>
       </nav>

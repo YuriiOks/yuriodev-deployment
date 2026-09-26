@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, open, settle, navSurfaces, SECTION_IDS } from './fixtures';
+import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SECTION_IDS } from './fixtures';
 
 /*
  * Layout checks that jsdom cannot make: where things actually land on screen
@@ -34,10 +34,15 @@ async function expectHeadingClear(page: Page, id: string) {
 test.describe('section jumps', () => {
   test('the header never covers a section heading after a jump from the navigation', async ({ page }) => {
     await open(page, '/');
+    const wide = await railWidth(page);
     for (const id of SECTION_IDS) {
-      const { sidebar } = await navSurfaces(page);
-      if (sidebar) {
-        await page.locator(`#leftSidebarNav a[href="#${id}"]`).click();
+      if (wide) {
+        // From the keyboard: the rail may be faded out over the hero, and
+        // focusing one of its links brings it back.
+        const link = page.locator(`#sectionRail a[href="#${id}"]`);
+        await link.focus();
+        await expect(page.locator('#sectionRail')).toHaveCSS('opacity', '1');
+        await page.keyboard.press('Enter');
       } else {
         await page.locator('header [data-opens="menu"]').click();
         await page.locator(`#navMenu a[href="#${id}"]`).click();
@@ -77,9 +82,10 @@ for (const posts of ['disabled', 'missing'] as const) {
       await open(page, '/', { posts: false });
       await expect(page.locator('section#posts')).toHaveCount(0);
 
-      const { sidebar } = await navSurfaces(page);
-      const nav = sidebar ? page.locator('#leftSidebarNav') : page.locator('#navMenu');
-      if (!sidebar) await page.locator('header [data-opens="menu"]').click();
+      const wide = await railWidth(page);
+      if (wide) await scrollToSection(page, 'about');
+      const nav = wide ? page.locator('#sectionRail') : page.locator('#navMenu');
+      if (!wide) await page.locator('header [data-opens="menu"]').click();
       await expect(nav.locator('a[href="#connect"]')).toBeVisible();
       await expect(nav.locator('a[href="#posts"]')).toHaveCount(0);
     });
@@ -96,21 +102,208 @@ for (const posts of ['disabled', 'missing'] as const) {
 
 test.describe('navigation surfaces', () => {
   for (const path of ['/', '/privacy']) {
-    test(`exactly one section-navigation surface is visible on ${path}`, async ({ page }) => {
+    test(`exactly one section-navigation surface is visible on ${path} once scrolled`, async ({ page }) => {
       await open(page, path);
+      if (path === '/') await scrollToSection(page, 'about');
+      else await page.evaluate(() => window.scrollTo(0, 200));
+      await settle(page);
+      await page.waitForTimeout(150);
       const { sidebar, menuButton } = await navSurfaces(page);
-      expect(Number(sidebar) + Number(menuButton), 'sidebar or menu button, never both, never neither').toBe(1);
+      expect(Number(sidebar) + Number(menuButton), 'section rail or menu button, never both, never neither').toBe(1);
+      expect(sidebar, 'the rail exactly from 88rem up').toBe(await railWidth(page));
 
       if (sidebar) {
-        // The header lists no sections of its own while the sidebar does.
+        // The header lists no sections of its own while the rail does.
         await expect(page.locator('header a[href*="#"]')).toHaveCount(0);
       } else {
         await page.locator('header [data-opens="menu"]').click();
         await expect(page.locator('#navMenu a[href*="#hero"]')).toBeVisible();
-        expect((await navSurfaces(page)).sidebar, 'no sidebar behind the open menu').toBe(false);
+        expect((await navSurfaces(page)).sidebar, 'no rail behind the open menu').toBe(false);
       }
     });
   }
+
+  test('the section rail stays away while the hero fills the screen, and comes back for the keyboard', async ({ page }) => {
+    await open(page, '/');
+    test.skip(!(await railWidth(page)), 'the rail exists from 88rem up');
+    const rail = page.locator('#sectionRail');
+
+    await expect(rail).toHaveAttribute('data-state', 'away');
+    await expect(rail).toHaveCSS('opacity', '0');
+    expect((await navSurfaces(page)).sidebar).toBe(false);
+
+    // A focused rail link shows the rail at once, over the hero too.
+    await rail.locator('a[href="#about"]').focus();
+    await expect(rail).toHaveCSS('opacity', '1');
+    await page.locator('body').focus();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await expect(rail).toHaveCSS('opacity', '0');
+
+    await scrollToSection(page, 'about');
+    await expect(rail).toHaveAttribute('data-state', 'shown');
+    await expect(rail).toHaveCSS('opacity', '1');
+    await expect(rail.locator('a[aria-current="location"]')).toHaveAttribute('href', '#about');
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await settle(page);
+    await expect(rail).toHaveAttribute('data-state', 'away');
+  });
+
+  test('the rail never flashes visible over the hero on load', async ({ page }) => {
+    // A repeat visit (sessionStorage already set, as a same-session reload
+    // would leave it) or reduced motion (the project default) both skip the
+    // loading screen, so the hero is on screen from the very first commit.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.addInitScript(() => {
+      sessionStorage.setItem('appLoaded', 'true');
+      const w = window as unknown as { __railOpacities: string[] };
+      w.__railOpacities = [];
+      const sample = () => {
+        const rail = document.getElementById('sectionRail');
+        if (rail) w.__railOpacities.push(getComputedStyle(rail).opacity);
+        if (w.__railOpacities.length < 30) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await open(page, '/');
+    const opacities = await page.evaluate(() => (window as unknown as { __railOpacities: string[] }).__railOpacities);
+    expect(opacities.length, 'sampled some frames before settling').toBeGreaterThan(0);
+    expect(new Set(opacities), 'never shown while the hero fills the screen').toEqual(new Set(['0']));
+  });
+});
+
+test.describe('section rail clearance', () => {
+  // One project resizes its page through the widths that matter; the
+  // clearance depends on the width only (and the root font size, which
+  // follows it).
+  test('never overlaps the content, the header or the edge of the window', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    for (const width of [1408, 1600, 1920, 2560]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await open(page, '/');
+      await scrollToSection(page, 'skills');
+      const rail = page.locator('#sectionRail');
+      await expect(rail, `${width}px: rail shown`).toHaveAttribute('data-state', 'shown');
+      // Its widest state: labels showing (below 100rem they need a hover).
+      await rail.hover();
+      await expect(rail.locator('a').first().locator('span').last()).toHaveCSS('opacity', '1');
+
+      const geometry = await page.evaluate(() => {
+        const railBox = document.getElementById('sectionRail')!.getBoundingClientRect();
+        const links = [...document.querySelectorAll('#sectionRail a')].map((a) => a.getBoundingClientRect());
+        const right = Math.max(railBox.right, ...links.map((box) => box.right));
+        // The leftmost text or control of the page's content, over its whole length.
+        let contentLeft = Infinity;
+        let what = '';
+        for (const root of [document.querySelector('main'), document.querySelector('footer')]) {
+          if (!root) continue;
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!node.textContent?.trim()) continue;
+            const parent = node.parentElement;
+            if (!parent || parent.closest('.sr-only, [hidden]')) continue;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            for (const box of range.getClientRects()) {
+              if (box.width > 0 && box.left < contentLeft) {
+                contentLeft = box.left;
+                what = `"${node.textContent.trim().slice(0, 30)}"`;
+              }
+            }
+          }
+          for (const el of root.querySelectorAll('a, button, input, textarea, img, svg')) {
+            const box = el.getBoundingClientRect();
+            if (box.width > 0 && box.height > 0 && box.left < contentLeft) {
+              contentLeft = box.left;
+              what = el.tagName.toLowerCase();
+            }
+          }
+        }
+        const header = document.querySelector('header')!.getBoundingClientRect();
+        return {
+          left: railBox.left,
+          right,
+          top: railBox.top,
+          bottom: railBox.bottom,
+          contentLeft,
+          what,
+          headerBottom: header.bottom,
+          innerHeight: window.innerHeight,
+          overflow: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+
+      expect(geometry.left, `${width}px: rail inside the window`).toBeGreaterThanOrEqual(16);
+      expect(geometry.right + 16, `${width}px: rail clear of the content (${geometry.what})`).toBeLessThanOrEqual(geometry.contentLeft);
+      expect(geometry.top, `${width}px: rail below the header`).toBeGreaterThanOrEqual(geometry.headerBottom);
+      expect(geometry.bottom, `${width}px: rail above the bottom`).toBeLessThanOrEqual(geometry.innerHeight);
+      expect(geometry.overflow, `${width}px: no horizontal overflow`).toBeLessThanOrEqual(0);
+    }
+  });
+});
+
+test.describe('header', () => {
+  test('the prompt is never cut short from 1024px up', async ({ page }) => {
+    await open(page, '/');
+    const prompt = await page.evaluate(() => {
+      const el = document.querySelector('header nav > div')!;
+      const full = el.querySelector('span')!;
+      return {
+        width: window.innerWidth,
+        clipped: el.scrollWidth > el.clientWidth + 1,
+        fullShown: getComputedStyle(full).display !== 'none',
+        text: el.textContent,
+      };
+    });
+    test.skip(prompt.width < 1024, 'narrower screens may shorten it');
+    expect(prompt.fullShown).toBe(true);
+    expect(prompt.clipped, `prompt "${prompt.text}" fits`).toBe(false);
+  });
+
+  test('the More menu opens, closes on Escape and outside clicks, and never stays open with a dialog', async ({ page }) => {
+    await open(page, '/');
+    test.skip(!(await railWidth(page)), 'the More menu is the wide header\'s');
+    const more = page.getByRole('button', { name: '--more' });
+    const courses = page.getByRole('link', { name: '--courses' });
+    const openDialogs = page.locator('dialog[open]');
+
+    await expect(courses).toBeHidden();
+    await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await expect(courses).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await expect(more).toBeFocused();
+
+    await more.click();
+    await page.mouse.click(10, 500);
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+
+    // The palette replaces it.
+    await more.click();
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+    await expect(openDialogs).toHaveCount(1);
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await expect(courses).toBeHidden();
+    await page.keyboard.press('Escape');
+    await expect(openDialogs).toHaveCount(0);
+
+    // So does the help panel.
+    await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('?');
+    await expect(page.getByRole('dialog', { name: 'Help' })).toBeVisible();
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('Escape');
+
+    // Following one of its links opens the page and closes it.
+    await more.click();
+    await courses.click();
+    await expect(page).toHaveURL(/\/courses$/);
+    await expect(page.getByRole('button', { name: '--more' })).toHaveAttribute('aria-expanded', 'false');
+  });
 });
 
 test.describe('floating controls', () => {

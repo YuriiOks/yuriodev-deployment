@@ -85,7 +85,27 @@ export async function settle(page: Page): Promise<void> {
   );
 }
 
-/** The visible section-navigation surfaces: the sidebar, and the header menu button. */
+/** True from the section rail's breakpoint (88rem) up, where the header has no menu button. */
+export async function railWidth(page: Page): Promise<boolean> {
+  return page.evaluate(() => window.matchMedia('(min-width: 88rem)').matches);
+}
+
+/** Scrolls the home page to a section with no smooth scrolling, and waits for the rail to follow. */
+export async function scrollToSection(page: Page, id: string): Promise<void> {
+  await page.evaluate((sectionId) => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    document.getElementById(sectionId)?.scrollIntoView({ block: 'start' });
+    document.documentElement.style.scrollBehavior = '';
+  }, id);
+  await settle(page);
+  // The rail follows an IntersectionObserver: give it a frame or two.
+  await page.waitForTimeout(150);
+}
+
+/**
+ * The visible section-navigation surfaces: the section rail (shown, not
+ * faded out over the hero), and the header menu button.
+ */
 export async function navSurfaces(page: Page): Promise<{ sidebar: boolean; menuButton: boolean }> {
   return page.evaluate(() => {
     const shown = (el: Element | null) => {
@@ -105,7 +125,7 @@ export async function navSurfaces(page: Page): Promise<{ sidebar: boolean; menuB
       );
     };
     return {
-      sidebar: shown(document.querySelector('#leftSidebarNav')),
+      sidebar: shown(document.querySelector('#sectionRail')),
       menuButton: shown(document.querySelector('header [data-opens="menu"]')),
     };
   });

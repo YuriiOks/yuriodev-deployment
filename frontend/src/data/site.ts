@@ -74,23 +74,34 @@ export function isSectionId(id: string): id is SectionId {
 
 export type PageId = 'portfolio' | 'courses' | 'dashboard' | 'community' | 'privacy';
 
+/** Where the header lists a page: inline, or in its More menu. */
+export type PageNav = 'primary' | 'more';
+
 export interface PageDef {
   readonly id: PageId;
   readonly path: string;
+  /** Command-palette name. */
+  readonly label: string;
   readonly navLabel: string;
-  /** Listed among the header's page links. */
-  readonly inNav: boolean;
+  /** Where the header lists it; unset: not in the header (still in the palette). */
+  readonly nav?: PageNav;
 }
 
 export const PAGES: readonly PageDef[] = [
-  { id: 'portfolio', path: '/', navLabel: '--portfolio', inNav: true },
-  { id: 'courses', path: '/courses', navLabel: '--courses', inNav: true },
-  { id: 'dashboard', path: '/dashboard', navLabel: '--dashboard', inNav: true },
-  { id: 'community', path: '/community', navLabel: '--community', inNav: true },
-  { id: 'privacy', path: '/privacy', navLabel: '--privacy', inNav: false },
+  { id: 'portfolio', path: '/', label: 'Portfolio', navLabel: '--portfolio', nav: 'primary' },
+  { id: 'courses', path: '/courses', label: 'Courses', navLabel: '--courses', nav: 'more' },
+  { id: 'dashboard', path: '/dashboard', label: 'Dashboard', navLabel: '--dashboard', nav: 'more' },
+  { id: 'community', path: '/community', label: 'Community', navLabel: '--community', nav: 'more' },
+  { id: 'privacy', path: '/privacy', label: 'Privacy notice', navLabel: '--privacy' },
 ];
 
-export const NAV_PAGES: readonly PageDef[] = PAGES.filter((page) => page.inNav);
+/** Every page the header lists, primary first: the one list the narrow-screen menu shows. */
+export const NAV_PAGES: readonly PageDef[] = PAGES.filter((page) => page.nav !== undefined);
+
+/** The header's pages at one placement, in PAGES order. */
+export function navPages(nav: PageNav): readonly PageDef[] {
+  return PAGES.filter((page) => page.nav === nav);
+}
 
 export function pagePath(id: PageId): string {
   return PAGES.find((page) => page.id === id)!.path;

@@ -1,3 +1,5 @@
+/* The header spans the whole window: the prompt at the left edge, the
+   controls and page links at the right, whatever the screen width. */
 .terminalHeader {
     composes: glass from '../../../assets/styles/recipes.module.css';
     border-width: 0 0 2px;
@@ -7,7 +9,7 @@
     height: var(--header-h);
     display: flex;
     align-items: center;
-    padding: 0 var(--space-5);
+    padding: 0 clamp(16px, 2.5vw, 48px);
     font-family: var(--font-mono);
     position: fixed;
     top: 0;
@@ -25,16 +27,14 @@
     align-items: center;
     gap: 1rem;
     flex-wrap: nowrap;
-    max-width: var(--content-max-width);
     width: 100%;
-    margin: 0 auto;
 }
 
 .terminalPrompt {
-    color: var(--accent-primary);
-    font-weight: 700;
+    color: var(--cyan-text);
+    font-weight: var(--fw-bold);
     font-size: 1rem;
-    text-shadow: 0 0 10px var(--glow-primary);
+    text-shadow: var(--glow-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -42,9 +42,9 @@
     min-width: 0;
 }
 
-[data-theme="light"] .terminalPrompt {
-    color: var(--accent-secondary);
-    text-shadow: none;
+/* Phones show the short form (below). */
+.promptShort {
+    display: none;
 }
 
 .cursor {
@@ -62,139 +62,183 @@
     gap: 0.5rem;
     flex-wrap: nowrap;
     flex-shrink: 0;
-    /* Stay right-aligned when the prompt is hidden on phones. */
+    /* Stay right-aligned when the prompt is short. */
     margin-left: auto;
 }
 
-.themeToggle, .paletteToggle, .mobileMenuToggle, .helpToggle {
-    border-radius: 6px;
-    font-family: 'Fira Code', monospace;
-    font-weight: 500;
-    font-size: 1rem;
-    line-height: 1;
-    height: 40px;
+/* One button language for the icon buttons, the page links, the More
+   button and the menu button: 40px tall, the same radius, one resting
+   hairline, one hover. */
+.navControl {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    background: var(--button-nav-bg);
-    border: 2px solid var(--button-nav-border);
-    color: var(--button-nav-text);
-    box-shadow: none;
-    white-space: nowrap;
+    gap: 0.375rem;
+    height: 40px;
+    padding: 0 0.875rem;
     box-sizing: border-box;
     flex-shrink: 0;
+    border: 1px solid var(--chrome-border);
+    border-radius: var(--radius-md);
+    background: rgba(var(--cyan-rgb), 0.05);
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: var(--fw-medium);
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        color var(--dur-2) var(--ease-std),
+        background-color var(--dur-2) var(--ease-std),
+        border-color var(--dur-2) var(--ease-std),
+        box-shadow var(--dur-2) var(--ease-std);
 }
 
-/* Square buttons for icons */
-.themeToggle,
-.paletteToggle,
-.helpToggle {
-    width: 40px;
-    min-width: 40px;
-    max-width: 40px;
-    padding: 0;
+.navControl:hover,
+.navControl:focus-visible {
+    color: var(--cyan-text);
+    border-color: var(--cyan-edge);
+    background: rgba(var(--cyan-rgb), 0.12);
 }
 
-/* Menu button with auto width */
-.mobileMenuToggle {
-    padding: 0 1rem;
-    min-width: auto;
-}
-
-.themeToggle:hover, .paletteToggle:hover, .mobileMenuToggle:hover, .helpToggle:hover {
-    background: var(--button-nav-hover-bg);
-    border-color: var(--button-nav-hover-border);
-    color: var(--button-nav-hover-text);
+.navControl:hover {
     box-shadow: var(--glow-1);
 }
 
-/* The global focus ring stays; this only adds the hover look. */
-.themeToggle:focus-visible, .paletteToggle:focus-visible, .mobileMenuToggle:focus-visible, .helpToggle:focus-visible {
-    border-color: var(--button-nav-hover-border);
-    box-shadow: 0 0 0 3px var(--button-nav-hover-shadow);
+.navControl:active {
+    transform: scale(0.97);
 }
 
-/* Remove :active state that causes color change */
-.themeToggle:active, .paletteToggle:active, .mobileMenuToggle:active, .helpToggle:active {
-    transform: scale(0.95);
+/* Square icon buttons. */
+.iconButton {
+    width: 40px;
+    padding: 0;
+    color: var(--cyan-text);
+    font-size: 1rem;
+}
+
+.menuButton {
+    padding: 0 1rem;
+}
+
+/* The page links wear the same control. */
+.navLink {
+    composes: navControl;
+}
+
+/* The current page (or, in the menu, section): accent text and an
+   underline, no filled pill. */
+.current,
+.current:hover,
+.current:focus-visible {
+    color: var(--current-ink);
+    font-weight: var(--fw-semibold);
+}
+
+.navControl.current::after {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 6px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--current-edge);
+    box-shadow: 0 0 8px rgba(var(--current-rgb), 0.5);
 }
 
 .navMenu {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
     list-style: none;
     flex-wrap: nowrap;
 }
 
-.navMenu a {
-    color: var(--nav-link-text);
-    text-decoration: none;
-    padding: 0 0.875rem;
-    border: 2px solid transparent;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-    font-family: 'Fira Code', monospace;
-    font-size: 0.9rem;
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
-    line-height: 1;
-    box-sizing: border-box;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.navMenu a.active:not(.pageActive) {
-    color: var(--nav-link-text-active);
-    border-color: var(--nav-link-border-active);
-    background: var(--nav-link-bg-active);
-    box-shadow: var(--glow-2);
-}
-
-.navMenu a.pageActive {
-    color: var(--nav-link-text-active);
-    background: var(--nav-link-bg-active);
-    border-color: var(--nav-link-border-active);
-    box-shadow: var(--glow-2);
-    font-weight: 600;
-}
-
-.navMenu a:hover:not(.active):not(.pageActive) {
-    color: var(--nav-link-text-hover);
-    border-color: var(--nav-link-border-hover);
-    background: var(--nav-link-bg-hover);
-    box-shadow: 0 0 10px var(--glow-primary);
-}
-
-.navMenu a.pageActive:hover {
-    filter: brightness(1.1);
-}
-
-.navMenu a.pageActive::before {
-    content: '';
-    opacity: 0;
-}
-
-.navMenu a:not(.pageActive)::before {
-    content:'> ';
-    opacity:0;
-    transition:opacity 0.3s ease;
-}
-
-.navMenu a.active:not(.pageActive)::before,
-.navMenu a:hover:not(.pageActive):not(.active)::before {
-    opacity:1;
-}
-
 .navSeparator {
-    color:var(--text-muted);
-    opacity:0.3;
-    padding:0 0.5rem;
-    align-self:center;
+    width: 1px;
+    height: 1.5rem;
+    margin: 0 0.25rem;
+    overflow: hidden;
+    color: transparent;
+    background: var(--chrome-border);
+}
+
+/* The More menu: a small panel under its button. */
+.moreItem {
+    position: relative;
+}
+
+.caret {
+    transition: transform var(--dur-2) var(--ease-std);
+}
+
+.moreButton[aria-expanded="true"] .caret {
+    transform: rotate(180deg);
+}
+
+.morePanel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 12rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0.375rem;
+    list-style: none;
+    background: var(--surface-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+
+/* The display above would beat the hidden attribute's own display: none. */
+.morePanel[hidden] {
+    display: none;
+}
+
+.moreLink {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 0.875rem;
+    border-radius: var(--radius-md);
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+        color var(--dur-2) var(--ease-std),
+        background-color var(--dur-2) var(--ease-std);
+}
+
+.moreLink:hover,
+.moreLink:focus-visible {
+    color: var(--cyan-text);
+    background: rgba(var(--cyan-rgb), 0.1);
+}
+
+.moreLink.current {
+    color: var(--current-ink);
+    font-weight: var(--fw-semibold);
+}
+
+.moreLink.current::before {
+    content: '';
+    position: absolute;
+    left: 0.25rem;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--current-edge);
 }
 
 /* No room for the help button beside the menu on narrow screens; the '?'
@@ -216,6 +260,7 @@
     right: 0;
     background: var(--bg-secondary);
     flex-direction: column;
+    align-items: stretch;
     gap: 0;
     border-top: 1px solid var(--accent-primary);
     box-shadow: 0 5px 10px rgba(0,0,0,0.2);
@@ -231,50 +276,67 @@
 }
 
 .dropdown .navSeparator {
-    text-align: center;
-    padding: 0.75rem 0;
-    font-size: 1.2rem;
-    border-bottom: 1px solid var(--border-color-muted);
+    width: auto;
+    height: 1px;
+    margin: 0;
+    background: var(--border-color-muted);
 }
 
-.dropdown a {
+.dropdown .navLink {
+    justify-content: flex-start;
+    width: 100%;
+    height: auto;
     padding: 1rem 1.5rem;
+    border: 0;
     border-bottom: 1px solid var(--border-color-muted);
     border-radius: 0;
-    width: 100%;
+    background: transparent;
+    font-size: 0.9rem;
 }
 
-.dropdown li:last-child a {
+.dropdown .navLink:hover,
+.dropdown .navLink:focus-visible {
+    background: rgba(var(--cyan-rgb), 0.1);
+    box-shadow: none;
+}
+
+.dropdown li:last-child .navLink {
     border-bottom: none;
+}
+
+/* In the menu the current item is marked by a bar at its left edge. */
+.dropdown .navLink.current::after {
+    left: 0;
+    right: auto;
+    top: 0.75rem;
+    bottom: 0.75rem;
+    width: 3px;
+    height: auto;
 }
 
 /* Responsive terminal prompt */
 @media (max-width: 47.99rem) {
     .terminalPrompt {
         font-size: 0.85rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 60vw;
     }
 }
 
-/* Phones: no prompt, tighter controls. */
+/* Phones: the short prompt, tighter controls. */
 @media (max-width: 29.99rem) {
-    .terminalPrompt {
+    .promptFull {
         display: none;
     }
 
-    .terminalHeader {
-        padding: 0 0.5rem;
+    .promptShort {
+        display: inline;
     }
 
     .navControls {
         gap: 0.25rem;
     }
 
-    .themeToggle, .paletteToggle, .helpToggle, .mobileMenuToggle {
-        padding: 0.3rem 0.5rem;
+    .menuButton {
+        padding: 0 0.625rem;
         font-size: 0.75rem;
     }
 }

@@ -76,11 +76,6 @@
     border-left-color: var(--accent-primary);
 }
 
-[data-theme="light"] .commandItem.selected {
-    background: rgba(var(--accent-secondary-rgb), 0.12);
-    border-left-color: var(--accent-secondary);
-}
-
 .commandTitle {
     color: var(--text-primary);
     min-width: 0;

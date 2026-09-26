@@ -38,20 +38,14 @@
   transform: translateY(1px);
 }
 
-/* Outlined: cyan in the dark theme, amber on white in the light one. */
+/* Outlined in cyan, on a faint tint of it, in both themes. */
 .ghost {
   background: rgba(var(--cyan-rgb), 0.1);
   border-color: var(--cyan-edge);
   color: var(--cyan-text);
 }
 
-[data-theme="light"] .ghost {
-  background: var(--surface-1);
-  border-color: var(--amber-text);
-  color: var(--amber-text);
-}
-
-/* Filled neon. */
+/* Filled neon: the one main action of a group. */
 .primary {
   background: var(--cyan);
   border-color: var(--cyan-edge);
@@ -94,12 +88,6 @@
     transform: translateY(-2px);
     background: rgba(var(--cyan-rgb), 0.18);
     box-shadow: 0 0 20px rgba(var(--cyan-rgb), 0.45);
-  }
-
-  [data-theme="light"] .ghost:hover:not(:disabled, [aria-disabled="true"]) {
-    background: var(--amber-text);
-    color: var(--surface-1);
-    box-shadow: 0 0 20px rgba(var(--amber-rgb), 0.45);
   }
 
   .primary:hover:not(:disabled, [aria-disabled="true"]) {

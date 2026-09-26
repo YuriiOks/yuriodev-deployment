@@ -1,7 +1,10 @@
 import { createContext } from 'react';
 
-/** The overlays that take over the page: two dialogs and the header's menu. */
-export type OverlayId = 'palette' | 'help' | 'menu';
+/**
+ * The overlays that take over the page: two dialogs, the header's menu
+ * (below the sidebar breakpoint) and its More menu (from it up).
+ */
+export type OverlayId = 'palette' | 'help' | 'menu' | 'more';
 
 export interface OverlayState {
   /** The one overlay open right now, or null. */

@@ -5,7 +5,7 @@ import { useReducedMotion } from './useReducedMotion';
  * Types each message, pauses, deletes it and moves to the next, forever.
  * Under reduced motion it returns the first message in full and never animates.
  */
-const useTypewriter = (messages: string[]) => {
+const useTypewriter = (messages: readonly string[]) => {
   const reducedMotion = useReducedMotion();
   const [text, setText] = useState('');
   const [messageIndex, setMessageIndex] = useState(0);
