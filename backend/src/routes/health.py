@@ -20,6 +20,7 @@ async def health(settings: Annotated[Settings, Depends(get_settings_dep)]) -> He
         service=SERVICE_NAME,
         environment=settings.environment,
         revision=settings.revision,
+        ref=settings.build_ref,
     )
 
 

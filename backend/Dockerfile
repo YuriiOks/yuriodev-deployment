@@ -55,7 +55,9 @@ USER app
 EXPOSE 8000
 
 ARG GIT_SHA=unknown
-ENV REVISION=$GIT_SHA
+ARG GIT_REF=unknown
+ENV REVISION=$GIT_SHA \
+    BUILD_REF=$GIT_REF
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)" || exit 1
