@@ -271,6 +271,12 @@
   color: var(--accent-secondary);
 }
 
+/* Daylight: the amber text ink reads as brown; the hover shift takes the
+   teal ink instead. */
+[data-theme="light"] .personLink:hover {
+  color: var(--hue-teal);
+}
+
 .personLinkIcon {
   display: inline-block;
   vertical-align: middle;
@@ -465,6 +471,12 @@
   border-radius: 4px;
   transition: all 0.3s ease;
   background: rgba(var(--accent-secondary-rgb), 0.05);
+}
+
+/* Daylight: slate ink inside the amber frame, not the amber text ink's
+   brown (the hover fill below is already the bright amber). */
+[data-theme="light"] .eventLink {
+  color: var(--text-1);
 }
 
 .eventLink:hover {

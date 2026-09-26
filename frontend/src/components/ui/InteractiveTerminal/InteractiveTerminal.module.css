@@ -14,7 +14,7 @@
 
 /* Light theme: the page's soft cyan glow instead of the dark drop shadow. */
 [data-theme="light"] .terminalWrapper {
-    box-shadow: 0 4px 16px rgba(var(--cyan-rgb), 0.12), 0 2px 8px rgba(11, 19, 36, 0.08);
+    box-shadow: 0 4px 16px rgba(var(--cyan-rgb), 0.12), 0 2px 8px rgba(var(--ink-shadow-rgb), 0.08);
 }
 
 .terminalWrapper:hover {
@@ -23,7 +23,7 @@
 }
 
 [data-theme="light"] .terminalWrapper:hover {
-    box-shadow: 0 8px 32px rgba(var(--cyan-rgb), 0.2), 0 4px 16px rgba(11, 19, 36, 0.12);
+    box-shadow: 0 8px 32px rgba(var(--cyan-rgb), 0.2), 0 4px 16px rgba(var(--ink-shadow-rgb), 0.12);
 }
 
 /* Mac-style Terminal Header */
@@ -277,8 +277,10 @@
     letter-spacing: 0.5px;
 }
 
+/* Daylight: the amber text ink reads as brown; command lines take the
+   cyan ink instead, like the hero's. */
 [data-theme="light"] .terminalLine.command {
-    color: var(--accent-secondary);
+    color: var(--cyan-text);
     text-shadow: none;
 }
 
@@ -343,8 +345,10 @@
     text-shadow: 0 0 8px rgba(var(--accent-secondary-rgb), 0.5);
 }
 
+/* Daylight: the warning ink is the same brown amber text ink; slate reads
+   clearly instead. */
 [data-theme="light"] .terminalLine.warning {
-    color: var(--warning-color);
+    color: var(--text-1);
     text-shadow: none;
 }
 
@@ -356,7 +360,7 @@
 }
 
 [data-theme="light"] .terminalLine.warning::before {
-    color: var(--warning-color);
+    color: var(--text-1);
     text-shadow: none;
 }
 

@@ -50,6 +50,12 @@
   background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--amber-edge), transparent);
 }
 
+/* Daylight: cyan to amber blends through a muddy olive in sRGB; a
+   single-hue cyan fill instead. */
+[data-theme="light"] .title::after {
+  background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--cyan), transparent);
+}
+
 .header[data-align="start"] .title::after {
   left: 0;
   transform: none;

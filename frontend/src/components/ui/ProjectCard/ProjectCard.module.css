@@ -140,6 +140,11 @@
     font-family: 'Fira Code', monospace;
 }
 
+/* Daylight: slate ink on the amber tint, not the amber text ink's brown. */
+[data-theme="light"] .highlightedMetric {
+    color: var(--text-1);
+}
+
 /* Highlighted Code Elements (quoted text) */
 .highlightedCode {
     color: var(--accent-primary);
@@ -285,6 +290,15 @@
     background: rgba(var(--accent-secondary-rgb), 0.1);
     box-shadow: 0 0 10px rgba(var(--accent-secondary-rgb), 0.3);
     transform: translateX(4px);
+}
+
+/* Daylight: a cyan outline at rest (the amber text ink reads as brown,
+   and the cyan edge keeps it from fighting the amber FEATURED badge for
+   emphasis); the hover fill below still switches to the bright amber. */
+[data-theme="light"] .projectLink {
+    color: var(--cyan-text);
+    border-color: var(--cyan-edge);
+    background: rgba(var(--cyan-rgb), 0.05);
 }
 
 /* Disabled/Coming Soon link */

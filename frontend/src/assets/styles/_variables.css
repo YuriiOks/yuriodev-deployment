@@ -14,8 +14,11 @@
    The light theme is neon on light: slate ink on white surfaces over a
    cool near-white page, deep cyan for text accents (titles, prompts,
    links) and the bright cyan for glows and fills; amber there is for
-   fills, edges, glows and large display marks, and its dark text shade
-   is kept for the few small labels that must be amber. Titles use
+   fills, edges, glows and large display marks only - darkened enough to
+   pass as text (--amber-text) it reads as brown, not amber, so no small
+   label uses it as a text colour in light: each consumer of --amber-text/
+   --accent-secondary has a `[data-theme="light"]` override onto slate,
+   the title ink, the cyan ink or the teal ink instead. Titles use
    --title-ink and their '#' marks --title-mark: amber and cyan in the
    dark theme, deep cyan and amber in the light one.
 
@@ -161,6 +164,10 @@
     --amber: #ffc107;  --amber-rgb: 255, 193, 7;  --amber-text: #ffc107;  --amber-edge: #ffc107;  --on-amber: #0a0f1c;
     /* Large display text (24px and up, never on glass): metrics, '#' marks. */
     --amber-display: var(--amber);
+    /* The bright cyan fill's triplet, for a custom glow a component composes
+       itself (most glows use --cyan-rgb; this is the one flat "fill" colour
+       in both themes, here the same as --cyan-rgb). */
+    --cyan-fill-rgb: var(--cyan-rgb);
 
     /* Titles (section headings, card titles) and the '#' before them. */
     --title-ink: var(--amber-text);
@@ -256,15 +263,26 @@
     --text-3: #526178;     --text-3-rgb: 82, 97, 120;
     --body-ink: var(--text-1);
 
-    /* The same hues in daylight. The bright fills carry dark ink; the
-       -text shades carry AA text; cyan's -rgb is its EDGE shade, for
-       tints, rings and glows; amber's -rgb is the bright fill itself, so
-       its tints and glows read as neon amber, never as brown. */
+    /* The same hues in daylight. The bright fills carry dark ink; cyan's
+       -text shade passes AA and reads as cyan, so it is this theme's text
+       accent; amber's -text shade also passes AA but, this dark, reads as
+       brown rather than amber - kept only for the rare non-text need (a
+       gradient stop, an error border), never as a text colour. Cyan's -rgb
+       is its EDGE shade, for tints, rings and glows; amber's -rgb is the
+       bright fill itself, so its tints and glows read as neon amber, never
+       as brown. */
     --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;   --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
     --amber: #fbbf24;  --amber-rgb: 245, 158, 11; --amber-text: #a85400;  --amber-edge: #c2710c;  --on-amber: #3a2500;
     /* Large text only needs 3:1, so display marks take the brighter
        amber edge rather than the darker --amber-text. */
     --amber-display: var(--amber-edge);
+    /* The bright cyan fill's triplet (--cyan is a lighter fill than the
+       --cyan-rgb edge shade here): a custom glow a component composes
+       itself, rather than a literal rgb() repeated at each call site. */
+    --cyan-fill-rgb: 34, 211, 238;
+    /* The page's ink (--text-1), as a triplet for a custom shadow a
+       component composes itself; --shadow-1/--shadow-2 below use it too. */
+    --ink-shadow-rgb: 11, 19, 36;
 
     /* Titles in deep cyan ink, their '#' marks in amber. */
     --title-ink: var(--cyan-text);
@@ -294,10 +312,10 @@
     --glow-1-strong: 0 0 0 1px rgba(var(--cyan-rgb), 0.7), 0 4px 14px rgba(var(--cyan-rgb), 0.2);
     --glow-2: 0 0 0 1px rgba(194, 113, 12, 0.55), 0 3px 12px rgba(251, 191, 36, 0.35);
     --glow-text: none;
-    --shadow-1: 0 1px 3px rgba(11, 19, 36, 0.08);
-    --shadow-2: 0 12px 32px rgba(11, 19, 36, 0.12);
+    --shadow-1: 0 1px 3px rgba(var(--ink-shadow-rgb), 0.08);
+    --shadow-2: 0 12px 32px rgba(var(--ink-shadow-rgb), 0.12);
     /* The hero name: a soft glow of the bright cyan, no dark halo. */
-    --hero-title-shadow: 0 0 28px rgba(34, 211, 238, 0.4), 0 0 8px rgba(34, 211, 238, 0.3);
+    --hero-title-shadow: 0 0 28px rgba(var(--cyan-fill-rgb), 0.4), 0 0 8px rgba(var(--cyan-fill-rgb), 0.3);
 
     /* Near-opaque: the header glass stays white, and amber text on it
        keeps 4.5:1 over the darkest glyph that can scroll behind it. */

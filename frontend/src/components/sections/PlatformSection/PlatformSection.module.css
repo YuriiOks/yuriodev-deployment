@@ -85,6 +85,12 @@
   overflow: hidden;
 }
 
+/* Daylight: cyan to amber blends through a muddy olive in sRGB; a
+   single-hue cyan fill instead. */
+[data-theme="light"] .progressFill {
+  background: linear-gradient(90deg, var(--cyan-edge), var(--cyan));
+}
+
 .progressFill::after {
   content: '';
   position: absolute;
@@ -205,6 +211,12 @@
   border-color: var(--amber-edge);
 }
 
+/* Daylight: slate ink inside the amber frame, not the amber text ink's
+   brown. */
+[data-theme="light"] .roadmapCard.active .statusBadge {
+  color: var(--text-1);
+}
+
 .roadmapCard.planned .statusBadge {
   background: rgba(var(--text-muted-rgb), 0.1);
   color: var(--text-muted);
@@ -315,6 +327,12 @@
   transform: translateX(4px);
 }
 
+/* Daylight: the amber text ink reads as brown; the hover shift takes the
+   teal ink instead. */
+[data-theme="light"] .featureLink:hover {
+  color: var(--hue-teal);
+}
+
 /* Stats Section */
 .statsSection {
   margin-bottom: 4rem;
@@ -348,6 +366,12 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 0.5rem;
+}
+
+/* Daylight: cyan to amber blends through a muddy olive in sRGB; a
+   single-hue cyan fill instead. */
+[data-theme="light"] .statValue {
+  background: linear-gradient(135deg, var(--cyan-edge), var(--cyan));
 }
 
 .statLabel {

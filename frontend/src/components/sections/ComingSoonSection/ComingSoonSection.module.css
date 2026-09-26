@@ -31,6 +31,13 @@
     color: var(--accent-secondary);
 }
 
+/* Daylight: the '#' mark, like a section heading's, takes the title mark
+   (large text, so its amber edge stays legible; the amber text ink it
+   replaces reads as brown). */
+[data-theme="light"] .titlePrefix {
+    color: var(--title-mark);
+}
+
 /* Dark theme title */
 [data-theme="dark"] .title {
     color: var(--accent-secondary);
@@ -47,6 +54,12 @@
     text-transform: uppercase;
     letter-spacing: 2px;
     margin-top: 0.5rem;
+}
+
+/* Daylight: the warning ink is the same brown amber text ink; slate reads
+   clearly instead. */
+[data-theme="light"] .subtitle {
+    color: var(--text-1);
 }
 
 /* Description Card */
@@ -99,6 +112,12 @@
     gap: 0.75rem;
 }
 
+/* Daylight: the amber text ink reads as brown; this heading takes the
+   title ink instead. */
+[data-theme="light"] .featuresTitle {
+    color: var(--title-ink);
+}
+
 .icon {
     font-size: 1.25em;
 }
@@ -140,6 +159,12 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+/* Daylight: the amber text ink reads as brown; this heading takes the
+   title ink instead. */
+[data-theme="light"] .terminalTitle {
+    color: var(--title-ink);
 }
 
 .terminalDescription {

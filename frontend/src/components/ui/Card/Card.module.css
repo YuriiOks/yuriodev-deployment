@@ -27,6 +27,13 @@
   box-shadow: 0 4px 20px rgba(var(--amber-rgb), 0.2);
 }
 
+/* Daylight: a cyan frame, so it does not fight the cyan header band inside;
+   the amber FEATURED badge alone carries the emphasis. */
+[data-theme="light"] .featured {
+  border-color: var(--cyan-edge);
+  box-shadow: 0 4px 16px rgba(var(--cyan-rgb), 0.15);
+}
+
 /* The amber edge also marks where a keyboard user is. */
 .interactive:has(:focus-visible) {
   border-color: var(--amber-edge);

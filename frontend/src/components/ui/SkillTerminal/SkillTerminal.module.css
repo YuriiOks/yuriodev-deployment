@@ -85,6 +85,12 @@
     transition: width 2s ease-out;
 }
 
+/* Daylight: cyan through amber to teal blends through a muddy olive in
+   sRGB; a single-hue cyan fill instead (and no third stop). */
+[data-theme="light"] .progressFill {
+    background: linear-gradient(90deg, var(--cyan-edge), var(--cyan));
+}
+
 .progressFill.animate {
     animation: progressLoad 2s ease-out forwards;
 }
@@ -117,6 +123,12 @@
     font-weight:600;
     color:var(--accent-secondary);
     text-transform:uppercase;
+}
+
+/* Daylight: the amber text ink reads as brown; the skill level takes
+   slate ink instead. */
+[data-theme="light"] .skillLevel {
+    color: var(--text-1);
 }
 
 .skillDetails {
@@ -252,8 +264,11 @@
     color: var(--amber-text);
 }
 
+/* Daylight: slate ink inside the amber frame, not the amber text ink's
+   brown. */
 [data-theme="light"] .tag_tool {
     background: rgba(var(--amber-rgb), 0.1);
+    color: var(--text-1);
 }
 
 .tag_tool:hover {
