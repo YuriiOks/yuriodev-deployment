@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './ScrollToTop.module.css';
 import { scrollBehavior } from '../../../utils/motion';
+import { getRootScale } from '../../../utils/rootScale';
+
+/** How far down the page a visitor must scroll before the button appears, at the default 16px root. */
+const REVEAL_SCROLL = 300;
 
 interface ScrollToTopProps {
   /** Hide the button, for example while a dialog or drawer is open over the page. */
@@ -25,9 +29,20 @@ const ScrollToTop: React.FC<ScrollToTopProps> = ({ suppressed = false }) => {
   const [scrolled, setScrolled] = useState(false);
   const [footerInView, setFooterInView] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
+  // Read once and on resize, not on every scroll tick.
+  const rootScale = useRef(1);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 300);
+    const updateScale = () => {
+      rootScale.current = getRootScale();
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > REVEAL_SCROLL * rootScale.current);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);

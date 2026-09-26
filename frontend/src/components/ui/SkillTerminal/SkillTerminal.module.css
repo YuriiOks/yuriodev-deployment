@@ -1,7 +1,7 @@
 .skillTerminal {
     background: var(--bg-card);
     border: 1px solid rgba(var(--accent-primary-rgb), 0.4);
-    border-radius: 8px;
+    border-radius: 0.5rem;
     padding: 0;
     font-family: 'Fira Code', monospace;
     font-size: 0.9rem;
@@ -19,7 +19,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 0.1875rem;
     background: var(--amber-edge);
     transform: scaleX(0);
     transition: transform 0.3s ease;
@@ -31,7 +31,7 @@
 }
 
 .skillTerminal:hover {
-    transform: translateY(-4px);
+    transform: translateY(-0.25rem);
     box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
     border-color: var(--amber-edge);
 }
@@ -63,8 +63,8 @@
 
 .progressBar {
     background:rgba(0,0,0,0.5);
-    height:8px;
-    border-radius:4px;
+    height:0.5rem;
+    border-radius:0.25rem;
     margin:0rem 0;
     border:1px solid var(--text-on-light-bg);
     overflow:hidden;
@@ -79,7 +79,7 @@
 .progressFill {
     height:100%;
     background:linear-gradient(90deg,var(--cyan-edge),var(--amber-edge),var(--accent-tertiary));
-    border-radius:4px;
+    border-radius:0.25rem;
     position:relative;
     width: 0%;
     transition: width 2s ease-out;
@@ -125,12 +125,6 @@
     text-transform:uppercase;
 }
 
-/* Daylight: the amber text ink reads as brown; the skill level takes
-   slate ink instead. */
-[data-theme="light"] .skillLevel {
-    color: var(--text-1);
-}
-
 .skillDetails {
     margin-top:0.75rem;
     display:flex;
@@ -143,7 +137,7 @@
     border:1px solid var(--accent-tertiary);
     color:var(--accent-tertiary);
     padding:0.2rem 0.6rem;
-    border-radius:4px;
+    border-radius:0.25rem;
     font-size:0.75rem;
     transition: all 0.2s ease;
     cursor: default;
@@ -154,11 +148,6 @@
     border-color:var(--amber-edge);
     color:var(--accent-secondary);
     font-weight:600;
-}
-
-/* Daylight: slate ink inside the amber frame, not amber's dark text shade. */
-[data-theme="light"] .skillTagDetail.highlightSkill {
-    color: var(--text-1);
 }
 
 /* ============================================ */
@@ -180,7 +169,7 @@
 
 .tag_framework:hover {
     background: rgba(147, 51, 234, 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
 }
 
@@ -197,7 +186,7 @@
 
 .tag_database:hover {
     background: rgba(var(--cyan-rgb), 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(var(--cyan-rgb), 0.3);
 }
 
@@ -216,7 +205,7 @@
 
 .tag_model:hover {
     background: rgba(236, 72, 153, 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
 }
 
@@ -234,7 +223,7 @@
 
 .tag_language:hover {
     background: rgba(var(--hue-green-rgb), 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(var(--hue-green-rgb), 0.3);
 }
 
@@ -253,7 +242,7 @@
 
 .tag_cloud:hover {
     background: rgba(59, 130, 246, 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
@@ -264,16 +253,14 @@
     color: var(--amber-text);
 }
 
-/* Daylight: slate ink inside the amber frame, not the amber text ink's
-   brown. */
+/* Daylight: a lighter tint of the same amber fill. */
 [data-theme="light"] .tag_tool {
     background: rgba(var(--amber-rgb), 0.1);
-    color: var(--text-1);
 }
 
 .tag_tool:hover {
     background: rgba(var(--amber-rgb), 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(var(--amber-rgb), 0.3);
 }
 
@@ -292,7 +279,7 @@
 
 .tag_concept:hover {
     background: rgba(99, 102, 241, 0.25);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
@@ -314,7 +301,7 @@
 
 .tag_metric:hover {
     background: rgba(var(--hue-orange-rgb), 0.3);
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     box-shadow: 0 4px 12px rgba(var(--hue-orange-rgb), 0.4);
 }
 
@@ -340,7 +327,7 @@
     }
 
     .progressBar {
-        height: 6px;
+        height: 0.375rem;
         margin: 0.75rem 0;
     }
 

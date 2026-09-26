@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { onMotionChange, prefersReducedMotion } from '../../../utils/motion';
+import { getRootScale } from '../../../utils/rootScale';
 import {
   linkDistanceFor,
   nodeCountFor,
@@ -23,22 +24,29 @@ import styles from './CanvasBackground.module.css';
  * - The backing store is the CSS size times the device pixel ratio, capped
  *   at 1.5: sharp on high-density screens without painting 4x the pixels.
  * - Each tone's glow is a radial-gradient sprite drawn once (again only when
- *   the theme or the pixel ratio changes) and stamped with drawImage; no
- *   shadowBlur, which would blur every dot on every frame.
+ *   the theme, the pixel ratio or the type scale changes) and stamped with
+ *   drawImage; no shadowBlur, which would blur every dot on every frame.
  * - At most 30 frames a second, with movement scaled by the elapsed time.
- * - The node count scales with the viewport area (18 on a phone, 80 at most).
+ * - The node count scales with the viewport area (18 on a phone, 60 at most)
+ *   - never with the type scale below, so a big screen costs no more.
  * - Colours are read from CSS on mount and when the theme changes, never per frame.
  * - Nothing runs while the tab is hidden; under reduced motion one static frame
  *   is drawn and no loop starts.
  * - Every listener, observer and pending frame is released on unmount.
+ *
+ * Fluid scaling: the dot radius, glow size, line width, link distance and
+ * pointer interaction radius are all multiplied by "typeScale" - the root
+ * font size divided by 16 (getRootScale), read on mount and on every resize
+ * (fitCanvas) - so the field looks the same design at 1440, 2560 and 3840
+ * instead of the same few CSS pixels lost in a much bigger window.
  */
 
 const MAX_PIXEL_RATIO = 1.5;
 const FRAME_INTERVAL_MS = 1000 / 30;
 const BASE_STEP_MS = 1000 / 60; // the speeds in field.ts are per 60 fps step
-const GLOW_RADIUS = 14; // CSS px: how far a dot's glow reaches
+const GLOW_RADIUS = 14; // CSS px at typeScale 1: how far a dot's glow reaches
 const MAX_LINKS_PER_NODE = 3;
-const LINE_WIDTH = 0.75; // CSS px
+const LINE_WIDTH = 0.75; // CSS px at typeScale 1
 
 interface Palette {
   colors: Record<Tone, string>;
@@ -73,10 +81,10 @@ function readPalette(): Palette {
   };
 }
 
-/** A soft round glow in `color`, fading to nothing at its edge, `scale` backing pixels per CSS pixel. */
-function glowSprite(color: string, scale: number): HTMLCanvasElement | null {
+/** A soft round glow in `color`, fading to nothing at its edge: `cssRadius` CSS pixels wide, `dpr` backing pixels per CSS pixel. */
+function glowSprite(color: string, cssRadius: number, dpr: number): HTMLCanvasElement | null {
   const sprite = document.createElement('canvas');
-  const size = Math.max(2, Math.ceil(GLOW_RADIUS * 2 * scale));
+  const size = Math.max(2, Math.ceil(cssRadius * 2 * dpr));
   sprite.width = size;
   sprite.height = size;
   const ctx = sprite.getContext('2d');
@@ -122,7 +130,12 @@ const CanvasBackground: React.FC = () => {
     // excludes a classic scrollbar, while innerWidth/innerHeight do not -
     // sizing the backing store from the window would squeeze the bitmap.
     let size: Size = { width: canvas.clientWidth, height: canvas.clientHeight };
-    let scale = 1;
+    let dpr = 1;
+    // How far the root font has grown past 16px (getRootScale): scales the
+    // dot radius, glow, line width, link distance and pointer reach so the
+    // field enlarges with the rest of the fluid-scaled page.
+    let typeScale = getRootScale();
+    let glowRadiusCss = GLOW_RADIUS * typeScale;
     let palette = readPalette();
     let sprites: Record<Tone, HTMLCanvasElement | null> = { 0: null, 1: null, 2: null };
     let dotFills: Record<Tone, string> = { 0: '', 1: '', 2: '' };
@@ -140,7 +153,11 @@ const CanvasBackground: React.FC = () => {
     const pixelRatio = () => Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_PIXEL_RATIO);
 
     const paint = () => {
-      sprites = { 0: glowSprite(palette.colors[0], scale), 1: glowSprite(palette.colors[1], scale), 2: glowSprite(palette.colors[2], scale) };
+      sprites = {
+        0: glowSprite(palette.colors[0], glowRadiusCss, dpr),
+        1: glowSprite(palette.colors[1], glowRadiusCss, dpr),
+        2: glowSprite(palette.colors[2], glowRadiusCss, dpr),
+      };
       dotFills = {
         0: withAlpha(palette.colors[0], palette.dotAlpha),
         1: withAlpha(palette.colors[1], palette.dotAlpha),
@@ -151,18 +168,21 @@ const CanvasBackground: React.FC = () => {
 
     const fitCanvas = () => {
       const next = { width: canvas.clientWidth, height: canvas.clientHeight };
-      const nextScale = pixelRatio();
+      const nextDpr = pixelRatio();
+      const nextTypeScale = getRootScale();
       // Resizing the backing store also resets the context state.
-      canvas.width = Math.max(1, Math.round(next.width * nextScale));
-      canvas.height = Math.max(1, Math.round(next.height * nextScale));
-      ctx.setTransform(nextScale, 0, 0, nextScale, 0, 0);
+      canvas.width = Math.max(1, Math.round(next.width * nextDpr));
+      canvas.height = Math.max(1, Math.round(next.height * nextDpr));
+      ctx.setTransform(nextDpr, 0, 0, nextDpr, 0, 0);
 
       const count = nodeCountFor(next);
       nodes = nodes.length === 0 ? seedNodes(count, next, rand) : rescaleNodes(nodes, size, next, count, rand);
-      linkDistance = linkDistanceFor(next, count);
+      linkDistance = linkDistanceFor(next, count) * nextTypeScale;
       size = next;
-      if (nextScale !== scale || sprites[0] === null) {
-        scale = nextScale;
+      if (nextDpr !== dpr || nextTypeScale !== typeScale || sprites[0] === null) {
+        dpr = nextDpr;
+        typeScale = nextTypeScale;
+        glowRadiusCss = GLOW_RADIUS * typeScale;
         paint();
       }
     };
@@ -171,7 +191,7 @@ const CanvasBackground: React.FC = () => {
       ctx.clearRect(0, 0, size.width, size.height);
 
       // Lines first, under the dots: thin, fading with distance.
-      ctx.lineWidth = LINE_WIDTH;
+      ctx.lineWidth = LINE_WIDTH * typeScale;
       const maxDistance2 = linkDistance * linkDistance;
       for (let i = 0; i < nodes.length; i++) {
         let links = 0;
@@ -195,13 +215,13 @@ const CanvasBackground: React.FC = () => {
         const sprite = sprites[node.tone];
         if (sprite) {
           ctx.globalAlpha = palette.glowAlpha * node.glow;
-          ctx.drawImage(sprite, node.x - GLOW_RADIUS, node.y - GLOW_RADIUS, GLOW_RADIUS * 2, GLOW_RADIUS * 2);
+          ctx.drawImage(sprite, node.x - glowRadiusCss, node.y - glowRadiusCss, glowRadiusCss * 2, glowRadiusCss * 2);
         }
       }
       ctx.globalAlpha = 1;
       for (const node of nodes) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, node.radius * typeScale, 0, Math.PI * 2);
         ctx.fillStyle = dotFills[node.tone];
         ctx.fill();
       }
@@ -212,7 +232,7 @@ const CanvasBackground: React.FC = () => {
       if (lastFrame && now - lastFrame < FRAME_INTERVAL_MS - 1) return;
       const dt = lastFrame ? Math.min((now - lastFrame) / BASE_STEP_MS, 4) : 1;
       lastFrame = now;
-      stepNodes(nodes, dt, size, pointer, rand);
+      stepNodes(nodes, dt, size, pointer, rand, typeScale);
       draw();
     };
 

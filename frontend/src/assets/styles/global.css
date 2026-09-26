@@ -29,16 +29,35 @@
 }
 
 html {
-    /* Large screens: from 1600px up the root font size grows smoothly with
-       the window, 16px at 1600px to 18px at 2400px and up (at the browser's
-       default size; the percentages follow the visitor's own setting), so
-       every rem-based size stays in proportion to the screen. Media queries
-       in rem do not follow it: they use the browser's initial font size. */
-    font-size: clamp(100%, 75% + 0.25vw, 112.5%);
+    font-size: 100%;
     scroll-behavior: smooth;
     /* Anchor jumps and scrollIntoView stop just below the fixed header. */
-    scroll-padding-top: calc(var(--header-h) + 8px);
+    scroll-padding-top: calc(var(--header-h) + 0.5rem);
     overflow-x: hidden;
+}
+
+/* From a 1440px-wide viewport up (the "fluid" breakpoint, breakpoints.ts),
+   the root font size grows with the screen instead of sitting at a fixed
+   16px, so every rem-based size on the page - not just type - stays in
+   proportion on a big monitor instead of looking small in a sea of empty
+   space. The reference design is 1440x810 (16:9): the scale factor is
+   whichever is smaller, viewport width / 1440 or viewport height / 810, so
+   a screen's longer axis never grows the page past what its shorter axis
+   has room for.
+     1920x1080 -> 16 x 1.333 =~ 21.3px
+     2560x1440 -> 16 x 1.778 =~ 28.4px
+     3840x2160 -> 16 x 2.667 =~ 42.7px
+   A 1440-tall ultrawide (e.g. 5120x1440) scales by its height, the same as
+   2560x1440 (=~ 28.4px), rather than by its much wider width, so the hero
+   still fits the one visible row instead of type ballooning past the
+   window's actual height. Clamped to [16px, 48px] for anything wider or
+   taller still. This query uses the browser's default rem, never the html
+   font-size it sets (which would be circular) - every other rem-based
+   @media width in the codebase (breakpoints.ts) does the same. */
+@media (min-width: 90rem) {
+    html {
+        font-size: clamp(1rem, min(100vw / 90, 100vh / 50.625), 3rem);
+    }
 }
 
 /* Set by ui/Dialog while a modal dialog is open: the page underneath does
@@ -155,8 +174,8 @@ h1, h2, h3, h4, h5, h6, p {
 /* Section title styles - h2 with # prefix and gradient underline */
 h2 {
     position: relative;
-    padding-bottom: 20px;
-    margin-bottom: 30px;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.875rem;
 }
 
 /* Title ink with the other accent on the '#': amber and cyan in the dark
@@ -182,10 +201,10 @@ h2::before {
 h2::after {
     content: '';
     position: absolute;
-    bottom: 0px;
+    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 80px;
-    height: 2px;
+    width: 5rem;
+    height: 0.125rem;
     background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--amber-edge), transparent);
 }

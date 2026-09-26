@@ -6,7 +6,16 @@
 }
 
 /* The name in the brand cyan with its neon glow (--hero-title-shadow: a
-   soft cyan halo in both themes, never a dark drop shadow). */
+   soft halo in both themes, never a dark drop shadow) in the dark theme;
+   daylight gives it a left-to-right gold -> orange gradient instead (the
+   name is always large text, so both stops can take a fully vivid shade
+   rather than the burnt one normal-size orange text holds to). The
+   gradient is real text the whole time (background-clip: text plus
+   -webkit-text-fill-color/color: transparent) - never an image, so it
+   stays selectable and is read by screen readers as plain text; a plain
+   --name-ink colour is the fallback where a browser lacks background-clip
+   support, and forced-colors mode drops the gradient and glow for the
+   system's own text colour. */
 .heroTitle {
     font-size: 4rem;
     font-weight: 700;
@@ -16,6 +25,42 @@
     text-shadow: var(--hero-title-shadow);
     animation: subtleGlow 4s ease-in-out infinite;
     color: var(--accent-primary);
+}
+
+/* Plain-colour fallback: applies whenever background-clip: text is not
+   supported, and stays the active rule under forced-colors below.
+   animation: none turns off the base rule's infinite hue-rotate shimmer
+   for the light theme only: a running keyframe animation holds its
+   targeted property (filter) for the animation's whole duration, so the
+   drop-shadow glow set below would never paint while subtleGlow kept
+   looping every 4s. The gradient name gets a steady glow instead. */
+[data-theme="light"] .heroTitle {
+    color: var(--name-ink);
+    animation: none;
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+    [data-theme="light"] .heroTitle {
+        background-image: linear-gradient(90deg, var(--name-gold), var(--name-orange));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        text-shadow: none;
+        filter: var(--hero-name-glow);
+    }
+}
+
+/* High-contrast/forced-colors mode: no gradient fill or glow, just the
+   system's own text colour (overrides the @supports block above, same
+   selector and specificity, later in source order). */
+@media (forced-colors: active) {
+    [data-theme="light"] .heroTitle {
+        background-image: none;
+        -webkit-text-fill-color: currentColor;
+        color: CanvasText;
+        filter: none;
+    }
 }
 
 @keyframes subtleGlow {
@@ -29,13 +74,6 @@
     color:var(--accent-secondary);
     margin-bottom:2rem;
     font-weight:500;
-}
-
-/* Daylight: the amber text ink reads as brown on white, so the subtitle
-   takes the title ink instead; the '|' separator keeps the bright amber
-   (a fill, not a text colour, so it stays legible). */
-[data-theme="light"] .heroSubtitle {
-    color: var(--title-ink);
 }
 
 .heroSubtitleSep {
@@ -67,7 +105,7 @@
     display: inline-block;
     width: 0.55ch;
     height: 1.1em;
-    margin-left: 2px;
+    margin-left: 0.125rem;
     vertical-align: -0.15em;
     background: currentColor;
     animation: caretBlink 1s steps(1) infinite;
@@ -144,12 +182,6 @@
     margin-bottom:0.5rem;
 }
 
-/* Daylight: the amber text ink reads as brown; command lines take the
-   cyan ink instead. */
-[data-theme="light"] .commandLine {
-    color: var(--cyan-text);
-}
-
 .output {
     color:var(--text-primary);
     margin-left:2ch;
@@ -184,12 +216,6 @@
     font-weight: 700;
 }
 
-/* Daylight: the amber text ink reads as brown; the outer braces take the
-   teal ink instead. */
-[data-theme="light"] .jsonBraceOuter {
-    color: var(--hue-teal);
-}
-
 .jsonBracket {
     color: var(--accent-primary);
     font-weight: 600;
@@ -215,11 +241,18 @@
 /* Side by side only once both columns fit at a readable size: the longest
    lines are 63 and 62 characters, 76em of Fira Code (0.6em a character)
    including 1.25rem either side of the divider, so this query starts
-   where that comes to >= 13.5px (13.5px x 76 + 2.5rem, a 1% margin) -
-   about 67rem, comfortably more than the 60rem the card reaches at
-   1366px stacked. Below it the card stacks at the stacked --code-fs
-   (14px from 48rem up) instead of shrinking. */
-@container (min-width: 67rem) {
+   where that comes to >= 13.5px (13.5px x 76 + 2.5rem, a 1% margin) - 67rem
+   at a 16px root, comfortably narrower than the card stays below 1440px
+   wide. Below it the card stacks at the stacked --code-fs (14px from
+   48rem up) instead of shrinking.
+   A literal 1072px (67 x 16), not 67rem: container query lengths, unlike
+   @media ones, do follow the html font-size, but this card's own width
+   does not grow by that same factor above the fluid breakpoint - it
+   follows --content-max-width's share of the viewport, not the root font
+   (_variables.css) - so a rem threshold here drifts away from the
+   physical width it was tuned to and can flip a wide-enough card back to
+   one column on a very large screen. */
+@container (min-width: 1072px) {
     .jsonGrid,
     .deploymentSection {
         font-size: clamp(13.5px, (100cqi - 2.5rem - 1px) / 76, 0.9rem);

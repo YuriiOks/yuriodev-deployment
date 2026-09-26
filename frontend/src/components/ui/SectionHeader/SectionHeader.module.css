@@ -21,7 +21,7 @@
 .title {
   position: relative;
   margin: 0 0 var(--space-4);
-  padding-bottom: 20px;
+  padding-bottom: 1.25rem;
   font-family: var(--font-mono);
   font-size: var(--fs-2xl);
   font-weight: var(--fw-bold);
@@ -44,8 +44,8 @@
   position: absolute;
   bottom: 0;
   left: 50%;
-  width: 80px;
-  height: 2px;
+  width: 5rem;
+  height: 0.125rem;
   transform: translateX(-50%);
   background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--amber-edge), transparent);
 }

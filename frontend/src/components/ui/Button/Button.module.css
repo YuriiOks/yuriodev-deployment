@@ -5,10 +5,10 @@
 .btn {
   display: inline-block;
   vertical-align: middle;
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0.8rem 1.5rem;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 0.3125rem;
   font-family: var(--font-mono);
   font-size: inherit;
   font-weight: var(--fw-medium);
@@ -35,7 +35,7 @@
 }
 
 .btn:active:not(:disabled, [aria-disabled="true"]) {
-  transform: translateY(1px);
+  transform: translateY(0.0625rem);
 }
 
 /* Outlined in cyan, on a faint tint of it, in both themes. */
@@ -58,8 +58,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   background: transparent;
   border-color: var(--border-strong);
@@ -68,14 +68,14 @@
 }
 
 .sm {
-  min-height: 36px;
+  min-height: 2.25rem;
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
 }
 
 .icon.sm {
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   padding: 0;
 }
 
@@ -85,13 +85,13 @@
 
 @media (hover: hover) {
   .ghost:hover:not(:disabled, [aria-disabled="true"]) {
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     background: rgba(var(--cyan-rgb), 0.18);
     box-shadow: 0 0 20px rgba(var(--cyan-rgb), 0.45);
   }
 
   .primary:hover:not(:disabled, [aria-disabled="true"]) {
-    transform: translateY(-1px);
+    transform: translateY(-0.0625rem);
     box-shadow: var(--glow-1-strong);
   }
 

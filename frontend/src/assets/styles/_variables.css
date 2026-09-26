@@ -12,15 +12,18 @@
    the canvas and syntax colouring only, never for UI state.
 
    The light theme is neon on light: slate ink on white surfaces over a
-   cool near-white page, deep cyan for text accents (titles, prompts,
-   links) and the bright cyan for glows and fills; amber there is for
-   fills, edges, glows and large display marks only - darkened enough to
-   pass as text (--amber-text) it reads as brown, not amber, so no small
-   label uses it as a text colour in light: each consumer of --amber-text/
-   --accent-secondary has a `[data-theme="light"]` override onto slate,
-   the title ink, the cyan ink or the teal ink instead. Titles use
-   --title-ink and their '#' marks --title-mark: amber and cyan in the
-   dark theme, deep cyan and amber in the light one.
+   cool near-white page, deep cyan for links, buttons and other
+   interactive state, and vivid orange for what amber marks everywhere
+   else (titles, prompts, brand text) - a burnt-orange family, not the
+   old darkened amber that read as brown. Titles use --title-ink and
+   their '#' marks --title-mark: amber and cyan in the dark theme, orange
+   and cyan in the light one (swapped from the dark theme's pairing, cyan
+   still marking the accent rather than the ink). The hero name is its own
+   pair of tokens, --name-gold -> --name-orange, a left-to-right gradient
+   (large text, both stops >= 3:1) with --name-ink as the plain-colour
+   fallback for engines without text background-clip and for
+   forced-colors; --amber-text/--title-ink hold to a burnt shade that
+   clears 4.5:1 as normal text on every light surface.
 
    Every *-rgb triplet is COMMA-separated, so rgba() can take it plus an alpha.
    contrast.test.ts holds the text and UI pairs below to WCAG AA in both
@@ -50,9 +53,10 @@
 
     /* Type. Fira Code is the site's voice; long prose (the About story,
        post text) is set in the system sans, which needs no download.
-       Sizes are fluid between a 360px and a 1280px viewport; from 100rem
-       (1600px) up the root font size grows too (global.css), so every
-       rem-based size scales with very large screens. */
+       Sizes are fluid between a 360px and a 1280px viewport; from 90rem
+       (1440px) up the root font size grows with the screen itself
+       (global.css), so every rem-based size - not just type - scales
+       with very large screens. */
     --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --font-prose: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --fs-2xs: clamp(0.75rem, 0.738rem + 0.054vw, 0.781rem);    /* 12 -> 12.5px  chips, badges */
@@ -86,20 +90,22 @@
     --space-section: clamp(3rem, 2rem + 4vw, 6rem);
 
     /* Shape */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-pill: 999px;
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-pill: 999px;   /* always fully round, whatever the element's size: a sentinel, not a real length */
     --radius-round: 50%;
 
-    /* Layout. The content column: 75% of its section, never wider than
-       its cap. The cap is 72rem (1152px at a 16px root) and, on very large
-       screens, eases up to 80rem: it starts to grow once the viewport is
-       wider than 120rem at the current root size (about 2040px, where the
-       root is 17px) and reaches 80rem around 2500px. Continuous, so no
-       width makes the column jump. The e2e geometry spec keeps the section
-       rail (SectionRail.module.css) clear of this column. */
-    --content-cap: clamp(72rem, 72rem + (100vw - 120rem) * 0.5, 80rem);
+    /* Layout. The content column: 75% of its section, never wider than its
+       cap, 72rem. Since the root font itself now grows with the screen from
+       90rem (1440px) up (global.css) at the same rate as a matching-aspect
+       viewport, the cap grows right along with it in real pixels, so the
+       column keeps to 75% of the screen at 1440, 1920, 2560 and 3840 alike
+       instead of the cap ever cutting it back to a fixed width. Continuous,
+       so no width makes the column jump. The e2e geometry spec keeps the
+       section rail (SectionRail.module.css) clear of this column, and
+       fluid-scaling.spec.ts checks the column's share of the screen. */
+    --content-cap: 72rem;
     --content-max-width: min(75%, var(--content-cap));
 
     /* Breakpoints. Custom properties cannot be used inside @media, so
@@ -111,8 +117,10 @@
          xl       80rem  1280px   the footer lays out in one row
          sidebar  88rem  1408px   the section rail replaces the
                                   header's menu (never both)
-         wide    100rem  1600px   the rail shows its labels at rest;
+         fluid    90rem  1440px   the reference screen (1440x810):
                                   the root font size starts to grow
+                                  with the screen itself (global.css)
+         wide    100rem  1600px   the rail shows its labels at rest
        "From X up" is (min-width: Xrem); "below X" is
        (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
        overlap. src/assets/styles/breakpoints.test.ts rejects any
@@ -264,18 +272,35 @@
     --body-ink: var(--text-1);
 
     /* The same hues in daylight. The bright fills carry dark ink; cyan's
-       -text shade passes AA and reads as cyan, so it is this theme's text
-       accent; amber's -text shade also passes AA but, this dark, reads as
-       brown rather than amber - kept only for the rare non-text need (a
-       gradient stop, an error border), never as a text colour. Cyan's -rgb
-       is its EDGE shade, for tints, rings and glows; amber's -rgb is the
-       bright fill itself, so its tints and glows read as neon amber, never
-       as brown. */
+       -text shade passes AA and reads as cyan, so it stays this theme's
+       link/button/interactive accent. Amber's old -text shade (#a85400,
+       hue 30 at L33%) passed AA too but read as brown, not amber; --amber-text
+       is now a warmer, less red burnt-orange shade (hue 24, L 36%) that still
+       clears 4.5:1 on every light surface (bg-0, bg-1, every card, every
+       tinted header) - contrast.test.ts holds it there. Cyan's -rgb is its
+       EDGE shade, for tints, rings and glows; amber's -rgb is the bright
+       fill itself, so its tints and glows read as neon amber, never as
+       brown. */
     --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;   --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
-    --amber: #fbbf24;  --amber-rgb: 245, 158, 11; --amber-text: #a85400;  --amber-edge: #c2710c;  --on-amber: #3a2500;
-    /* Large text only needs 3:1, so display marks take the brighter
-       amber edge rather than the darker --amber-text. */
-    --amber-display: var(--amber-edge);
+    --amber: #fbbf24;  --amber-rgb: 245, 158, 11; --amber-text: #b34a05;  --amber-edge: #c2710c;  --on-amber: #3a2500;
+    /* Large text only needs 3:1: display marks (metrics) take a fully
+       vivid, less-red orange instead of the burnt --amber-text. Hue 28;
+       darkened slightly off the nominal #e06900 so it still clears 3:1 on
+       --bg-1, the darkest of the light theme's solid surfaces (bg-0/white
+       have more headroom) - contrast.test.ts holds every stop here on
+       every one of those surfaces, not just the lightest. */
+    --amber-display: #db6600;
+    /* The hero name: its own gradient, left (gold, hue 36) to right
+       (orange, hue 28) - so a component never has to spell out the vivid
+       shades itself (design-budget.test.ts bans that outside this file).
+       Both stops are large text (>= 3:1) on every light solid surface,
+       darkened slightly off the nominal #cc7a00/#e06900 for the same
+       --bg-1 reason as --amber-display. --name-ink is the plain-colour
+       fallback (@supports without background-clip: text, and
+       forced-colors) and also feeds the name's warm glow. */
+    --name-gold: #c67600;      --name-gold-rgb: 198, 118, 0;
+    --name-orange: #db6600;    --name-orange-rgb: 219, 102, 0;
+    --name-ink: #d06d00;       --name-ink-rgb: 208, 109, 0;
     /* The bright cyan fill's triplet (--cyan is a lighter fill than the
        --cyan-rgb edge shade here): a custom glow a component composes
        itself, rather than a literal rgb() repeated at each call site. */
@@ -284,9 +309,12 @@
        component composes itself; --shadow-1/--shadow-2 below use it too. */
     --ink-shadow-rgb: 11, 19, 36;
 
-    /* Titles in deep cyan ink, their '#' marks in amber. */
-    --title-ink: var(--cyan-text);
-    --title-mark: var(--amber-display);
+    /* Titles in burnt-orange ink (--amber-text, now a real orange, not a
+       brown), their '#' marks in cyan - swapped from the dark theme's
+       amber ink / cyan mark, cyan still the theme's accent rather than
+       its ink. */
+    --title-ink: var(--amber-text);
+    --title-mark: var(--cyan-text);
 
     --hue-violet: #7e22ce; --hue-violet-rgb: 126, 34, 206;
     --hue-teal: #0c655e;   --hue-teal-rgb: 12, 101, 94;
@@ -314,8 +342,18 @@
     --glow-text: none;
     --shadow-1: 0 1px 3px rgba(var(--ink-shadow-rgb), 0.08);
     --shadow-2: 0 12px 32px rgba(var(--ink-shadow-rgb), 0.12);
-    /* The hero name: a soft glow of the bright cyan, no dark halo. */
-    --hero-title-shadow: 0 0 28px rgba(var(--cyan-fill-rgb), 0.4), 0 0 8px rgba(var(--cyan-fill-rgb), 0.3);
+    /* The hero name's fallback path (no background-clip: text support): a
+       soft warm glow of the plain --name-ink fill, no dark halo. */
+    --hero-title-shadow: 0 0 28px rgba(var(--name-ink-rgb), 0.4), 0 0 8px rgba(var(--name-ink-rgb), 0.3);
+    /* The hero name's usual path: the gradient fill has no colour of its
+       own for a text-shadow to bleed through, so the glow is a
+       filter: drop-shadow stack instead, in em so it scales with the
+       name's own (fluid, then proportionally-scaled) font-size. Warm
+       gold, noticeably stronger than --hero-title-shadow above, crisp
+       letters (a tight inner layer plus a soft outer one), no dark tone. */
+    --hero-name-glow: drop-shadow(0 0 0.05em rgba(var(--name-gold-rgb), 0.85))
+        drop-shadow(0 0 0.22em rgba(var(--name-gold-rgb), 0.65))
+        drop-shadow(0 0 0.5em rgba(var(--name-gold-rgb), 0.45));
 
     /* Near-opaque: the header glass stays white, and amber text on it
        keeps 4.5:1 over the darkest glyph that can scroll behind it. */

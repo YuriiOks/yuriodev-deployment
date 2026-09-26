@@ -1,48 +1,52 @@
-/* The section rail: pinned to the left edge of the window, no panel.
-   SectionRail.tsx renders it only from 88rem (1408px) up. Its widest
-   state (labels shown) spans left + 1.5rem tick column + 0.625rem gap +
-   eight characters of 0.8125rem Fira Code + 0.5rem: about 125px at 1408px,
-   where the content column starts at 200px, and the column's gutter only
-   grows from there (e2e/geometry.spec.ts checks the clearance at 1408,
-   1600, 1920 and 2560px). */
+/* The section rail: centred in the left gutter, between the window edge
+   and the content column (useGutterCenter; never closer than 1rem to the
+   edge), on a light glass backing so it reads over the canvas.
+   SectionRail.tsx renders it only from 88rem (1408px) up, and only sets
+   its own `left`; `top` and the glass box come from here.
+   e2e/geometry.spec.ts checks its clearance from the content column at
+   1408, 1600, 1920 and 2560px. */
 .rail {
-    --rail-row: 1.75rem;       /* one section per row, 28px at a 16px root */
-    --rail-tick-col: 1.5rem;   /* the column the ticks and the track sit in */
+    composes: glass from '../../../assets/styles/recipes.module.css';
+    --rail-row: 1.75rem;        /* one section per row, 28px at a 16px root */
+    --rail-tick-col: 1.25rem;   /* the column the ticks and the track sit in */
     position: fixed;
-    left: clamp(20px, 2.2vw, 48px);
     top: 50%;
     z-index: var(--z-rail);
     transform: translateY(-50%);
-    font-family: var(--font-mono);
-    transition:
-        opacity var(--dur-3) var(--ease-out),
-        transform var(--dur-3) var(--ease-out);
-}
-
-/* While the hero fills the screen: faded out and nudged left, but still in
-   the tab order. A focused link brings the rail back at once. */
-.away {
-    opacity: 0;
-    transform: translate(-0.75rem, -50%);
-    pointer-events: none;
-}
-
-.rail.away:focus-within {
+    /* Explicit, not just the initial value: shown from the very first
+       paint, hero included, unlike the rail this replaced. */
     opacity: 1;
-    transform: translateY(-50%);
-    pointer-events: auto;
-    transition: none;
+    /* Narrower than the header/dialog's own glass padding: the rail has
+       to fit inside the gutter with room either side (useGutterCenter;
+       e2e/geometry.spec.ts checks >= 24px to the content column, >= 16px
+       to the window edge, down to 1408px, its narrowest gutter). */
+    padding: 0.75rem 0.625rem;
+    border-radius: var(--radius-lg);
+    font-family: var(--font-mono);
+}
+
+/* Sized to --content-max-width, never shown - SectionRail.tsx only reads
+   its rendered width (useGutterCenter). */
+.probe {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 0;
+    width: var(--content-max-width);
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 /* The track runs from the first tick to the last; the fill grows down it
    to the section in view. */
 .track {
     position: absolute;
-    left: calc(var(--rail-tick-col) / 2 - 1px);
+    left: calc(var(--rail-tick-col) / 2 - 0.0625rem);
     top: calc(var(--rail-row) / 2);
     bottom: calc(var(--rail-row) / 2);
-    width: 2px;
-    border-radius: 1px;
+    width: 0.125rem;
+    border-radius: 0.0625rem;
     background: var(--rail-track);
 }
 
@@ -67,12 +71,12 @@
 .link {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.5rem;
     min-height: var(--rail-row);
-    padding-right: 0.5rem;
+    padding-right: 0.375rem;
     border-radius: var(--radius-sm);
     color: var(--rail-label);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     line-height: 1;
     text-decoration: none;
 }
@@ -88,8 +92,8 @@
 /* The diamond: solid, so it covers the track behind it. */
 .tick::before {
     content: '';
-    width: 7px;
-    height: 7px;
+    width: 0.4375rem;
+    height: 0.4375rem;
     background: var(--rail-tick);
     transform: rotate(45deg);
     transition:
@@ -99,11 +103,12 @@
 }
 
 .label {
+    /* Explicit, not just the initial value: always shown, at every width
+       the rail itself shows (no more ticks-only band between it and
+       100rem). */
+    opacity: 1;
     white-space: nowrap;
-    transition:
-        color var(--dur-2) var(--ease-std),
-        opacity var(--dur-2) var(--ease-std),
-        transform var(--dur-2) var(--ease-std);
+    transition: color var(--dur-2) var(--ease-std);
 }
 
 .link:hover .tick::before,
@@ -132,29 +137,9 @@
     font-weight: var(--fw-semibold);
 }
 
-/* 88rem to 100rem: ticks only, labels while the rail is hovered or holds
-   focus. The links keep their names (aria-label) all the time. */
-@media (max-width: 99.99rem) {
-    .label {
-        opacity: 0;
-        transform: translateX(-0.25rem);
-    }
-
-    .rail:hover .label,
-    .rail:focus-within .label {
-        opacity: 1;
-        transform: none;
-    }
-}
-
-/* Touch screens: labels always, 44px rows. */
+/* Touch screens: taller rows, an easier target. */
 @media (pointer: coarse) {
     .rail {
         --rail-row: 2.75rem;
-    }
-
-    .rail .label {
-        opacity: 1;
-        transform: none;
     }
 }

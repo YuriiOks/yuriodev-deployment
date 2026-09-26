@@ -38,7 +38,11 @@ export interface Pointer {
 export type Random = () => number;
 
 export const MIN_NODES = 18;
-export const MAX_NODES = 80;
+// Capped at 60 (not the area formula's un-clamped result) so a very large or
+// very high-resolution screen never costs more to animate than a normal one:
+// fluid scaling makes the dots and links themselves bigger there instead
+// (CanvasBackground.tsx's typeScale), not more numerous.
+export const MAX_NODES = 60;
 export const AREA_PER_NODE = 20000; // CSS px² per node
 export const MIN_SPEED = 0.12;
 export const MAX_SPEED = 0.3;
@@ -172,10 +176,20 @@ export function rescaleNodes(nodes: readonly FieldNode[], from: Size, to: Size, 
  * Moves every node by one step of `dt`: each drifts along a slowly wandering
  * heading at its own cruise speed (so the field never freezes), the pointer
  * pushes nearby nodes away, a pushed node eases back to its drift, and nodes
- * bounce off the edges.
+ * bounce off the edges. `scale` (default 1, CanvasBackground.tsx's typeScale)
+ * grows the pointer's reach and each node's effective radius for the bounce,
+ * to match the bigger radius it is actually drawn at on a large screen.
  */
-export function stepNodes(nodes: FieldNode[], dt: number, { width, height }: Size, pointer: Pointer | null, rand: Random): void {
+export function stepNodes(
+  nodes: FieldNode[],
+  dt: number,
+  { width, height }: Size,
+  pointer: Pointer | null,
+  rand: Random,
+  scale = 1,
+): void {
   const settle = 1 - Math.pow(1 - SETTLE, dt);
+  const interactionRadius = INTERACTION_RADIUS * scale;
   for (const node of nodes) {
     node.heading += (rand() - 0.5) * 2 * WANDER * dt;
     const targetX = Math.cos(node.heading) * node.cruise;
@@ -187,8 +201,8 @@ export function stepNodes(nodes: FieldNode[], dt: number, { width, height }: Siz
       const dx = node.x - pointer.x;
       const dy = node.y - pointer.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > 0 && distance < INTERACTION_RADIUS) {
-        const force = ((INTERACTION_RADIUS - distance) / INTERACTION_RADIUS) * REPULSION_STRENGTH * dt;
+      if (distance > 0 && distance < interactionRadius) {
+        const force = ((interactionRadius - distance) / interactionRadius) * REPULSION_STRENGTH * dt;
         node.vx += (dx / distance) * force;
         node.vy += (dy / distance) * force;
       }
@@ -197,22 +211,23 @@ export function stepNodes(nodes: FieldNode[], dt: number, { width, height }: Siz
     node.x += node.vx * dt;
     node.y += node.vy * dt;
 
+    const radius = node.radius * scale;
     let bounced = false;
-    if (node.x < node.radius) {
-      node.x = node.radius;
+    if (node.x < radius) {
+      node.x = radius;
       node.vx = Math.abs(node.vx);
       bounced = true;
-    } else if (node.x > width - node.radius) {
-      node.x = width - node.radius;
+    } else if (node.x > width - radius) {
+      node.x = width - radius;
       node.vx = -Math.abs(node.vx);
       bounced = true;
     }
-    if (node.y < node.radius) {
-      node.y = node.radius;
+    if (node.y < radius) {
+      node.y = radius;
       node.vy = Math.abs(node.vy);
       bounced = true;
-    } else if (node.y > height - node.radius) {
-      node.y = height - node.radius;
+    } else if (node.y > height - radius) {
+      node.y = height - radius;
       node.vy = -Math.abs(node.vy);
       bounced = true;
     }

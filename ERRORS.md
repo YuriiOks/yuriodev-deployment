@@ -20,6 +20,12 @@ Append-only log of approaches that **didn't** work and the one that finally did,
 
 ---
 
+## 2026-09-26: Fluid root scaling flipped the hero card back to one column at 1920px
+**Task type:** frontend / fluid scaling / CSS container queries
+**What didn't work:** Growing the root font size from 1440px up (so rem-based sizes scale with the screen) and leaving HeroSection's `@container (min-width: 67rem)` as-is. Unlike `@media`, a container query's `rem` DOES follow the live html font-size, but the hero card's own width tracks `--content-max-width`'s share of the viewport, not the root font factor - the two no longer moved together above 1440px, so at 1920px the inflated 67rem threshold (now ~1429px) landed just above the card's real content-box width and the layout silently fell back to stacked, single-column. `e2e/hero.spec.ts`'s existing "two columns from 1600px up" assertion caught it.
+**What worked:** Changed that one query to a literal `1072px` (67rem at the original 16px root) - the physical width it was always tuned against - instead of converting it to rem like the rest of the page's dimensions.
+**Note for next time:** A `@container` breakpoint is a structural threshold like a `@media` one, not a scaling dimension - keep it in real px even while converting paddings/sizes around it to rem, and re-run the e2e suite (not just fe-check) after any root-font-scaling change, since container queries are invisible to unit tests.
+
 ## 2026-09-24: Backend tests green in CI, red inside the environment containers
 **Task type:** backend / tests / local dev
 **What didn't work:** `test_cors.py` hard-coded `https://yuriodev.co.uk` as the allowed origin. CI has no env file, so the code default applied and the test passed; inside the local stack (and dev/stage) `CORS_ORIGINS` comes from `env/<env>.env` and the same test failed. Running the suite against a read-only bind mount also failed, because `src/utils/logging.py` creates `logs/` in the working directory at import.

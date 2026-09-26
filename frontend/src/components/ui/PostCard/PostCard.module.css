@@ -81,7 +81,7 @@
 
 .expand {
   justify-self: start;
-  min-height: 44px;
+  min-height: 2.75rem;
   /* No inline padding: the label lines up with the text above it. The
      negative margin takes back the button's own vertical slack. */
   margin-top: -0.5rem;
@@ -111,10 +111,10 @@
   align-items: center;
   /* A flex container drops the space before the arrow; the gap restores it. */
   gap: 0.4em;
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0 0.875rem;
   border: 1px solid var(--button-nav-border);
-  border-radius: 6px;
+  border-radius: 0.375rem;
   background: var(--button-nav-bg);
   color: var(--button-nav-text);
   font-size: 0.85rem;

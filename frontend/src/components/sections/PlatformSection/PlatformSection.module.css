@@ -14,7 +14,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 0.0625rem;
   background: linear-gradient(
     90deg,
     transparent,
@@ -33,7 +33,7 @@
 .mission {
   font-size: 1.125rem;
   color: var(--text-tertiary);
-  max-width: 800px;
+  max-width: 50rem;
   margin: 0 auto;
   line-height: 1.8;
 }
@@ -67,17 +67,10 @@
   font-family: 'Fira Code', monospace;
 }
 
-/* Daylight: this figure sits as plain text on the card's white surface,
-   not on a bright-amber fill, so --amber-display reads as brown here; the
-   cyan title ink matches the card's cyan frame instead. */
-[data-theme="light"] .progressPercentage {
-  color: var(--title-ink);
-}
-
 .progressBar {
-  height: 12px;
+  height: 0.75rem;
   background: rgba(var(--accent-primary-rgb), 0.1);
-  border-radius: 6px;
+  border-radius: 0.375rem;
   overflow: hidden;
   position: relative;
   border: 1px solid rgba(var(--accent-primary-rgb), 0.2);
@@ -86,7 +79,7 @@
 .progressFill {
   height: 100%;
   background: linear-gradient(90deg, var(--cyan-edge), var(--amber-edge));
-  border-radius: 6px;
+  border-radius: 0.375rem;
   transition: width 1s ease-out;
   position: relative;
   overflow: hidden;
@@ -137,7 +130,7 @@
 
 .roadmapGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(17.5rem, 1fr));
   gap: 1.5rem;
 }
 
@@ -153,7 +146,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 0.1875rem;
   background: var(--accent-primary);
   transition: all 0.3s ease;
 }
@@ -198,7 +191,7 @@
 .statusBadge {
   display: inline-block;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 0.375rem;
   font-size: 0.813rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
@@ -216,12 +209,6 @@
   background: rgba(var(--amber-rgb), 0.1);
   color: var(--accent-secondary);
   border-color: var(--amber-edge);
-}
-
-/* Daylight: slate ink inside the amber frame, not the amber text ink's
-   brown. */
-[data-theme="light"] .roadmapCard.active .statusBadge {
-  color: var(--text-1);
 }
 
 .roadmapCard.planned .statusBadge {
@@ -251,13 +238,13 @@
 
 .featuresGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
   gap: 2rem;
 }
 
 .featureCard {
   background: var(--background-primary);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   padding: 2rem;
   border: 1px solid var(--border-color);
   transition: all 0.3s ease;
@@ -266,7 +253,7 @@
 }
 
 .featureCard:hover {
-  transform: translateY(-4px);
+  transform: translateY(-0.25rem);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   border-color: var(--accent-primary);
 }
@@ -301,7 +288,7 @@
 
 .statusTag {
   padding: 0.5rem 1rem;
-  border-radius: 20px;
+  border-radius: 1.25rem;
   font-size: 0.813rem;
   font-weight: 600;
 }
@@ -331,13 +318,7 @@
 
 .featureLink:hover {
   color: var(--accent-secondary);
-  transform: translateX(4px);
-}
-
-/* Daylight: the amber text ink reads as brown; the hover shift takes the
-   teal ink instead. */
-[data-theme="light"] .featureLink:hover {
-  color: var(--hue-teal);
+  transform: translateX(0.25rem);
 }
 
 /* Stats Section */
@@ -347,7 +328,7 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
   gap: 2rem;
 }
 
@@ -355,7 +336,7 @@
   text-align: center;
   padding: 2rem;
   background: var(--background-primary);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   border: 1px solid var(--border-color);
   transition: all 0.3s ease;
 }

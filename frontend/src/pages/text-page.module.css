@@ -2,7 +2,7 @@
 .page {
     width: 100%;
     padding: 4rem 2rem;
-    min-height: calc(100vh - 160px);
+    min-height: calc(100vh - 10rem);
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -13,7 +13,7 @@
     max-width: 48rem;
     background: var(--bg-card);
     border: 1px solid var(--border-color-muted);
-    border-radius: 12px;
+    border-radius: 0.75rem;
     padding: 2rem;
     box-shadow: 0 0 20px rgba(var(--accent-primary-rgb), 0.08);
     color: var(--text-secondary);
@@ -47,12 +47,6 @@
     line-height: 1.2;
 }
 
-/* Daylight: the amber text ink reads as brown; the page title takes the
-   title ink instead. */
-[data-theme="light"] .title {
-    color: var(--title-ink);
-}
-
 .updated {
     color: var(--text-secondary);
     font-size: 0.9rem;
@@ -84,7 +78,7 @@
 .card a:not(.button) {
     color: var(--accent-primary);
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-underline-offset: 0.1875rem;
 }
 
 .button {
@@ -92,7 +86,7 @@
     margin-top: 1rem;
     padding: 0.6rem 1.25rem;
     border: 1px solid var(--cta-button-border);
-    border-radius: 8px;
+    border-radius: 0.5rem;
     background: var(--cta-button-bg);
     color: var(--cta-button-text);
     text-decoration: none;
