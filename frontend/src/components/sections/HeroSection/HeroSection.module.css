@@ -261,44 +261,6 @@
     width: 100%;
 }
 
-.ctaButton {
-    padding:0.8rem 1.5rem;
-    border-radius:5px;
-    font-family:'Fira Code',monospace;
-    font-weight:500;
-    transition:all 0.3s ease;
-    position:relative;
-    text-decoration:none;
-    background: var(--cta-button-bg);
-    border: 1px solid var(--cta-button-border);
-    color: var(--cta-button-text);
-}
-
-[data-theme="light"] .ctaButton {
-    background: #ffffff;
-    border: 1px solid var(--accent-secondary);
-    color: var(--accent-secondary);
-}
-
-.ctaButton:hover {
-    background: var(--cta-button-hover-bg);
-    border-color: var(--cta-button-hover-border);
-    color: var(--cta-button-hover-text);
-    box-shadow: 0 0 20px var(--cta-button-hover-shadow);
-    transform: translateY(-2px);
-}
-
-[data-theme="light"] .ctaButton:hover {
-    background: var(--accent-secondary);
-    border-color: var(--accent-secondary);
-    color: #ffffff;
-    box-shadow: 0 0 20px var(--glow-secondary);
-}
-
-.ctaButton::before {
-    content:'> ';
-}
-
 @media (max-width: 768px) {
     .heroSection {
         padding: 3rem 1.5rem;
@@ -345,7 +307,6 @@
 
     .ctaButton {
         width: 100%;
-        text-align: center;
     }
 }
 

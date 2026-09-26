@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from '../../ui/Button/Button';
 import styles from './HeroSection.module.css';
 import useTypewriter from '../../../hooks/useTypewriter';
 import { EMAILS, IDENTITY } from '../../../data/site';
@@ -70,9 +71,9 @@ const HeroSection: React.FC = () => {
         </div>
       </div>
       <div className={styles.ctaButtons}>
-        <a href="#platform" className={styles.ctaButton}>Explore YuriODev Vision</a>
-        <a href="#projects" className={styles.ctaButton}>View Research & Projects</a>
-        <a href={`mailto:${EMAILS.contact}`} className={styles.ctaButton}>Collaborate with Me</a>
+        <Button href="#platform" className={styles.ctaButton}>Explore YuriODev Vision</Button>
+        <Button href="#projects" className={styles.ctaButton}>View Research & Projects</Button>
+        <Button href={`mailto:${EMAILS.contact}`} className={styles.ctaButton}>Collaborate with Me</Button>
       </div>
     </section>
   );
