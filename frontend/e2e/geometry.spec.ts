@@ -148,6 +148,28 @@ test.describe('navigation surfaces', () => {
     await settle(page);
     await expect(rail).toHaveAttribute('data-state', 'away');
   });
+
+  test('the rail never flashes visible over the hero on load', async ({ page }) => {
+    // A repeat visit (sessionStorage already set, as a same-session reload
+    // would leave it) or reduced motion (the project default) both skip the
+    // loading screen, so the hero is on screen from the very first commit.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.addInitScript(() => {
+      sessionStorage.setItem('appLoaded', 'true');
+      const w = window as unknown as { __railOpacities: string[] };
+      w.__railOpacities = [];
+      const sample = () => {
+        const rail = document.getElementById('sectionRail');
+        if (rail) w.__railOpacities.push(getComputedStyle(rail).opacity);
+        if (w.__railOpacities.length < 30) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await open(page, '/');
+    const opacities = await page.evaluate(() => (window as unknown as { __railOpacities: string[] }).__railOpacities);
+    expect(opacities.length, 'sampled some frames before settling').toBeGreaterThan(0);
+    expect(new Set(opacities), 'never shown while the hero fills the screen').toEqual(new Set(['0']));
+  });
 });
 
 test.describe('section rail clearance', () => {

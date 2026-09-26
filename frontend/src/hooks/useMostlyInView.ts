@@ -12,7 +12,13 @@ export interface VisibilityStore {
 }
 
 export function createVisibilityStore(threshold: number): VisibilityStore {
-  let visible = false;
+  // Starts (and stays, until something says otherwise) assuming the element
+  // is on screen: the one caller uses this for the hero, which fills the
+  // screen when the page opens at the top. Starting from `true` here, rather
+  // than only setting it once the connecting effect runs, means the very
+  // first render already matches the connected state — nothing flashes into
+  // view for a frame while the effect that observes the element is pending.
+  let visible = true;
   const set = (next: boolean, notify: () => void) => {
     if (next === visible) return;
     visible = next;
@@ -27,8 +33,8 @@ export function createVisibilityStore(threshold: number): VisibilityStore {
         set(false, notify);
         return () => {};
       }
-      // Until the observer's first report, assume a freshly found element is
-      // on screen (the hero is, when the page opens at the top).
+      // Until the observer's first report, keep assuming the freshly found
+      // element is on screen.
       set(true, notify);
       const observer = new IntersectionObserver(
         (entries) => {

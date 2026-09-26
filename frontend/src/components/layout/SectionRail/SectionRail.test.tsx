@@ -127,6 +127,14 @@ describe('SectionRail', () => {
     expect(within(rail()!).getByRole('list', { hidden: true })).toBeInTheDocument();
   });
 
+  it('renders away on its very first commit on the home page, before any observer reports', () => {
+    // No `report(...)` call here: this is the state a real first paint would
+    // show, before the connecting effect (let alone the observer) has run.
+    renderRail();
+    expect(rail()).toHaveAttribute('data-state', 'away');
+    expect(rail()).toHaveStyle({ opacity: '0' });
+  });
+
   it('stays away while most of the hero is on screen, and comes in once it is not', () => {
     renderRail();
     expect(rail()).toHaveAttribute('data-state', 'away');

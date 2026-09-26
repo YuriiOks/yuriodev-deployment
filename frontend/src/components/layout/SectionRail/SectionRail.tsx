@@ -22,8 +22,14 @@ const HERO_SHARE = 0.4;
  */
 const SectionRail: React.FC = () => {
   const wide = useMediaQuery(minWidth('sidebar'));
-  const { sections, activeId, present } = useSectionNav();
-  const heroOnScreen = useMostlyInView(wide && present.includes('hero') ? 'hero' : null, HERO_SHARE);
+  const { sections, activeId, onHome } = useSectionNav();
+  // `onHome` is known synchronously from the route, unlike `present` (which
+  // depends on the section tracker's own connecting effect) — observing the
+  // hero as soon as we know we are on the home page, rather than waiting for
+  // it to show up in `present`, keeps the away/shown state correct from the
+  // first render (see useMostlyInView's initial-`true` snapshot).
+  const heroOnScreen = useMostlyInView(wide && onHome ? 'hero' : null, HERO_SHARE);
+  const away = onHome && heroOnScreen;
 
   if (!wide) return null;
 
@@ -33,10 +39,10 @@ const SectionRail: React.FC = () => {
 
   return (
     <nav
-      className={cx(styles.rail, heroOnScreen && styles.away)}
+      className={cx(styles.rail, away && styles.away)}
       id="sectionRail"
       aria-label="Section navigation"
-      data-state={heroOnScreen ? 'away' : 'shown'}
+      data-state={away ? 'away' : 'shown'}
       style={{ '--rail-progress': progress } as React.CSSProperties}
     >
       <span className={styles.track} aria-hidden="true">

@@ -28,6 +28,15 @@ afterEach(() => {
 });
 
 describe('createVisibilityStore', () => {
+  it('reports on screen from the very first snapshot, before anything connects', () => {
+    // This is what a component's first render sees (getSnapshot runs before
+    // the effect that calls connect), so it must already match the
+    // steady-state assumption below — otherwise a freshly mounted consumer
+    // flashes the wrong state for a frame.
+    const store = createVisibilityStore(0.4);
+    expect(store.snapshot()).toBe(true);
+  });
+
   it('reports whether at least the threshold share is on screen, notifying only on change', () => {
     useDrivenObserver();
     const store = createVisibilityStore(0.4);
