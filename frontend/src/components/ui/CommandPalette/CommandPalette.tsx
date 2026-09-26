@@ -1,17 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import styles from './CommandPalette.module.css';
+import { scrollBehavior } from '../../../utils/motion';
 
-function scrollToSection(selector:string) {
-    const element = document.querySelector(selector);
-    if (element) {
-        const header = document.querySelector('.terminal-header') as HTMLElement;
-        const headerOffset = header ? header.offsetHeight : 70;
-        // Document position, not offsetTop: '#terminal' sits inside a positioned section.
-        const elementPosition = element.getBoundingClientRect().top + window.scrollY - headerOffset;
-        window.scrollTo({ top: elementPosition, behavior: 'smooth' });
-    }
+// html's scroll-padding-top keeps the target clear of the fixed header.
+function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
 }
 
 // External links open in a new tab with no opener and no referrer.
@@ -19,7 +14,14 @@ function openExternal(url: string) {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-const CommandPalette: React.FC = () => {
+interface CommandPaletteProps {
+    /** Open state owned by the parent (PageLayout keeps one overlay open at a time). Omit to let the palette own it. */
+    isOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    onShowHelp?: () => void;
+}
+
+const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen: openProp, onOpenChange, onShowHelp }) => {
     const { toggleTheme } = useTheme();
     const { pathname } = useLocation();
     const navigate = useNavigate();
@@ -27,7 +29,7 @@ const CommandPalette: React.FC = () => {
     const commands = useMemo(() => {
         // Sections live on the home page; from any other page, go there first.
         const goTo = (id: string) => () => {
-            if (pathname === '/') scrollToSection(`#${id}`);
+            if (pathname === '/') scrollToSection(id);
             else navigate(`/#${id}`);
         };
         return [
@@ -40,14 +42,19 @@ const CommandPalette: React.FC = () => {
             { title: 'Go to Connect', action: goTo('connect'), shortcut: 'connect' },
             { title: 'Go to Terminal', action: goTo('terminal'), shortcut: 'terminal' },
             { title: 'Toggle Theme', action: () => toggleTheme(), shortcut: 'theme' },
-            { title: 'Show Help', action: () => {/**/}, shortcut: 'help' },
+            { title: 'Show Help', action: () => onShowHelp?.(), shortcut: 'help' },
             { title: 'Send Email', action: () => { window.location.href = 'mailto:yurii.oksamytnyi@yuriodev.co.uk'; }, shortcut: 'email' },
             { title: 'View LinkedIn', action: () => openExternal('https://www.linkedin.com/in/y-oks'), shortcut: 'linkedin' },
             { title: 'View X', action: () => openExternal('https://x.com/YuriODev'), shortcut: 'x' },
             { title: 'View GitHub', action: () => openExternal('https://github.com/YuriiOks'), shortcut: 'github' }
         ];
-    }, [toggleTheme, pathname, navigate]);
-    const [isOpen, setIsOpen] = useState(false);
+    }, [toggleTheme, pathname, navigate, onShowHelp]);
+    const [ownOpen, setOwnOpen] = useState(false);
+    const isOpen = openProp ?? ownOpen;
+    const setIsOpen = useCallback((open: boolean) => {
+        if (openProp === undefined) setOwnOpen(open);
+        onOpenChange?.(open);
+    }, [openProp, onOpenChange]);
     const [inputValue, setInputValue] = useState('');
     const [filteredCommands, setFilteredCommands] = useState(commands);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -61,7 +68,7 @@ const CommandPalette: React.FC = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen]);
+    }, [isOpen, setIsOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -93,6 +100,13 @@ const CommandPalette: React.FC = () => {
                     placeholder="Type a command or search..."
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setIsOpen(false);
+                            setInputValue('');
+                        }
+                    }}
                     autoFocus
                 />
                 <div className={styles.commandResults}>

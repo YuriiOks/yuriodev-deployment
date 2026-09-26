@@ -24,7 +24,7 @@
     background: var(--accent-secondary);
     transform: scaleX(0);
     transition: transform 0.3s ease;
-    z-index: 2;
+    z-index: var(--z-decor);
 }
 
 .skillTerminal:hover::before {

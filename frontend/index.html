@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0a0f1c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+    <!-- Sets data-theme before the stylesheet loads, so the first paint has the right
+         theme. Classic, synchronous, same-origin: no async/defer, no inline script. -->
+    <script src="/theme-init.js"></script>
     <title>Yurii Oksamytnyi — AI/ML Systems Engineer</title>
     <meta
       name="description"
@@ -15,8 +21,6 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Credentials so the manifest also loads behind basic auth (dev, stage). -->
     <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials" />
-    <meta name="theme-color" content="#0a0f1c" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="YuriODev" />

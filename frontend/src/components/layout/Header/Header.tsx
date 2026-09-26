@@ -112,8 +112,13 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
           {getTerminalPrompt()}<span className={styles.cursor}>_</span>
         </div>
         <div className={styles.navControls} ref={navControlsRef}>
-          <button className={styles.themeToggle} onClick={toggleTheme} aria-label="Toggle dark/light theme">
-            {theme === 'dark' ? '☾' : '☀'}
+          <button
+            className={styles.themeToggle}
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          >
+            <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
           </button>
           <button className={styles.helpToggle} onClick={onHelpToggle} aria-label="Show help panel">?</button>
           <button

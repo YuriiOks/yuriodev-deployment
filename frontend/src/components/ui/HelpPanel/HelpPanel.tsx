@@ -23,8 +23,10 @@ const HelpPanel: React.FC<HelpPanelProps> = ({ isOpen, onClose }) => {
       {isOpen && (
         <div className={styles.backdrop} onClick={onClose} />
       )}
-      <div 
+      {/* inert while closed: off screen, so nothing in it may take focus. */}
+      <div
         className={`${styles.helpPanel} ${isOpen ? styles.active : ''}`}
+        inert={!isOpen}
       >
         <div className={styles.helpPanelContent}>
           <button className={styles.closeButton} onClick={onClose} aria-label="Close help panel">

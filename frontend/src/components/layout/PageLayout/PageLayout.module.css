@@ -1,9 +1,13 @@
 .mainContent {
     flex: 1;
     min-height: 100vh;
+    /* Clears the fixed header; no section repeats this offset. */
+    padding-top: var(--header-h);
     padding-bottom: 2rem;
     position: relative;
-    z-index: 1;
+    /* Its own stacking context on the content plane: nothing inside can rise
+       above the header or the floating controls. */
+    isolation: isolate;
 }
 
 /* main takes focus programmatically after a route change; it is a landmark,
@@ -19,21 +23,24 @@
     margin-right: auto;
 }
 
-/* Add top padding ONLY for single-section pages (coming soon pages) */
-.mainContent section:first-child:last-child {
-    padding-top: calc(80px + 4rem); /* Header height + normal padding */
+/* Skip link: off screen until it receives keyboard focus. */
+.skipLink {
+    position: absolute;
+    top: 0;
+    left: 1rem;
+    z-index: var(--z-skip);
+    transform: translateY(-120%);
+    padding: 0.5rem 1rem;
+    border-radius: 0 0 6px 6px;
+    background: var(--focus-ring);
+    color: var(--bg-primary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.2s ease;
 }
 
-@media (max-width: 768px) {
-    /* Add top padding ONLY for single-section pages */
-    .mainContent section:first-child:last-child {
-        padding-top: calc(70px + 2rem); /* Header height (tablet) + normal padding */
-    }
-}
-
-@media (max-width: 480px) {
-    /* Add top padding ONLY for single-section pages */
-    .mainContent section:first-child:last-child {
-        padding-top: calc(60px + 1.5rem); /* Header height (mobile) + normal padding */
-    }
+.skipLink:focus,
+.skipLink:focus-visible {
+    transform: translateY(0);
+    outline-color: var(--text-primary);
 }

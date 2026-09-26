@@ -11,14 +11,19 @@ const messages = [
   "Democratizing AI education through YuriODev..."
 ];
 
+// Screen readers get every line once, as plain text, instead of the
+// character-by-character animation.
+const messagesForScreenReaders = messages.map((message) => message.replace(/\.{3}$/, '.')).join(' ');
+
 const HeroSection: React.FC = () => {
   const typedMessage = useTypewriter(messages);
 
   return (
-    <section className={styles.heroSection} id="hero" role="banner">
+    <section className={styles.heroSection} id="hero">
       <h1 className={styles.heroTitle}>YURII OKSAMYTNYI</h1>
       <p className={styles.heroSubtitle}>AI/ML Systems Engineer | Agentic Architect</p>
-      <div className={styles.typewriter} id="typewriter" aria-live="polite">{typedMessage}</div>
+      <div className={styles.typewriter} id="typewriter" aria-hidden="true">{typedMessage}</div>
+      <p className="sr-only">{messagesForScreenReaders}</p>
       <div className={styles.codeBlock} role="region" aria-label="Profile information">
         <div className={styles.jsonGrid}>
           {/* First JSON File - Profile */}

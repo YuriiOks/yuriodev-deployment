@@ -31,8 +31,9 @@ const Privacy = () => {
         <h2>What is stored on your device</h2>
         <ul>
           <li>
-            The light or dark theme in use (your choice, or your system's default), in your
-            browser's local storage, so the site remembers it.
+            Your light or dark theme choice, only if you pick one with the theme button, in your
+            browser's local storage, so the site remembers it. Until then the site follows your
+            system setting and stores nothing for the theme.
           </li>
           <li>A flag in session storage so the intro animation plays only once per visit. Your browser deletes it when you close the tab.</li>
         </ul>
@@ -58,13 +59,9 @@ const Privacy = () => {
         </p>
 
         <h2>Fonts</h2>
-        {/* Replace this paragraph once the font is self-hosted. */}
         <p>
-          The site's font is currently loaded from Google Fonts, so your browser sends your IP
-          address to Google when a page loads. See{' '}
-          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
-            Google's privacy policy
-          </a>.
+          The site's font, Fira Code, is served from this site itself. Loading a page makes no
+          request to Google Fonts or any other third-party font service.
         </p>
 
         <h2>Links to other sites</h2>

@@ -7,7 +7,7 @@
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
     position: relative;
-    z-index: 10;
+    isolation: isolate;
     width: 100%;
     box-sizing: border-box;
 }
@@ -72,7 +72,7 @@
 /* Center: Social Icons */
 .socialIcons {
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
     align-items: center;
     justify-content: center;
     padding: 0.5rem 1rem;
@@ -89,9 +89,13 @@
     border-color: rgba(var(--accent-secondary-rgb), 0.15);
 }
 
+/* Each link is a 24x24 target (44x44 on touch screens, below); the icon
+   inside is drawn smaller through the padding. */
 .socialIcon {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
+    padding: 2px;
+    flex-shrink: 0;
     text-decoration: none;
     transition: all 0.3s ease;
     opacity: 0.65;
@@ -105,6 +109,11 @@
     width: 100%;
     height: 100%;
     display: block;
+}
+
+/* Full opacity with the focus ring too, or the dimmed ring loses contrast. */
+.socialIcon:focus-visible {
+    opacity: 1;
 }
 
 .socialIcon:hover {
@@ -256,13 +265,12 @@
     }
 
     .socialIcons {
-        gap: 1rem;
+        gap: 0.625rem;
         padding: 0.4rem 0.8rem;
     }
 
     .socialIcon {
-        width: 18px;
-        height: 18px;
+        padding: 3px;
     }
 
     .emailLink,
@@ -294,22 +302,16 @@
         gap: 1rem;
     }
 
+    /* Wraps instead of scrolling sideways, so no icon is ever cut off. */
     .socialIcons {
-        gap: 0.75rem;
+        gap: 0.25rem;
         padding: 0.35rem 0.7rem;
         max-width: 100%;
-        overflow-x: auto;
-        scrollbar-width: none;
-    }
-
-    .socialIcons::-webkit-scrollbar {
-        display: none;
+        flex-wrap: wrap;
     }
 
     .socialIcon {
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
+        padding: 4px;
     }
 
     .emailLink,
@@ -324,5 +326,32 @@
     .techHighlight {
         padding: 0.05rem 0.2rem;
         font-size: 0.68rem;
+    }
+}
+
+/* Touch screens: 44x44 targets; the row wraps onto more lines as needed. */
+@media (pointer: coarse) {
+    .socialIcons {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0;
+        max-width: 100%;
+        border-radius: 1.5rem;
+    }
+
+    .socialIcon {
+        width: 44px;
+        height: 44px;
+        padding: 12px;
+    }
+}
+
+/* Phones: the footer column fits five 44px targets, which leaves the last of
+   the eleven alone on a third row. A pill four targets wide wraps evenly
+   (4 + 4 + 3, the short row centred); the width adds the pill's side padding
+   and border from the max-width: 576px rules above. */
+@media (pointer: coarse) and (max-width: 576px) {
+    .socialIcons {
+        width: calc(4 * 44px + 2 * 0.7rem + 2px);
     }
 }

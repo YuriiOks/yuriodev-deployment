@@ -138,7 +138,45 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Privacy notice' })).toBeInTheDocument();
     expect(screen.getByText(/25 September 2026/)).toHaveAttribute('dateTime', '2026-09-25');
     expect(screen.getByText(/sets no cookies of its own/)).toBeInTheDocument();
-    expect(screen.getByText(/loaded from Google Fonts/)).toBeInTheDocument();
+    expect(screen.getByText(/Fira Code, is served from this site itself/)).toBeInTheDocument();
+    expect(screen.queryByText(/loaded from Google Fonts/)).not.toBeInTheDocument();
+    expect(screen.getByText(/only if you pick one with the theme button/)).toBeInTheDocument();
+  });
+
+  it('starts the tab order with a skip link that moves focus to main', async () => {
+    const user = userEvent.setup();
+    const { container } = renderAppAt('/');
+
+    await user.tab();
+    const skip = screen.getByRole('link', { name: 'Skip to main content' });
+    expect(document.activeElement).toBe(skip);
+    expect(skip).toHaveAttribute('href', '#main-content');
+
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(container.querySelector('main#main-content'));
+  });
+
+  it('has exactly one banner and one main landmark', () => {
+    renderAppAt('/');
+    expect(screen.getAllByRole('banner')).toHaveLength(1);
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('announces terminal output politely and keeps the typewriter quiet for screen readers', () => {
+    const { container } = renderAppAt('/');
+    const log = screen.getByRole('log', { name: 'Terminal output' });
+    expect(log).toHaveAttribute('aria-live', 'polite');
+
+    expect(container.querySelector('#typewriter')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText(/Architecting agentic AI systems \(LangGraph, MCP\)\. Building production RAG/)).toHaveClass(
+      'sr-only',
+    );
+  });
+
+  it('keeps the closed help panel out of the tab order', () => {
+    renderAppAt('/');
+    const close = screen.getByLabelText('Close help panel');
+    expect(close.closest('[inert]')).not.toBeNull();
   });
 
   it('links the privacy notice from the footer, then starts the new page at the top with focus on main', async () => {

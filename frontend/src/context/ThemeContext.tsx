@@ -1,38 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 import { ThemeContext, type Theme } from './theme-context';
+import {
+  applyTheme,
+  forgetLegacyTheme,
+  getStoredTheme,
+  getSystemTheme,
+  storeTheme,
+  subscribeStoredTheme,
+  subscribeSystemTheme,
+} from './themeStore';
 
 interface ThemeProviderProps {
   children: React.ReactNode;
 }
 
+const noChoice = () => null;
+const darkByDefault = (): Theme => 'dark';
+
+/**
+ * The theme is the visitor's explicit choice when they have made one, and
+ * otherwise follows the operating system, including later OS changes.
+ */
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    if (savedTheme) return savedTheme;
-
-    // Check system preference
-    if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light';
-    }
-
-    // Default to dark
-    return 'dark';
-  });
+  const choice = useSyncExternalStore(subscribeStoredTheme, getStoredTheme, noChoice);
+  const system = useSyncExternalStore(subscribeSystemTheme, getSystemTheme, darkByDefault);
+  const theme: Theme = choice ?? system;
 
   useEffect(() => {
-    // Apply theme to document root
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    forgetLegacyTheme();
+  }, []);
+
+  // Before paint, so a toggle never shows a frame in the old theme.
+  useLayoutEffect(() => {
+    applyTheme(theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
-  };
+  const toggleTheme = useCallback(() => {
+    storeTheme(theme === 'dark' ? 'light' : 'dark');
+  }, [theme]);
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
