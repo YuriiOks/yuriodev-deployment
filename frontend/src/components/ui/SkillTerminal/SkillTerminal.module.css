@@ -125,12 +125,6 @@
     text-transform:uppercase;
 }
 
-/* Daylight: the amber text ink reads as brown; the skill level takes
-   slate ink instead. */
-[data-theme="light"] .skillLevel {
-    color: var(--text-1);
-}
-
 .skillDetails {
     margin-top:0.75rem;
     display:flex;
@@ -154,11 +148,6 @@
     border-color:var(--amber-edge);
     color:var(--accent-secondary);
     font-weight:600;
-}
-
-/* Daylight: slate ink inside the amber frame, not amber's dark text shade. */
-[data-theme="light"] .skillTagDetail.highlightSkill {
-    color: var(--text-1);
 }
 
 /* ============================================ */
@@ -264,11 +253,9 @@
     color: var(--amber-text);
 }
 
-/* Daylight: slate ink inside the amber frame, not the amber text ink's
-   brown. */
+/* Daylight: a lighter tint of the same amber fill. */
 [data-theme="light"] .tag_tool {
     background: rgba(var(--amber-rgb), 0.1);
-    color: var(--text-1);
 }
 
 .tag_tool:hover {

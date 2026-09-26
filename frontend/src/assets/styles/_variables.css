@@ -12,15 +12,16 @@
    the canvas and syntax colouring only, never for UI state.
 
    The light theme is neon on light: slate ink on white surfaces over a
-   cool near-white page, deep cyan for text accents (titles, prompts,
-   links) and the bright cyan for glows and fills; amber there is for
-   fills, edges, glows and large display marks only - darkened enough to
-   pass as text (--amber-text) it reads as brown, not amber, so no small
-   label uses it as a text colour in light: each consumer of --amber-text/
-   --accent-secondary has a `[data-theme="light"]` override onto slate,
-   the title ink, the cyan ink or the teal ink instead. Titles use
-   --title-ink and their '#' marks --title-mark: amber and cyan in the
-   dark theme, deep cyan and amber in the light one.
+   cool near-white page, deep cyan for links, buttons and other
+   interactive state, and vivid orange for what amber marks everywhere
+   else (titles, prompts, brand text) - a burnt-orange family, not the
+   old darkened amber that read as brown. Titles use --title-ink and
+   their '#' marks --title-mark: amber and cyan in the dark theme, orange
+   and cyan in the light one (swapped from the dark theme's pairing, cyan
+   still marking the accent rather than the ink). The hero name is its
+   own token, --name-ink: large enough to take the fully vivid orange
+   (3:1), where --amber-text/--title-ink hold to a burnt shade that
+   clears 4.5:1 as normal text on every light surface.
 
    Every *-rgb triplet is COMMA-separated, so rgba() can take it plus an alpha.
    contrast.test.ts holds the text and UI pairs below to WCAG AA in both
@@ -264,18 +265,24 @@
     --body-ink: var(--text-1);
 
     /* The same hues in daylight. The bright fills carry dark ink; cyan's
-       -text shade passes AA and reads as cyan, so it is this theme's text
-       accent; amber's -text shade also passes AA but, this dark, reads as
-       brown rather than amber - kept only for the rare non-text need (a
-       gradient stop, an error border), never as a text colour. Cyan's -rgb
-       is its EDGE shade, for tints, rings and glows; amber's -rgb is the
-       bright fill itself, so its tints and glows read as neon amber, never
-       as brown. */
+       -text shade passes AA and reads as cyan, so it stays this theme's
+       link/button/interactive accent. Amber's old -text shade (#a85400,
+       hue 30 at L33%) passed AA too but read as brown, not amber; --amber-text
+       is now a burnt-orange shade (hue <= 22, L >= 36%) that clears 4.5:1 on
+       every light surface (bg-0, bg-1, every card, every tinted header) -
+       contrast.test.ts holds it there. Cyan's -rgb is its EDGE shade, for
+       tints, rings and glows; amber's -rgb is the bright fill itself, so its
+       tints and glows read as neon amber, never as brown. */
     --cyan: #22d3ee;   --cyan-rgb: 8, 145, 178;   --cyan-text: #0b6780;   --cyan-edge: #0891b2;   --on-cyan: #062a33;
-    --amber: #fbbf24;  --amber-rgb: 245, 158, 11; --amber-text: #a85400;  --amber-edge: #c2710c;  --on-amber: #3a2500;
-    /* Large text only needs 3:1, so display marks take the brighter
-       amber edge rather than the darker --amber-text. */
-    --amber-display: var(--amber-edge);
+    --amber: #fbbf24;  --amber-rgb: 245, 158, 11; --amber-text: #b93c0b;  --amber-edge: #c2710c;  --on-amber: #3a2500;
+    /* Large text only needs 3:1: display marks (metrics, the hero name)
+       take the fully vivid orange instead of the burnt --amber-text. */
+    --amber-display: #ea580c;
+    /* The hero name: its own token, so a component never has to spell out
+       the vivid orange itself (design-budget.test.ts bans that outside
+       this file). Same shade as --amber-display; named separately because
+       the two roles (a metric figure vs. the name) may diverge later. */
+    --name-ink: #ea580c;      --name-ink-rgb: 234, 88, 12;
     /* The bright cyan fill's triplet (--cyan is a lighter fill than the
        --cyan-rgb edge shade here): a custom glow a component composes
        itself, rather than a literal rgb() repeated at each call site. */
@@ -284,9 +291,12 @@
        component composes itself; --shadow-1/--shadow-2 below use it too. */
     --ink-shadow-rgb: 11, 19, 36;
 
-    /* Titles in deep cyan ink, their '#' marks in amber. */
-    --title-ink: var(--cyan-text);
-    --title-mark: var(--amber-display);
+    /* Titles in burnt-orange ink (--amber-text, now a real orange, not a
+       brown), their '#' marks in cyan - swapped from the dark theme's
+       amber ink / cyan mark, cyan still the theme's accent rather than
+       its ink. */
+    --title-ink: var(--amber-text);
+    --title-mark: var(--cyan-text);
 
     --hue-violet: #7e22ce; --hue-violet-rgb: 126, 34, 206;
     --hue-teal: #0c655e;   --hue-teal-rgb: 12, 101, 94;
@@ -314,8 +324,8 @@
     --glow-text: none;
     --shadow-1: 0 1px 3px rgba(var(--ink-shadow-rgb), 0.08);
     --shadow-2: 0 12px 32px rgba(var(--ink-shadow-rgb), 0.12);
-    /* The hero name: a soft glow of the bright cyan, no dark halo. */
-    --hero-title-shadow: 0 0 28px rgba(var(--cyan-fill-rgb), 0.4), 0 0 8px rgba(var(--cyan-fill-rgb), 0.3);
+    /* The hero name: a soft warm glow of its own orange, no dark halo. */
+    --hero-title-shadow: 0 0 28px rgba(var(--name-ink-rgb), 0.4), 0 0 8px rgba(var(--name-ink-rgb), 0.3);
 
     /* Near-opaque: the header glass stays white, and amber text on it
        keeps 4.5:1 over the darkest glyph that can scroll behind it. */

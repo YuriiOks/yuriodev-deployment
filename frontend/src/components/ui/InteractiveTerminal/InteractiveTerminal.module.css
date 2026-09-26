@@ -277,10 +277,7 @@
     letter-spacing: 0.5px;
 }
 
-/* Daylight: the amber text ink reads as brown; command lines take the
-   cyan ink instead, like the hero's. */
 [data-theme="light"] .terminalLine.command {
-    color: var(--cyan-text);
     text-shadow: none;
 }
 

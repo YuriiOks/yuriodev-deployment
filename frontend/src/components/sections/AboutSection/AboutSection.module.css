@@ -234,13 +234,6 @@
   line-height: 1;
 }
 
-/* Daylight: this stat sits as plain text on the card's white surface, not
-   a bright-amber fill, so --amber-display reads as brown here; the title
-   ink keeps it a highlighted figure without the brown cast. */
-[data-theme="light"] .achievementMetric {
-  color: var(--title-ink);
-}
-
 .achievementLabel {
   font-size: 0.9rem;
   color: var(--text-primary);
@@ -493,12 +486,6 @@
   font-weight: 600;
 }
 
-/* Daylight: the amber text ink reads as brown; this highlight takes
-   slate ink instead. */
-[data-theme="light"] .highlightSecondary {
-  color: var(--text-1);
-}
-
 .highlightTertiary {
   color: var(--accent-tertiary);
   font-weight: 600;
@@ -547,12 +534,6 @@
   margin: 2rem 0;
 }
 
-/* Daylight: the amber text ink reads as brown; the closing call to action
-   takes the title ink instead. */
-[data-theme="light"] .cta {
-  color: var(--title-ink);
-}
-
 /* Code Block */
 .codeBlock {
   background: rgba(var(--accent-primary-rgb), 0.05);
@@ -577,12 +558,6 @@
   font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
-}
-
-/* Daylight: the amber text ink reads as brown; the language label takes
-   the teal ink instead. */
-[data-theme="light"] .codeLanguage {
-  color: var(--hue-teal);
 }
 
 .codeTitle {
@@ -620,12 +595,6 @@
 
 .codeContent .operator {
   color: var(--accent-secondary);
-}
-
-/* Daylight: the amber text ink reads as brown; operators take the teal
-   ink instead. */
-[data-theme="light"] .codeContent .operator {
-  color: var(--hue-teal);
 }
 
 .codeContent .builtin {
@@ -694,12 +663,6 @@
   font-weight: 700;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
-}
-
-/* Daylight: the amber text ink reads as brown; the year takes the title
-   ink instead. */
-[data-theme="light"] .timelineYear {
-  color: var(--title-ink);
 }
 
 .timelineContent h4 {

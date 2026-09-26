@@ -67,13 +67,6 @@
   font-family: 'Fira Code', monospace;
 }
 
-/* Daylight: this figure sits as plain text on the card's white surface,
-   not on a bright-amber fill, so --amber-display reads as brown here; the
-   cyan title ink matches the card's cyan frame instead. */
-[data-theme="light"] .progressPercentage {
-  color: var(--title-ink);
-}
-
 .progressBar {
   height: 12px;
   background: rgba(var(--accent-primary-rgb), 0.1);
@@ -218,12 +211,6 @@
   border-color: var(--amber-edge);
 }
 
-/* Daylight: slate ink inside the amber frame, not the amber text ink's
-   brown. */
-[data-theme="light"] .roadmapCard.active .statusBadge {
-  color: var(--text-1);
-}
-
 .roadmapCard.planned .statusBadge {
   background: rgba(var(--text-muted-rgb), 0.1);
   color: var(--text-muted);
@@ -332,12 +319,6 @@
 .featureLink:hover {
   color: var(--accent-secondary);
   transform: translateX(4px);
-}
-
-/* Daylight: the amber text ink reads as brown; the hover shift takes the
-   teal ink instead. */
-[data-theme="light"] .featureLink:hover {
-  color: var(--hue-teal);
 }
 
 /* Stats Section */

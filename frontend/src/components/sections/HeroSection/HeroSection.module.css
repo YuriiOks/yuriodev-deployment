@@ -6,7 +6,10 @@
 }
 
 /* The name in the brand cyan with its neon glow (--hero-title-shadow: a
-   soft cyan halo in both themes, never a dark drop shadow). */
+   soft halo in both themes, never a dark drop shadow) in the dark theme;
+   daylight gives it its own token instead (--name-ink, vivid orange - the
+   name is always large text, so it can take the fully vivid shade rather
+   than the burnt one normal-size orange text holds to). */
 .heroTitle {
     font-size: 4rem;
     font-weight: 700;
@@ -16,6 +19,10 @@
     text-shadow: var(--hero-title-shadow);
     animation: subtleGlow 4s ease-in-out infinite;
     color: var(--accent-primary);
+}
+
+[data-theme="light"] .heroTitle {
+    color: var(--name-ink);
 }
 
 @keyframes subtleGlow {
@@ -29,13 +36,6 @@
     color:var(--accent-secondary);
     margin-bottom:2rem;
     font-weight:500;
-}
-
-/* Daylight: the amber text ink reads as brown on white, so the subtitle
-   takes the title ink instead; the '|' separator keeps the bright amber
-   (a fill, not a text colour, so it stays legible). */
-[data-theme="light"] .heroSubtitle {
-    color: var(--title-ink);
 }
 
 .heroSubtitleSep {
@@ -144,12 +144,6 @@
     margin-bottom:0.5rem;
 }
 
-/* Daylight: the amber text ink reads as brown; command lines take the
-   cyan ink instead. */
-[data-theme="light"] .commandLine {
-    color: var(--cyan-text);
-}
-
 .output {
     color:var(--text-primary);
     margin-left:2ch;
@@ -182,12 +176,6 @@
 .jsonBraceOuter {
     color: var(--accent-secondary);
     font-weight: 700;
-}
-
-/* Daylight: the amber text ink reads as brown; the outer braces take the
-   teal ink instead. */
-[data-theme="light"] .jsonBraceOuter {
-    color: var(--hue-teal);
 }
 
 .jsonBracket {

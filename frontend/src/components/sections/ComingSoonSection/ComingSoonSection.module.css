@@ -112,12 +112,6 @@
     gap: 0.75rem;
 }
 
-/* Daylight: the amber text ink reads as brown; this heading takes the
-   title ink instead. */
-[data-theme="light"] .featuresTitle {
-    color: var(--title-ink);
-}
-
 .icon {
     font-size: 1.25em;
 }
@@ -159,12 +153,6 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-}
-
-/* Daylight: the amber text ink reads as brown; this heading takes the
-   title ink instead. */
-[data-theme="light"] .terminalTitle {
-    color: var(--title-ink);
 }
 
 .terminalDescription {

@@ -189,6 +189,8 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(HUES, [['--bg-0'], ['--bg-1'], ['--surface-1']], TEXT),
     ...cross(GLASS_TEXT, [['--glass-fill', '--text-1'], ['--glass-fill', '--bg-0']], TEXT),
     ...cross(DISPLAY, SOLID_LIGHT, LARGE),
+    // The hero name: its own token, light theme only (dark keeps --cyan-text).
+    ...cross(['--name-ink'], SOLID_LIGHT, LARGE),
     ...BUTTON_PAIRS('--bg-0'),
     ...BUTTON_PAIRS('--surface-1'),
     ...AMBER_TINTS,
