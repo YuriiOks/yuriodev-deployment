@@ -234,6 +234,13 @@
   line-height: 1;
 }
 
+/* Daylight: this stat sits as plain text on the card's white surface, not
+   a bright-amber fill, so --amber-display reads as brown here; the title
+   ink keeps it a highlighted figure without the brown cast. */
+[data-theme="light"] .achievementMetric {
+  color: var(--title-ink);
+}
+
 .achievementLabel {
   font-size: 0.9rem;
   color: var(--text-primary);

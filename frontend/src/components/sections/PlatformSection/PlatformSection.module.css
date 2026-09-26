@@ -67,6 +67,13 @@
   font-family: 'Fira Code', monospace;
 }
 
+/* Daylight: this figure sits as plain text on the card's white surface,
+   not on a bright-amber fill, so --amber-display reads as brown here; the
+   cyan title ink matches the card's cyan frame instead. */
+[data-theme="light"] .progressPercentage {
+  color: var(--title-ink);
+}
+
 .progressBar {
   height: 12px;
   background: rgba(var(--accent-primary-rgb), 0.1);
