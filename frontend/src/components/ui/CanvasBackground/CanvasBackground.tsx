@@ -117,7 +117,11 @@ const CanvasBackground: React.FC = () => {
     if (!ctx) return;
 
     const rand = Math.random;
-    let size: Size = { width: window.innerWidth, height: window.innerHeight };
+    // The element's own box, not window.innerWidth/innerHeight: the fixed
+    // canvas is sized (in CSS) to the initial containing block, which
+    // excludes a classic scrollbar, while innerWidth/innerHeight do not -
+    // sizing the backing store from the window would squeeze the bitmap.
+    let size: Size = { width: canvas.clientWidth, height: canvas.clientHeight };
     let scale = 1;
     let palette = readPalette();
     let sprites: Record<Tone, HTMLCanvasElement | null> = { 0: null, 1: null, 2: null };
@@ -146,7 +150,7 @@ const CanvasBackground: React.FC = () => {
     };
 
     const fitCanvas = () => {
-      const next = { width: window.innerWidth, height: window.innerHeight };
+      const next = { width: canvas.clientWidth, height: canvas.clientHeight };
       const nextScale = pixelRatio();
       // Resizing the backing store also resets the context state.
       canvas.width = Math.max(1, Math.round(next.width * nextScale));
@@ -268,7 +272,11 @@ const CanvasBackground: React.FC = () => {
     });
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-    window.addEventListener('resize', onResize);
+    // The canvas's own box, not window's: it also catches a scrollbar
+    // appearing or disappearing (which resizes the element without firing
+    // a window 'resize' event).
+    const sizeObserver = new ResizeObserver(onResize);
+    sizeObserver.observe(canvas);
     window.addEventListener('mousemove', onMouseMove, { passive: true });
     document.documentElement.addEventListener('mouseleave', onMouseLeave);
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -282,7 +290,7 @@ const CanvasBackground: React.FC = () => {
       cancelAnimationFrame(resizeFrameId);
       stopFollowingMotion();
       themeObserver.disconnect();
-      window.removeEventListener('resize', onResize);
+      sizeObserver.disconnect();
       window.removeEventListener('mousemove', onMouseMove);
       document.documentElement.removeEventListener('mouseleave', onMouseLeave);
       document.removeEventListener('visibilitychange', onVisibilityChange);

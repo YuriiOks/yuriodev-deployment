@@ -5,9 +5,31 @@ import { MIN_NODES } from './field';
 
 const originalMatchMedia = window.matchMedia;
 const originalPixelRatio = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
+const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
 
 function setPixelRatio(ratio: number) {
   Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: () => ratio });
+}
+
+/**
+ * The element's own box (jsdom lays nothing out, so clientWidth/clientHeight
+ * are 0 by default): CanvasBackground sizes its backing store from the
+ * canvas's own box, not window.innerWidth/innerHeight, so a scrollbar (which
+ * shrinks the box without resizing the window) never squeezes it.
+ */
+function setElementSize(width: number, height: number) {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: width });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: height });
+}
+
+// A ResizeObserver whose observe/disconnect calls a test can assert on.
+const originalResizeObserver = window.ResizeObserver;
+const resizeObserverCalls = { observe: vi.fn(), disconnect: vi.fn() };
+class TrackedResizeObserver {
+  observe = resizeObserverCalls.observe;
+  unobserve = vi.fn();
+  disconnect = resizeObserverCalls.disconnect;
 }
 
 function setReducedMotion(reduced: boolean) {
@@ -44,14 +66,26 @@ describe('CanvasBackground', () => {
   beforeEach(() => {
     vi.mocked(window.requestAnimationFrame).mockClear();
     vi.mocked(window.cancelAnimationFrame).mockClear();
+    resizeObserverCalls.observe.mockClear();
+    resizeObserverCalls.disconnect.mockClear();
+    window.ResizeObserver = TrackedResizeObserver as unknown as typeof ResizeObserver;
   });
   afterEach(() => {
     window.matchMedia = originalMatchMedia;
+    window.ResizeObserver = originalResizeObserver;
     if (originalPixelRatio) Object.defineProperty(window, 'devicePixelRatio', originalPixelRatio);
+    // clientWidth/clientHeight are not own properties of HTMLElement.prototype
+    // (only of Element.prototype, further up the chain) until setElementSize
+    // adds them: delete our override rather than restore a descriptor that
+    // never existed there.
+    if (originalClientWidth) Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+    else delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+    if (originalClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+    else delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
     vi.restoreAllMocks();
   });
 
-  it('starts one animation loop and releases every listener and frame on unmount', () => {
+  it('starts one animation loop and releases every listener, observer and frame on unmount', () => {
     setReducedMotion(false);
     const windowListeners = trackListeners(window);
     const documentListeners = trackListeners(document);
@@ -59,13 +93,18 @@ describe('CanvasBackground', () => {
 
     const { unmount } = render(<CanvasBackground />);
     expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
-    expect(windowListeners()).toEqual(expect.arrayContaining(['resize', 'mousemove']));
+    expect(windowListeners()).toEqual(expect.arrayContaining(['mousemove']));
     expect(documentListeners()).toContain('visibilitychange');
     expect(rootListeners()).toContain('mouseleave');
+    // Refit on the canvas's own box resizing (a scrollbar, not just the
+    // window), not a window 'resize' listener.
+    expect(windowListeners()).not.toContain('resize');
+    expect(resizeObserverCalls.observe).toHaveBeenCalledTimes(1);
 
     unmount();
     expect(window.cancelAnimationFrame).toHaveBeenCalled();
-    const ours = ['resize', 'mousemove', 'mouseleave', 'visibilitychange'];
+    expect(resizeObserverCalls.disconnect).toHaveBeenCalledTimes(1);
+    const ours = ['mousemove', 'mouseleave', 'visibilitychange'];
     expect(windowListeners().filter((type) => ours.includes(type))).toEqual([]);
     expect(documentListeners().filter((type) => ours.includes(type))).toEqual([]);
     expect(rootListeners().filter((type) => ours.includes(type))).toEqual([]);
@@ -73,6 +112,7 @@ describe('CanvasBackground', () => {
 
   it('draws one static frame and starts no loop under reduced motion', () => {
     setReducedMotion(true);
+    setElementSize(1024, 768);
     const ctx = (HTMLCanvasElement.prototype.getContext as unknown as () => CanvasRenderingContext2D)();
     vi.mocked(ctx.arc).mockClear();
 
@@ -85,8 +125,7 @@ describe('CanvasBackground', () => {
     setReducedMotion(true);
     const ctx = (HTMLCanvasElement.prototype.getContext as unknown as () => CanvasRenderingContext2D)();
     vi.mocked(ctx.arc).mockClear();
-    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(375);
-    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(812);
+    setElementSize(375, 812);
     setPixelRatio(3);
 
     const { container } = render(<CanvasBackground />);
@@ -100,8 +139,7 @@ describe('CanvasBackground', () => {
 
   it('a 1x screen gets a 1x backing store', () => {
     setReducedMotion(true);
-    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1280);
-    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800);
+    setElementSize(1280, 800);
     setPixelRatio(1);
 
     const { container } = render(<CanvasBackground />);
@@ -111,6 +149,7 @@ describe('CanvasBackground', () => {
 
   it('stamps pre-rendered glow sprites instead of blurring every dot', () => {
     setReducedMotion(true);
+    setElementSize(1024, 768);
     const ctx = (HTMLCanvasElement.prototype.getContext as unknown as () => CanvasRenderingContext2D)();
     vi.mocked(ctx.drawImage).mockClear();
     vi.mocked(ctx.createRadialGradient).mockClear();
@@ -118,8 +157,9 @@ describe('CanvasBackground', () => {
     ctx.shadowBlur = 0;
 
     render(<CanvasBackground />);
-    // One sprite per tone, one stamp per node.
+    // One sprite per tone, one stamp per node (and there are nodes to stamp).
     expect(ctx.createRadialGradient).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(ctx.arc).mock.calls.length).toBeGreaterThan(0);
     expect(vi.mocked(ctx.drawImage).mock.calls.length).toBe(vi.mocked(ctx.arc).mock.calls.length);
     expect(ctx.shadowBlur).toBe(0);
   });
