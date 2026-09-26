@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
+import { IDENTITY } from '../data/site';
 
-export const SITE_TITLE = 'Yurii Oksamytnyi — AI/ML Systems Engineer';
-export const SITE_ORIGIN = 'https://yuriodev.co.uk';
+export const SITE_TITLE = `${IDENTITY.name} — ${IDENTITY.title}`;
+export const SITE_ORIGIN = IDENTITY.website;
 
-/** The document title for a page: the site title alone, or "<page> | Yurii Oksamytnyi". */
+/** The document title for a page: the site title alone, or "<page> | <name>". */
 export function pageTitle(page?: string): string {
-  return page ? `${page} | Yurii Oksamytnyi` : SITE_TITLE;
+  return page ? `${page} | ${IDENTITY.name}` : SITE_TITLE;
 }
 
 /** Points <link rel="canonical"> and og:url (both in index.html) at `url`, creating them if missing. */

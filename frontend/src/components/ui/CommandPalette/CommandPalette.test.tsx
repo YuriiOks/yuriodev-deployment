@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '../../../context/ThemeContext';
+import { SectionNavProvider } from '../../../context/SectionNavProvider';
+import { SECTIONS, socialById } from '../../../data/site';
 import CommandPalette from './CommandPalette';
 
 function LocationProbe() {
@@ -14,10 +16,12 @@ function renderPalette(path = '/') {
   return render(
     <ThemeProvider>
       <MemoryRouter initialEntries={[path]}>
-        <CommandPalette />
-        <Routes>
-          <Route path="*" element={<LocationProbe />} />
-        </Routes>
+        <SectionNavProvider mainRef={{ current: null }}>
+          <CommandPalette />
+          <Routes>
+            <Route path="*" element={<LocationProbe />} />
+          </Routes>
+        </SectionNavProvider>
       </MemoryRouter>
     </ThemeProvider>,
   );
@@ -73,10 +77,19 @@ describe('CommandPalette', () => {
     expect(screen.queryByText('Toggle Theme')).not.toBeInTheDocument();
   });
 
+  it('lists the sections in page order', async () => {
+    const user = userEvent.setup();
+    renderPalette();
+    await openPalette(user);
+
+    const titles = screen.getAllByText(/^Go to /).map((el) => el.textContent);
+    expect(titles).toEqual([...SECTIONS.map(({ label }) => `Go to ${label}`), 'Go to Terminal']);
+  });
+
   it.each([
-    ['View LinkedIn', 'https://www.linkedin.com/in/y-oks'],
-    ['View X', 'https://x.com/YuriODev'],
-    ['View GitHub', 'https://github.com/YuriiOks'],
+    ['View LinkedIn', socialById('linkedin').url],
+    ['View X', socialById('x').url],
+    ['View GitHub', socialById('github').url],
   ])('%s opens %s in a new tab without opener or referrer', async (title, url) => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     const user = userEvent.setup();

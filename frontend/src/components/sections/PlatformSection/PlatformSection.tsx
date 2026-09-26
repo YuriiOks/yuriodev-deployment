@@ -96,30 +96,6 @@ const PlatformSection: React.FC = () => {
             ))}
           </div>
         </div> */}
-
-        {/* CTA */}
-        {/* <div className={styles.ctaSection}>
-          <h3 className={styles.ctaTitle}>Join the Journey</h3>
-          <p className={styles.ctaDescription}>
-            Be part of democratizing AI/ML education. Early access and beta testing opportunities available.
-          </p>
-          <div className={styles.ctaButtons}>
-            <a 
-              href="https://github.com/YurioDev/Python-Course" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.ctaButton}
-            >
-              Explore Python Course
-            </a>
-            <a 
-              href="mailto:yurii.oksamytnyi@yuriodev.co.uk?subject=YuriODev Early Access"
-              className={`${styles.ctaButton} ${styles.secondary}`}
-            >
-              Request Early Access
-            </a>
-          </div>
-        </div> */}
       </div>
     </section>
   );

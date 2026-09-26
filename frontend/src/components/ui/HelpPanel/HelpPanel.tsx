@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { SHORTCUTS } from '../../../data/site';
 import styles from './HelpPanel.module.css';
 
 interface HelpPanelProps {
@@ -35,34 +36,12 @@ const HelpPanel: React.FC<HelpPanelProps> = ({ isOpen, onClose }) => {
 
         <h3>Keyboard Shortcuts</h3>
         <div className={styles.helpSection}>
-          <div className={styles.helpItem}>
-            <span>Command Palette</span>
-            <span className={styles.shortcut}>Ctrl/Cmd + K</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span>Help Panel</span>
-            <span className={styles.shortcut}>?</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span>Next Section</span>
-            <span className={styles.shortcut}>J</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span>Previous Section</span>
-            <span className={styles.shortcut}>K</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span>Go to Top</span>
-            <span className={styles.shortcut}>Home</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span>Go to Bottom</span>
-            <span className={styles.shortcut}>End</span>
-          </div>
-          <div className={styles.helpItem}>
-            <span>Toggle Theme</span>
-            <span className={styles.shortcut}>T</span>
-          </div>
+          {SHORTCUTS.map(({ id, label, display }) => (
+            <div key={id} className={styles.helpItem}>
+              <span>{label}</span>
+              <span className={styles.shortcut}>{display}</span>
+            </div>
+          ))}
         </div>
 
         <h3>Terminal Commands</h3>

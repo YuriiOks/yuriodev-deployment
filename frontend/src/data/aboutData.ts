@@ -18,13 +18,6 @@ export interface AboutData {
   nextSteps: string[];
   vision: string[];
   achievements: Achievement[];
-  contact: {
-    email: string;
-    location: string;
-    linkedin: string;
-    x: string;
-    github: string;
-  };
 }
 
 export const aboutData: AboutData = {
@@ -72,12 +65,4 @@ export const aboutData: AboutData = {
       description: "Through YuriODev educational initiatives",
     },
   ],
-  
-  contact: {
-    email: "yurii.oksamytnyi@yuriodev.co.uk",
-    location: "London, UK",
-    linkedin: "https://linkedin.com/in/y-oks",
-    x: "https://x.com/YuriODev",
-    github: "https://github.com/YuriiOks",
-  },
 };

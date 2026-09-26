@@ -28,6 +28,21 @@
             /* Layout. LeftSidebar.module.css derives its position from this
                width (and the sections' 2rem padding); update it there too. */
             --content-max-width: 75%;
+
+            /* Breakpoints. Custom properties cannot be used inside @media, so
+               this is the scale every stylesheet writes out literally (and
+               src/constants/breakpoints.ts repeats for JavaScript):
+                 sm       30rem   480px   phone to large phone
+                 md       48rem   768px   tablet; the header grows to 64px
+                 lg       64rem  1024px   the header's help button appears
+                 xl       80rem  1280px   the footer lays out in one row
+                 sidebar  88rem  1408px   the section sidebar replaces the
+                                          header's menu (never both)
+               "From X up" is (min-width: Xrem); "below X" is
+               (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
+               overlap. src/assets/styles/breakpoints.test.ts rejects any
+               other width outside the files still listed in its
+               NOT_YET_ON_SCALE. */
             
             /* Dark Mode (Default Theme) */
             --bg-primary: #0a0f1c;

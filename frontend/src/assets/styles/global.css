@@ -179,17 +179,3 @@ h2::after {
 [data-theme="light"] body {
     background: #ffffff;
 }
-
-/* Hide sidebar on mobile screens - matches React component logic (992px) */
-@media (max-width: 1010px) {
-  aside[role="navigation"],
-  nav[aria-label="Section navigation"],
-  #leftSidebarNav,
-  [class*="LeftSidebar"],
-  [class*="leftSidebarNav"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-}

@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '../../../context/ThemeContext';
+import { SectionNavProvider } from '../../../context/SectionNavProvider';
+import { SECTIONS } from '../../../data/site';
 import Header from './Header';
 
 // Header is rendered outside <Routes> in the app and receives the path as a
@@ -21,11 +23,13 @@ function renderHeader(path = '/') {
   return render(
     <ThemeProvider>
       <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="*" element={<HeaderAtLocation />} />
-        </Routes>
-        <p>outside</p>
-        <input aria-label="outside input" />
+        <SectionNavProvider mainRef={{ current: null }}>
+          <Routes>
+            <Route path="*" element={<HeaderAtLocation />} />
+          </Routes>
+          <p>outside</p>
+          <input aria-label="outside input" />
+        </SectionNavProvider>
       </MemoryRouter>
     </ThemeProvider>,
   );
@@ -98,6 +102,30 @@ describe('Header mobile menu', () => {
     expect(input).toHaveFocus();
   });
 
+  it('closes when Tab moves focus past its last link', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+    const links = menuList().querySelectorAll('a');
+    links[links.length - 1].focus();
+
+    await user.tab();
+
+    expect(screen.getByLabelText('outside input')).toHaveFocus();
+    expect(isOpen()).toBe(false);
+  });
+
+  it('stays open while Tab moves between its own links', async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(menuButton());
+
+    await user.tab();
+
+    expect(menuList()).toContainElement(document.activeElement as HTMLElement);
+    expect(isOpen()).toBe(true);
+  });
+
   it('closes on a click outside the menu', async () => {
     const user = userEvent.setup();
     renderHeader();
@@ -110,10 +138,15 @@ describe('Header mobile menu', () => {
 });
 
 describe('Header section links', () => {
-  it('point at in-page anchors on the home page, including an existing #terminal', () => {
+  it('point at in-page anchors on the home page', () => {
     renderHeader('/');
     expect(screen.getByText('--about')).toHaveAttribute('href', '#about');
-    expect(screen.getByText('--terminal')).toHaveAttribute('href', '#terminal');
+  });
+
+  it('list every section once, in page order, as site.ts does', () => {
+    renderHeader('/');
+    const anchors = [...menuList().querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href'));
+    expect(anchors).toEqual(SECTIONS.map(({ id }) => `#${id}`));
   });
 
   it('lead back to the home page section from another page', async () => {

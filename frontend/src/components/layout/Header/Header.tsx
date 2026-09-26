@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
+import { useSectionNav } from '../../../context/useSectionNav';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
+import { minWidth } from '../../../constants/breakpoints';
+import { NAV_PAGES, pageAt } from '../../../data/site';
+import SectionLink from '../SectionLink/SectionLink';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -8,33 +13,29 @@ interface HeaderProps {
   currentPath?: string;
 }
 
-// Home-page sections listed in the mobile menu. '#terminal' is the
-// interactive terminal inside the Connect section.
-const SECTION_LINKS = [
-  { id: 'hero', label: '--hero' },
-  { id: 'about', label: '--about' },
-  { id: 'platform', label: '--yuriodev_vision' },
-  { id: 'projects', label: '--projects' },
-  { id: 'timeline', label: '--timeline' },
-  { id: 'skills', label: '--skills' },
-  { id: 'terminal', label: '--terminal' },
-  { id: 'connect', label: '--connect' },
-];
-
 const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(currentPath);
-  const [activeSection, setActiveSection] = useState('hero');
   const { theme, toggleTheme } = useTheme();
+  const { sections, activeId } = useSectionNav();
+  // From the sidebar breakpoint up the sidebar navigates the sections and the
+  // page links sit inline, so there is no menu; below it the menu is the one
+  // place to reach both.
+  const wide = useMediaQuery(minWidth('sidebar'));
   const navControlsRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const onHome = currentPath === '/';
+  // The control in the header that last had focus, while focus is still
+  // there; lets focus follow when that control unmounts at the breakpoint.
+  const lastFocusRef = useRef<HTMLElement | null>(null);
+  const currentPage = pageAt(currentPath)?.id;
 
-  // Close the menu whenever the route changes.
+  // Close the menu whenever the route changes, and when the window grows
+  // past the point where the menu exists.
   if (menuPath !== currentPath) {
     setMenuPath(currentPath);
     setIsMenuOpen(false);
   }
+  if (wide && isMenuOpen) setIsMenuOpen(false);
 
   // While open, Escape or a click/tap outside the menu closes it.
   useEffect(() => {
@@ -60,33 +61,40 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
     };
   }, [isMenuOpen]);
 
+  // Growing past the breakpoint unmounts the menu button and the section
+  // links. If one of them had focus, hand it to the first page link rather
+  // than letting it drop to <body>.
+  useLayoutEffect(() => {
+    if (!wide) return;
+    const last = lastFocusRef.current;
+    const active = document.activeElement;
+    if (!last || last.isConnected || (active && active !== document.body)) return;
+    navControlsRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+  }, [wide]);
+
+  // Tabbing out of the header closes the menu, so it never hides the
+  // element that receives focus next.
+  const onNavFocus = (e: React.FocusEvent<HTMLDivElement>) => {
+    lastFocusRef.current = e.target;
+  };
+  const onNavBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && !navControlsRef.current?.contains(next)) {
+      lastFocusRef.current = null;
+      setIsMenuOpen(false);
+      return;
+    }
+    if (!next) {
+      // Focus went nowhere: a click on the page, or the window losing focus.
+      // Forget the control unless it left because it was unmounted.
+      const target = e.target;
+      queueMicrotask(() => {
+        if (lastFocusRef.current === target && target.isConnected) lastFocusRef.current = null;
+      });
+    }
+  };
+
   const closeMenu = () => setIsMenuOpen(false);
-
-  // Determine current page name from path
-  const getCurrentPage = () => (currentPath === '/' ? 'portfolio' : currentPath.substring(1));
-
-  // Track active section based on scroll. Re-run on every route change so the
-  // sections of the page just navigated to are observed; wait a frame for
-  // them to be laid out.
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: '-50% 0px -50% 0px' }
-    );
-    const frame = requestAnimationFrame(() => {
-      document.querySelectorAll('section[id]').forEach((section) => observer.observe(section));
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [currentPath]);
 
   const toggleMobileMenu = () => {
     setIsMenuOpen((open) => !open);
@@ -94,16 +102,12 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
 
   // Generate dynamic terminal prompt based on current page and section
   const getTerminalPrompt = () => {
-    const currentPage = getCurrentPage();
     // Always show the page name (portfolio, community, courses, dashboard)
-    const pageArgument = ` --page=${currentPage}`;
+    const pageName = currentPage ?? currentPath.substring(1);
+    const pageArgument = ` --page=${pageName}`;
     const themeArgument = ` --theme=${theme}`;
     return `yurii@yuriodev:~$ ./run --module=AI_Education${pageArgument}${themeArgument}`;
   };
-
-  const isPageActive = (pageName: string) => getCurrentPage() === pageName;
-
-  const isActive = (section: string) => activeSection === section;
 
   return (
     <header className={styles.terminalHeader} role="banner">
@@ -111,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
         <div className={styles.terminalPrompt}>
           {getTerminalPrompt()}<span className={styles.cursor}>_</span>
         </div>
-        <div className={styles.navControls} ref={navControlsRef}>
+        <div className={styles.navControls} ref={navControlsRef} onFocus={onNavFocus} onBlur={onNavBlur}>
           <button
             className={styles.themeToggle}
             onClick={toggleTheme}
@@ -121,44 +125,51 @@ const Header: React.FC<HeaderProps> = ({ onHelpToggle, currentPath = '/' }) => {
             <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
           </button>
           <button className={styles.helpToggle} onClick={onHelpToggle} aria-label="Show help panel">?</button>
-          <button
-            ref={menuButtonRef}
-            className={styles.mobileMenuToggle}
-            onClick={toggleMobileMenu}
-            aria-label="Toggle mobile menu"
-            aria-expanded={isMenuOpen}
-            aria-controls="navMenu"
+          {!wide && (
+            <button
+              ref={menuButtonRef}
+              className={styles.mobileMenuToggle}
+              onClick={toggleMobileMenu}
+              aria-label="Toggle mobile menu"
+              aria-expanded={isMenuOpen}
+              aria-controls="navMenu"
+            >
+              ≡ MENU
+            </button>
+          )}
+          <ul
+            className={`${styles.navMenu} ${wide ? '' : styles.dropdown} ${isMenuOpen ? styles.active : ''}`}
+            id="navMenu"
           >
-            ≡ MENU
-          </button>
-          <ul className={`${styles.navMenu} ${isMenuOpen ? styles.active : ''}`} id="navMenu">
-            {/* Main sections - visible on mobile only */}
-            {SECTION_LINKS.map(({ id, label }) => (
-              <li key={id} className={styles.mainSectionLinkLi}>
-                {onHome ? (
-                  <a href={`#${id}`} className={`${styles.navLink} ${isActive(id) ? styles.active : ''}`} onClick={closeMenu}>{label}</a>
-                ) : (
-                  <Link to={`/#${id}`} className={styles.navLink} onClick={closeMenu}>{label}</Link>
-                )}
+            {/* The home page's sections: in the menu only, the sidebar lists them when wide. */}
+            {!wide &&
+              sections.map(({ id, navLabel }) => (
+                <li key={id}>
+                  <SectionLink
+                    id={id}
+                    current={activeId === id}
+                    className={`${styles.navLink} ${activeId === id ? styles.active : ''}`}
+                    onClick={closeMenu}
+                  >
+                    {navLabel}
+                  </SectionLink>
+                </li>
+              ))}
+
+            <li className={styles.navSeparator} aria-hidden="true">|</li>
+
+            {NAV_PAGES.map(({ id, path, navLabel }) => (
+              <li key={id}>
+                <Link
+                  to={path}
+                  className={`${styles.navLink} ${currentPage === id ? styles.pageActive : ''}`}
+                  aria-current={currentPage === id ? 'page' : undefined}
+                  onClick={closeMenu}
+                >
+                  {navLabel}
+                </Link>
               </li>
             ))}
-
-            {/* Separator - visible on desktop */}
-            <li className={`${styles.navSeparator} ${styles.mainSectionSeparator}`} aria-hidden="true">|</li>
-            
-            {/* Page links - visible on desktop */}
-            <li>
-              <Link to="/" className={`${styles.navLink} ${isPageActive('portfolio') ? styles.pageActive : ''}`} onClick={closeMenu}>--portfolio</Link>
-            </li>
-            <li>
-              <Link to="/courses" className={`${styles.navLink} ${isPageActive('courses') ? styles.pageActive : ''}`} onClick={closeMenu}>--courses</Link>
-            </li>
-            <li>
-              <Link to="/dashboard" className={`${styles.navLink} ${isPageActive('dashboard') ? styles.pageActive : ''}`} onClick={closeMenu}>--dashboard</Link>
-            </li>
-            <li>
-              <Link to="/community" className={`${styles.navLink} ${isPageActive('community') ? styles.pageActive : ''}`} onClick={closeMenu}>--community</Link>
-            </li>
           </ul>
         </div>
       </nav>

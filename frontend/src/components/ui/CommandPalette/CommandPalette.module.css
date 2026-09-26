@@ -69,7 +69,7 @@
     font-size: 0.8rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 47.99rem) {
     .commandPaletteContent {
         width: 95%;
         max-width: none;
@@ -93,7 +93,7 @@
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 29.99rem) {
     .commandPaletteContent {
         width: 98%;
     }
