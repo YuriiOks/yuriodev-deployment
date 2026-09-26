@@ -1,29 +1,29 @@
 .leftSidebarNav {
+    composes: glass from '../../../assets/styles/recipes.module.css';
     --sidebar-w: 9.375rem; /* 150px at a 16px root, and it grows with the labels */
     --sidebar-gap: 1rem;
     position: fixed;
     /* Sit in the left gutter, --sidebar-gap clear of the content column.
        Sections pad 2rem on each side and centre a column of
-       --content-max-width (75%) inside that, so the column's left edge is
-       2rem + (100% - 4rem) * 0.125. LeftSidebar.tsx renders the sidebar only
+       --content-max-width, min(75%, 72rem), inside that, so the column is
+       min((100% - 4rem) * 0.75, 72rem) wide and its left edge is half of
+       what remains of the viewport. LeftSidebar.tsx renders the sidebar only
        from 88rem (1408px at a 16px root), where that edge is 12.5rem: the
        sidebar spans 2.125-11.5rem (34-184px), exactly --sidebar-gap clear,
-       whatever the root font size, and the gap only grows wider. */
-    left: max(var(--sidebar-gap), calc(2rem + (100% - 4rem) * 0.125 - var(--sidebar-w) - var(--sidebar-gap)));
+       whatever the root font size. On wider screens it follows the column
+       and keeps the same gap. */
+    left: max(var(--sidebar-gap), calc((100% - min((100% - 4rem) * 0.75, 72rem)) / 2 - var(--sidebar-w) - var(--sidebar-gap)));
     top: 50%;
     transform: translateY(-50%);
     height: auto;
     max-height: calc(100vh - 160px);
     z-index: var(--z-sidebar);
-    background: transparent;
-    border: none;
     padding: 0.75rem 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     gap: 4px;
-    transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease, padding 0.3s ease;
 }
 
 .leftSidebarNav::before {
@@ -48,11 +48,6 @@
     opacity: 0.7;
 }
 
-[data-theme="light"] .sidebarNavLink .linkText {
-    color: var(--text-primary);
-    opacity: 0.7;
-}
-
 [data-theme="light"] .sidebarNavLink.active .diamond {
     background-color: var(--accent-secondary);
     opacity: 1;
@@ -61,7 +56,6 @@
 [data-theme="light"] .sidebarNavLink.active .linkText {
     color: var(--accent-secondary);
     background-color: rgba(var(--accent-secondary-rgb), 0.1);
-    opacity: 1;
 }
 
 [data-theme="light"] .sidebarNavLink:hover:not(.active) .diamond {
@@ -72,7 +66,6 @@
 [data-theme="light"] .sidebarNavLink:hover .linkText {
     color: var(--accent-primary);
     background-color: rgba(var(--accent-primary-rgb), 0.08);
-    opacity: 1;
 }
 
 .sidebarNavLink {
@@ -102,14 +95,14 @@
     transform: translateY(-50%) rotate(45deg);
     z-index: var(--z-raised);
 }
+/* On glass, so --text-2 and never --text-muted (see recipes.module.css). */
 .sidebarNavLink .linkText {
     display: inline-block;
-    color: var(--text-muted);
+    color: var(--text-2);
     font-size: 0.8rem;
     transition: all 0.3s ease-out;
     white-space: nowrap;
     font-weight: 400;
-    opacity: 0.6;
     transform: translateX(8px);
     margin-left: 12px;
     padding: 3px 8px;
@@ -124,7 +117,6 @@
 .sidebarNavLink.active .linkText {
     color: var(--nav-link-text-active);
     background-color: rgba(var(--accent-secondary-rgb), 0.2);
-    opacity: 1;
     font-weight: 500;
     transform: translateX(15px);
 }
@@ -136,57 +128,22 @@
 .sidebarNavLink:hover .linkText {
     color: var(--nav-link-text-hover);
     background-color: rgba(var(--accent-primary-rgb), 0.15);
-    opacity: 1;
     transform: translateX(15px);
 }
 
 /* Text labels with background */
 .leftSidebarNav .linkText {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    padding: 4px 10px !important;
-    border-radius: 6px;
-    font-size: 0.8rem !important;
+    padding: var(--space-1) 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
 }
 
-/* Polished background panel for sidebar */
+/* The panel is the glass recipe (composed above). */
 .leftSidebarNav {
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(20, 20, 30, 0.35));
-    backdrop-filter: blur(8px) saturate(150%);
-    -webkit-backdrop-filter: blur(8px) saturate(150%);
-    padding: 1rem 0.75rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: var(--space-4) var(--space-3);
+    border-radius: var(--radius-lg);
     /* A fixed width, so the geometry above holds whatever the labels. */
     width: var(--sidebar-w);
-}
-
-/* Light theme sidebar background */
-[data-theme="light"] .leftSidebarNav {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.8));
-    backdrop-filter: blur(10px) saturate(150%);
-    -webkit-backdrop-filter: blur(10px) saturate(150%);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08),
-                0 2px 8px rgba(0, 0, 0, 0.04),
-                inset 0 1px 0 rgba(255, 255, 255, 1);
-    border: 1px solid rgba(var(--accent-secondary-rgb), 0.15);
-}
-
-/* Enhance on hover */
-.leftSidebarNav:hover {
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="light"] .leftSidebarNav:hover {
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12),
-                0 3px 10px rgba(0, 0, 0, 0.06),
-                inset 0 1px 0 rgba(255, 255, 255, 1);
-    border: 1px solid rgba(var(--accent-secondary-rgb), 0.2);
 }
 
 /* Touch screens: 44px-tall rows. */

@@ -17,7 +17,6 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: var(--z-fab);
   color: var(--accent-primary);
-  backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
@@ -26,12 +25,12 @@
   color: var(--bg-primary);
   border-color: var(--accent-primary);
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+  box-shadow: 0 8px 25px rgba(var(--accent-primary-rgb), 0.3);
 }
 
 .scrollToTop:active {
   transform: translateY(0);
-  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(var(--accent-primary-rgb), 0.2);
 }
 
 .scrollToTop.visible {

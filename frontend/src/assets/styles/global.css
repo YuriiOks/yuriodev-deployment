@@ -106,7 +106,7 @@ html {
 }
 
 body {
-    font-family: 'Fira Code', monospace;
+    font-family: var(--font-mono);
     background: var(--bg-primary);
     color: var(--text-primary);
     overflow-x: hidden;

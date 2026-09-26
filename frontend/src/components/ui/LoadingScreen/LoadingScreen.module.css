@@ -11,8 +11,8 @@
   height: 100%;
   background: #0a0e27;
   background-image: 
-    radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(255, 193, 7, 0.08) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, rgba(var(--cyan-rgb), 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(var(--amber-rgb),0.08) 0%, transparent 50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -27,8 +27,8 @@
 [data-theme="light"] .loadingScreen {
   background: #f8fafc;
   background-image: 
-    radial-gradient(circle at 20% 50%, rgba(217, 119, 6, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(0, 89, 179, 0.05) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, rgba(var(--amber-rgb), 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(var(--cyan-rgb), 0.05) 0%, transparent 50%);
 }
 
 /* Animated background particles */
@@ -47,14 +47,14 @@
 .loadingScreen::before {
   top: -200px;
   left: -200px;
-  background: linear-gradient(135deg, #06b6d4, #ffc107);
+  background: linear-gradient(135deg, var(--cyan), var(--amber));
   animation-delay: -10s;
 }
 
 .loadingScreen::after {
   bottom: -200px;
   right: -200px;
-  background: linear-gradient(135deg, #ffc107, #06b6d4);
+  background: linear-gradient(135deg, var(--amber), var(--cyan));
 }
 
 [data-theme="light"] .loadingScreen::before,
@@ -64,11 +64,11 @@
 }
 
 [data-theme="light"] .loadingScreen::before {
-  background: linear-gradient(135deg, #d97706, #0059b3);
+  background: linear-gradient(135deg, var(--amber-edge), var(--cyan-edge));
 }
 
 [data-theme="light"] .loadingScreen::after {
-  background: linear-gradient(135deg, #0059b3, #d97706);
+  background: linear-gradient(135deg, var(--cyan-edge), var(--amber-edge));
 }
 
 @keyframes float {
@@ -128,11 +128,11 @@
   /* Dark theme: Vibrant gradient */
   background: linear-gradient(
     135deg,
-    #06b6d4 0%,
+    var(--cyan) 0%,
     #0ea5e9 25%,
     #3b82f6 50%,
     #8b5cf6 75%,
-    #ffc107 100%
+    var(--amber) 100%
   );
   background-size: 200% 200%;
   -webkit-background-clip: text;
@@ -140,8 +140,8 @@
   background-clip: text;
   
   /* Glowing effect for dark theme */
-  filter: drop-shadow(0 0 30px rgba(6, 182, 212, 0.6))
-          drop-shadow(0 0 60px rgba(255, 193, 7, 0.3));
+  filter: drop-shadow(0 0 30px rgba(var(--cyan-rgb), 0.6))
+          drop-shadow(0 0 60px rgba(var(--amber-rgb),0.3));
   
   animation: gradientShift 8s ease-in-out infinite;
 }
@@ -150,10 +150,9 @@
 [data-theme="light"] .asciiArt {
   background: linear-gradient(
     135deg,
-    #d97706 0%,
-    #ea580c 25%,
-    #f59e0b 50%,
-    #fbbf24 75%,
+    var(--amber-text) 0%,
+    var(--amber-edge) 30%,
+    var(--amber) 65%,
     #fcd34d 100%
   );
   background-size: 200% 200%;
@@ -162,7 +161,7 @@
   background-clip: text;
   
   /* Subtle glow for light theme - no harsh shadows */
-  filter: drop-shadow(0 2px 8px rgba(217, 119, 6, 0.15))
+  filter: drop-shadow(0 2px 8px rgba(var(--amber-rgb), 0.15))
           drop-shadow(0 4px 16px rgba(251, 191, 36, 0.12));
   
   animation: gradientShift 8s ease-in-out infinite;
@@ -203,14 +202,14 @@
 }
 
 .prompt {
-  color: #06b6d4;
+  color: var(--cyan-text);
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+  text-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.5);
 }
 
 [data-theme="light"] .prompt {
-  color: #d97706;
-  text-shadow: 0 0 8px rgba(217, 119, 6, 0.2);
+  color: var(--amber-text);
+  text-shadow: 0 0 8px rgba(var(--amber-rgb), 0.2);
 }
 
 .text {
@@ -224,14 +223,14 @@
 
 .cursor {
   display: inline-block;
-  color: #ffc107;
+  color: var(--amber-text);
   font-weight: 700;
   margin-left: 2px;
   animation: cursorBlink 1s infinite;
 }
 
 [data-theme="light"] .cursor {
-  color: #0059b3;
+  color: var(--cyan-text);
 }
 
 @keyframes cursorBlink {
@@ -267,34 +266,33 @@
   margin: 0 auto;
   height: 8px;
   background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
   border-radius: 100px;
   overflow: hidden;
   margin-bottom: 1.25rem;
   position: relative;
-  border: 1px solid rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(var(--cyan-rgb), 0.1);
   box-shadow: 
     inset 0 2px 4px rgba(0, 0, 0, 0.2),
-    0 0 20px rgba(6, 182, 212, 0.05);
+    0 0 20px rgba(var(--cyan-rgb), 0.05);
 }
 
 [data-theme="light"] .progressBar {
   background: rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(var(--amber-rgb), 0.1);
   box-shadow: 
     inset 0 1px 3px rgba(0, 0, 0, 0.05),
-    0 0 15px rgba(217, 119, 6, 0.03);
+    0 0 15px rgba(var(--amber-rgb), 0.03);
 }
 
 .progressFill {
   height: 100%;
   background: linear-gradient(
     90deg,
-    #06b6d4 0%,
+    var(--cyan) 0%,
     #0ea5e9 25%,
     #3b82f6 50%,
     #8b5cf6 75%,
-    #ffc107 100%
+    var(--amber) 100%
   );
   background-size: 200% 100%;
   border-radius: 100px;
@@ -302,8 +300,8 @@
   position: relative;
   overflow: hidden;
   box-shadow: 
-    0 0 20px rgba(6, 182, 212, 0.6),
-    0 0 40px rgba(6, 182, 212, 0.3),
+    0 0 20px rgba(var(--cyan-rgb), 0.6),
+    0 0 40px rgba(var(--cyan-rgb), 0.3),
     inset 0 1px 1px rgba(255, 255, 255, 0.3);
   animation: progressGlow 3s ease-in-out infinite;
 }
@@ -311,15 +309,14 @@
 [data-theme="light"] .progressFill {
   background: linear-gradient(
     90deg,
-    #d97706 0%,
-    #ea580c 25%,
-    #f59e0b 50%,
-    #fbbf24 75%,
+    var(--amber-text) 0%,
+    var(--amber-edge) 30%,
+    var(--amber) 65%,
     #fcd34d 100%
   );
   background-size: 200% 100%;
   box-shadow: 
-    0 0 15px rgba(217, 119, 6, 0.4),
+    0 0 15px rgba(var(--amber-rgb), 0.4),
     0 0 30px rgba(251, 191, 36, 0.2),
     inset 0 1px 1px rgba(255, 255, 255, 0.5);
 }
@@ -380,7 +377,7 @@
   background: #ffffff;
   box-shadow: 
     0 0 8px rgba(255, 255, 255, 0.8),
-    0 0 15px rgba(217, 119, 6, 0.6);
+    0 0 15px rgba(var(--amber-rgb), 0.6);
 }
 
 .progressText {
@@ -389,12 +386,12 @@
   color: rgba(255, 255, 255, 0.7);
   font-weight: 600;
   letter-spacing: 1px;
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  text-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.3);
 }
 
 [data-theme="light"] .progressText {
   color: rgba(15, 23, 42, 0.6);
-  text-shadow: 0 0 8px rgba(217, 119, 6, 0.1);
+  text-shadow: 0 0 8px rgba(var(--amber-rgb), 0.1);
 }
 
 /* Loading Animation - 5 Squares in Wave/Leverage Motion */
@@ -439,11 +436,11 @@
 
 /* Dark theme: Each square gets a different color from the gradient */
 .square:nth-child(1) {
-  background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+  background: linear-gradient(135deg, var(--cyan), #0ea5e9);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+  filter: drop-shadow(0 0 8px rgba(var(--cyan-rgb), 0.6));
   animation-delay: 0s;
 }
 
@@ -511,7 +508,7 @@
 }
 
 .square:nth-child(9) {
-  background: linear-gradient(135deg, #ec4899, #f59e0b);
+  background: linear-gradient(135deg, #ec4899, var(--amber));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -520,53 +517,53 @@
 }
 
 .square:nth-child(10) {
-  background: linear-gradient(135deg, #f59e0b, #ffc107);
+  background: linear-gradient(135deg, var(--amber), var(--hue-orange));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.6));
+  filter: drop-shadow(0 0 8px rgba(var(--amber-rgb),0.6));
   animation-delay: 0.45s;
 }
 
 /* Light theme: Orange to gold gradient across squares */
 [data-theme="light"] .square:nth-child(1) {
-  background: linear-gradient(135deg, #d97706, #ea580c);
+  background: linear-gradient(135deg, var(--amber-text), var(--amber-edge));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(217, 119, 6, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(2) {
-  background: linear-gradient(135deg, #ea580c, #f59e0b);
+  background: linear-gradient(135deg, var(--amber-edge), var(--amber));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(234, 88, 12, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(3) {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
+  background: linear-gradient(135deg, var(--amber), var(--amber-edge));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(245, 158, 11, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(4) {
-  background: linear-gradient(135deg, #f97316, #fb923c);
+  background: linear-gradient(135deg, var(--amber-edge), var(--amber));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(249, 115, 22, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(5) {
-  background: linear-gradient(135deg, #fb923c, #fbbf24);
+  background: linear-gradient(135deg, var(--amber), #fcd34d);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 1px 4px rgba(251, 146, 60, 0.4));
+  filter: drop-shadow(0 1px 4px rgba(var(--amber-rgb), 0.4));
 }
 
 [data-theme="light"] .square:nth-child(6) {

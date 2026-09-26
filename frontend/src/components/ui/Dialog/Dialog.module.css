@@ -62,16 +62,10 @@
     box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
 }
 
+/* The palette: glass over an unblurred backdrop. The panel above keeps its
+   own border and shadow. */
 .glass {
-    background: rgba(var(--bg-card-rgb-val), 0.78);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-}
-
-[data-theme="light"] .glass {
-    background: rgba(var(--bg-card-rgb-val), 0.86);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    composes: glass from '../../../assets/styles/recipes.module.css';
 }
 
 .solid {

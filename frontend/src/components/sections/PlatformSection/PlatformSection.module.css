@@ -87,10 +87,9 @@
 
 /* Current Phase Card */
 .currentPhaseCard {
-  backdrop-filter: blur(10px);
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(6, 182, 212, 0.4);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.1);
+  background: var(--bg-card);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.4);
+  box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.1);
   border-radius: 12px;
   padding: 2rem;
   margin-bottom: 4rem;
@@ -106,12 +105,12 @@
 /* Light theme card */
 [data-theme="light"] .currentPhaseCard {
   background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(217, 119, 6, 0.4);
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.12);
+  border: 1px solid rgba(var(--amber-rgb), 0.4);
+  box-shadow: 0 2px 8px rgba(var(--amber-rgb), 0.12);
 }
 
 [data-theme="light"] .currentPhaseCard:hover {
-  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.3);
   border-color: var(--accent-secondary);
 }
 
@@ -154,8 +153,8 @@
 
 /* Light theme progress bar */
 [data-theme="light"] .progressBar {
-  background: rgba(217, 119, 6, 0.08);
-  border-color: rgba(217, 119, 6, 0.2);
+  background: rgba(var(--amber-rgb), 0.08);
+  border-color: rgba(var(--amber-rgb), 0.2);
 }
 
 .progressFill {
@@ -216,10 +215,9 @@
 }
 
 .roadmapCard {
-  backdrop-filter: blur(10px);
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(6, 182, 212, 0.4);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.1);
+  background: var(--bg-card);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.4);
+  box-shadow: 0 4px 16px rgba(var(--accent-primary-rgb), 0.1);
   border-radius: 12px;
   padding: 2rem;
   transition: all 0.3s ease;
@@ -230,8 +228,8 @@
 /* Light theme roadmap card */
 [data-theme="light"] .roadmapCard {
   background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(217, 119, 6, 0.4);
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.12);
+  border: 1px solid rgba(var(--amber-rgb), 0.4);
+  box-shadow: 0 2px 8px rgba(var(--amber-rgb), 0.12);
 }
 
 .roadmapCard::before {
@@ -246,7 +244,7 @@
 }
 
 .roadmapCard.completed::before {
-  background: #10b981;
+  background: var(--success);
 }
 
 .roadmapCard.active::before {
@@ -270,7 +268,7 @@
 
 /* Light theme hover */
 [data-theme="light"] .roadmapCard:hover {
-  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.3);
   border-color: var(--accent-secondary);
 }
 
@@ -321,9 +319,9 @@
 }
 
 .roadmapCard.completed .statusBadge {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border-color: #10b981;
+  background: rgba(var(--success-rgb), 0.1);
+  color: var(--success);
+  border-color: var(--success);
 }
 
 .roadmapCard.active .statusBadge {
@@ -334,7 +332,7 @@
 
 /* Light theme active badge */
 [data-theme="light"] .roadmapCard.active .statusBadge {
-  background: rgba(217, 119, 6, 0.1);
+  background: rgba(var(--amber-rgb), 0.1);
   color: var(--accent-secondary);
   border-color: var(--accent-secondary);
 }
@@ -422,8 +420,8 @@
 }
 
 .statusTag.live {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: rgba(var(--success-rgb), 0.1);
+  color: var(--success);
 }
 
 .statusTag.beta {

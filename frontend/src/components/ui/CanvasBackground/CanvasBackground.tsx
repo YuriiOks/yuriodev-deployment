@@ -58,7 +58,7 @@ interface Palette {
   colors: Record<Tone, string>;
 }
 
-const FALLBACK_COLORS: Record<Tone, string> = { primary: '#00d4ff', secondary: '#ffc107', tertiary: '#008080' };
+const FALLBACK_COLORS: Record<Tone, string> = { primary: '#00d4ff', secondary: '#ffc107', tertiary: '#2dd4bf' };
 
 function readPalette(): Palette {
   const root = document.documentElement;
