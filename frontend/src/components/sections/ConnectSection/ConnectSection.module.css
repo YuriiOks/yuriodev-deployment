@@ -3,64 +3,14 @@
    =========================== */
 
 .section {
-  width: 100%;
   padding: 3rem 2rem 6rem;
   background: var(--section-hero-bg-gradient);
   position: relative;
   z-index: var(--z-raised);
 }
 
-.sectionContent {
+.content {
   max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Header */
-.sectionHeader {
-  text-align: center;
-  margin-bottom: 4rem;
-}
-
-.sectionTitle {
-  font-size: clamp(2.5rem, 5vw, 4rem);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 1rem;
-  position: relative;
-  padding-bottom: 20px;
-}
-
-.sectionTitle::before {
-  content: '# ';
-  color: var(--accent-secondary);
-}
-
-/* Dark theme - cyan # prefix and golden/yellow title */
-[data-theme="dark"] .sectionTitle {
-  color: var(--accent-secondary);
-}
-
-[data-theme="dark"] .sectionTitle::before {
-  color: var(--accent-primary);
-}
-
-.sectionTitle::after {
-  content: '';
-  position: absolute;
-  bottom: 0px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
-}
-
-.subtitle {
-  font-size: 1.125rem;
-  color: var(--text-secondary);
-  max-width: 800px;
-  margin: 0 auto;
-  line-height: 1.8;
 }
 
 /* Profiles: labelled buttons above the terminal, wrapping on narrow screens */
@@ -71,7 +21,8 @@
   justify-content: center;
   gap: 0.75rem;
   max-width: var(--content-max-width);
-  margin: -2rem auto 2.5rem;
+  /* 2rem under the subtitle: the header's 3rem margin, less 1rem. */
+  margin: -1rem auto 2.5rem;
   padding: 0;
 }
 
@@ -145,14 +96,6 @@
 @media (max-width: 640px) {
   .section {
     padding: 5rem 1rem 3rem;
-  }
-
-  .sectionTitle {
-    font-size: 2rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
   }
 
   .terminalContainer {

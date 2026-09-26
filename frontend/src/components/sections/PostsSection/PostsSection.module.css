@@ -3,62 +3,14 @@
    =========================== */
 
 .section {
-  width: 100%;
   padding: 3rem 2rem;
   position: relative;
   z-index: var(--z-raised);
 }
 
+/* The content column; on phones the whole width between the gutters. */
 .content {
   max-width: var(--content-max-width);
-  width: 100%;
-  margin: 0 auto;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.title {
-  font-size: clamp(2rem, 5vw, 4rem);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 1rem;
-  position: relative;
-  padding-bottom: 20px;
-}
-
-.title::before {
-  content: '# ';
-  color: var(--accent-secondary);
-}
-
-[data-theme="dark"] .title {
-  color: var(--accent-secondary);
-}
-
-[data-theme="dark"] .title::before {
-  color: var(--accent-primary);
-}
-
-.title::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
-}
-
-.subtitle {
-  font-size: 1.05rem;
-  color: var(--text-secondary);
-  max-width: 50rem;
-  margin: 0 auto;
-  line-height: 1.8;
 }
 
 .synced {
