@@ -7,12 +7,7 @@ import { minWidth } from '../../../constants/breakpoints';
 import { SECTIONS } from '../../../data/site';
 import SectionRail from './SectionRail';
 
-/*
- * An IntersectionObserver the test drives: each instance is kept with its
- * callback and options, so a test can report entries for the observer it
- * means (the section tracker's, with a rootMargin, or the rail's hero
- * observer, with thresholds).
- */
+/** The section tracker's own IntersectionObserver (rootMargin set), driven by the test. */
 interface Driven {
   callback: IntersectionObserverCallback;
   options?: IntersectionObserverInit;
@@ -41,14 +36,12 @@ class DrivenObserver {
   }
 }
 
-function report(which: 'hero' | 'sections', target: Element, isIntersecting: boolean, intersectionRatio = isIntersecting ? 1 : 0) {
-  const observer = observers.find((o) =>
-    which === 'hero' ? Array.isArray(o.options?.threshold) : o.options?.rootMargin !== undefined,
-  );
-  if (!observer) throw new Error(`no ${which} observer`);
+function report(target: Element, isIntersecting: boolean) {
+  const [observer] = observers;
+  if (!observer) throw new Error('no section-tracking observer');
   act(() =>
     observer.callback(
-      [{ target, isIntersecting, intersectionRatio } as unknown as IntersectionObserverEntry],
+      [{ target, isIntersecting } as unknown as IntersectionObserverEntry],
       observer as unknown as IntersectionObserver,
     ),
   );
@@ -127,46 +120,28 @@ describe('SectionRail', () => {
     expect(within(rail()!).getByRole('list', { hidden: true })).toBeInTheDocument();
   });
 
-  it('renders away on its very first commit on the home page, before any observer reports', () => {
-    // No `report(...)` call here: this is the state a real first paint would
-    // show, before the connecting effect (let alone the observer) has run.
+  it('is visible on the hero from the very first paint, labels included', () => {
+    // No report(...) call here: this is the state a real first paint would
+    // show, before any observer has reported. Unlike the old hero-hiding
+    // rail, there is no scroll-driven state to wait for.
     renderRail();
-    expect(rail()).toHaveAttribute('data-state', 'away');
-    expect(rail()).toHaveStyle({ opacity: '0' });
-  });
-
-  it('stays away while most of the hero is on screen, and comes in once it is not', () => {
-    renderRail();
-    expect(rail()).toHaveAttribute('data-state', 'away');
-
-    report('hero', section('hero'), true, 0.39);
-    expect(rail()).toHaveAttribute('data-state', 'shown');
-
-    report('hero', section('hero'), true, 0.6);
-    expect(rail()).toHaveAttribute('data-state', 'away');
-
-    report('hero', section('hero'), false);
-    expect(rail()).toHaveAttribute('data-state', 'shown');
-  });
-
-  it('keeps its links in the Tab order while away (focusing one brings it back, in CSS)', () => {
-    renderRail();
-    expect(rail()).toHaveAttribute('data-state', 'away');
+    expect(rail()).toHaveStyle({ opacity: '1' });
     for (const link of within(rail()!).getAllByRole('link', { hidden: true })) {
-      expect(link).not.toHaveAttribute('tabindex', '-1');
-      expect(link.closest('[hidden], [inert], [aria-hidden="true"]')).toBeNull();
+      const label = link.querySelector('span:last-child')!;
+      expect(label).toHaveStyle({ opacity: '1' });
+      expect(getComputedStyle(label).display).not.toBe('none');
     }
   });
 
   it('is shown at once on another page, where there is no hero', () => {
     renderRail('/privacy');
-    expect(rail()).toHaveAttribute('data-state', 'shown');
+    expect(rail()).toHaveStyle({ opacity: '1' });
     expect(within(rail()!).getAllByRole('link', { hidden: true })[1]).toHaveAttribute('href', '/#about');
   });
 
   it('marks the section in view and fills the track down to it', () => {
     renderRail();
-    report('sections', section('skills'), true);
+    report(section('skills'), true);
 
     const current = within(rail()!).getByRole('link', { name: 'Go to skills section', hidden: true });
     expect(current).toHaveAttribute('aria-current', 'location');
@@ -176,14 +151,7 @@ describe('SectionRail', () => {
     const index = listed.findIndex(({ id }) => id === 'skills');
     expect(rail()!.style.getPropertyValue('--rail-progress')).toBe(String(index / (listed.length - 1)));
 
-    report('sections', section('connect'), true);
+    report(section('connect'), true);
     expect(rail()!.style.getPropertyValue('--rail-progress')).toBe('1');
-  });
-
-  it('stops watching the hero when it unmounts', () => {
-    const { unmount } = renderRail();
-    expect(observers.some((o) => Array.isArray(o.options?.threshold))).toBe(true);
-    unmount();
-    expect(observers).toEqual([]);
   });
 });

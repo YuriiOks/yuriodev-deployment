@@ -37,11 +37,8 @@ test.describe('section jumps', () => {
     const wide = await railWidth(page);
     for (const id of SECTION_IDS) {
       if (wide) {
-        // From the keyboard: the rail may be faded out over the hero, and
-        // focusing one of its links brings it back.
         const link = page.locator(`#sectionRail a[href="#${id}"]`);
         await link.focus();
-        await expect(page.locator('#sectionRail')).toHaveCSS('opacity', '1');
         await page.keyboard.press('Enter');
       } else {
         await page.locator('header [data-opens="menu"]').click();
@@ -123,33 +120,22 @@ test.describe('navigation surfaces', () => {
     });
   }
 
-  test('the section rail stays away while the hero fills the screen, and comes back for the keyboard', async ({ page }) => {
+  test('the section rail follows the section in view once scrolled', async ({ page }) => {
     await open(page, '/');
     test.skip(!(await railWidth(page)), 'the rail exists from 88rem up');
     const rail = page.locator('#sectionRail');
 
-    await expect(rail).toHaveAttribute('data-state', 'away');
-    await expect(rail).toHaveCSS('opacity', '0');
-    expect((await navSurfaces(page)).sidebar).toBe(false);
-
-    // A focused rail link shows the rail at once, over the hero too.
-    await rail.locator('a[href="#about"]').focus();
     await expect(rail).toHaveCSS('opacity', '1');
-    await page.locator('body').focus();
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    await expect(rail).toHaveCSS('opacity', '0');
-
     await scrollToSection(page, 'about');
-    await expect(rail).toHaveAttribute('data-state', 'shown');
     await expect(rail).toHaveCSS('opacity', '1');
     await expect(rail.locator('a[aria-current="location"]')).toHaveAttribute('href', '#about');
 
     await page.evaluate(() => window.scrollTo(0, 0));
     await settle(page);
-    await expect(rail).toHaveAttribute('data-state', 'away');
+    await expect(rail).toHaveCSS('opacity', '1');
   });
 
-  test('the rail never flashes visible over the hero on load', async ({ page }) => {
+  test('the rail is visible on the hero from the very first paint, labels included', async ({ page }) => {
     // A repeat visit (sessionStorage already set, as a same-session reload
     // would leave it) or reduced motion (the project default) both skip the
     // loading screen, so the hero is on screen from the very first commit.
@@ -168,7 +154,15 @@ test.describe('navigation surfaces', () => {
     await open(page, '/');
     const opacities = await page.evaluate(() => (window as unknown as { __railOpacities: string[] }).__railOpacities);
     expect(opacities.length, 'sampled some frames before settling').toBeGreaterThan(0);
-    expect(new Set(opacities), 'never shown while the hero fills the screen').toEqual(new Set(['0']));
+    expect(new Set(opacities), 'shown at once, hero included, never fading in').toEqual(new Set(['1']));
+
+    const rail = page.locator('#sectionRail');
+    await expect(rail).toHaveCSS('opacity', '1');
+    const labels = rail.locator('a span:last-child');
+    await expect(labels.first()).toBeVisible();
+    for (const opacity of await labels.evaluateAll((els) => els.map((el) => getComputedStyle(el).opacity))) {
+      expect(opacity).toBe('1');
+    }
   });
 });
 
@@ -183,9 +177,8 @@ test.describe('section rail clearance', () => {
       await open(page, '/');
       await scrollToSection(page, 'skills');
       const rail = page.locator('#sectionRail');
-      await expect(rail, `${width}px: rail shown`).toHaveAttribute('data-state', 'shown');
-      // Its widest state: labels showing (below 100rem they need a hover).
-      await rail.hover();
+      await expect(rail, `${width}px: rail shown`).toHaveCSS('opacity', '1');
+      // Labels show at every width the rail does, no hover required.
       await expect(rail.locator('a').first().locator('span').last()).toHaveCSS('opacity', '1');
 
       const geometry = await page.evaluate(() => {
@@ -234,7 +227,7 @@ test.describe('section rail clearance', () => {
       });
 
       expect(geometry.left, `${width}px: rail inside the window`).toBeGreaterThanOrEqual(16);
-      expect(geometry.right + 16, `${width}px: rail clear of the content (${geometry.what})`).toBeLessThanOrEqual(geometry.contentLeft);
+      expect(geometry.right + 24, `${width}px: rail clear of the content (${geometry.what})`).toBeLessThanOrEqual(geometry.contentLeft);
       expect(geometry.top, `${width}px: rail below the header`).toBeGreaterThanOrEqual(geometry.headerBottom);
       expect(geometry.bottom, `${width}px: rail above the bottom`).toBeLessThanOrEqual(geometry.innerHeight);
       expect(geometry.overflow, `${width}px: no horizontal overflow`).toBeLessThanOrEqual(0);
