@@ -29,19 +29,19 @@
 
 .featured,
 [data-theme="light"] .featured {
-  border-color: var(--amber-edge);
+  border-color: var(--amber-text);
   box-shadow: 0 4px 20px rgba(var(--amber-rgb), 0.2);
 }
 
 /* The amber edge also marks where a keyboard user is. */
 .interactive:has(:focus-visible) {
-  border-color: var(--amber-edge);
+  border-color: var(--amber-text);
 }
 
 @media (hover: hover) {
   .interactive:hover {
     transform: translateY(-4px);
-    border-color: var(--amber-edge);
+    border-color: var(--amber-text);
     box-shadow: 0 8px 24px rgba(var(--amber-rgb), 0.2);
   }
 
