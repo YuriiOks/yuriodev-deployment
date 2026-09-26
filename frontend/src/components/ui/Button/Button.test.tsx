@@ -70,6 +70,31 @@ describe('Button', () => {
     expect(text).not.toHaveAttribute('tabindex');
   });
 
+  it('a disabled link keeps its name and other attributes, but none that only a link has', () => {
+    render(
+      <Button
+        href="https://example.com"
+        disabled
+        variant="icon"
+        aria-label="GitHub (coming soon)"
+        id="gh"
+        title="Soon"
+        data-testid="gh"
+        target="_blank"
+        rel="me"
+        download
+      >
+        <svg aria-hidden="true" />
+      </Button>,
+    );
+    const text = screen.getByTestId('gh');
+    expect(text.tagName).toBe('SPAN');
+    expect(text).toHaveAttribute('aria-label', 'GitHub (coming soon)');
+    expect(text).toHaveAttribute('id', 'gh');
+    expect(text).toHaveAttribute('title', 'Soon');
+    for (const name of ['href', 'target', 'rel', 'download']) expect(text).not.toHaveAttribute(name);
+  });
+
   it('with `to` is a router link', () => {
     render(
       <MemoryRouter>

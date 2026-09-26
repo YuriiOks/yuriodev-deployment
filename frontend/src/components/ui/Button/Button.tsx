@@ -50,6 +50,9 @@ type AsRouterLink = ButtonCommon &
 
 export type ButtonProps = (AsButton | AsAnchor | AsRouterLink) & IconRule;
 
+/** Attributes that mean something only on a link, or only when it can be followed. */
+const LINK_ONLY_PROPS = new Set(['target', 'rel', 'download', 'hrefLang', 'ping', 'referrerPolicy', 'type', 'media', 'onClick']);
+
 /**
  * An action or a link that looks like a button. Navigation is a link (href:
  * <a>, to: a router <Link>), an action is a <button type="button">. A link
@@ -85,8 +88,17 @@ const Button: React.FC<ButtonProps> = ({
   if (rest.href !== undefined) {
     const { href, disabled, ...anchorProps } = rest as Omit<AsAnchor, keyof ButtonCommon>;
     if (disabled || !isAllowedHref(href)) {
+      // Not a link: drop what only a link (or a click) means, keep the rest
+      // (aria-label, id, title, data-*), so an icon button keeps its name.
+      const spanProps = Object.fromEntries(
+        Object.entries(anchorProps).filter(([name]) => !LINK_ONLY_PROPS.has(name)),
+      ) as React.HTMLAttributes<HTMLSpanElement>;
       return (
-        <span className={classes} aria-disabled={disabled ? 'true' : undefined}>
+        <span
+          {...spanProps}
+          className={classes}
+          aria-disabled={disabled ? 'true' : undefined}
+        >
           {children}
         </span>
       );
