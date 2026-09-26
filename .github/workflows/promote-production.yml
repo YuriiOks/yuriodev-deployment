@@ -56,13 +56,27 @@ jobs:
       - name: Gate - stage must be running exactly these images
         id: gate
         run: |
+          ref() { docker buildx imagetools inspect "$1" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"'; }
+          # Stage follows master by itself (images.yml); give a just-merged commit up to ~15 min
+          # to be built, scanned and put on stage before refusing.
+          for i in $(seq 1 60); do
+            ok=true
+            for svc in frontend backend; do
+              img="ghcr.io/yuriioks/yuriodev-$svc"
+              want=$(ref "$img:sha-$SHA") || want=""
+              stage=$(ref "$img:stage") || stage=""
+              echo "$svc: sha-$SHA=${want:-none} stage=${stage:-none}"
+              { [ -n "$want" ] && [ "$want" = "$stage" ]; } || ok=false
+            done
+            $ok && break
+            sleep 15
+          done
           for svc in frontend backend; do
             img="ghcr.io/yuriioks/yuriodev-$svc"
-            want=$(docker buildx imagetools inspect "$img:sha-$SHA" --format '{{json .Manifest.Digest}}' | tr -d '"')
-            stage=$(docker buildx imagetools inspect "$img:stage" --format '{{json .Manifest.Digest}}' | tr -d '"')
-            echo "$svc: sha-$SHA=$want stage=$stage"
+            want=$(ref "$img:sha-$SHA") || want=""
+            stage=$(ref "$img:stage") || stage=""
             [ -n "$want" ] && [ "$want" = "$stage" ] \
-              || { echo "::error::$svc on stage is not sha-$SHA; promote to stage first"; exit 1; }
+              || { echo "::error::$svc on stage is not sha-$SHA (tag the master commit stage is running)"; exit 1; }
             echo "${svc}_digest=$want" >> "$GITHUB_OUTPUT"
           done
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

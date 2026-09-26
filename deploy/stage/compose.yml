@@ -1,5 +1,6 @@
-# stage.yuriodev.co.uk: runs the :stage images (moved by .github/workflows/promote-stage.yml
-# on a vX.Y.Z-rc.N tag, or by images.yml while STAGE_AUTO_PROMOTE=true).
+# stage.yuriodev.co.uk: runs the :stage images, moved by .github/workflows/images.yml to
+# the newest built master head (an optional vX.Y.Z-rc.N tag, promote-stage.yml, pins an
+# older master commit until the next master build). Releases are tagged on what runs here.
 # Service names are environment-unique on purpose (see deploy/dev/compose.yml).
 #   docker compose -f deploy/stage/compose.yml ps
 name: yuriodev-stage

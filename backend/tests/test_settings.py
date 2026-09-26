@@ -51,11 +51,13 @@ def test_empty_values_fall_back_to_defaults(clean_env):
 def test_environment_and_revision_read_from_env(clean_env):
     clean_env.setenv("ENVIRONMENT", "stage")
     clean_env.setenv("REVISION", "abc1234")
+    clean_env.setenv("BUILD_REF", "master")
 
     settings = fresh()
 
     assert settings.environment == "stage"
     assert settings.revision == "abc1234"
+    assert settings.build_ref == "master"
 
 
 def test_log_level_and_format_are_case_insensitive(clean_env):

@@ -250,6 +250,29 @@ describe('status command', () => {
     expect(result.map(({ type }) => type)).toEqual(['success', 'info', 'info']);
   });
 
+  it('shows the branch the running image was built from, when the API reports one', async () => {
+    const body = { status: 'healthy', environment: 'dev', revision: '0123456789abcdef0123', ref: 'fe/polish-rail-hero-light' };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))));
+
+    const result = lines(await status());
+
+    expect(result.map(({ text: t }) => t)).toEqual([
+      'The API is healthy.',
+      'Environment: dev',
+      'Branch:      fe/polish-rail-hero-light',
+      'Revision:    0123456',
+    ]);
+  });
+
+  it('leaves the branch out when the API reports it as unknown', async () => {
+    const body = { status: 'healthy', environment: 'local', revision: 'unknown', ref: 'unknown' };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))));
+
+    const result = lines(await status());
+
+    expect(result.map(({ text: t }) => t)).toEqual(['The API is healthy.', 'Environment: local', 'Revision:    unknown']);
+  });
+
   it('warns when the API answers with any other status', async () => {
     vi.stubGlobal(
       'fetch',
