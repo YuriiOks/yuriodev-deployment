@@ -11,10 +11,9 @@ const field = () => screen.getByLabelText('Terminal command input');
 const outputLines = () =>
   [...document.querySelectorAll('[data-line-type]')].map((el) => el.textContent ?? '');
 
-// The terminal colours emoji-prefixed header lines as 'info'. This locks in the
-// rendered result of the emoji classifier (utils/headerEmoji) inside the real
-// component, including multi-codepoint emoji such as the building-construction
-// sign with its variation selector.
+// The terminal colours marker-prefixed header lines as 'info'. This locks in
+// the rendered result of the header classifier (utils/headerMarker) inside
+// the real component.
 const lineWithText = (text: string) =>
   screen.getAllByText((_, el) => el?.textContent === text && el.className.includes('terminalLine'))[0];
 
@@ -22,18 +21,18 @@ const hasType = (el: HTMLElement, type: string) =>
   el.className.split(/\s+/).some((c) => c === type || c.includes(`_${type}_`) || c.endsWith(`_${type}`));
 
 describe('InteractiveTerminal colouring', () => {
-  test('emoji header lines render as info, plain section titles as warning', async () => {
+  test('marker header lines render as info, plain section titles as warning', async () => {
     const user = userEvent.setup();
     render(<InteractiveTerminal />);
 
     await user.type(screen.getByLabelText('Terminal command input'), 'skills{Enter}');
 
-    const singleCodepoint = lineWithText('🤖 AI & Agentic Engineering:');
-    const multiCodepoint = lineWithText('🏗️  System Architecture:');
+    const firstHeader = lineWithText('◆ AI & Agentic Engineering:');
+    const anotherHeader = lineWithText('◆ Leadership & Education:');
     const plainTitle = lineWithText('Technical Skills Matrix:');
 
-    expect(hasType(singleCodepoint, 'info')).toBe(true);
-    expect(hasType(multiCodepoint, 'info')).toBe(true);
+    expect(hasType(firstHeader, 'info')).toBe(true);
+    expect(hasType(anotherHeader, 'info')).toBe(true);
     expect(hasType(plainTitle, 'warning')).toBe(true);
     expect(hasType(plainTitle, 'info')).toBe(false);
   });
@@ -73,15 +72,6 @@ describe('InteractiveTerminal colouring', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(screen.getByText('Available commands:')).toBeInTheDocument();
-  });
-
-  test('the teacher emoji header renders intact and coloured as a header', async () => {
-    const user = userEvent.setup();
-    render(<InteractiveTerminal />);
-
-    await user.type(screen.getByLabelText('Terminal command input'), 'skills{Enter}');
-
-    expect(hasType(lineWithText('👨‍🏫 Leadership & Education:'), 'info')).toBe(true);
   });
 });
 

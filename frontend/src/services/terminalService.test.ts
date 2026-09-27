@@ -367,7 +367,7 @@ describe('Tab completion', () => {
 describe('line colouring', () => {
   it.each([
     ['Technical Skills Matrix:', 'warning'],
-    ['🤖 AI & Agentic Engineering:', 'info'],
+    ['◆ AI & Agentic Engineering:', 'info'],
     ['━━━━━━━━', 'info'],
     ['   • Python (Advanced)            [████████████] Expert', 'success'],
     ['plain words', 'output'],

@@ -12,38 +12,29 @@ import {
     SOCIALS,
     displayUrl,
     socialsFor,
-    type SocialId,
 } from '../data/site';
 import type { Theme } from '../context/theme-context';
-import { isHeaderEmojiLine } from '../utils/headerEmoji';
+import { isHeaderMarkerLine } from '../utils/headerMarker';
 import { firstLine, truncate } from '../utils/postText';
 import { getPosts, primaryVariant } from './postsApi';
 
-/** The contact card's line for each profile: marker, then the name padded to the column. */
-const CONTACT_MARKERS: Partial<Record<SocialId, string>> = {
-    linkedin: '🔗',
-    x: '𝕏 ',
-    github: '💻',
-};
-
-function contactLine(marker: string, name: string, value: string): string {
-    return `${marker} ${`${name}:`.padEnd(10)}${value}`;
+/** The contact card's line for each profile: the contact marker, then the name padded to the column. */
+function contactLine(name: string, value: string): string {
+    return `» ${`${name}:`.padEnd(10)}${value}`;
 }
 
 const contactCard = (): string => [
-    contactLine('📧', 'Email', EMAILS.personal),
-    ...socialsFor('terminal').map(({ id, shortLabel, url }) =>
-        contactLine(CONTACT_MARKERS[id] ?? '🔗', shortLabel, displayUrl(url)),
-    ),
-    contactLine('🌐', 'Website', displayUrl(IDENTITY.website)),
-    contactLine('📍', 'Location', IDENTITY.location),
+    contactLine('Email', EMAILS.personal),
+    ...socialsFor('terminal').map(({ shortLabel, url }) => contactLine(shortLabel, displayUrl(url))),
+    contactLine('Website', displayUrl(IDENTITY.website)),
+    contactLine('Location', IDENTITY.location),
 ].join('\n');
 
 /** The fixed text some commands print. */
 const TEXT = {
     skills: () => `Technical Skills Matrix:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 AI & Agentic Engineering:
+◆ AI & Agentic Engineering:
    • LangGraph, LangChain, MCP    [████████████] Expert
    • RAG Pipelines & Retrieval    [████████████] Expert
    • PyTorch & Deep Learning      [████████████] Expert
@@ -51,24 +42,24 @@ const TEXT = {
    • Multi-Agent Systems          [████████████] Expert
    • Agentic Patterns (ReAct)     [███████████░] Expert
 
-🏗️  System Architecture:
+◆ System Architecture:
    • Microservices & Event-Driven [████████████] Expert
    • FastAPI & Backend Systems    [████████████] Expert
    • PostgreSQL, MongoDB, Redis   [████████████] Expert
    • Cloud-Native Architecture    [████████████] Expert
 
-☁️  DevOps & Cloud:
+◆ DevOps & Cloud:
    • Docker/Kubernetes            [████████████] Expert
    • GCP, AWS                     [███████████░] Expert
    • CI/CD (GitHub Actions)       [████████████] Expert
    • BigQuery & Data Engineering  [████████████] Expert
 
-💻 Full-Stack Development:
+◆ Full-Stack Development:
    • Python (Advanced)            [████████████] Expert
    • React, TypeScript, Next.js   [██████████░░] Advanced
    • ETL Pipelines                [████████████] Expert
 
-👨‍🏫 Leadership & Education:
+◆ Leadership & Education:
    • Technical Mentoring          [████████████] Expert
    • Course Design                [████████████] Expert
    • Team Leadership              [████████████] Expert
@@ -87,42 +78,42 @@ Available for:
 
     projects: () => `Featured Projects:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 Proactive AI Agent (RAG Prototype)
+▸ Proactive AI Agent (RAG Prototype)
    95% retrieval precision (from 30%)
    <1.2s latency • 100 concurrent users
    ChromaDB • Gemini 2.0 • MCP Servers
 
-🚀 SaleSphereAI (Multi-Agent Platform)
+▸ SaleSphereAI (Multi-Agent Platform)
    200% sales conversion increase
    5-agent system • LangGraph orchestration
    FastAPI • PostgreSQL • Redis
 
-📄 Resume Parsing Platform (HR Tech)
+▸ Resume Parsing Platform (HR Tech)
    93% F1 score • 75% time-to-hire reduction
    PyTorch • Gemini API • LlamaIndex
    10K+ resumes processed monthly
 
-🏠 Property Valuation (PropTech)
+▸ Property Valuation (PropTech)
    94% accuracy • 100M+ records • GCP
    BigQuery • ×50 faster data loading
    500K+ properties valued
 
-📚 Agentic Research Assistant
+▸ Agentic Research Assistant
    200+ papers analyzed in <30 min
    LangGraph • ChromaDB • PyMuPDF
    88% extraction accuracy
 
-🐍 Automated Python Course
+▸ Automated Python Course
    ${displayUrl(PROJECT_LINKS.pythonCourse)}
    1000+ students • 25+ modules
    CI/CD grading • Open source`,
 
     about: () => `About ${IDENTITY.name}:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👨‍💻 AI/ML Systems Engineer | Agentic Architect
-🎓 MLX Applied Machine Learning Graduate
-📊 10+ years building production AI systems
-📍 Based in ${IDENTITY.location}
+▸ AI/ML Systems Engineer | Agentic Architect
+▸ MLX Applied Machine Learning Graduate
+▸ 10+ years building production AI systems
+▸ Based in ${IDENTITY.location}
 
 Mission: Democratizing AI/ML education through
 hands-on platforms and production-grade systems.
@@ -143,26 +134,26 @@ cloud-native ML platforms.`,
 
     experience: () => `Career Highlights:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💼 Lead AI Engineer & Systems Designer
+▸ Lead AI Engineer & Systems Designer
    Apr 2022 - Present | Independent (Consultant)
    • Built RAG systems with 95% precision
    • Architected multi-agent platforms
    • Deployed HR Tech & PropTech ML systems
    • Consulted for JPMorgan, Bloomberg
 
-💼 Lead Data Scientist
+▸ Lead Data Scientist
    Mar 2022 - Oct 2022 | Ministry of Health Ukraine
    • Healthcare analytics (>90% F1 score)
    • GDPR-compliant ML pipelines
    • Millions of patient records processed
 
-💼 Senior ML Engineer
+▸ Senior ML Engineer
    Jan 2021 - Feb 2022 | Forecys (FinTech)
    • Financial forecasting models
    • Real-time fraud detection
    • 60% latency reduction
 
-💼 Technical Lead & Mentor
+▸ Technical Lead & Mentor
    Sep 2014 - Present | YuriODev Initiative
    • Created 25+ module Python course
    • 1000+ students across 20+ countries
@@ -172,21 +163,21 @@ Type 'education' for academic background`,
 
     education: () => `Education & Certifications:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎓 MLX Applied Machine Learning Certificate
+▸ MLX Applied Machine Learning Certificate
    Apr 2025 - May 2025 | MLX Program
    Advanced ML systems, RAG, multi-agent workflows
 
-🎓 MSc Artificial Intelligence
+▸ MSc Artificial Intelligence
    2016 - 2018 | Queen Mary, University of London
    Deep Learning, NLP, Computer Vision
    Distinction with published research
 
-🎓 BSc Computer Science
+▸ BSc Computer Science
    2012 - 2016 | MIPT (Moscow Institute)
    Honors (GPA: 4.8/5.0)
    ACM ICPC regional medals
 
-📚 Teaching Experience:
+◆ Teaching Experience:
    • MIPT Instructor (2014-2016)
    • YuriODev Course Creator (2023-Present)
    • 1000+ students mentored
@@ -195,24 +186,24 @@ Type 'about' to see current focus areas`,
 
     surprise: () => `
     ╔══════════════════════════════════════╗
-    ║        🎉 EASTER EGG UNLOCKED! 🎉     ║
+    ║        ◆ EASTER EGG UNLOCKED! ◆       ║
     ╠══════════════════════════════════════╣
     ║                                      ║
     ║  You've discovered the secret menu!  ║
     ║                                      ║
-    ║  🤖 AI Fact: RAG systems combine     ║
+    ║  ▸ AI Fact: RAG systems combine      ║
     ║     retrieval with generation for    ║
     ║     knowledge-grounded responses     ║
     ║                                      ║
-    ║  🧠 Fun Fact: I improved retrieval   ║
+    ║  ▸ Fun Fact: I improved retrieval    ║
     ║     precision from 30% to 95% using  ║
     ║     hybrid search strategies         ║
     ║                                      ║
-    ║  🚀 Secret: Building agentic AI      ║
+    ║  ▸ Secret: Building agentic AI       ║
     ║     systems with LangGraph & MCP     ║
     ║     for production deployments       ║
     ║                                      ║
-    ║  💡 Tip: Multi-agent systems can     ║
+    ║  ▸ Tip: Multi-agent systems can      ║
     ║     achieve 200%+ conversion gains   ║
     ║     with proper orchestration        ║
     ║                                      ║
@@ -224,7 +215,7 @@ Type 'about' to see current focus areas`,
 Current session: Guest user exploring YuriODev
 Access level: Public portfolio viewer
 Interested in: Production AI/ML systems & education
-Type 'contact' to discuss collaboration! 🚀`,
+Type 'contact' to discuss collaboration!`,
 } satisfies Record<string, () => string>;
 
 
@@ -253,8 +244,8 @@ export function classifyLine(text: string): LineType {
     if (text.startsWith('✗') || lower.includes('error') || lower.includes('not found') || lower.includes('failed')) return 'error';
     if (text.startsWith('⚠') || lower.includes('warning') || lower.includes('note:')) return 'warning';
     if (trimmed.startsWith('#') || trimmed.startsWith('//')) return 'comment';
-    // Headers: rules and emoji-led section titles.
-    if (text.includes('━') || isHeaderEmojiLine(text)) return 'info';
+    // Headers: rules and marker-led section titles.
+    if (text.includes('━') || isHeaderMarkerLine(text)) return 'info';
     // Addresses and links.
     if (text.includes('@') || text.includes('http') || text.includes('.com') || text.includes('.uk')
         || text.includes('github') || text.includes('linkedin')) return 'success';
