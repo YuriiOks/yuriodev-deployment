@@ -1,0 +1,39 @@
+/* A small glass tile carrying one icon (row D of the icon style comparison):
+   amber on dark glass in the dark theme, orange ink on a bordered white tile
+   in light. Reuses the glass fill/border/highlight tokens (recipes.module.css)
+   with no blur of its own - a 2em tile has nothing worth blurring, and it
+   sits inside solid cards, which stay solid per recipes.module.css. */
+.chip {
+  --icon-chip-fg: var(--amber-text);
+  --icon-chip-glow-rgb: var(--amber-rgb);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin-inline-end: 0.6em;
+  border-radius: var(--radius-md);
+  color: var(--icon-chip-fg);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-1);
+}
+
+/* Soft glow: dark theme only (a light-mode halo reads as a smudge). */
+:root:not([data-theme='light']) .chip {
+  box-shadow: var(--glass-highlight), var(--shadow-1), 0 0 0.75em rgba(var(--icon-chip-glow-rgb), 0.3);
+}
+
+[data-theme='light'] .chip {
+  background: var(--surface-1);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-1);
+}
+
+@media (forced-colors: active) {
+  .chip {
+    border-color: CanvasText;
+  }
+}
