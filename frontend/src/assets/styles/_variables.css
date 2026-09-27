@@ -222,6 +222,12 @@
     --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.45);
     --neon-edge: linear-gradient(90deg, transparent, rgba(var(--cyan-rgb), 0.8), rgba(var(--amber-rgb), 0.6), transparent);
     --hero-title-shadow: 0 0 30px rgba(var(--cyan-rgb), 0.45), 0 0 10px rgba(var(--cyan-rgb), 0.45);
+    /* The thin bar under the hero name (HeroSection .heroTitle::after), in
+       the name's own colours: cyan -> teal with a neon glow on the dark page. */
+    --name-bar-from: var(--cyan);
+    --name-bar-to: var(--hue-teal);
+    --hero-name-bar-glow: 0 0 0.3em rgba(var(--cyan-rgb), 0.6),
+        0 0 0.08em rgba(var(--cyan-rgb), 0.85);
 
     /* Glass (recipes.module.css). The blur amounts are literals there. */
     --glass-fill: rgba(12, 20, 38, 0.78);
@@ -346,6 +352,8 @@
        a thin glowing gold -> orange bar under it (HeroSection .heroTitle
        ::after), sized in em so it scales with the name. */
     --hero-title-shadow: none;
+    --name-bar-from: var(--name-gold);
+    --name-bar-to: var(--name-orange);
     --hero-name-bar-glow: 0 0 0.22em rgba(var(--name-gold-rgb), 0.55),
         0 0 0.06em rgba(var(--name-orange-rgb), 0.6);
 
