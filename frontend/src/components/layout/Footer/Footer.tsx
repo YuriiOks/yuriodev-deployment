@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import Icon from '../../ui/Icon/Icon';
 import SocialIcon from '../../ui/SocialIcon/SocialIcon';
 import { EMAILS, IDENTITY, pagePath, socialsFor } from '../../../data/site';
 import styles from './Footer.module.css';
@@ -17,9 +18,9 @@ const Footer: React.FC = () => {
           {/* Left: Contact */}
           <div className={styles.footerLeft}>
             <a href={`mailto:${EMAILS.personal}`} className={styles.emailLink}>
-              📧 {EMAILS.personal}
+              <Icon name="mail" /> {EMAILS.personal}
             </a>
-            <span className={styles.location}>📍 {IDENTITY.location}</span>
+            <span className={styles.location}><Icon name="map-pin" /> {IDENTITY.location}</span>
           </div>
 
           {/* Center: Social Icons */}
@@ -55,8 +56,8 @@ const Footer: React.FC = () => {
         <div className={styles.statusLine}>
           <span className={styles.statusText}>
             exit_code: <span className={styles.statusSuccess}>0</span> | 
-            status: <span className={styles.statusSuccess}>success</span> | 
-            powered by ☕ and 💡
+            status: <span className={styles.statusSuccess}>success</span> |
+            powered by <Icon name="coffee" /> and <Icon name="lightbulb" />
           </span>
         </div>
       </div>

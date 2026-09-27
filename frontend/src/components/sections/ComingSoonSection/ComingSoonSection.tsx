@@ -1,5 +1,6 @@
 import React from 'react';
 import InteractiveTerminal from '../../ui/InteractiveTerminal/InteractiveTerminal';
+import Icon from '../../ui/Icon/Icon';
 import { usePageTitle } from '../../../hooks/usePageTitle';
 import styles from './ComingSoonSection.module.css';
 
@@ -25,7 +26,7 @@ const ComingSoonSection: React.FC<ComingSoonSectionProps> = ({
           <h1 className={styles.title}>
             <span className={styles.titlePrefix}>#</span> {title}
           </h1>
-          <p className={styles.subtitle}>🚧 Under Active Development</p>
+          <p className={styles.subtitle}><Icon name="construction" /> Under Active Development</p>
         </div>
 
         <div className={styles.descriptionCard}>
@@ -35,7 +36,7 @@ const ComingSoonSection: React.FC<ComingSoonSectionProps> = ({
         {features.length > 0 && (
           <div className={styles.featuresCard}>
             <h2 className={styles.featuresTitle}>
-              <span className={styles.icon}>✨</span> Planned Features
+              <span className={styles.icon}><Icon name="sparkles" /></span> Planned Features
             </h2>
             <ul className={styles.featuresList}>
               {features.map((feature, index) => (
@@ -50,7 +51,7 @@ const ComingSoonSection: React.FC<ComingSoonSectionProps> = ({
 
         <div className={styles.terminalSection}>
           <h2 className={styles.terminalTitle}>
-            <span className={styles.icon}>💻</span> Try the Interactive Terminal
+            <span className={styles.icon}><Icon name="laptop" /></span> Try the Interactive Terminal
           </h2>
           <p className={styles.terminalDescription}>
             While this page is under construction, explore my skills and projects using the terminal below:

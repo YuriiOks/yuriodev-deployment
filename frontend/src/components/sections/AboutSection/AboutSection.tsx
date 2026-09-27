@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { aboutData } from '../../../data/aboutData';
 import Section from '../../layout/Section/Section';
 import SectionHeader from '../../ui/SectionHeader/SectionHeader';
+import Icon from '../../ui/Icon/Icon';
+import IconChip from '../../ui/IconChip/IconChip';
 import styles from './AboutSection.module.css';
 
 const AboutSection: React.FC = () => {
@@ -120,14 +122,14 @@ const AboutSection: React.FC = () => {
               {/* Introduction */}
               <div className={styles.paragraph}>
                 <p className={styles.introText}>
-                  Hey there! I'm Yurii 👋 — an <span className={styles.highlight}>AI/ML Engineer</span> who transforms chaos into intelligent 
+                  Hey there! I'm Yurii <Icon name="hand" /> — an <span className={styles.highlight}>AI/ML Engineer</span> who transforms chaos into intelligent
                   systems and believes every problem is just an algorithm waiting to be discovered.
                 </p>
               </div>
 
               {/* Origin Story */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🏀 The Origin Story: From Basketball Courts to Binary Trees</h3>
+                <h3 className={styles.subheading}><IconChip name="dumbbell" /> The Origin Story: From Basketball Courts to Binary Trees</h3>
                 <p>
                   My journey began in the vibrant corridors of Ukrainian schools, where I was that kid who'd solve differential equations 
                   during basketball practice breaks. Yes, I was crushing it on the court — playing at a professional level until 13 and 
@@ -143,7 +145,7 @@ const AboutSection: React.FC = () => {
 
               {/* Academic Awakening */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🧬 The Academic Awakening: When Physics Met Code</h3>
+                <h3 className={styles.subheading}><IconChip name="dna" /> The Academic Awakening: When Physics Met Code</h3>
                 <p>
                   At 15, I stumbled into the mesmerizing world of <span className={styles.highlightTertiary}>non-linear dynamics</span>. The <span className={styles.highlight}>Lorenz system</span> became 
                   my obsession — those beautiful butterfly attractors that showed how tiny changes could cascade into hurricanes. I spent nights 
@@ -160,7 +162,7 @@ const AboutSection: React.FC = () => {
 
               {/* SpaceX Moment */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🚀 The SpaceX Moment: Simulating the Impossible</h3>
+                <h3 className={styles.subheading}><IconChip name="rocket" /> The SpaceX Moment: Simulating the Impossible</h3>
                 <p>
                   2017 was my "Elon Musk moment." Our university team was tasked with a "simple" project, but I convinced them to go bigger — let's 
                   model the <span className={styles.highlight}>Big Falcon Rocket</span>! Using VPython, I architected algorithms that simulated intercontinental 
@@ -175,7 +177,7 @@ const AboutSection: React.FC = () => {
 
               {/* Teaching Revolution */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🎓 The Teaching Revolution: Kardashians Meet OOP</h3>
+                <h3 className={styles.subheading}><IconChip name="graduation-cap" /> The Teaching Revolution: Kardashians Meet OOP</h3>
                 <p>
                   As an instructor at MIPT, I faced my greatest challenge yet — teaching <span className={styles.highlightQuaternary}>OOP</span> to economics students who thought Python was a snake. 
                   Then inspiration struck during a late-night TV binge. The <span className={styles.highlightSecondary}>Kardashian family tree</span> became 
@@ -190,7 +192,7 @@ const AboutSection: React.FC = () => {
 
               {/* iOS Era */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>💻 The iOS Era: From Apps to AI</h3>
+                <h3 className={styles.subheading}><IconChip name="laptop" /> The iOS Era: From Apps to AI</h3>
                 <p>
                   The freelance years (2016-2019) were my digital nomad phase. I was crafting <span className={styles.highlightTertiary}>iOS apps</span> from coffee shops in Kyiv to co-working 
                   spaces in Moscow, each project pushing boundaries. But the real game-changer? Implementing <span className={styles.highlight}>CoreML</span> before 
@@ -204,7 +206,7 @@ const AboutSection: React.FC = () => {
 
               {/* AI Revolution */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🧠 The AI Revolution: From Models to Magic</h3>
+                <h3 className={styles.subheading}><IconChip name="brain" /> The AI Revolution: From Models to Magic</h3>
                 <p>
                   By 2019, I'd fully transformed into an AI architect. At <span className={styles.highlight}>Forecsys</span>, I wasn't just building 
                   models — I was constructing digital immune systems for financial giants. Imagine creating an anti-fraud system that could spot 
@@ -219,7 +221,7 @@ const AboutSection: React.FC = () => {
 
               {/* Crisis Years */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🌍 The Crisis Years: When Code Meets Compassion</h3>
+                <h3 className={styles.subheading}><IconChip name="globe" /> The Crisis Years: When Code Meets Compassion</h3>
                 <p>
                   2022 brought unexpected challenges. Working with <span className={styles.highlight}>Ukraine's Ministry of Health</span> during turbulent 
                   times, I architected secure pipelines processing real-time health signals at national scale. We built predictive models identifying 
@@ -234,7 +236,7 @@ const AboutSection: React.FC = () => {
 
               {/* Agentic Era */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🚀 The Agentic Era: Building Digital Consciousness</h3>
+                <h3 className={styles.subheading}><IconChip name="rocket" /> The Agentic Era: Building Digital Consciousness</h3>
                 <p>
                   Since 2022, as an independent consultant, I've been pioneering the frontier of <span className={styles.highlight}>agentic AI</span>. 
                   Imagine AI agents that don't just respond — they anticipate, collaborate, and evolve. My crown jewel? A <span className={styles.highlightSecondary}>RAG-enhanced 
@@ -259,7 +261,7 @@ const AboutSection: React.FC = () => {
 
               {/* The Present */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🎯 The Present: Where Multiple Realities Converge</h3>
+                <h3 className={styles.subheading}><IconChip name="target" /> The Present: Where Multiple Realities Converge</h3>
                 <p>
                   Today, I'm not just an engineer — I'm an architect of digital possibility. My latest creation? A scientific literature analysis 
                   system using <span className={styles.highlight}>LangGraph</span> that reads 200+ papers and identifies reproducible experiments in 30 
@@ -276,7 +278,7 @@ const AboutSection: React.FC = () => {
 
               {/* Philosophy */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🔮 The Philosophy: Engineering Meets Art</h3>
+                <h3 className={styles.subheading}><IconChip name="lightbulb" /> The Philosophy: Engineering Meets Art</h3>
                 <p>
                   Here's what I've learned after <span className={styles.highlight}>10+ years in the trenches</span>: Great engineering isn't about 
                   writing perfect code — it's about understanding that every system we build is ultimately about humans. Whether it's a RAG pipeline 
@@ -291,7 +293,7 @@ const AboutSection: React.FC = () => {
 
               {/* The Future */}
               <div className={styles.paragraph}>
-                <h3 className={styles.subheading}>🌟 The Future: What's Next?</h3>
+                <h3 className={styles.subheading}><IconChip name="sparkles" /> The Future: What's Next?</h3>
                 <p>
                   As I pursue cutting-edge ML research and continue pushing boundaries, I'm excited about what's coming: AGI assistants that truly 
                   understand context, agentic systems that self-improve, and AI that doesn't just process information but genuinely collaborates 
@@ -339,7 +341,7 @@ const AboutSection: React.FC = () => {
               {/* Footer */}
               <div className={styles.bioFooter}>
                 <p>
-                  <em>Currently architecting the future from London, one intelligent system at a time.</em> 🇬🇧✨
+                  <em>Currently architecting the future from London, one intelligent system at a time.</em> <Icon name="flag" /> <Icon name="sparkles" />
                 </p>
               </div>
 
@@ -350,7 +352,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2011</div>
                     <div className={styles.timelineContent}>
-                      <h4>⚡ The Spark</h4>
+                      <h4><IconChip name="zap" /> The Spark</h4>
                       <p>At 14, started modeling chaos theory and fell in love with complex systems</p>
                     </div>
                   </div>
@@ -358,7 +360,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2013</div>
                     <div className={styles.timelineContent}>
-                      <h4>🔬 CERN Summer Program</h4>
+                      <h4><IconChip name="flask" /> CERN Summer Program</h4>
                       <p>Mind-expanding experience that shaped my approach to problem-solving</p>
                     </div>
                   </div>
@@ -366,7 +368,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2013-16</div>
                     <div className={styles.timelineContent}>
-                      <h4>📚 MIPT Studies</h4>
+                      <h4><IconChip name="book-open" /> MIPT Studies</h4>
                       <p>Applied Mathematics and Physics at Moscow Institute of Physics and Technology</p>
                     </div>
                   </div>
@@ -374,7 +376,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2014-16</div>
                     <div className={styles.timelineContent}>
-                      <h4>🎓 Teaching at MIPT</h4>
+                      <h4><IconChip name="graduation-cap" /> Teaching at MIPT</h4>
                       <p>Led STEM curriculum design and mentored technical instructors</p>
                     </div>
                   </div>
@@ -382,7 +384,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2016-19</div>
                     <div className={styles.timelineContent}>
-                      <h4>📱 iOS Development</h4>
+                      <h4><IconChip name="smartphone" /> iOS Development</h4>
                       <p>Built native apps with Swift, early adoption of CoreML for on-device AI</p>
                     </div>
                   </div>
@@ -390,7 +392,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2019-22</div>
                     <div className={styles.timelineContent}>
-                      <h4>🤖 ML Engineering</h4>
+                      <h4><IconChip name="bot" /> ML Engineering</h4>
                       <p>Senior ML Engineer at Forecsys, building production forecasting systems</p>
                     </div>
                   </div>
@@ -398,7 +400,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2022-Now</div>
                     <div className={styles.timelineContent}>
-                      <h4>🚀 Lead AI Engineer</h4>
+                      <h4><IconChip name="rocket" /> Lead AI Engineer</h4>
                       <p>Independent consultant architecting agentic AI systems for startups and enterprises</p>
                     </div>
                   </div>
@@ -406,7 +408,7 @@ const AboutSection: React.FC = () => {
                   <div className={styles.timelineItem}>
                     <div className={styles.timelineYear}>2025</div>
                     <div className={styles.timelineContent}>
-                      <h4>🎯 MLX Program & YuriODev</h4>
+                      <h4><IconChip name="target" /> MLX Program & YuriODev</h4>
                       <p>Completed intensive ML program, now building the AI education platform I wish existed when I started</p>
                     </div>
                   </div>

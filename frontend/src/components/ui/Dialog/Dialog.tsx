@@ -1,5 +1,6 @@
 import React, { useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import Icon from '../Icon/Icon';
 import styles from './Dialog.module.css';
 
 export interface DialogProps {
@@ -174,7 +175,7 @@ const OpenDialog: React.FC<DialogProps> = ({
               {title}
             </h2>
             <button type="button" className={styles.close} onClick={requestClose} aria-label="Close">
-              <span aria-hidden="true">✕</span>
+              <Icon name="x" />
             </button>
           </div>
         )}

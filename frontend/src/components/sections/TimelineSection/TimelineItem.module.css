@@ -38,8 +38,15 @@
   box-shadow: 0 0 0 4px var(--bg-primary), 0 0 20px rgba(var(--accent-primary-rgb), 0.5);
 }
 
+/* White, with a dark drop-shadow for edge definition: the dot's fill is a
+   different bright brand colour per type (getTypeColor), so a fixed ink
+   that reads on all of them beats trying to pick a contrasting colour per
+   type per theme. */
 .timelineDot .typeIcon {
+  display: inline-flex;
   font-size: 1.2rem;
+  color: #fff;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.55));
 }
 
 /* Remove old positioning styles - dot is now in header */

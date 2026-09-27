@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import Card from '../Card/Card';
 import Chip from '../Chip/Chip';
+import Icon from '../Icon/Icon';
 import LinkifiedText from '../LinkifiedText/LinkifiedText';
 import {
   PLATFORM_LABELS,
@@ -142,7 +143,7 @@ const PostCard: React.FC<PostCardProps> = ({ item, now }) => {
           <li key={p}>
             <a className={styles.permalink} href={item.variants[p]!.url} target="_blank" rel="noopener noreferrer">
               {`View on ${PLATFORM_LABELS[p]} `}
-              <span aria-hidden="true">↗</span>
+              <Icon name="arrow-up-right" />
               <span className="sr-only">(opens in a new tab)</span>
             </a>
           </li>

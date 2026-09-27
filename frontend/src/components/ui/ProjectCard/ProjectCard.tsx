@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import type { Project } from '../../../services/projectsData';
 import Badge from '../Badge/Badge';
 import Card from '../Card/Card';
+import Icon from '../Icon/Icon';
 import styles from './ProjectCard.module.css';
 
 interface ProjectCardProps {
@@ -135,22 +136,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
         {project.links.map((link) => {
           const isComingSoon = link.name.toLowerCase().includes('coming soon');
           return isComingSoon ? (
-            <span 
-              key={link.name} 
+            <span
+              key={link.name}
               className={`${styles.projectLink} ${styles.disabled}`}
               title="Coming soon"
             >
-              {link.name}
+              {link.icon && <Icon name={link.icon} />} {link.name}
             </span>
           ) : (
-            <a 
-              key={link.name} 
-              href={link.url} 
+            <a
+              key={link.name}
+              href={link.url}
               className={styles.projectLink}
               target={link.url.startsWith('http') ? '_blank' : undefined}
               rel={link.url.startsWith('http') ? 'noopener noreferrer' : undefined}
             >
-              {link.name}
+              {link.icon && <Icon name={link.icon} />} {link.name}
             </a>
           );
         })}

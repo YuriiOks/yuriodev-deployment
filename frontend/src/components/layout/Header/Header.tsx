@@ -7,6 +7,7 @@ import { subscribeMediaQuery, useMediaQuery } from '../../../hooks/useMediaQuery
 import { minWidth } from '../../../constants/breakpoints';
 import { NAV_PAGES, navPages, pageAt } from '../../../data/site';
 import { cx } from '../../../utils/cx';
+import Icon from '../../ui/Icon/Icon';
 import MoreMenu from './MoreMenu';
 import SectionLink from '../SectionLink/SectionLink';
 import styles from './Header.module.css';
@@ -127,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
             aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           >
-            <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
+            <Icon name={theme === 'dark' ? 'moon' : 'sun'} />
           </button>
           {/* The palette's visible trigger, for touch screens and anyone
               who does not know Ctrl/Cmd+K. */}

@@ -3,6 +3,7 @@ import { platformData } from '../../../data/platformData';
 import Section from '../../layout/Section/Section';
 import Card from '../../ui/Card/Card';
 import SectionHeader from '../../ui/SectionHeader/SectionHeader';
+import Icon from '../../ui/Icon/Icon';
 import styles from './PlatformSection.module.css';
 
 const PlatformSection: React.FC = () => {
@@ -46,9 +47,9 @@ const PlatformSection: React.FC = () => {
               <h4 className={styles.phaseCardTitle}>{phase.title}</h4>
               <p className={styles.phaseDescription}>{phase.description}</p>
               <div className={styles.statusBadge}>
-                {phase.status === 'completed' && '✓ Completed'}
-                {phase.status === 'active' && '⚡ Active'}
-                {phase.status === 'planned' && '📋 Planned'}
+                {phase.status === 'completed' && <><Icon name="circle-check" /> Completed</>}
+                {phase.status === 'active' && <><Icon name="zap" /> Active</>}
+                {phase.status === 'planned' && <><Icon name="clipboard-list" /> Planned</>}
               </div>
               {phase.completionDate && (
                 <div className={styles.completionDate}>{phase.completionDate}</div>
@@ -64,7 +65,7 @@ const PlatformSection: React.FC = () => {
         <div className={styles.featuresGrid}>
           {platformData.features.map((feature, index) => (
             <div key={index} className={`${styles.featureCard} ${styles[feature.status]}`}>
-              <div className={styles.featureIcon}>{feature.icon}</div>
+              <div className={styles.featureIcon}><IconChip name={feature.icon} /></div>
               <h4 className={styles.featureTitle}>{feature.title}</h4>
               <p className={styles.featureDescription}>{feature.description}</p>
               <div className={styles.featureFooter}>

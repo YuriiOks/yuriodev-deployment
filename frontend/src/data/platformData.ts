@@ -3,6 +3,7 @@
  * Updated from CV (October 2025)
  */
 
+import type { IconName } from '../components/ui/Icon/Icon';
 import { PROJECT_LINKS } from './site';
 
 export interface RoadmapPhase {
@@ -16,7 +17,7 @@ export interface RoadmapPhase {
 export interface PlatformFeature {
   title: string;
   description: string;
-  icon: string;
+  icon: IconName;
   link?: string;
   status: 'live' | 'beta' | 'coming-soon';
 }
@@ -81,40 +82,40 @@ export const platformData: PlatformData = {
     {
       title: "Comprehensive Python Course",
       description: "25+ modules covering AQA GCSE CS syllabus from fundamentals to OOP with automated testing",
-      icon: "🐍",
+      icon: "code",
       link: PROJECT_LINKS.pythonCourse,
       status: "live",
     },
     {
       title: "Automated CI/CD Grading",
       description: "GitHub Actions-powered testing workflow providing instant feedback on student submissions",
-      icon: "🔄",
+      icon: "refresh-cw",
       link: PROJECT_LINKS.pythonCourse,
       status: "live",
     },
     {
       title: "Video Tutorials",
       description: "Step-by-step YouTube tutorials explaining concepts with practical examples and best practices",
-      icon: "🎥",
+      icon: "video",
       link: "#youtube",
       status: "live",
     },
     {
       title: "Interactive Code Sandboxes",
       description: "Browser-based Python environments with real-time execution and collaborative coding",
-      icon: "💻",
+      icon: "laptop",
       status: "coming-soon",
     },
     {
       title: "ML Project Templates",
       description: "Production-ready templates for RAG systems, agent workflows, and deployment pipelines",
-      icon: "🤖",
+      icon: "bot",
       status: "beta",
     },
     {
       title: "AI Mentor Assistant",
       description: "Intelligent tutoring system providing personalized guidance and code reviews",
-      icon: "🧠",
+      icon: "brain",
       status: "coming-soon",
     },
   ],

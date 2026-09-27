@@ -3,6 +3,7 @@
  * Updated from CV (October 2025)
  */
 
+import type { IconName } from '../components/ui/Icon/Icon';
 import { PROJECT_LINKS } from '../data/site';
 
 export interface Metric {
@@ -26,6 +27,7 @@ export interface Project {
   metrics: Metric[];
   links: {
     name: string;
+    icon?: IconName;
     url: string;
   }[];
   featured?: boolean;
@@ -171,7 +173,7 @@ export const projectsData: Project[] = [
       { label: "Conversation Depth", value: "10+ turns" },
     ],
     links: [
-      { name: "🔬 Technical Deep Dive (Coming Soon)", url: "#" }
+      { name: "Technical Deep Dive (Coming Soon)", icon: "flask", url: "#" }
     ],
     featured: true,
   },
@@ -194,7 +196,7 @@ export const projectsData: Project[] = [
       { label: "Institutions", value: "5 universities" },
     ],
     links: [
-      { name: "📖 Full Course", url: PROJECT_LINKS.pythonCourse }
+      { name: "Full Course", icon: "book-open", url: PROJECT_LINKS.pythonCourse }
     ],
     featured: true,
   }

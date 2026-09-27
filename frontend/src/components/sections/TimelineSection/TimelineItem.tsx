@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { TimelineEvent } from '../../../data/timelineData';
 import { tagCategory } from '../../../utils/tagTone';
+import Icon, { type IconName } from '../../ui/Icon/Icon';
 import styles from './TimelineItem.module.css';
 
 interface TimelineItemProps {
@@ -8,18 +9,18 @@ interface TimelineItemProps {
   index: number;
 }
 
-const getTypeIcon = (type: string): string => {
+const getTypeIcon = (type: string): IconName => {
   switch (type) {
     case 'experience':
-      return '💼';
+      return 'briefcase';
     case 'education':
-      return '🎓';
+      return 'graduation-cap';
     case 'certification':
-      return '📜';
+      return 'scroll';
     case 'achievement':
-      return '🏆';
+      return 'trophy';
     default:
-      return '📌';
+      return 'bookmark';
   }
 };
 
@@ -104,7 +105,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ event, index }) => {
           {/* Timeline Dot - Left side for left cards */}
           {isLeft && (
             <div className={styles.timelineDot} style={{ backgroundColor: getTypeColor(event.type) }}>
-              <span className={styles.typeIcon}>{getTypeIcon(event.type)}</span>
+              <span className={styles.typeIcon}><Icon name={getTypeIcon(event.type)} /></span>
             </div>
           )}
           
@@ -129,7 +130,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ event, index }) => {
           {/* Timeline Dot - Right side for right cards */}
           {!isLeft && (
             <div className={styles.timelineDot} style={{ backgroundColor: getTypeColor(event.type) }}>
-              <span className={styles.typeIcon}>{getTypeIcon(event.type)}</span>
+              <span className={styles.typeIcon}><Icon name={getTypeIcon(event.type)} /></span>
             </div>
           )}
         </div>
@@ -141,7 +142,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ event, index }) => {
             {event.location && (
               <>
                 <span className={styles.separator}>•</span>
-                <span className={styles.location}>📍 {event.location}</span>
+                <span className={styles.location}><Icon name="map-pin" /> {event.location}</span>
               </>
             )}
           </div>
