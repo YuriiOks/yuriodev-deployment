@@ -125,7 +125,12 @@
     padding: 0;
     margin: 0;
     display: grid;
-    gap: 1rem;
+    /* Flows into as many 18rem+ columns as the card has room for (one on a
+       phone, where a single 18rem column already fills the width) instead
+       of a single column leaving roughly half the card blank on a wide
+       screen, up to --content-cap. */
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 1rem 1.5rem;
 }
 
 .featureItem {
