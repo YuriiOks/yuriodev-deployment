@@ -244,6 +244,33 @@ test.describe('section rail clearance', () => {
     }
   });
 
+  // The sweep above uses a mouse pointer (this project's default), whose
+  // rows are the CSS's shorter, non-`pointer: coarse` size - not the rail's
+  // actual worst case. A touch-primary window (a touch laptop/2-in-1 wide
+  // enough for the rail, e.g. width>=1408) gets the taller touch-target
+  // rows (SectionRail.module.css), making the rail taller and the header
+  // costlier to clear (RAIL_MIN_HEIGHT_REM's own derivation: centring
+  // costs two header-heights, not one). A height sweep around that
+  // threshold, forced to a real touch pointer, is the only way to catch a
+  // regression here - the fixed-height 1000px sweep above never gets
+  // close enough, and every other project either has no touch (desktop)
+  // or is narrower than the rail's own width breakpoint (phones/tablet).
+  test('clears the header at the tightest heights with a touch pointer and the full section list (the rail\'s worst-case row height)', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    const context = await page.context().browser()!.newContext({ viewport: { width: 1600, height: 900 }, hasTouch: true });
+    const touchPage = await context.newPage();
+    await mockApi(touchPage, 'feed');
+    await open(touchPage, '/');
+    for (const height of [480, 500, 506, 511, 512, 520, 700]) {
+      await touchPage.setViewportSize({ width: 1600, height });
+      await touchPage.waitForTimeout(150);
+      await assertRailClearOrHidden(touchPage, `touch 1600x${height}`);
+    }
+    await context.close();
+  });
+
   // Every route shares the same fixed layout chrome (PageLayout mounts the
   // rail once, route-independently), including /privacy and the 404 page -
   // the text-page card is the one type that used its own hardcoded
