@@ -65,7 +65,9 @@
 
 .projectTitle {
     color: var(--title-ink);
-    font-size: clamp(1.1rem, 2vw, 1.3rem);
+    /* Fluid between a 360px and a 1280px viewport, a rem addend rather than
+       a pure vw value, so browser zoom still changes this on-screen. */
+    font-size: clamp(1.1rem, 1.022rem + 0.348vw, 1.3rem);
     font-weight: 600;
     margin-bottom: 0.3rem;
     word-break: break-word;
@@ -92,7 +94,9 @@
 
 .projectSubtitle {
     color: var(--accent-tertiary);
-    font-size: clamp(0.85rem, 1.5vw, 0.95rem);
+    /* Fluid between a 360px and a 1280px viewport, a rem addend rather than
+       a pure vw value, so browser zoom still changes this on-screen. */
+    font-size: clamp(0.85rem, 0.811rem + 0.174vw, 0.95rem);
     margin-bottom: 0.25rem;
     font-style: italic;
     line-height: 1.3;
@@ -100,7 +104,9 @@
 
 .projectMeta {
     color: var(--text-muted);
-    font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+    /* Fluid between a 360px and a 1280px viewport, a rem addend rather than
+       a pure vw value, so browser zoom still changes this on-screen. */
+    font-size: clamp(0.75rem, 0.711rem + 0.174vw, 0.85rem);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -330,7 +336,9 @@
     }
     
     .projectTitle {
-        font-size: clamp(1rem, 2.5vw, 1.1rem);
+        /* Fluid between a 360px and a 1280px viewport, a rem addend rather
+           than a pure vw value, so browser zoom still changes this on-screen. */
+        font-size: clamp(1rem, 0.961rem + 0.174vw, 1.1rem);
     }
     
     .featuredBadge {
@@ -390,7 +398,9 @@
     }
     
     .projectTitle {
-        font-size: clamp(0.95rem, 3vw, 1rem);
+        /* Fluid between a 360px and a 1280px viewport, a rem addend rather
+           than a pure vw value, so browser zoom still changes this on-screen. */
+        font-size: clamp(0.95rem, 0.930rem + 0.087vw, 1rem);
     }
     
     .featuredBadge {

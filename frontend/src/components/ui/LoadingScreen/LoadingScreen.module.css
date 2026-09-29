@@ -118,7 +118,9 @@
 
 .asciiArt {
   font-family: 'Courier New', monospace;
-  font-size: clamp(0.58rem, 1.8vw, 0.9rem);
+  /* Fluid between a 360px and a 1280px viewport, a rem addend rather than a
+     pure vw value, so browser zoom still changes this on-screen. */
+  font-size: clamp(0.58rem, 0.455rem + 0.557vw, 0.9rem);
   line-height: 1.2;
   margin: 0;
   text-align: center;

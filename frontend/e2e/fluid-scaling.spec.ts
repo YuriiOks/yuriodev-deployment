@@ -57,12 +57,16 @@ test.describe('fixed root, fluid headings', () => {
           rootFontPx,
           headerHeightPx: header.height,
           probeWidthPx: probe ? probe.getBoundingClientRect().width : null,
-          probeLeft: probe ? probe.getBoundingClientRect().left : null,
           railLeft: rail ? rail.getBoundingClientRect().left : null,
           railRight: rail ? rail.getBoundingClientRect().right : null,
           heroTitleTop: heroTitle ? heroTitle.getBoundingClientRect().top : null,
           heroTitleBottom: heroTitle ? heroTitle.getBoundingClientRect().bottom : null,
           cardTop: card ? card.getBoundingClientRect().top : null,
+          // The profile card shares the same max-width: var(--content-max-width)
+          // formula and is centred by a real `margin: ... auto` (unlike
+          // SectionRail's hidden probe, which is only ever sized, never
+          // positioned) - a genuine reading of where the column actually sits.
+          cardLeft: card ? card.getBoundingClientRect().left : null,
           overflowX: document.documentElement.scrollWidth - window.innerWidth,
         };
       });
@@ -94,7 +98,9 @@ test.describe('fixed root, fluid headings', () => {
         // Past it, the column sits at its cap, centred - not stretched edge
         // to edge on an ultrawide/4K monitor.
         expect(geometry.probeWidthPx!, `${label}: content column at its cap`).toBeGreaterThanOrEqual(CONTENT_CAP_PX - 1);
-        expect(geometry.probeLeft!, `${label}: content column centred`).toBeCloseTo((size.width - CONTENT_CAP_PX) / 2, 0);
+        const expectedCardLeft = (size.width - CONTENT_CAP_PX) / 2;
+        expect(geometry.cardLeft!, `${label}: content column centred`).toBeGreaterThanOrEqual(expectedCardLeft - 5);
+        expect(geometry.cardLeft!, `${label}: content column centred`).toBeLessThanOrEqual(expectedCardLeft + 5);
       }
 
       // The rail: never closer than 16px to the window edge, never closer

@@ -53,10 +53,13 @@
 
     /* Type. Fira Code is the site's voice; long prose (the About story,
        post text) is set in the system sans, which needs no download.
-       Sizes are fluid between a 360px and a 1280px viewport; from 90rem
-       (1440px) up the root font size grows with the screen itself
-       (global.css), so every rem-based size - not just type - scales
-       with very large screens. */
+       Sizes are fluid between a 360px and a 1280px viewport. The root
+       font-size itself stays fixed at the browser default at every width
+       (global.css) - it no longer grows with the screen above 1440px, so
+       browser zoom keeps working there (e2e/zoom.spec.ts). A heading or
+       hero token that still needs to grow on a very large screen gets its
+       own small, capped clamp() instead (max <= 2.5x min), not a share of
+       root-level growth. */
     --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --font-prose: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --fs-2xs: clamp(0.75rem, 0.738rem + 0.054vw, 0.781rem);    /* 12 -> 12.5px  chips, badges */
@@ -97,14 +100,14 @@
     --radius-round: 50%;
 
     /* Layout. The content column: 75% of its section, never wider than its
-       cap, 72rem. Since the root font itself now grows with the screen from
-       90rem (1440px) up (global.css) at the same rate as a matching-aspect
-       viewport, the cap grows right along with it in real pixels, so the
-       column keeps to 75% of the screen at 1440, 1920, 2560 and 3840 alike
-       instead of the cap ever cutting it back to a fixed width. Continuous,
-       so no width makes the column jump. The e2e geometry spec keeps the
-       section rail (SectionRail.module.css) clear of this column, and
-       fluid-scaling.spec.ts checks the column's share of the screen. */
+       cap, 72rem (a fixed 1152px - the root font-size no longer grows with
+       the screen, global.css). Below the cap the column keeps to 75% of
+       the screen; past it (roughly 1536px wide and up) it stays at the
+       cap, centred, so a big monitor gets a comfortable, readable column
+       instead of prose stretching edge to edge. The e2e geometry spec
+       keeps the section rail (SectionRail.module.css) clear of this
+       column, and fluid-scaling.spec.ts checks the column's share of the
+       screen below the cap and that it stays capped and centred above it. */
     --content-cap: 72rem;
     --content-max-width: min(75%, var(--content-cap));
 
@@ -117,9 +120,11 @@
          xl       80rem  1280px   the footer lays out in one row
          sidebar  88rem  1408px   the section rail replaces the
                                   header's menu (never both)
-         fluid    90rem  1440px   the reference screen (1440x810):
-                                  the root font size starts to grow
-                                  with the screen itself (global.css)
+         fluid    90rem  1440px   was the reference screen (1440x810)
+                                  where the root font size started to
+                                  grow with the screen itself; kept as
+                                  a named breakpoint, the root itself
+                                  no longer scales there (global.css)
          wide    100rem  1600px   the rail shows its labels at rest
        "From X up" is (min-width: Xrem); "below X" is
        (max-width: X - 0.01rem), e.g. 47.99rem, so the two never
