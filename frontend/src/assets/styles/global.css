@@ -28,36 +28,28 @@
     box-sizing: border-box; 
 }
 
+/* The root font-size always stays at the browser default (100%): it is
+   never set to a px/vw/vh value here, at any viewport width. A screen used
+   to grow it above the 1440px-wide "fluid" breakpoint (breakpoints.ts),
+   keyed to 100vw/100vh so every rem-based size on the page grew with a big
+   monitor - but browser zoom rescales the CSS viewport by the same factor
+   it grows on-screen pixels by, so that formula's on-screen result was
+   mathematically independent of zoom (a "dead zone" that always included
+   100%, and failed WCAG 1.4.4's 200%-doubles-text check on every window
+   >=1920px wide - e2e/zoom.spec.ts). Any growth big screens still get lives
+   only in small, independently-capped fluid type tokens on headings/hero
+   (clamp(min rem, min + Nvw, max rem), max <= 2.5x min - _variables.css,
+   ComingSoonSection.module.css and others), which do not key off the
+   viewport the same self-cancelling way; --content-cap (_variables.css)
+   keeps the content column from stretching edge to edge on a big monitor
+   instead. e2e/fluid-scaling.spec.ts holds the root fixed and the column
+   capped and centred; e2e/zoom.spec.ts holds zoom itself unfrozen. */
 html {
     font-size: 100%;
     scroll-behavior: smooth;
     /* Anchor jumps and scrollIntoView stop just below the fixed header. */
     scroll-padding-top: calc(var(--header-h) + 0.5rem);
     overflow-x: hidden;
-}
-
-/* From a 1440px-wide viewport up (the "fluid" breakpoint, breakpoints.ts),
-   the root font size grows with the screen instead of sitting at a fixed
-   16px, so every rem-based size on the page - not just type - stays in
-   proportion on a big monitor instead of looking small in a sea of empty
-   space. The reference design is 1440x810 (16:9): the scale factor is
-   whichever is smaller, viewport width / 1440 or viewport height / 810, so
-   a screen's longer axis never grows the page past what its shorter axis
-   has room for.
-     1920x1080 -> 16 x 1.333 =~ 21.3px
-     2560x1440 -> 16 x 1.778 =~ 28.4px
-     3840x2160 -> 16 x 2.667 =~ 42.7px
-   A 1440-tall ultrawide (e.g. 5120x1440) scales by its height, the same as
-   2560x1440 (=~ 28.4px), rather than by its much wider width, so the hero
-   still fits the one visible row instead of type ballooning past the
-   window's actual height. Clamped to [16px, 48px] for anything wider or
-   taller still. This query uses the browser's default rem, never the html
-   font-size it sets (which would be circular) - every other rem-based
-   @media width in the codebase (breakpoints.ts) does the same. */
-@media (min-width: 90rem) {
-    html {
-        font-size: clamp(1rem, min(100vw / 90, 100vh / 50.625), 3rem);
-    }
 }
 
 /* Set by ui/Dialog while a modal dialog is open: the page underneath does

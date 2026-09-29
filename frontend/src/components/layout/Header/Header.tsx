@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../../../context/useTheme';
 import { useSectionNav } from '../../../context/useSectionNav';
 import { useOverlay } from '../../../context/useOverlay';
-import { subscribeMediaQuery, useMediaQuery } from '../../../hooks/useMediaQuery';
-import { minWidth } from '../../../constants/breakpoints';
+import { useRailViable } from '../../../hooks/useRailViable';
 import { NAV_PAGES, navPages, pageAt } from '../../../data/site';
 import { cx } from '../../../utils/cx';
 import MoreMenu from './MoreMenu';
@@ -21,11 +20,11 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   // panel closes it, and opening it closes them.
   const { active, open, close, toggle } = useOverlay();
   const { sections, activeId } = useSectionNav();
-  // From the sidebar breakpoint up the section rail navigates the sections
-  // and the pages sit in the header (the main one inline, the rest in the
-  // More menu), so there is no menu button; below it the menu is the one
-  // place to reach both.
-  const wide = useMediaQuery(minWidth('sidebar'));
+  // Wherever the section rail has room to show (useRailViable: wide enough
+  // AND tall enough), the pages sit in the header instead (the main one
+  // inline, the rest in the More menu), so there is no menu button; below
+  // either threshold the menu is the one place to reach both.
+  const wide = useRailViable();
   const navControlsRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   // The control in the header that last had focus, while focus is still
@@ -35,17 +34,13 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   const isMenuOpen = active === 'menu' && !wide;
 
   // Each menu is hidden (isMenuOpen, MoreMenu unmounted) from the moment the
-  // window crosses the point where it stops existing; closing it on that
-  // change keeps it from coming back when the window crosses back. A route
-  // change closes both in OverlayProvider, which keys them to the route they
-  // were opened on.
-  useEffect(
-    () =>
-      subscribeMediaQuery(minWidth('sidebar'), (matches) => {
-        close(matches ? 'menu' : 'more');
-      }),
-    [close],
-  );
+  // rail stops (or starts) having room to show; closing it on that change
+  // keeps it from coming back once the window crosses back. A route change
+  // closes both in OverlayProvider, which keys them to the route they were
+  // opened on.
+  useEffect(() => {
+    close(wide ? 'menu' : 'more');
+  }, [wide, close]);
 
   // While open, Escape or a click/tap outside the menu closes it.
   useEffect(() => {

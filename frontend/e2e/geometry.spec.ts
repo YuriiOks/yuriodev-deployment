@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SECTION_IDS } from './fixtures';
+import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SECTION_IDS, mockApi } from './fixtures';
 
 /*
  * Layout checks that jsdom cannot make: where things actually land on screen
@@ -166,10 +166,42 @@ test.describe('navigation surfaces', () => {
   });
 });
 
+/** Asserts the rail never overlaps content, header, or the window's edges, at `label`. */
+function assertRailClear(geometry: RailGeometry, label: string) {
+  expect(geometry.left, `${label}: rail inside the window`).toBeGreaterThanOrEqual(16);
+  expect(geometry.right + 24, `${label}: rail clear of the content (${geometry.what})`).toBeLessThanOrEqual(
+    geometry.contentLeft,
+  );
+  expect(geometry.top, `${label}: rail below the header`).toBeGreaterThanOrEqual(geometry.headerBottom);
+  expect(geometry.bottom, `${label}: rail above the bottom`).toBeLessThanOrEqual(geometry.innerHeight);
+  expect(geometry.overflow, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+}
+
+/**
+ * Asserts the rail clears the header/bottom/content wherever it shows
+ * (useRailViable's width AND height thresholds both met), or - on a window
+ * too short for it - that it is absent and the header's menu button is the
+ * one navigation surface instead (never both, never neither), matching the
+ * "exactly one navigation surface" rule the plain height sweep below cannot
+ * exercise on its own (it never loads short enough to hide the rail).
+ */
+async function assertRailClearOrHidden(page: Page, label: string) {
+  const geometry = await page.evaluate(measureRailGeometry);
+  if (geometry) {
+    assertRailClear(geometry, label);
+    return;
+  }
+  const { sidebar, menuButton } = await navSurfaces(page);
+  expect(sidebar, `${label}: no rail this short`).toBe(false);
+  expect(menuButton, `${label}: the header menu is the surface instead`).toBe(true);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+}
+
 test.describe('section rail clearance', () => {
   // One project resizes its page through the widths that matter; the
-  // clearance depends on the width only (and the root font size, which
-  // follows it).
+  // clearance depends on the width and height only (and, on this route, the
+  // section scrolled to - kept to exercise the rail's active-tick state too).
   test('never overlaps the content, the header or the edge of the window', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
     for (const width of [1408, 1600, 1920, 2560]) {
@@ -181,57 +213,129 @@ test.describe('section rail clearance', () => {
       // Labels show at every width the rail does, no hover required.
       await expect(rail.locator('a').first().locator('span').last()).toHaveCSS('opacity', '1');
 
-      const geometry = await page.evaluate(() => {
-        const railBox = document.getElementById('sectionRail')!.getBoundingClientRect();
-        const links = [...document.querySelectorAll('#sectionRail a')].map((a) => a.getBoundingClientRect());
-        const right = Math.max(railBox.right, ...links.map((box) => box.right));
-        // The leftmost text or control of the page's content, over its whole length.
-        let contentLeft = Infinity;
-        let what = '';
-        for (const root of [document.querySelector('main'), document.querySelector('footer')]) {
-          if (!root) continue;
-          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-            if (!node.textContent?.trim()) continue;
-            const parent = node.parentElement;
-            if (!parent || parent.closest('.sr-only, [hidden]')) continue;
-            const range = document.createRange();
-            range.selectNodeContents(node);
-            for (const box of range.getClientRects()) {
-              if (box.width > 0 && box.left < contentLeft) {
-                contentLeft = box.left;
-                what = `"${node.textContent.trim().slice(0, 30)}"`;
-              }
-            }
-          }
-          for (const el of root.querySelectorAll('a, button, input, textarea, img, svg')) {
-            const box = el.getBoundingClientRect();
-            if (box.width > 0 && box.height > 0 && box.left < contentLeft) {
-              contentLeft = box.left;
-              what = el.tagName.toLowerCase();
-            }
-          }
-        }
-        const header = document.querySelector('header')!.getBoundingClientRect();
-        return {
-          left: railBox.left,
-          right,
-          top: railBox.top,
-          bottom: railBox.bottom,
-          contentLeft,
-          what,
-          headerBottom: header.bottom,
-          innerHeight: window.innerHeight,
-          overflow: document.documentElement.scrollWidth - window.innerWidth,
-        };
-      });
-
-      expect(geometry.left, `${width}px: rail inside the window`).toBeGreaterThanOrEqual(16);
-      expect(geometry.right + 24, `${width}px: rail clear of the content (${geometry.what})`).toBeLessThanOrEqual(geometry.contentLeft);
-      expect(geometry.top, `${width}px: rail below the header`).toBeGreaterThanOrEqual(geometry.headerBottom);
-      expect(geometry.bottom, `${width}px: rail above the bottom`).toBeLessThanOrEqual(geometry.innerHeight);
-      expect(geometry.overflow, `${width}px: no horizontal overflow`).toBeLessThanOrEqual(0);
+      const geometry = await page.evaluate(measureRailGeometry);
+      // Confirmed shown just above (opacity: 1), so it exists.
+      assertRailClear(geometry!, `${width}px`);
     }
+  });
+
+  // The rail is vertically centred (top: 50%): a short-but-wide-enough
+  // window is exactly where it could run under the fixed header or off the
+  // bottom - never exercised by the fixed height:1000 above. Sweeps height
+  // independently of width, at and just past the sidebar breakpoint (1408,
+  // 1439) as well as further out, on '/' only (the rail's own geometry does
+  // not depend on which route is showing - a cross-route check follows).
+  // Below useRailViable's height threshold the rail hides instead of
+  // overlapping anything (assertRailClearOrHidden covers both outcomes).
+  test('clears the header and the bottom of the window across a range of heights, at every width the rail shows at', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    await open(page, '/');
+    for (const width of [1408, 1420, 1439, 1600, 1920, 2560]) {
+      for (const height of [300, 350, 400, 500, 700, 1000]) {
+        await page.setViewportSize({ width, height });
+        // useRailViable's media queries react live; give the resulting
+        // mount/unmount a moment before reading the DOM, the same way
+        // scrollToSection gives the section tracker a frame.
+        await page.waitForTimeout(150);
+        await assertRailClearOrHidden(page, `${width}x${height}`);
+      }
+    }
+  });
+
+  // The sweep above uses a mouse pointer (this project's default), whose
+  // rows are the CSS's shorter, non-`pointer: coarse` size - not the rail's
+  // actual worst case. A touch-primary window (a touch laptop/2-in-1 wide
+  // enough for the rail, e.g. width>=1408) gets the taller touch-target
+  // rows (SectionRail.module.css), making the rail taller and the header
+  // costlier to clear (RAIL_MIN_HEIGHT_REM's own derivation: centring
+  // costs two header-heights, not one). A height sweep around that
+  // threshold, forced to a real touch pointer, is the only way to catch a
+  // regression here - the fixed-height 1000px sweep above never gets
+  // close enough, and every other project either has no touch (desktop)
+  // or is narrower than the rail's own width breakpoint (phones/tablet).
+  test('clears the header at the tightest heights with a touch pointer and the full section list (the rail\'s worst-case row height)', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    const context = await page.context().browser()!.newContext({ viewport: { width: 1600, height: 900 }, hasTouch: true });
+    const touchPage = await context.newPage();
+    await mockApi(touchPage, 'feed');
+    await open(touchPage, '/');
+    for (const height of [480, 500, 506, 511, 512, 520, 700]) {
+      await touchPage.setViewportSize({ width: 1600, height });
+      await touchPage.waitForTimeout(150);
+      await assertRailClearOrHidden(touchPage, `touch 1600x${height}`);
+    }
+    await context.close();
+  });
+
+  // Every route shares the same fixed layout chrome (PageLayout mounts the
+  // rail once, route-independently), including /privacy and the 404 page -
+  // the text-page card is the one type that used its own hardcoded
+  // max-width instead of the shared content column formula, which is what
+  // let the rail land on top of it (matches the "side navbar is
+  // overlapping" report). A handful of (width, height) combinations, tried
+  // on every route, is enough to catch a route-specific regression without
+  // repeating the whole height sweep: two tall enough for the rail to show
+  // (so its clearance against that route's own content is actually
+  // checked) and one too short for it (so the hide-instead-of-overlap path
+  // is checked too).
+  for (const path of ROUTES) {
+    test(`clears the header, the bottom and the content on ${path}, at the tightest widths and heights`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+      for (const { width, height } of [
+        { width: 1408, height: 700 },
+        { width: 2560, height: 700 },
+        { width: 1408, height: 300 },
+      ]) {
+        await page.setViewportSize({ width, height });
+        await open(page, path);
+        await assertRailClearOrHidden(page, `${path} ${width}x${height}`);
+      }
+    });
+  }
+});
+
+test.describe('section rail resize across the sidebar breakpoint', () => {
+  // The rail only mounts (and useGutterCenter's setup effect only ever
+  // attaches its listeners) once `wide` is true; loading narrower than that
+  // first and then widening past it, in the same page, without a reload, is
+  // exactly the transition that used to leave `left` stuck at its 16px
+  // default forever (a stale-effect bug, not a geometry one - the geometry
+  // sweeps above only ever load fresh, so they cannot catch it).
+  test('after loading narrow and widening past 1408px, the rail lands where a fresh load at that size would', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    const finalSize = { width: 1600, height: 900 };
+
+    await page.setViewportSize({ width: 1300, height: 900 });
+    await open(page, '/');
+    await expect(page.locator('#sectionRail')).toHaveCount(0);
+
+    await page.setViewportSize(finalSize);
+    // The rail mounts; give its effects (and any resize/observer listener)
+    // a moment, the same way scrollToSection gives the tracker a frame.
+    await page.waitForTimeout(150);
+    await expect(page.locator('#sectionRail')).toBeVisible();
+    // Confirmed visible just above, so it exists.
+    const resized = (await page.evaluate(measureRailGeometry))!;
+    assertRailClear(resized, `resized to ${finalSize.width}x${finalSize.height}`);
+
+    const control = await page.context().newPage();
+    await mockApi(control);
+    await control.setViewportSize(finalSize);
+    await open(control, '/');
+    const fresh = (await control.evaluate(measureRailGeometry))!;
+    await control.close();
+
+    expect(fresh, 'the control page has a rail to compare against').not.toBeNull();
+    expect(resized.left, 'left matches a fresh load at the same size, within 1px').toBeCloseTo(fresh.left, 0);
+    expect(resized.right, 'right matches a fresh load at the same size, within 1px').toBeCloseTo(fresh.right, 0);
   });
 });
 
@@ -383,6 +487,75 @@ test.describe('console', () => {
     });
   }
 });
+
+interface RailGeometry {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  contentLeft: number;
+  what: string;
+  headerBottom: number;
+  innerHeight: number;
+  overflow: number;
+}
+
+/**
+ * Runs in the page. The section rail's own box (and its widest link, for
+ * routes where a label might run wider than the <nav>), the leftmost text or
+ * control of the page's content over its whole length (not just what is
+ * currently scrolled into view - getBoundingClientRect does not depend on
+ * scroll position for horizontal placement), the fixed header's bottom edge,
+ * the window's own height, and whether the document overflows sideways.
+ * null where the rail is not in the DOM at all (too short for it -
+ * useRailViable): reading everything in one evaluate call, rather than a
+ * separate existence check first, avoids a race with its own mount/unmount.
+ */
+function measureRailGeometry(): RailGeometry | null {
+  const railEl = document.getElementById('sectionRail');
+  if (!railEl) return null;
+  const railBox = railEl.getBoundingClientRect();
+  const links = [...document.querySelectorAll('#sectionRail a')].map((a) => a.getBoundingClientRect());
+  const right = Math.max(railBox.right, ...links.map((box) => box.right));
+  let contentLeft = Infinity;
+  let what = '';
+  for (const root of [document.querySelector('main'), document.querySelector('footer')]) {
+    if (!root) continue;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      const parent = node.parentElement;
+      if (!parent || parent.closest('.sr-only, [hidden]')) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const box of range.getClientRects()) {
+        if (box.width > 0 && box.left < contentLeft) {
+          contentLeft = box.left;
+          what = `"${node.textContent.trim().slice(0, 30)}"`;
+        }
+      }
+    }
+    for (const el of root.querySelectorAll('a, button, input, textarea, img, svg')) {
+      const box = el.getBoundingClientRect();
+      if (box.width > 0 && box.height > 0 && box.left < contentLeft) {
+        contentLeft = box.left;
+        what = el.tagName.toLowerCase();
+      }
+    }
+  }
+  const header = document.querySelector('header')!.getBoundingClientRect();
+  return {
+    left: railBox.left,
+    right,
+    top: railBox.top,
+    bottom: railBox.bottom,
+    contentLeft,
+    what,
+    headerBottom: header.bottom,
+    innerHeight: window.innerHeight,
+    overflow: document.documentElement.scrollWidth - window.innerWidth,
+  };
+}
 
 /**
  * Runs in the page. Visible elements that reach past the left or right edge

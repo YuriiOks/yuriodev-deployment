@@ -4,11 +4,14 @@ import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { SECTIONS } from '../../data/site';
-import { minWidth } from '../../constants/breakpoints';
+import { minHeight, minWidth, RAIL_MIN_HEIGHT_REM } from '../../constants/breakpoints';
 import PageLayout from './PageLayout/PageLayout';
 
-// A matchMedia whose sidebar query the test controls; every other query is false.
+// A matchMedia whose sidebar query the test controls; the rail's height
+// query always matches (plenty tall, as in a normal window - the short-
+// window case is covered in e2e/geometry.spec.ts); every other query false.
 const SIDEBAR_QUERY = minWidth('sidebar');
+const HEIGHT_QUERY = minHeight(RAIL_MIN_HEIGHT_REM);
 let wide = false;
 const listeners = new Set<() => void>();
 
@@ -24,7 +27,7 @@ beforeEach(() => {
   listeners.clear();
   window.matchMedia = vi.fn((query: string) => ({
     get matches() {
-      return query === SIDEBAR_QUERY && wide;
+      return (query === SIDEBAR_QUERY && wide) || query === HEIGHT_QUERY;
     },
     media: query,
     onchange: null,

@@ -45,7 +45,9 @@
     min-height: 3.5rem;
     display: flex;
     align-items: center;
-    font-size: clamp(0.85rem, 2vw, 1rem);
+    /* Fluid between a 360px and a 1280px viewport, a rem addend rather than
+       a pure vw value, so browser zoom still changes this on-screen. */
+    font-size: clamp(0.85rem, 0.791rem + 0.261vw, 1rem);
     border-bottom: 1px solid rgba(var(--accent-primary-rgb), 0.3);
 }
 
@@ -312,7 +314,9 @@
         height: 3rem;
         min-height: 3rem;
         padding: 0 1rem;
-        font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+        /* Fluid between a 360px and a 1280px viewport, a rem addend rather
+           than a pure vw value, so browser zoom still changes this on-screen. */
+        font-size: clamp(0.8rem, 0.741rem + 0.261vw, 0.95rem);
     }
 
     .skillContent {
@@ -346,7 +350,9 @@
         height: 2.75rem;
         min-height: 2.75rem;
         padding: 0 0.875rem;
-        font-size: clamp(0.75rem, 3vw, 0.85rem);
+        /* Fluid between a 360px and a 1280px viewport, a rem addend rather
+           than a pure vw value, so browser zoom still changes this on-screen. */
+        font-size: clamp(0.75rem, 0.711rem + 0.174vw, 0.85rem);
     }
 
     .skillContent {

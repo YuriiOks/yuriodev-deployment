@@ -20,7 +20,11 @@
 }
 
 .title {
-    font-size: clamp(2.5rem, 5vw, 4rem);
+    /* Fluid between a 360px and a 1280px viewport (the convention
+       _variables.css's --fs-* tokens use): a rem addend, not a pure vw
+       value, so browser zoom (which rescales the vw unit itself) still
+       changes this on-screen. */
+    font-size: clamp(2.5rem, 1.913rem + 2.609vw, 4rem);
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 1rem;
@@ -121,7 +125,12 @@
     padding: 0;
     margin: 0;
     display: grid;
-    gap: 1rem;
+    /* Flows into as many 18rem+ columns as the card has room for (one on a
+       phone, where a single 18rem column already fills the width) instead
+       of a single column leaving roughly half the card blank on a wide
+       screen, up to --content-cap. */
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 1rem 1.5rem;
 }
 
 .featureItem {

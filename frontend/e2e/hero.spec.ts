@@ -65,6 +65,33 @@ test.describe('hero profile card', () => {
     await page.keyboard.press('ArrowRight');
     await expect.poll(() => card.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
   });
+
+  // On a phone the fade-to-transparent mask alone read as clipped/broken
+  // content rather than an invitation to scroll (every long JSON line cut
+  // hard mid-word, no ellipsis). An unmistakable hint - not just the mask -
+  // shows only while there is more to reveal by scrolling sideways, and
+  // disappears once scrolled all the way there (the same overflow condition
+  // useHorizontalScrollFade already computes for the mask, so the two never
+  // disagree).
+  test('an unmistakable scroll hint shows while the card overflows, and disappears once scrolled to the end', async ({
+    page,
+  }) => {
+    await open(page, '/');
+    const card = page.getByRole('region', { name: 'Profile information' });
+    const hint = page.locator('#heroScrollHint');
+    await expect(hint, 'a scroll hint exists').toHaveCount(1);
+
+    const overflows = await card.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+    if (overflows) {
+      await expect(hint, 'visible while the card has more to reveal by scrolling').toHaveCSS('opacity', '1');
+      await card.evaluate((el) => {
+        el.scrollLeft = el.scrollWidth;
+      });
+      await expect(hint, 'hidden once scrolled all the way to the end').toHaveCSS('opacity', '0');
+    } else {
+      await expect(hint, 'not shown where the card never overflows').toHaveCSS('opacity', '0');
+    }
+  });
 });
 
 test.describe('hero actions', () => {

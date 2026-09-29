@@ -7,15 +7,15 @@ import { ThemeProvider } from '../../../context/ThemeContext';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
 import { OverlayProvider } from '../../../context/OverlayProvider';
 import { useOverlay } from '../../../context/useOverlay';
-import { minWidth } from '../../../constants/breakpoints';
+import { minHeight, minWidth, RAIL_MIN_HEIGHT_REM } from '../../../constants/breakpoints';
 import { navPages } from '../../../data/site';
 import Header from './Header';
 
-// From the sidebar breakpoint up, where the More menu lives.
+// From the sidebar breakpoint up, tall enough too (useRailViable), where the More menu lives.
 const originalMatchMedia = window.matchMedia;
 beforeEach(() => {
   window.matchMedia = vi.fn((query: string) => ({
-    matches: query === minWidth('sidebar'),
+    matches: query === minWidth('sidebar') || query === minHeight(RAIL_MIN_HEIGHT_REM),
     media: query,
     onchange: null,
     addEventListener: vi.fn(),
