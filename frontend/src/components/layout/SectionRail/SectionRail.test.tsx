@@ -3,7 +3,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useRef } from 'react';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
-import { minWidth } from '../../../constants/breakpoints';
+import { minHeight, minWidth, RAIL_MIN_HEIGHT_REM } from '../../../constants/breakpoints';
 import { SECTIONS } from '../../../data/site';
 import SectionRail from './SectionRail';
 
@@ -57,7 +57,9 @@ beforeEach(() => {
   window.IntersectionObserver = DrivenObserver as unknown as typeof IntersectionObserver;
   window.matchMedia = vi.fn((query: string) => ({
     get matches() {
-      return query === minWidth('sidebar') && wide;
+      // This file only exercises the width dimension of useRailViable; the
+      // height one always matches (plenty tall), as if in a normal window.
+      return (query === minWidth('sidebar') && wide) || query === minHeight(RAIL_MIN_HEIGHT_REM);
     },
     media: query,
     onchange: null,

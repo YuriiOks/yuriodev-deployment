@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { useGutterCenter } from './useGutterCenter';
 
@@ -34,7 +34,7 @@ function stubRects() {
 
 function Harness({ wide }: { wide: boolean }) {
   const railRef = useRef<HTMLElement>(null);
-  const { probeRef, left } = useGutterCenter(railRef);
+  const { probeRef, left } = useGutterCenter(railRef, wide);
   return (
     <div>
       <div data-testid="left">{left}</div>
@@ -80,7 +80,7 @@ describe('useGutterCenter', () => {
 
     // A wider window: gutter = (2000 - 800) / 2 = 600; left = max(16, (600-200)/2) = 200.
     setInnerWidth(2000);
-    window.dispatchEvent(new Event('resize'));
+    act(() => window.dispatchEvent(new Event('resize')));
     expect(getByTestId('left').textContent).toBe('200');
   });
 });

@@ -1,31 +1,36 @@
 import React, { useRef } from 'react';
 import styles from './SectionRail.module.css';
 import { useSectionNav } from '../../../context/useSectionNav';
-import { useMediaQuery } from '../../../hooks/useMediaQuery';
+import { useRailViable } from '../../../hooks/useRailViable';
 import { useGutterCenter } from '../../../hooks/useGutterCenter';
-import { minWidth } from '../../../constants/breakpoints';
 import { cx } from '../../../utils/cx';
 import SectionLink from '../SectionLink/SectionLink';
 
 /**
  * Section navigation pinned in the left gutter, from the sidebar breakpoint
- * (88rem) up; below it the header's menu lists the same sections instead,
- * so exactly one of the two is ever on screen.
+ * (88rem) up and tall enough to clear the fixed header and the bottom of
+ * the window (useRailViable); below either threshold the header's menu
+ * lists the same sections instead, so exactly one of the two is ever on
+ * screen.
  *
  * Visible from the very first paint, hero included, on a light glass
  * backing: a thin track with one diamond tick and label per section, the
  * track filling with the accent down to the section in view. Centred
  * between the window edge and the content column (never closer than 16px
- * to the edge - useGutterCenter) and on the viewport vertically. From
- * another page its links open the home page at that section.
+ * to the edge, nor closer than 24px to the column even under a bad
+ * transient measurement - useGutterCenter) and, at every height it shows
+ * at, vertically on the viewport (CSS `top: 50%`; useRailViable's own
+ * height threshold keeps that centred position clear of the header and the
+ * bottom without needing a JS override). From another page its links open
+ * the home page at that section.
  */
 const SectionRail: React.FC = () => {
-  const wide = useMediaQuery(minWidth('sidebar'));
+  const viable = useRailViable();
   const { sections, activeId } = useSectionNav();
   const railRef = useRef<HTMLElement>(null);
-  const { probeRef, left } = useGutterCenter(railRef);
+  const { probeRef, left } = useGutterCenter(railRef, viable);
 
-  if (!wide) return null;
+  if (!viable) return null;
 
   const activeIndex = sections.findIndex(({ id }) => id === activeId);
   // How far down the track the fill reaches: 0 at the first tick, 1 at the last.
