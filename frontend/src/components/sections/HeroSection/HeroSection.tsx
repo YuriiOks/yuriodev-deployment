@@ -80,6 +80,20 @@ const HeroSection: React.FC = () => {
           <div className={`${styles.output} ${styles.success}`}>✓ Multi-agent systems deployed...</div>
           <div className={styles.output}>Ready to architect your next AI breakthrough.</div>
         </div>
+
+        {/* The fade mask alone read as clipped/broken content on a phone
+            (every long line cut hard mid-word); an unmistakable hint too,
+            shown only while there is more to reveal - same condition as the
+            mask (canScrollMore), so the two never disagree. Decorative: the
+            region's own label and tabIndex already say it is scrollable.
+            Last child (position: absolute, pinned to the trailing edge -
+            see the module CSS), so it never shifts hero.spec.ts's structural
+            read of the card's first two children (the two JSON columns). */}
+        <span id="heroScrollHint" className={styles.scrollHint} aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
       </div>
       <div className={styles.ctaButtons}>
         <Button href={`mailto:${EMAILS.contact}`} variant="primary" className={styles.ctaButton}>Collaborate with Me</Button>

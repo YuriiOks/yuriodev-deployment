@@ -166,6 +166,44 @@
     mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent 100%);
 }
 
+/* An unmistakable scroll hint (a chevron in a filled circle), not just the
+   fade above: on a phone the fade alone read as clipped/broken content, the
+   long JSON lines cut hard mid-word. Pinned to the card's trailing edge -
+   `position: absolute` inside `.codeBlock`'s own `position: relative` stays
+   put as the card scrolls under it, rather than scrolling away with the
+   content. Shown only while `.scrollable` is (the same canScrollMore
+   condition that drives the fade), so the two never disagree. Reduced
+   motion freezes the pulse (global.css's blanket animation-duration
+   override), leaving it shown, just still. */
+.scrollHint {
+    position: absolute;
+    top: 50%;
+    right: var(--space-3);
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-round);
+    background: var(--cyan);
+    color: var(--on-cyan);
+    box-shadow: var(--shadow-1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-2) var(--ease-std);
+    animation: heroScrollHintPulse 1.6s var(--ease-std) infinite;
+}
+
+.scrollable .scrollHint {
+    opacity: 1;
+}
+
+@keyframes heroScrollHintPulse {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-50%) translateX(0.1875rem); }
+}
+
 .jsonGrid {
     display: grid;
     grid-template-columns: minmax(max-content, 1fr);
