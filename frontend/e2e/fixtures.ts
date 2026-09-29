@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type Browser, type Page } from '@playwright/test';
 import { HEALTH, POSTS_DISABLED, POSTS_FEED } from './data';
 
 /*
@@ -15,17 +15,25 @@ export interface Options {
   posts: 'feed' | 'disabled' | 'missing';
 }
 
+/** playwright.config.ts's webServer: for tests that open their own browser context/page. */
+export const BASE_URL = 'http://127.0.0.1:4173';
+
+/** Answers every /api request the same way the `page` fixture below does, for a page it did not create. */
+export async function mockApi(page: Page, posts: Options['posts'] = 'feed'): Promise<void> {
+  await page.route('**/api/**', async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === '/api/posts' && posts === 'feed') return route.fulfill({ json: POSTS_FEED });
+    if (pathname === '/api/posts' && posts === 'disabled') return route.fulfill({ json: POSTS_DISABLED });
+    if (pathname === '/api/health') return route.fulfill({ json: HEALTH });
+    return route.fulfill({ status: 404, json: { error: 'not_found' } });
+  });
+}
+
 export const test = base.extend<Options>({
   posts: ['feed', { option: true }],
 
   page: async ({ page, posts }, use) => {
-    await page.route('**/api/**', async (route) => {
-      const { pathname } = new URL(route.request().url());
-      if (pathname === '/api/posts' && posts === 'feed') return route.fulfill({ json: POSTS_FEED });
-      if (pathname === '/api/posts' && posts === 'disabled') return route.fulfill({ json: POSTS_DISABLED });
-      if (pathname === '/api/health') return route.fulfill({ json: HEALTH });
-      return route.fulfill({ status: 404, json: { error: 'not_found' } });
-    });
+    await mockApi(page, posts);
 
     const errors: string[] = [];
     page.on('console', (message) => {
@@ -64,6 +72,42 @@ export async function open(page: Page, path: string, { posts = true }: { posts?:
   if (answered) await answered;
   await page.evaluate(() => document.fonts.ready);
   await settle(page);
+}
+
+export interface ZoomedOpen {
+  width: number;
+  height: number;
+  /** 1 = 100% browser zoom, 2 = 200%, 0.5 = 50% - the harness's own zoom formula. */
+  zoom: number;
+  colorScheme?: 'light' | 'dark';
+}
+
+/**
+ * Opens `path` in a brand new browser context that emulates real browser
+ * page-zoom at `zoom`: the CSS viewport shrinks (round(width/zoom) x
+ * round(height/zoom), what the browser itself does when zooming a window of
+ * `width`x`height` physical px) and `deviceScaleFactor` grows to match, so
+ * `getComputedStyle(...).fontSize` (a CSS-px value) times `zoom` is the
+ * on-screen size that actually reaches the eye. Callers close the returned
+ * context when done; this bypasses the `page` fixture (a new context has no
+ * route handlers of its own), so /api is mocked here too.
+ */
+export async function openZoomed(browser: Browser, path: string, options: ZoomedOpen) {
+  const { width, height, zoom, colorScheme } = options;
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    viewport: { width: Math.round(width / zoom), height: Math.round(height / zoom) },
+    deviceScaleFactor: zoom,
+    colorScheme,
+    reducedMotion: 'reduce',
+  });
+  const page = await context.newPage();
+  await mockApi(page);
+  await page.goto(path);
+  await expect(page.locator('main#main-content')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
+  return { context, page };
 }
 
 /** Waits until the scroll position has stopped changing. */

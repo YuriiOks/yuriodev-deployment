@@ -1,12 +1,19 @@
 import { test, expect, open } from './fixtures';
 
 /*
- * Root font-size scaling on very large screens (global.css): from 1440px
- * wide up, html's font-size grows with the screen instead of sitting at a
- * fixed 16px, so every rem-based size on the page grows with it too. The
- * reference design is 1440x810 (16:9); the scale factor is whichever is
- * smaller of width/1440 or height/810, so an ultrawide (ample width, modest
- * height) scales by its height instead of its width.
+ * "Fixed root, fluid headings": the root font-size scaling that used to grow
+ * with the viewport above 1440px CSS width (global.css) is gone - it keyed
+ * off `100vw`/`100vh`, values browser zoom itself rescales, which cancelled
+ * zoom outright (see zoom.spec.ts for the zoom-emulated regression test).
+ * The root now always sits at the browser default, at every window size.
+ * Any growth on very large screens lives only in small, independently-capped
+ * fluid type tokens on headings/hero (clamp(min rem, min + Nvw, max rem),
+ * max <= 2.5x min - _variables.css, ComingSoonSection etc.), which do not
+ * key off the viewport the same self-cancelling way. The content column
+ * keeps to 75% of the screen up to its cap (--content-cap, a now-fixed
+ * 1152px, since the root no longer grows past 16px), then stays at that cap,
+ * centred - "content capped and centred" on a big monitor, not a page that
+ * balloons without bound.
  *
  * Runs in one project only (setViewportSize covers the sizes that matter -
  * geometry.spec.ts's rail-clearance test does the same), and skips itself
@@ -23,16 +30,14 @@ const SIZES: readonly Size[] = [
   { width: 1920, height: 1080 },
   { width: 2560, height: 1440 },
   { width: 3840, height: 2160 },
-  { width: 5120, height: 1440 }, // ultrawide: scales by height, same factor as 2560x1440
+  { width: 5120, height: 1440 },
 ];
 
-/** The factor global.css's clamp should produce for `size`, clamped to [1, 3] (16px to 48px). */
-function expectedFactor({ width, height }: Size): number {
-  return Math.min(3, Math.max(1, Math.min(width / 1440, height / 810)));
-}
+/** --content-cap: 72rem, at the fixed 16px root - no longer grows with the screen. */
+const CONTENT_CAP_PX = 72 * 16;
 
-test.describe('fluid root scaling', () => {
-  test('the root font size, content column share, header height and rail clearance all scale together', async ({
+test.describe('fixed root, fluid headings', () => {
+  test('the root font size stays at the browser default at every width; the content column is capped and centred', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
@@ -40,9 +45,6 @@ test.describe('fluid root scaling', () => {
     for (const size of SIZES) {
       await page.setViewportSize(size);
       await open(page, '/');
-
-      const factor = expectedFactor(size);
-      const expectedFontPx = 16 * factor;
 
       const geometry = await page.evaluate(() => {
         const rootFontPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -55,6 +57,7 @@ test.describe('fluid root scaling', () => {
           rootFontPx,
           headerHeightPx: header.height,
           probeWidthPx: probe ? probe.getBoundingClientRect().width : null,
+          probeLeft: probe ? probe.getBoundingClientRect().left : null,
           railLeft: rail ? rail.getBoundingClientRect().left : null,
           railRight: rail ? rail.getBoundingClientRect().right : null,
           heroTitleTop: heroTitle ? heroTitle.getBoundingClientRect().top : null,
@@ -66,30 +69,41 @@ test.describe('fluid root scaling', () => {
 
       const label = `${size.width}x${size.height}`;
 
-      expect(geometry.rootFontPx, `${label}: root font-size`).toBeGreaterThanOrEqual(expectedFontPx - 0.5);
-      expect(geometry.rootFontPx, `${label}: root font-size`).toBeLessThanOrEqual(expectedFontPx + 0.5);
+      // No more big-screen growth: the root stays at the browser default,
+      // whatever the window size. (The zoom-emulated version of this
+      // regression - what actually motivated the change - is zoom.spec.ts.)
+      expect(geometry.rootFontPx, `${label}: root font-size stays at the browser default`).toBeGreaterThanOrEqual(15.5);
+      expect(geometry.rootFontPx, `${label}: root font-size stays at the browser default`).toBeLessThanOrEqual(16.5);
 
-      // --header-h is 4rem from the md breakpoint up (always true here), so
-      // the header's real height tracks the root font size exactly.
-      expect(geometry.headerHeightPx, `${label}: header height scales with the root`).toBeCloseTo(geometry.rootFontPx * 4, 0);
+      // --header-h is a fixed 4rem from the md breakpoint up: with the root
+      // itself fixed too, the header's real height never grows past 64px.
+      expect(geometry.headerHeightPx, `${label}: header height stays fixed`).toBeGreaterThanOrEqual(63);
+      expect(geometry.headerHeightPx, `${label}: header height stays fixed`).toBeLessThanOrEqual(65);
 
-      // The content column keeps to 75% of the screen at every size that
-      // shares the 1440x810 reference's aspect ratio; a 1440-tall ultrawide
-      // is deliberately capped narrower instead (global.css/_variables.css),
-      // so it fits comfortably rather than stretching prose across it.
-      if (size.width !== 5120) {
-        expect(geometry.probeWidthPx, `${label}: content column probe exists`).not.toBeNull();
+      expect(geometry.probeWidthPx, `${label}: content column probe exists`).not.toBeNull();
+      // Capped, not growing without bound.
+      expect(geometry.probeWidthPx!, `${label}: content column stays within its cap`).toBeLessThanOrEqual(
+        CONTENT_CAP_PX + 1,
+      );
+      if (size.width * 0.75 <= CONTENT_CAP_PX) {
+        // Below the cap, the column keeps to 75% of the screen.
         const share = (geometry.probeWidthPx! / size.width) * 100;
         expect(share, `${label}: content column share of the screen`).toBeGreaterThanOrEqual(75 - 3);
         expect(share, `${label}: content column share of the screen`).toBeLessThanOrEqual(75 + 3);
+      } else {
+        // Past it, the column sits at its cap, centred - not stretched edge
+        // to edge on an ultrawide/4K monitor.
+        expect(geometry.probeWidthPx!, `${label}: content column at its cap`).toBeGreaterThanOrEqual(CONTENT_CAP_PX - 1);
+        expect(geometry.probeLeft!, `${label}: content column centred`).toBeCloseTo((size.width - CONTENT_CAP_PX) / 2, 0);
       }
 
-      // The rail: never closer than 1rem to the window edge, never closer
-      // than 1.5rem to the content column - both scaled by the same factor.
-      expect(geometry.railLeft, `${label}: rail inside the window`).toBeGreaterThanOrEqual(16 * factor - 1);
+      // The rail: never closer than 16px to the window edge, never closer
+      // than 24px to the content column - both fixed now, not scaled with
+      // the screen the way they used to.
+      expect(geometry.railLeft, `${label}: rail inside the window`).toBeGreaterThanOrEqual(15);
       if (geometry.probeWidthPx !== null) {
         const contentLeft = (size.width - geometry.probeWidthPx) / 2;
-        expect(geometry.railRight! + 24 * factor, `${label}: rail clear of the content column`).toBeLessThanOrEqual(
+        expect(geometry.railRight! + 24, `${label}: rail clear of the content column`).toBeLessThanOrEqual(
           contentLeft + 1,
         );
       }
@@ -107,7 +121,7 @@ test.describe('fluid root scaling', () => {
     }
   });
 
-  test('below 1440px wide the root font size stays fixed at 16px', async ({ page }, testInfo) => {
+  test('the root font size stays at 16px below 1440px wide too', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
     for (const size of [
       { width: 1280, height: 800 },
@@ -124,7 +138,7 @@ test.describe('fluid root scaling', () => {
     test.describe(`${theme} theme`, () => {
       test.use({ colorScheme: theme });
 
-      test('scales the same way, and never overflows, at 3840x2160', async ({ page }, testInfo) => {
+      test('the root stays fixed, and the page never overflows, at 3840x2160', async ({ page }, testInfo) => {
         test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
         await page.setViewportSize({ width: 3840, height: 2160 });
         await open(page, '/');
@@ -134,8 +148,7 @@ test.describe('fluid root scaling', () => {
           theme: document.documentElement.getAttribute('data-theme'),
         }));
         expect(result.theme).toBe(theme);
-        expect(result.rootFontPx).toBeGreaterThanOrEqual(42.667 - 0.5);
-        expect(result.rootFontPx).toBeLessThanOrEqual(42.667 + 0.5);
+        expect(result.rootFontPx).toBeCloseTo(16, 1);
         expect(result.overflowX, 'no horizontal overflow').toBeLessThanOrEqual(0);
       });
     });
