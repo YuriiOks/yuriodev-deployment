@@ -20,6 +20,12 @@ Append-only log of approaches that **didn't** work and the one that finally did,
 
 ---
 
+## 2026-09-29: Fluid root scaling cancelled browser zoom; the rail height gate needed a second pass
+**Task type:** frontend / fluid scaling / accessibility / section rail
+**What didn't work:** (1) The root font size `clamp(1rem, min(100vw / 90, 100vh / 50.625), 3rem)` from 90rem up. Browser zoom changes the CSS viewport by 1/Z, so a root proportional to it cancels zoom exactly: on a 1920x953 window nothing changed on screen between about 39% and 118%, and 200% zoom enlarged text only 1.13-1.7x (WCAG 1.4.4 fails). The e2e suite never emulated zoom, so it stayed green. (2) A first height gate for the section rail, 29rem, derived by hand from the mouse-pointer row height. Under `pointer: coarse` (2.75rem rows) with all 8 sections, the rail still slid under the header between 464 and 512px of window height.
+**What worked:** No size on `html` at all (browser default); any big-screen growth only on headings via `clamp(<rem>, <rem> + <vw>, <rem>)` with a rem addend and max <= 2.5x min. `e2e/zoom.spec.ts` emulates zoom as viewport round(W/Z) x round(H/Z) with deviceScaleFactor Z and asserts that 200% and 50% zoom double and halve on-screen text. The rail gate became 32rem, derived from the touch row height, with a touch-pointer test at the threshold.
+**Note for next time:** Never make the root (or any font size) proportional to vw/vh without a rem addend: it silently disables zoom. Derive layout gates from the worst-case pointer (`coarse`) and cover them with a test at that pointer.
+
 ## 2026-09-26: Fluid root scaling flipped the hero card back to one column at 1920px
 **Task type:** frontend / fluid scaling / CSS container queries
 **What didn't work:** Growing the root font size from 1440px up (so rem-based sizes scale with the screen) and leaving HeroSection's `@container (min-width: 67rem)` as-is. Unlike `@media`, a container query's `rem` DOES follow the live html font-size, but the hero card's own width tracks `--content-max-width`'s share of the viewport, not the root font factor - the two no longer moved together above 1440px, so at 1920px the inflated 67rem threshold (now ~1429px) landed just above the card's real content-box width and the layout silently fell back to stacked, single-column. `e2e/hero.spec.ts`'s existing "two columns from 1600px up" assertion caught it.
