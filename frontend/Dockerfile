@@ -29,7 +29,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime: lightweight Nginx image serving the built files ----
-FROM nginx:stable-alpine@sha256:985220252f3863977e468f611ef118ebd01421289dd86ee1ae99cb068c3bce2b AS runtime
+FROM nginx:stable-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS runtime
 
 # Pick up any security fixes released for the base image's packages
 RUN apk upgrade --no-cache
