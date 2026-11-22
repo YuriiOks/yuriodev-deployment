@@ -583,6 +583,112 @@ Typefully's answers no longer look as expected: the previous posts stay up
   restarts (not recreates); unset, the feed is memory-only and refills within
   seconds of a start.
 
+## Dashboards database (`/api/dashboards/**`, `/api/mcp`)
+
+The backend can serve real tasks and calendar events for the three spaces
+(`personal`, `work-1`, `work-2`) to the dashboards page and to MCP clients. It
+ships **off** everywhere except dev's one-time setup below: with no
+`DATABASE_URL` the API answers `{"enabled": false}` on
+`/api/dashboards/v1/bootstrap` (no authentication needed) and 503
+`dashboards_disabled` on everything else, and the page keeps showing its bundled
+sample data. Each environment has its own Postgres container, defined in that
+environment's compose file and never publishing a port:
+
+| Environment | Service / container | Volume | Host in `DATABASE_URL` |
+|---|---|---|---|
+| dev | `postgres-dev` / `yuriodev-dev-postgres` | `yuriodev-dev-postgres-data` | `yuriodev-dev-postgres` |
+| stage (defined, not started) | `postgres-stage` / `yuriodev-stage-postgres` | `yuriodev-stage-postgres-data` | `yuriodev-stage-postgres` |
+| prod (defined, not started) | `postgres` / `yuriodev-postgres` | `yuriodev-postgres-data` | `yuriodev-postgres` |
+
+The deploy agent ignores them (they are not `ghcr.io` images): they are started
+and recreated by hand, like everything in this section, so every step is a
+production change: **ask Yurii first.** The backend creates and updates the
+schema itself: at start it runs `alembic upgrade head` in the background
+(retrying until the database answers, so the order "database first, backend
+second" is a convenience, not a requirement), which also seeds the spaces and
+the ten personal life areas. Until that finishes the API answers 503
+`dashboards_unavailable`.
+
+Access: a request is accepted when `DASHBOARDS_TRUST_PROXY_AUTH=true` (tracked
+in `env/dev.env`: nginx basic auth already ran; never set it in prod) or when
+the header `X-Dashboards-Token` equals `DASHBOARDS_API_TOKEN` (not
+`Authorization`, which basic auth owns on dev). With neither configured every
+request is 401. Production stays off until Cloudflare Access sits in front of it.
+
+### One-time setup of dev
+
+Run on the box, in `~/yuriodev-deployment`, once the commit with these files is
+on its working tree (the usual pause / `git pull --ff-only` / unpause, see
+"Applying the proxy hardening" step 0 for the tree catch-up) and the `:dev`
+backend image contains this code. The first command creates the secrets with
+generated values and prints nothing; it refuses to touch a file that already
+sets one of the names:
+
+```bash
+cd ~/yuriodev-deployment
+[ -e env/dev.secrets.env ] || install -m 600 /dev/null env/dev.secrets.env
+if grep -qE '^(DATABASE_URL|POSTGRES_PASSWORD|DASHBOARDS_API_TOKEN)=' env/dev.secrets.env; then
+  echo "env/dev.secrets.env already sets one of the names: stop and look by hand"
+else
+  pw=$(openssl rand -hex 24); token=$(openssl rand -hex 32)
+  printf 'POSTGRES_PASSWORD=%s\nDATABASE_URL=postgresql://dashboards:%s@yuriodev-dev-postgres:5432/dashboards\nDASHBOARDS_API_TOKEN=%s\n' \
+    "$pw" "$pw" "$token" >> env/dev.secrets.env
+  unset pw token
+fi
+touch ~/.yuriodev-deploy-paused
+docker compose -f deploy/dev/compose.yml up -d --no-deps postgres-dev
+docker compose -f deploy/dev/compose.yml ps postgres-dev                   # wait for "healthy"
+docker compose -f deploy/dev/compose.yml up -d --no-deps backend-dev        # recreate: picks up the secrets
+curl -sk -u <user>:<pass> https://dev.yuriodev.co.uk/api/dashboards/v1/bootstrap | python3 -m json.tool
+docker compose -f deploy/dev/compose.yml logs --since 5m backend-dev | grep 'dashboards\.'
+rm ~/.yuriodev-deploy-paused
+```
+
+The bootstrap answer must say `"enabled": true` with three spaces and ten areas
+(basic-auth credentials: `~/.config/yuriodev/basic-auth.txt`); the log shows
+`dashboards.ready` (and `dashboards.migrate_failed` lines, with only the error
+class, while the database was still starting). `enabled: false` means the
+backend did not get `DATABASE_URL`; 503 `dashboards_unavailable` means it has
+it but cannot reach or migrate the database (check `docker compose ... ps` and
+the backend log). The hex password needs no URL encoding; a password with
+special characters must be percent-encoded inside `DATABASE_URL`. Never print
+or paste the secrets file; the token goes only where an MCP client or a script
+is configured. `POSTGRES_PASSWORD` is read only when the database is first
+created: changing it later in the file does nothing to an existing volume
+(change the password in the database with `ALTER USER`, then edit the file,
+then recreate the backend). Stage and prod follow the same steps with their
+own names (`stage.secrets.env`, `postgres-stage`, `backend-stage`; prod: the root
+`docker-compose.yml`, `postgres`, `backend`) once the owner decides to turn
+them on.
+
+### Backup and restore
+
+Backups are logical dumps taken inside the container (the image trusts its own
+local socket, so no password is needed), written to a dated file with mode 600:
+
+```bash
+mkdir -p ~/backups/dashboards && chmod 700 ~/backups/dashboards
+docker exec yuriodev-dev-postgres pg_dump -U dashboards -d dashboards --format=custom \
+  > ~/backups/dashboards/dev-$(date -u +%Y%m%dT%H%M%SZ).dump
+chmod 600 ~/backups/dashboards/dev-*.dump
+```
+
+Restore replaces the whole content (tables, seed and migration state) with the
+dump. Stop writes first, restore, then bring the backend back:
+
+```bash
+touch ~/.yuriodev-deploy-paused
+docker compose -f deploy/dev/compose.yml stop backend-dev
+docker exec -i yuriodev-dev-postgres pg_restore -U dashboards -d dashboards --clean --if-exists --no-owner \
+  < ~/backups/dashboards/dev-<timestamp>.dump
+docker compose -f deploy/dev/compose.yml start backend-dev
+rm ~/.yuriodev-deploy-paused
+```
+
+Never `docker compose down -v` or remove the volume: it is the data. A
+Postgres major upgrade (Dependabot ignores majors on purpose) is a dump,
+a new volume and a restore, not an image bump.
+
 ## Local development
 
 Mac only — **never run this on the VPS.** `compose.local.yml` (project
