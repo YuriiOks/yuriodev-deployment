@@ -40,11 +40,21 @@ function blocks(css: string): Array<{ selector: string; body: string }> {
   return out;
 }
 
-function tokensFor(theme: Theme): Map<string, string> {
+type Space = 'personal' | 'work-1' | 'work-2';
+
+/**
+ * The tokens as the cascade resolves them on <html> (no `space`), or inside a
+ * dashboard root with `data-space` set: its own dark block, and in the light
+ * theme the `[data-theme="light"] [data-space]` block on top of it.
+ */
+function tokensFor(theme: Theme, space?: Space): Map<string, string> {
   const tokens = new Map<string, string>();
+  const spaceBlocks = space
+    ? [`[data-space="${space}"]`, ...(theme === 'light' ? [`[data-theme="light"] [data-space="${space}"]`] : [])]
+    : [];
   for (const { selector, body } of blocks(variablesCss)) {
     const parts = selector.split(',').map((s) => s.trim());
-    const applies = parts.some((p) => p === ':root' || p === `[data-theme="${theme}"]`);
+    const applies = parts.some((p) => p === ':root' || p === `[data-theme="${theme}"]` || spaceBlocks.includes(p));
     if (!applies) continue;
     for (const m of body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) tokens.set(m[1], m[2].trim());
   }
@@ -209,6 +219,77 @@ const PAIRS: Record<Theme, Pair[]> = {
     ...cross(['--text-2', '--cyan-text', '--current-ink'], [['rgba(var(--cyan-rgb), 0.12)', '--surface-1']], TEXT),
   ],
 };
+
+/* The private dashboards (section 6 of _variables.css): every space, both themes. */
+const DASH_TEXT = [
+  '--dash-t1', '--dash-t2', '--dash-t3', '--dash-accent', '--dash-title', '--dash-warn', '--dash-danger', '--dash-ok',
+];
+const DASH_SOLID = [['--dash-bg'], ['--dash-surface'], ['--dash-well'], ['--dash-chip']];
+
+const DASH_PAIRS: Pair[] = [
+  // Text on the page, the cards, the wells and the pills.
+  ...cross(DASH_TEXT, DASH_SOLID, TEXT),
+  // Rows of the priority panel (tinted), and the selected tab or day over the page and a card.
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-accent'], [['--dash-prio-bg', '--dash-surface']], TEXT),
+  ...cross(['--dash-t1', '--dash-title'], [['--dash-sel-bg', '--dash-bg'], ['--dash-sel-bg', '--dash-surface']], TEXT),
+  // Buttons, the language switch, accent badges.
+  { fg: '--dash-on-fill', bg: ['--dash-fill'], min: TEXT },
+  // Control borders (the quick-add field, the switches) and the selected indicator.
+  ...cross(['--dash-edge'], [['--dash-bg'], ['--dash-surface'], ['--dash-well']], UI),
+  ...cross(['--dash-sel-edge'], [['--dash-sel-bg', '--dash-surface'], ['--dash-surface']], UI),
+];
+
+/* Calendar events and the entrance's cards (both on the Personal skin, the
+   page with no data-space): each space's ink as text on the surfaces, its
+   fill and the ink on it, and the text over an event's tint. */
+const SPACE_INKS = ['--dash-ink-personal', '--dash-ink-work-1', '--dash-ink-work-2'];
+const SPACES: readonly ['personal' | 'work-1' | 'work-2', string][] = [
+  ['personal', '--dash-ink-personal-rgb'],
+  ['work-1', '--dash-ink-work-1-rgb'],
+  ['work-2', '--dash-ink-work-2-rgb'],
+];
+const SHARED_PAIRS: Pair[] = [
+  ...cross(SPACE_INKS, DASH_SOLID, TEXT),
+  ...SPACES.map(([space]): Pair => ({ fg: `--dash-on-fill-${space}`, bg: [`--dash-fill-${space}`], min: TEXT })),
+  ...SPACES.flatMap(([, rgb]) =>
+    cross(
+      ['--dash-t1', '--dash-t2'],
+      [
+        [`rgba(var(${rgb}), 0.14)`, '--dash-surface'],
+        [`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg', '--dash-surface'],
+      ],
+      TEXT,
+    ),
+  ),
+];
+
+describe('dashboard palettes meet WCAG AA', () => {
+  for (const theme of ['dark', 'light'] as const) {
+    for (const space of ['personal', 'work-1', 'work-2'] as const) {
+      it(`${theme} theme, ${space} space: every text and UI pair`, () => {
+        const tokens = tokensFor(theme, space);
+        const pairs = [...DASH_PAIRS, ...(space === 'personal' ? SHARED_PAIRS : [])];
+        const failures = pairs
+          .map(({ fg, bg, min }) => ({ fg, bg, min, got: ratio(paint(tokens, [fg]), paint(tokens, bg)) }))
+          .filter(({ got, min }) => got < min)
+          .map(({ fg, bg, min, got }) => `${fg} on ${bg.join(' over ')}: ${got.toFixed(2)} < ${min}`);
+        expect(pairs.length).toBeGreaterThan(40);
+        expect(failures).toEqual([]);
+      });
+    }
+  }
+
+  it('the spaces really differ (the parser picks up each space block)', () => {
+    const accent = (theme: Theme, space: Space) => resolve(tokensFor(theme, space), 'var(--dash-accent)');
+    expect(accent('dark', 'work-1')).toBe('#b88cff');
+    expect(accent('light', 'work-1')).toBe('#7a22d0');
+    expect(accent('dark', 'work-2')).toBe('#ff5a66');
+    expect(accent('light', 'work-2')).toBe('#c4000f');
+    expect(accent('dark', 'personal')).toBe(resolve(tokensFor('dark'), 'var(--cyan-text)'));
+    expect(resolve(tokensFor('light', 'work-1'), 'var(--dash-surface)')).toBe('#ffffff');
+    expect(resolve(tokensFor('dark', 'work-1'), 'var(--dash-surface)')).toBe('#1c1638');
+  });
+});
 
 describe('colour tokens meet WCAG AA', () => {
   for (const theme of ['dark', 'light'] as const) {
