@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collapseColumns, summarizeHidden, findConflicts, layoutDay, overlaps, toMinutes, type DatedEvent } from './weekLayout';
+import { arrangeDay, summarizeHidden, findConflicts, layoutDay, overlaps, toMinutes, type DatedEvent } from './weekLayout';
 
 const ev = (id: string, start: string, end: string) => ({ id, start, end });
 const cols = (events: ReturnType<typeof ev>[]) =>
@@ -144,45 +144,55 @@ describe('findConflicts', () => {
   });
 });
 
-describe('collapseColumns', () => {
-  const placed = (events: ReturnType<typeof ev>[]) => layoutDay(events);
+describe('arrangeDay', () => {
+  const arrange = (events: ReturnType<typeof ev>[]) => arrangeDay(layoutDay(events));
+  const shape = (events: ReturnType<typeof ev>[]) =>
+    Object.fromEntries(arrange(events).placements.map((p) => [p.event.id, `${p.level}:${p.slot}/${p.slots}`]));
 
-  it('leaves clusters of up to three columns alone', () => {
-    const result = collapseColumns(placed([ev('a', '15:00', '17:00'), ev('b', '15:30', '16:30'), ev('c', '16:00', '16:45')]));
-    expect(result.stacks).toEqual([]);
-    expect(result.placements.map((p) => `${p.column}/${p.columns}`)).toEqual(['0/3', '1/3', '2/3']);
+  it('keeps equal columns for clusters of one and two columns', () => {
+    expect(shape([ev('a', '09:00', '10:00'), ev('b', '09:30', '10:30'), ev('c', '12:00', '13:00')])).toEqual({
+      a: '0:0/2',
+      b: '0:1/2',
+      c: '0:0/1',
+    });
   });
 
-  it('folds the columns past the second into one "+N" stack in the third column', () => {
+  it('turns a cluster of three or more columns into a cascade: each later start one step further in', () => {
+    const result = arrange([ev('a', '15:00', '17:00'), ev('b', '15:30', '16:30'), ev('c', '16:00', '16:45')]);
+    expect(result.stacks).toEqual([]);
+    expect(result.placements.map((p) => `${p.event.id} ${p.level}:${p.slot}/${p.slots}`)).toEqual(['a 0:0/1', 'b 1:0/1', 'c 2:0/1']);
+  });
+
+  it('stops indenting after four steps', () => {
+    const events = ['09:00', '09:10', '09:20', '09:30', '09:40', '09:50'].map((start, i) => ev(`e${i}`, start, '12:00'));
+    expect(arrange(events).placements.map((p) => p.level)).toEqual([0, 1, 2, 3, 4, 4]);
+  });
+
+  it('keeps two events that start together side by side, and folds the rest into one "+N" chip', () => {
     const events = [
       ev('a', '15:00', '17:00'),
-      ev('b', '15:15', '16:45'),
-      ev('c', '15:30', '16:30'),
-      ev('d', '16:00', '16:45'),
+      ev('b', '15:00', '16:30'),
+      ev('c', '15:00', '16:00'),
+      ev('d', '15:00', '15:45'),
+      ev('e', '15:30', '16:30'),
       ev('x', '09:00', '10:00'),
     ];
-    const result = collapseColumns(placed(events));
-    const byId = Object.fromEntries(result.placements.map((p) => [p.event.id, `${p.column}/${p.columns}`]));
-    expect(byId).toEqual({ x: '0/1', a: '0/3', b: '1/3' });
+    const result = arrange(events);
+    const byId = Object.fromEntries(result.placements.map((p) => [p.event.id, `${p.level}:${p.slot}/${p.slots}`]));
+    expect(byId).toEqual({ x: '0:0/1', a: '0:0/3', b: '0:1/3', e: '1:0/1' });
     expect(result.stacks).toHaveLength(1);
     const [stack] = result.stacks;
-    expect(stack.column).toBe(2);
-    expect(stack.columns).toBe(3);
     expect(stack.hidden.map((e) => e.id).sort()).toEqual(['c', 'd']);
-    expect(stack.startMin).toBe(toMinutes('15:30'));
-    expect(stack.endMin).toBe(toMinutes('16:45'));
+    expect([stack.level, stack.slot, stack.slots]).toEqual([0, 2, 3]);
+    expect(stack.startMin).toBe(toMinutes('15:00'));
+    expect(stack.endMin).toBe(toMinutes('16:00'));
   });
 
-  it('folds each crowded cluster of a day on its own', () => {
-    const cluster = (h: number) => [
-      ev(`a${h}`, `${h}:00`, `${h + 1}:00`),
-      ev(`b${h}`, `${h}:10`, `${h + 1}:00`),
-      ev(`c${h}`, `${h}:20`, `${h + 1}:00`),
-      ev(`d${h}`, `${h}:30`, `${h + 1}:00`),
-    ];
-    const result = collapseColumns(placed([...cluster(10), ...cluster(14)]));
-    expect(result.stacks).toHaveLength(2);
-    expect(result.stacks.map((s) => s.hidden.length)).toEqual([2, 2]);
+  it('arranges each cluster of a day on its own', () => {
+    const cluster = (h: string) => [ev(`a${h}`, `${h}:00`, '23:00'), ev(`b${h}`, `${h}:10`, '23:00'), ev(`c${h}`, `${h}:20`, '23:00')];
+    const events = [ev('early', '09:00', '09:30'), ...cluster('11'), ev('lunch', '23:00', '23:30')];
+    const result = arrange(events);
+    expect(result.placements.map((p) => p.level)).toEqual([0, 0, 1, 2, 0]);
   });
 });
 

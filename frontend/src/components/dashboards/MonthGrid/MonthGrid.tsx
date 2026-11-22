@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { dayOfMonth, groupByDate, monthMatrix } from '../../../services/dashboards/calendarDates';
+import { dayOfMonth, groupByDate, isWeekend, monthMatrix } from '../../../services/dashboards/calendarDates';
 import { dateLabel, fill } from '../../../services/dashboards/calendarLabels';
 import type { CalEvent } from '../../../services/dashboards/types';
 import type { Conflicts } from '../../../services/dashboards/weekLayout';
@@ -21,15 +21,15 @@ export interface MonthGridProps {
   workdaysOnly?: boolean;
 }
 
-/** How many event chips a day shows before "+N more". */
-const MAX_CHIPS = 3;
+/** How many event rows a day shows before "+N". */
+const MAX_ROWS = 3;
 
 /**
- * A month as a grid of weeks, Monday first. The days of the neighbouring
- * months that fill the first and last week are shown muted. Each day is a
- * button (a 44px-plus target) named by its date and its number of events; it
- * shows up to three chips, then "+N more", and the conflict mark when an
- * overlap between two spaces falls on it.
+ * A month as a grid of weeks, Monday first. Each day is a button (a 44px-plus target) named by its date and its
+ * number of events. A day of the month lists its events as rows (a 6px dot in the space's colour, the title with
+ * an ellipsis, the start time at the right), three at most, then "+N"; the conflict mark is a warn triangle beside
+ * the number. A neighbouring month's days are quieter still: grey numerals and up to three dots, no rows. Today's
+ * number is a filled neutral circle; weekends take the week view's tint. A phone shows dots for every day.
  */
 const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, conflicts, onPickDay, workdaysOnly = false }) => {
   const { t, text } = useDashboardLang();
@@ -61,7 +61,11 @@ const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, confl
                   .join(', ');
                 const isToday = date === today;
                 return (
-                  <td key={date} className={cx(styles.cell, isToday && styles.today)} data-muted={inMonth ? undefined : 'true'}>
+                  <td
+                    key={date}
+                    className={cx(styles.cell, isToday && styles.today, isWeekend(date) && styles.weekend)}
+                    data-muted={inMonth ? undefined : 'true'}
+                  >
                     <button
                       type="button"
                       className={styles.day}
@@ -72,18 +76,25 @@ const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, confl
                     >
                       <span className={styles.top}>
                         <span className={styles.number}>{dayOfMonth(date)}</span>
-                        {conflict && <DashIcon name="alert" size={14} strokeWidth={2.2} className={styles.alert} />}
+                        {conflict && <DashIcon name="alert" size={14} className={styles.alert} />}
                       </span>
-                      <span className={styles.chips}>
-                        {day.slice(0, MAX_CHIPS).map((event) => (
-                          <span key={event.id} className={styles.chip} data-for={event.space}>
-                            {event.start} {text(event.title)}
-                          </span>
+                      {inMonth && (
+                        <span className={styles.rows}>
+                          {day.slice(0, MAX_ROWS).map((event) => (
+                            <span key={event.id} className={styles.row} data-for={event.space}>
+                              <span aria-hidden="true" className={styles.dotMark} />
+                              <span className={styles.title}>{text(event.title)}</span>
+                              <span className={styles.time}>{event.start}</span>
+                            </span>
+                          ))}
+                          {day.length > MAX_ROWS && <span className={styles.more}>{fill(t.more, { n: day.length - MAX_ROWS })}</span>}
+                        </span>
+                      )}
+                      <span className={styles.dots}>
+                        {day.slice(0, MAX_ROWS).map((event) => (
+                          <span key={event.id} aria-hidden="true" className={styles.dotMark} data-for={event.space} />
                         ))}
                       </span>
-                      {day.length > MAX_CHIPS && (
-                        <span className={styles.more}>{fill(t.more, { n: day.length - MAX_CHIPS })}</span>
-                      )}
                     </button>
                   </td>
                 );

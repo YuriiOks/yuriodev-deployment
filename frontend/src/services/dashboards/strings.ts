@@ -66,6 +66,8 @@ export interface Strings {
   readonly moreEvents: string;
   readonly conflictMark: string;
   readonly viewLabel: string;
+  /** The phone's strip of the week's days above the one-day grid. */
+  readonly weekDaysLabel: string;
   readonly week: string;
   readonly month: string;
   readonly monthCaption: string;
@@ -132,6 +134,7 @@ export const STRINGS: Record<Lang, Strings> = {
     moreEvents: 'Ещё событий: {n}',
     conflictMark: 'Конфликт: пересекается с событием другого пространства',
     viewLabel: 'Вид',
+    weekDaysLabel: 'Дни недели',
     week: 'Неделя',
     month: 'Месяц',
     monthCaption: 'Месяц, события трёх пространств',
@@ -208,6 +211,7 @@ export const STRINGS: Record<Lang, Strings> = {
     moreEvents: '{n} more events',
     conflictMark: 'Conflict: overlaps an event of another space',
     viewLabel: 'View',
+    weekDaysLabel: 'Days of the week',
     week: 'Week',
     month: 'Month',
     monthCaption: 'Month, events of all three spaces',

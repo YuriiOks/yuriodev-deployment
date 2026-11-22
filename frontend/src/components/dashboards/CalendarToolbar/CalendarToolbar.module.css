@@ -1,99 +1,105 @@
-/* One row: every part is 46px high (the segmented controls' height) and
-   sits on one centre line. The controls themselves are the shared system in
-   assets/styles/dashboard-controls.module.css. */
+/* One row on a laptop: the range (the h1, 20px), previous / Today / next, then at the right the legend, the
+   conflict count (only above zero), the working-days switch and Week / Month. Everything is 32px high. Below
+   64rem it wraps into two rows; a phone's two rows are the range with the steps, then the rest. The controls are
+   the shared system in assets/styles/dashboard-controls.module.css. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-2) var(--space-4);
+  min-height: var(--dash-h-strip);
 }
 
-/* The controls stay together on the right; the legend and the conflict count on the left. */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
+/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+.toolbar .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
 }
 
-.left {
+.toolbar .title::before,
+.toolbar .title::after {
+  content: none;
+}
+
+.right {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-4);
+  margin-left: auto;
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .item {
   display: inline-flex;
   align-items: center;
-  gap: 0.4375rem;
-  min-height: 2.875rem;
-  color: var(--dash-t1);
-  font-size: var(--fs-xs);
+  gap: var(--space-2);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
 }
 
-.swatch {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 0.25rem;
+/* A round 8px dot in the space's ink, the same colour as the bar of its events. */
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
   background: var(--dash-accent);
 }
 
-.swatch[data-for="personal"] {
+.dot[data-for="personal"] {
   background: var(--dash-ink-personal);
 }
 
-.swatch[data-for="work-1"] {
+.dot[data-for="work-1"] {
   background: var(--dash-ink-work-1);
 }
 
-.swatch[data-for="work-2"] {
+.dot[data-for="work-2"] {
   background: var(--dash-ink-work-2);
 }
 
-/* The week's conflicts: a pill of the same height, in the danger ink with an icon when there are any. */
+/* A block with no details: hatched (the same hatch as a Focus-time block). */
+.hatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--dash-r-tag);
+  background-image: repeating-linear-gradient(45deg, transparent 0 3px, var(--dash-t2) 3px 4px);
+  box-shadow: inset 0 0 0 1px var(--dash-edge);
+}
+
+/* The conflicts: plain warn text with an icon, shown only when there are some. */
 .conflicts {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  min-height: 2.875rem;
-  min-width: 9.5rem;
-  justify-content: center;
-  padding: 0 var(--space-4);
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-pill);
-  color: var(--dash-t2);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--dash-warn);
+  font-size: var(--dash-fs-meta);
+  font-weight: 500;
+  line-height: var(--dash-lh-meta);
 }
 
-.conflicts[data-conflicts="some"] {
-  border-color: var(--dash-danger);
-  color: var(--dash-danger);
-}
-
-.steps {
-  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
-}
-
+.steps,
 .view {
   composes: segment from '../../../assets/styles/dashboard-controls.module.css';
 }
 
-.step {
-  composes: option from '../../../assets/styles/dashboard-controls.module.css';
-}
-
+.step,
 .option {
   composes: option from '../../../assets/styles/dashboard-controls.module.css';
 }
@@ -106,20 +112,19 @@
   composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
 }
 
-/* The working-days switch: a labelled pill at the row's height, with a track and a thumb. */
+/* The working-days switch: a label with a small track and a thumb, no box. */
 .switch {
   display: inline-flex;
   align-items: center;
-  gap: 0.625rem;
-  min-height: 2.875rem;
-  padding: 0 var(--space-4);
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-edge);
-  border-radius: var(--radius-pill);
+  gap: var(--space-2);
+  height: var(--dash-h-control);
+  padding: 0;
+  background: transparent;
+  border: 0;
   color: var(--dash-t1);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -127,20 +132,22 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  width: 2rem;
-  height: 1.125rem;
+  width: 1.75rem;
+  height: 1rem;
   padding: 0.125rem;
-  background: transparent;
+  box-sizing: border-box;
+  background: var(--dash-surface);
   border: 1px solid var(--dash-edge);
   border-radius: var(--radius-pill);
+  transition: background-color 120ms;
 }
 
 .thumb {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 0.625rem;
+  height: 0.625rem;
   border-radius: var(--radius-round);
   background: var(--dash-t2);
-  transition: transform var(--dur-2) var(--ease-std);
+  transition: transform 120ms;
 }
 
 .switch[aria-checked="true"] .track {
@@ -150,11 +157,18 @@
 
 .switch[aria-checked="true"] .thumb {
   background: var(--dash-on-fill);
-  transform: translateX(0.875rem);
+  transform: translateX(0.75rem);
 }
 
-@media (hover: hover) {
-  .switch:hover {
-    box-shadow: inset 0 0 0 1px var(--dash-accent);
+@media (max-width: 63.99rem) {
+  .right {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .track {
+    border-color: ButtonText;
   }
 }

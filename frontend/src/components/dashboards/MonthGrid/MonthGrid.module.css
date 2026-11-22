@@ -1,10 +1,10 @@
-/* The scroll box is focusable (tabIndex 0 in the markup) so a keyboard user
-   can scroll it on a narrow screen; the global focus ring shows on it. */
+/* The frame: glass like the week's (recipes.module.css .glassDash). The scroll box is focusable (tabIndex 0 in
+   the markup) so a keyboard user can scroll it on a narrow screen; the global focus ring shows on it. */
 .scroll {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
   padding: var(--space-3);
   overflow-x: auto;
-  border-radius: var(--dash-r-hero);
+  border-radius: var(--dash-r-surface);
 }
 
 .table {
@@ -18,15 +18,15 @@
   min-width: 32rem;
 }
 
+/* The weekday: sentence case, 12px 500 t2, no capitals. */
 .weekday {
   padding: 0 0 var(--space-2);
   border-bottom: 1px solid var(--dash-line);
   color: var(--dash-t2);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-medium);
-  letter-spacing: var(--tracking-caps);
+  font-size: var(--dash-fs-meta);
+  font-weight: 500;
+  line-height: var(--dash-lh-meta);
   text-align: center;
-  text-transform: uppercase;
 }
 
 .cell {
@@ -35,38 +35,39 @@
   vertical-align: top;
 }
 
-/* Days of the neighbouring months: simply quieter - a faint fill, a lighter number, outlined chips. */
-.cell[data-muted="true"] {
-  background-color: var(--dash-chip);
+/* Saturday and Sunday: the same chip tint as the week view's columns. */
+.weekend {
+  background-color: rgba(var(--dash-chip-rgb), 0.4);
 }
 
-/* Today: a filled circle behind the date number, and a faint tint on the cell. */
-.today {
-  background-color: rgba(var(--dash-fill-rgb), 0.06);
+/* A neighbouring month's days: no fill, grey numerals. */
+.cell[data-muted="true"] {
+  background-color: transparent;
 }
 
 /* The whole day is the button: a target far above 44px. */
 .day {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   width: 100%;
-  min-height: 7rem;
-  padding: 0.5rem;
+  min-height: 7.5rem;
+  padding: var(--space-2);
+  box-sizing: border-box;
   background: transparent;
   border: 0;
   color: var(--dash-t1);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-meta);
   text-align: left;
   cursor: pointer;
 }
 
-/* The date number, then (when there is a conflict) the warning icon beside it. */
+/* The date number, then (when there is a conflict) the warn triangle beside it. */
 .top {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: var(--space-2);
   min-height: 1.75rem;
 }
 
@@ -76,84 +77,106 @@
   justify-content: center;
   min-width: 1.75rem;
   height: 1.75rem;
-  padding: 0 0.25rem;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-round);
   color: var(--dash-t1);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
 }
 
 .cell[data-muted="true"] .number {
   color: var(--dash-t3);
-  font-weight: var(--fw-regular);
+  font-weight: 400;
 }
 
+/* Today: the neutral filled circle, as in the week's header. */
 .today .number {
-  background: var(--dash-fill);
-  color: var(--dash-on-fill);
-  font-weight: var(--fw-bold);
+  background: var(--dash-t1);
+  color: var(--dash-surface);
 }
 
 .alert {
-  color: var(--dash-danger);
+  color: var(--dash-warn);
 }
 
-.chips {
+/* Events as rows: 20px high, a 6px dot, the title, the time at the right. */
+.rows {
   display: flex;
   flex-direction: column;
-  gap: 0.1875rem;
 }
 
-.chip {
-  --event-rgb: var(--dash-ink-personal-rgb);
-  display: block;
-  padding: 0.25rem 0.5rem;
+.row {
+  --ink: var(--dash-ink-personal);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 1.25rem;
+  min-width: 0;
+}
+
+.row[data-for="work-1"],
+.dotMark[data-for="work-1"] {
+  --ink: var(--dash-ink-work-1);
+}
+
+.row[data-for="work-2"],
+.dotMark[data-for="work-2"] {
+  --ink: var(--dash-ink-work-2);
+}
+
+.dotMark {
+  --ink: var(--dash-ink-personal);
+  flex: none;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--radius-round);
+  background: var(--ink);
+}
+
+.row .dotMark {
+  --ink: inherit;
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
-  background: rgba(var(--event-rgb), 0.14);
-  border: 1px solid rgba(var(--event-rgb), 0.4);
-  border-radius: var(--radius-md);
   color: var(--dash-t1);
-  line-height: 1.3;
+  line-height: var(--dash-lh-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.chip[data-for="work-1"] {
-  --event-rgb: var(--dash-ink-work-1-rgb);
+.time {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  flex: none;
+  color: var(--dash-t2);
 }
 
-.chip[data-for="work-2"] {
-  --event-rgb: var(--dash-ink-work-2-rgb);
-}
-
-/* "+N more": a quiet text button, in line with the chips' text. */
+/* "+N": quiet text. */
 .more {
-  padding: 0.125rem 0.5rem;
+  height: 1.25rem;
   color: var(--dash-t2);
-  font-weight: var(--fw-medium);
+  line-height: 1.25rem;
 }
 
-.day:hover .more {
-  color: var(--dash-accent);
-  text-decoration: underline;
-  text-underline-offset: 0.1875rem;
+/* Dots: a neighbouring month's days, and a phone's days. */
+.dots {
+  display: none;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }
 
-/* A neighbouring month's events are muted with it: neutral chips in the secondary ink. */
-.cell[data-muted="true"] .chip {
-  background: transparent;
-  border-color: var(--dash-line);
-  color: var(--dash-t2);
+.cell[data-muted="true"] .dots {
+  display: flex;
 }
 
-/* A conflict is the warning icon beside the date (and the button's name); the cell is not framed. */
 .day:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
 }
 
-/* A phone: seven columns are about 55px each, so a day is its number and one dot per event
-   (the button's name says the count), and the table fits the screen. */
+/* A phone: seven columns are about 55px each, so a day is its number and one dot per event (the button's
+   name says the count), and the table fits the screen. */
 @media (max-width: 47.99rem) {
   .table {
     min-width: 0;
@@ -161,37 +184,17 @@
 
   .day {
     align-items: center;
-    gap: 0.25rem;
     min-height: 4rem;
-    padding: 0.375rem 0.125rem;
+    padding: var(--space-1);
   }
 
-  .top {
-    gap: 0.125rem;
-  }
-
-  .chips {
-    flex-flow: row wrap;
-    justify-content: center;
-    gap: 0.1875rem;
-  }
-
-  .chip {
-    width: 0.5rem;
-    height: 0.5rem;
-    padding: 0;
-    font-size: 0;
-    border-radius: var(--radius-round);
-    background: rgba(var(--event-rgb), 0.9);
-    border: 0;
-  }
-
-  .cell[data-muted="true"] .chip {
-    background: var(--dash-t3);
-  }
-
-  .more {
+  .rows {
     display: none;
+  }
+
+  .dots {
+    display: flex;
+    justify-content: center;
   }
 }
 
@@ -202,8 +205,7 @@
 }
 
 @media (forced-colors: active) {
-  .cell,
-  .chip {
+  .cell {
     border-color: CanvasText;
   }
 }

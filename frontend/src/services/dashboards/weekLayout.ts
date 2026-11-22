@@ -102,47 +102,74 @@ export function findConflicts(events: readonly DatedEvent[]): Conflicts {
   return { ids, count };
 }
 
+/** Events of one start minute that stay side by side in a crowded cluster; the rest fold into a "+N" chip. */
+const SIMULTANEOUS = 2;
+
+/** A crowded cluster (this many columns or more) is laid out as a cascade instead of equal columns. */
+const CASCADE_FROM = 3;
+
+/** The cascade stops indenting after this many steps, so the last blocks still have a readable width. */
+const MAX_LEVEL = 4;
+
+export interface Arranged<T extends TimeSpan> extends Placement<T> {
+  /** The indent step of the block (0 is flush left): each later start of a crowded cluster sits one step further in. */
+  readonly level: number;
+  /** Its slot among the blocks that share its indent and start, and how many slots that row has. */
+  readonly slot: number;
+  readonly slots: number;
+}
+
 export interface Stack<T extends TimeSpan> {
-  /** The column the "+N" chip sits in. */
-  readonly column: number;
-  readonly columns: number;
+  readonly level: number;
+  readonly slot: number;
+  readonly slots: number;
   readonly startMin: number;
   readonly endMin: number;
   /** The events folded into the chip. */
   readonly hidden: readonly T[];
 }
 
-export interface Collapsed<T extends TimeSpan> {
-  readonly placements: Placement<T>[];
+export interface Arrangement<T extends TimeSpan> {
+  readonly placements: Arranged<T>[];
   readonly stacks: Stack<T>[];
 }
 
 /**
- * A cluster of more than `max` side-by-side columns would leave each block a
- * few characters wide. Such a cluster keeps its first `max - 1` columns and
- * folds the rest into one "+N" stack in the last of `max` columns, spanning the
- * time of the folded events. Smaller clusters are untouched. `placed` is the
- * output of layoutDay (in start order).
+ * How a day's blocks are drawn. A cluster of one or two columns keeps what layoutDay made: equal columns side by
+ * side (level 0). A cluster of three or more would leave each block a few characters wide, so it becomes a
+ * cascade: sorted by start, each later start is indented one step (a quarter of a rem) further in, takes the
+ * rest of the width and stacks above the earlier ones; blocks that start in the same minute stay side by side,
+ * two at most, and any more fold into one "+N" chip beside them. `placed` is layoutDay's output (in start order).
  */
-export function collapseColumns<T extends TimeSpan>(placed: readonly Placement<T>[], max = 3): Collapsed<T> {
-  const placements: Placement<T>[] = [];
+export function arrangeDay<T extends TimeSpan>(placed: readonly Placement<T>[]): Arrangement<T> {
+  const placements: Arranged<T>[] = [];
   const stacks: Stack<T>[] = [];
   let cluster: Placement<T>[] = [];
   let clusterEnd = -Infinity;
 
   const flush = () => {
     if (cluster.length === 0) return;
-    if (cluster[0].columns <= max) {
-      placements.push(...cluster);
+    if (cluster[0].columns < CASCADE_FROM) {
+      placements.push(...cluster.map((p) => ({ ...p, level: 0, slot: p.column, slots: p.columns })));
     } else {
-      const folded = cluster.filter((p) => p.column >= max - 1);
-      placements.push(...cluster.filter((p) => p.column < max - 1).map((p) => ({ ...p, columns: max })));
-      stacks.push({
-        column: max - 1,
-        columns: max,
-        startMin: Math.min(...folded.map((p) => p.startMin)),
-        endMin: Math.max(...folded.map((p) => p.endMin)),
-        hidden: folded.map((p) => p.event),
+      const starts = [...new Set(cluster.map((p) => p.startMin))];
+      starts.forEach((start, index) => {
+        const level = Math.min(index, MAX_LEVEL);
+        const group = cluster.filter((p) => p.startMin === start);
+        const shown = group.slice(0, SIMULTANEOUS);
+        const folded = group.slice(SIMULTANEOUS);
+        const slots = shown.length + (folded.length > 0 ? 1 : 0);
+        shown.forEach((p, slot) => placements.push({ ...p, level, slot, slots }));
+        if (folded.length > 0) {
+          stacks.push({
+            level,
+            slot: shown.length,
+            slots,
+            startMin: start,
+            endMin: Math.max(...folded.map((p) => p.endMin)),
+            hidden: folded.map((p) => p.event),
+          });
+        }
       });
     }
     cluster = [];

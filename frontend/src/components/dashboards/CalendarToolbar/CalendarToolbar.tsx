@@ -8,7 +8,9 @@ import styles from './CalendarToolbar.module.css';
 export type CalendarView = 'week' | 'month';
 
 export interface CalendarToolbarProps {
-  /** Overlapping events of different spaces in what is on screen. */
+  /** The range on screen ("23–29 November"): the page's one 20px line, the h1 (with "Calendar" for screen readers). */
+  period: string;
+  /** Overlapping events of different spaces in what is on screen; shown only above zero. */
   conflicts: number;
   view: CalendarView;
   /** A phone shows one day at a time: the arrows step by a day. */
@@ -23,32 +25,64 @@ export interface CalendarToolbarProps {
 }
 
 /**
- * The calendar's controls: the legend (one colour per space), the count of
- * conflicts, previous / today / next (a week or a month, by the view) and the
- * Week / Month switch.
+ * The calendar's one toolbar row: the range (h1), previous / Today / next, then at the right the legend (a dot
+ * per space and a hatched swatch for blocks with no details), the conflict count when there is one, the
+ * working-days switch and the Week / Month switch. On a phone it wraps to two rows.
  */
-const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, day = false, onView, onPrev, onNext, onToday, workdaysOnly, onWorkdaysOnly }) => {
+const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
+  period,
+  conflicts,
+  view,
+  day = false,
+  onView,
+  onPrev,
+  onNext,
+  onToday,
+  workdaysOnly,
+  onWorkdaysOnly,
+}) => {
   const { t, text } = useDashboardLang();
   const week = view === 'week';
   const prev = week ? (day ? t.prevDay : t.prevWeek) : t.prevMonth;
   const next = week ? (day ? t.nextDay : t.nextWeek) : t.nextMonth;
   return (
     <div className={styles.toolbar}>
-      <div className={styles.left}>
-      <ul className={styles.legend}>
-        {SPACES.map((space) => (
-          <li key={space} className={styles.item}>
-            <span aria-hidden="true" className={styles.swatch} data-for={space} />
-            {text(SPACE_NAME[space])}
-          </li>
-        ))}
-      </ul>
-      <p className={styles.conflicts} data-conflicts={conflicts > 0 ? 'some' : 'none'}>
-        {conflicts > 0 && <DashIcon name="alert" size={14} strokeWidth={2.2} />}
-        <span>{conflicts > 0 ? `${t.conflicts}: ${conflicts}` : t.noConflicts}</span>
-      </p>
+      <h1 id="calendar-title" className={styles.title}>
+        <span className="sr-only">{t.calendarTitle}: </span>
+        {period}
+      </h1>
+      <div role="group" aria-label={t.periodLabel} className={styles.steps}>
+        <button type="button" className={cx(styles.step, styles.square)} aria-label={prev} onClick={onPrev}>
+          <DashIcon name="prev" size={16} />
+        </button>
+        <button type="button" className={styles.step} onClick={onToday}>
+          {t.today}
+        </button>
+        <button type="button" className={cx(styles.step, styles.square)} aria-label={next} onClick={onNext}>
+          <DashIcon name="next" size={16} />
+        </button>
       </div>
-      <div className={styles.controls}>
+      <div className={styles.right}>
+        <ul className={styles.legend}>
+          {SPACES.map((space) => (
+            <li key={space} className={styles.item}>
+              <span aria-hidden="true" className={styles.dot} data-for={space} />
+              {text(SPACE_NAME[space])}
+            </li>
+          ))}
+          <li className={styles.item}>
+            <span aria-hidden="true" className={styles.hatch} />
+            {t.busyNoDetails}
+          </li>
+        </ul>
+        {conflicts > 0 && (
+          <p className={styles.conflicts}>
+            <DashIcon name="alert" size={14} />
+            <span>
+              {t.conflicts}: {conflicts}
+            </span>
+          </p>
+        )}
         <button
           type="button"
           role="switch"
@@ -61,35 +95,14 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, day 
           </span>
           {t.workdaysOnly}
         </button>
-      <div role="group" aria-label={t.periodLabel} className={styles.steps}>
-        <button type="button" className={cx(styles.step, styles.square)} aria-label={prev} onClick={onPrev}>
-          <DashIcon name="prev" size={18} strokeWidth={2.2} />
-        </button>
-        <button type="button" className={styles.step} onClick={onToday}>
-          {t.today}
-        </button>
-        <button type="button" className={cx(styles.step, styles.square)} aria-label={next} onClick={onNext}>
-          <DashIcon name="next" size={18} strokeWidth={2.2} />
-        </button>
-      </div>
-      <div role="group" aria-label={t.viewLabel} className={styles.view}>
-        <button
-          type="button"
-          aria-pressed={week}
-          className={cx(styles.option, week && styles.on)}
-          onClick={() => onView('week')}
-        >
-          {t.week}
-        </button>
-        <button
-          type="button"
-          aria-pressed={!week}
-          className={cx(styles.option, !week && styles.on)}
-          onClick={() => onView('month')}
-        >
-          {t.month}
-        </button>
-      </div>
+        <div role="group" aria-label={t.viewLabel} className={styles.view}>
+          <button type="button" aria-pressed={week} className={cx(styles.option, week && styles.on)} onClick={() => onView('week')}>
+            {t.week}
+          </button>
+          <button type="button" aria-pressed={!week} className={cx(styles.option, !week && styles.on)} onClick={() => onView('month')}>
+            {t.month}
+          </button>
+        </div>
       </div>
     </div>
   );

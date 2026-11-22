@@ -1,29 +1,18 @@
-.note {
-  color: var(--dash-t2);
-  font-size: var(--fs-xs);
-  line-height: var(--lh-snug);
-}
-
 /* The quiet note about the weekend events a working-days view hides, with the way to show them. */
 .hidden {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0 var(--space-3);
+  margin: 0;
   color: var(--dash-t2);
-  font-size: var(--fs-xs);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
 }
 
 .show {
-  min-height: 2.75rem;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  color: var(--dash-accent);
-  font-family: var(--font-mono);
-  font-size: inherit;
-  font-weight: var(--fw-semibold);
+  composes: button buttonGhost from '../assets/styles/dashboard-controls.module.css';
+  padding-inline: var(--space-2);
   text-decoration: underline;
-  text-underline-offset: 0.1875rem;
-  cursor: pointer;
+  text-underline-offset: 0.25rem;
 }
