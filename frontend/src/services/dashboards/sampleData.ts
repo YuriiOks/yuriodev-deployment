@@ -56,13 +56,27 @@ const pr = (
   ...extra,
 });
 
+/** The panels whose rows carry references, actions or long titles: the grid gives them room (Panel.roomy). */
+const ROOMY_PANELS: ReadonlySet<string> = new Set([
+  'personal-mail-reply',
+  'personal-mail-raised',
+  'personal-mail-junk',
+  'personal-inbox',
+  'work-1-waiting',
+  'work-1-review',
+  'work-1-mine',
+  'work-1-comments',
+  'work-1-linear',
+  'work-1-notion',
+]);
+
 const panel = (
   id: string,
   tab: TabId,
   title: Localized,
   rows: readonly Row[],
   extra: Partial<Omit<Panel, 'id' | 'tab' | 'title' | 'rows'>> = {},
-): Panel => ({ id, tab, title, rows, ...extra });
+): Panel => ({ id, tab, title, rows, ...(ROOMY_PANELS.has(id) ? { roomy: true } : {}), ...extra });
 
 const PERSONAL: SpaceData = {
   id: 'personal',

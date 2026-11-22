@@ -112,6 +112,11 @@ export interface Panel {
   /** The priority panel: the full row, its rows tinted. */
   readonly priority?: boolean;
   readonly rows: readonly Row[];
+  /**
+   * Its rows carry references, actions or long titles (pull requests, tickets, mail): the panel is laid
+   * out two to a row at desktop widths instead of three, so a title keeps room.
+   */
+  readonly roomy?: boolean;
   /** Shown, muted, when the panel has no rows yet (not counted as an item). */
   readonly empty?: Localized;
   readonly tiles?: readonly Tile[];

@@ -101,3 +101,59 @@ export function findConflicts(events: readonly DatedEvent[]): Conflicts {
   });
   return { ids, count };
 }
+
+export interface Stack<T extends TimeSpan> {
+  /** The column the "+N" chip sits in. */
+  readonly column: number;
+  readonly columns: number;
+  readonly startMin: number;
+  readonly endMin: number;
+  /** The events folded into the chip. */
+  readonly hidden: readonly T[];
+}
+
+export interface Collapsed<T extends TimeSpan> {
+  readonly placements: Placement<T>[];
+  readonly stacks: Stack<T>[];
+}
+
+/**
+ * A cluster of more than `max` side-by-side columns would leave each block a
+ * few characters wide. Such a cluster keeps its first `max - 1` columns and
+ * folds the rest into one "+N" stack in the last of `max` columns, spanning the
+ * time of the folded events. Smaller clusters are untouched. `placed` is the
+ * output of layoutDay (in start order).
+ */
+export function collapseColumns<T extends TimeSpan>(placed: readonly Placement<T>[], max = 3): Collapsed<T> {
+  const placements: Placement<T>[] = [];
+  const stacks: Stack<T>[] = [];
+  let cluster: Placement<T>[] = [];
+  let clusterEnd = -Infinity;
+
+  const flush = () => {
+    if (cluster.length === 0) return;
+    if (cluster[0].columns <= max) {
+      placements.push(...cluster);
+    } else {
+      const folded = cluster.filter((p) => p.column >= max - 1);
+      placements.push(...cluster.filter((p) => p.column < max - 1).map((p) => ({ ...p, columns: max })));
+      stacks.push({
+        column: max - 1,
+        columns: max,
+        startMin: Math.min(...folded.map((p) => p.startMin)),
+        endMin: Math.max(...folded.map((p) => p.endMin)),
+        hidden: folded.map((p) => p.event),
+      });
+    }
+    cluster = [];
+    clusterEnd = -Infinity;
+  };
+
+  for (const p of placed) {
+    if (p.startMin >= clusterEnd) flush();
+    cluster.push(p);
+    clusterEnd = Math.max(clusterEnd, p.endMin);
+  }
+  flush();
+  return { placements, stacks };
+}

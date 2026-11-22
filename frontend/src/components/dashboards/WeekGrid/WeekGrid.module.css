@@ -153,9 +153,9 @@ th.today {
   background-image: repeating-linear-gradient(
     135deg,
     transparent 0,
-    transparent 0.375rem,
-    rgba(var(--event-rgb), 0.12) 0.375rem,
-    rgba(var(--event-rgb), 0.12) 0.75rem
+    transparent 0.5rem,
+    rgba(var(--event-rgb), 0.06) 0.5rem,
+    rgba(var(--event-rgb), 0.06) 0.625rem
   );
 }
 
@@ -232,4 +232,32 @@ th.today {
   .event {
     border-color: CanvasText;
   }
+}
+
+/* A block that shares its day with two or more others (three columns, about 55px): the smaller
+   type step and tighter padding, no visible time (it is in the tooltip and the accessible text),
+   and the conflict mark in the bottom corner so it takes no text width. */
+.event[data-dense="true"] {
+  padding: 0.125rem 0.25rem;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+
+.event[data-dense="true"] .head {
+  position: absolute;
+  right: 0.125rem;
+  bottom: 0.125rem;
+}
+
+/* The "+N" chip that folds the events of a crowded column. */
+.event[data-stack="true"] {
+  align-items: center;
+  justify-content: center;
+  background: var(--dash-chip);
+  border-color: var(--dash-edge);
+}
+
+.event[data-stack="true"] .name {
+  font-size: var(--fs-2xs);
+  text-align: center;
 }

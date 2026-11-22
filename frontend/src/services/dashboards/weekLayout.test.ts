@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findConflicts, layoutDay, overlaps, toMinutes, type DatedEvent } from './weekLayout';
+import { collapseColumns, findConflicts, layoutDay, overlaps, toMinutes, type DatedEvent } from './weekLayout';
 
 const ev = (id: string, start: string, end: string) => ({ id, start, end });
 const cols = (events: ReturnType<typeof ev>[]) =>
@@ -141,5 +141,47 @@ describe('findConflicts', () => {
       dated('c', 4, '15:30', '16:30', 'personal'),
     ]);
     expect([...result.ids].sort()).toEqual(['b', 'c']);
+  });
+});
+
+describe('collapseColumns', () => {
+  const placed = (events: ReturnType<typeof ev>[]) => layoutDay(events);
+
+  it('leaves clusters of up to three columns alone', () => {
+    const result = collapseColumns(placed([ev('a', '15:00', '17:00'), ev('b', '15:30', '16:30'), ev('c', '16:00', '16:45')]));
+    expect(result.stacks).toEqual([]);
+    expect(result.placements.map((p) => `${p.column}/${p.columns}`)).toEqual(['0/3', '1/3', '2/3']);
+  });
+
+  it('folds the columns past the second into one "+N" stack in the third column', () => {
+    const events = [
+      ev('a', '15:00', '17:00'),
+      ev('b', '15:15', '16:45'),
+      ev('c', '15:30', '16:30'),
+      ev('d', '16:00', '16:45'),
+      ev('x', '09:00', '10:00'),
+    ];
+    const result = collapseColumns(placed(events));
+    const byId = Object.fromEntries(result.placements.map((p) => [p.event.id, `${p.column}/${p.columns}`]));
+    expect(byId).toEqual({ x: '0/1', a: '0/3', b: '1/3' });
+    expect(result.stacks).toHaveLength(1);
+    const [stack] = result.stacks;
+    expect(stack.column).toBe(2);
+    expect(stack.columns).toBe(3);
+    expect(stack.hidden.map((e) => e.id).sort()).toEqual(['c', 'd']);
+    expect(stack.startMin).toBe(toMinutes('15:30'));
+    expect(stack.endMin).toBe(toMinutes('16:45'));
+  });
+
+  it('folds each crowded cluster of a day on its own', () => {
+    const cluster = (h: number) => [
+      ev(`a${h}`, `${h}:00`, `${h + 1}:00`),
+      ev(`b${h}`, `${h}:10`, `${h + 1}:00`),
+      ev(`c${h}`, `${h}:20`, `${h + 1}:00`),
+      ev(`d${h}`, `${h}:30`, `${h + 1}:00`),
+    ];
+    const result = collapseColumns(placed([...cluster(10), ...cluster(14)]));
+    expect(result.stacks).toHaveLength(2);
+    expect(result.stacks.map((s) => s.hidden.length)).toEqual([2, 2]);
   });
 });

@@ -268,7 +268,8 @@ const SHARED_PAIRS: Pair[] = [
 /* The dashboards' glass (recipes.module.css .glassDash): its translucent fill
    over what really sits behind it, which is only the page's own colour and
    its three glows (nothing scrolls behind a card). The glows are held at
-   their peak strength, alone and the two strongest stacked on each other.
+   their peak strength, each on its own (their centres are in three different
+   places of the viewport, so two peaks never coincide).
    Text on glass is t1, t2, accent or title; t3 is for solid surfaces only. */
 const GLOW = (n: 'a' | 'b' | 'c') => `rgba(var(--dash-glow-${n}-rgb), var(--dash-glow-${n}))`;
 const GLASS_BACKS: readonly (readonly string[])[] = [
@@ -276,7 +277,6 @@ const GLASS_BACKS: readonly (readonly string[])[] = [
   [GLOW('a'), '--dash-bg'],
   [GLOW('b'), '--dash-bg'],
   [GLOW('c'), '--dash-bg'],
-  [GLOW('b'), GLOW('a'), '--dash-bg'],
 ];
 /** `over` painted on the glass, on each of the backings. */
 const onGlass = (over: readonly string[] = []): (readonly string[])[] =>
@@ -289,7 +289,8 @@ const GLASS_PAIRS: Pair[] = [
   ...cross([...GLASS_TEXT_TOKENS, '--dash-ok'], onGlass(), TEXT),
   // Text on the page itself, over the glows (the lead, the toolbar's legend). The
   // title ink is only the page's h1 there, which is large text.
-  ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], GLASS_BACKS, TEXT),
+  // (The accent is never page text: it is only on the glass and on tints.)
+  ...cross(['--dash-t1', '--dash-t2'], GLASS_BACKS, TEXT),
   ...cross(['--dash-title'], GLASS_BACKS, LARGE),
   // A priority row (tinted) and the selected tab, day or link, on the glass.
   ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], onGlass(['--dash-prio-bg']), TEXT),
@@ -305,7 +306,6 @@ const SHARED_GLASS_PAIRS: Pair[] = [
     cross(['--dash-t1'], [...onGlass([`rgba(var(${rgb}), 0.14)`]), ...onGlass([`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg'])], TEXT),
   ),
   // A space's own ink as text on the glass (the entrance cards' names), over the page and each glow
-  // on its own: the two strongest glows are not centred on one card.
   ...cross(SPACE_INKS, onGlass().slice(0, 4), TEXT),
 ];
 

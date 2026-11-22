@@ -3,7 +3,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { SPACE_NAME } from '../../../services/dashboards/spaces';
 import { dayOfMonth, weekdayIndex } from '../../../services/dashboards/calendarDates';
 import type { CalEvent } from '../../../services/dashboards/types';
-import { layoutDay, toMinutes, type Conflicts } from '../../../services/dashboards/weekLayout';
+import { collapseColumns, layoutDay, toMinutes, type Conflicts } from '../../../services/dashboards/weekLayout';
 import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import styles from './WeekGrid.module.css';
@@ -46,7 +46,8 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
   const single = dates.length === 1;
 
   // Every day has the same width, as in a calendar; a day's own overlapping events share its column.
-  const days = dates.map((date) => ({ date, placed: layoutDay(events.filter((event) => event.date === date)) }));
+  // A cluster of more than three columns folds its extra events into a "+N" chip (collapseColumns).
+  const days = dates.map((date) => ({ date, ...collapseColumns(layoutDay(events.filter((event) => event.date === date))) }));
 
   return (
     <div className={styles.scroll}>
@@ -82,10 +83,10 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
                 </span>
               ))}
             </td>
-            {days.map(({ date, placed }) => (
+            {days.map(({ date, placements, stacks }) => (
               <td key={date} className={cx(styles.column, date === today && styles.today)}>
                 <ul className={styles.events}>
-                  {placed.map(({ event, startMin, endMin, column, columns }) => {
+                  {placements.map(({ event, startMin, endMin, column, columns }) => {
                     const conflict = conflicts.ids.has(event.id);
                     const minutes = endMin - startMin;
                     const dense = columns >= DENSE_COLUMNS;
@@ -96,6 +97,8 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
                     const showNote = Boolean(event.note) && !short && !dense && minutes >= TALL_MINUTES;
                     const space = text(SPACE_NAME[event.space]);
                     const title = text(event.title);
+                    // A dense block with room and a title of several words wraps it (at spaces only).
+                    const denseWrap = dense && minutes >= 45 && /\s/.test(title);
                     const range = `${event.start}–${event.end}`;
                     return (
                       <li
@@ -105,7 +108,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
                         data-conflict={conflict ? 'true' : undefined}
                         data-short={short ? 'true' : undefined}
                         data-dense={dense ? 'true' : undefined}
-                        data-wrap={wrap ? 'true' : undefined}
+                        data-wrap={wrap || denseWrap ? 'true' : undefined}
                         data-note={event.note ? 'true' : undefined}
                         title={[`${space}: ${range} ${title}`, event.note ? text(event.note) : ''].filter(Boolean).join(' · ')}
                         style={vars({
@@ -122,11 +125,39 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
                         {(!dense || conflict) && (
                           <span aria-hidden="true" className={styles.head}>
                             {!dense && <span className={styles.time}>{startOnly ? event.start : range}</span>}
-                            {conflict && <DashIcon name="alert" size={12} strokeWidth={2.2} className={styles.alert} />}
+                            {conflict && <DashIcon name="alert" size={dense ? 10 : 12} strokeWidth={2.2} className={styles.alert} />}
                           </span>
                         )}
                         <span className={styles.name}>{title}</span>
                         {event.note && (showNote ? <span className={styles.note}>{text(event.note)}</span> : <span className="sr-only">{text(event.note)}</span>)}
+                      </li>
+                    );
+                  })}
+                  {stacks.map((stack) => {
+                    const names = stack.hidden.map((event) => `${event.start}–${event.end} ${text(event.title)}`);
+                    const marked = stack.hidden.some((event) => conflicts.ids.has(event.id));
+                    return (
+                      <li
+                        key={stack.hidden.map((event) => event.id).join('+')}
+                        className={styles.event}
+                        data-stack="true"
+                        data-dense="true"
+                        data-conflict={marked ? 'true' : undefined}
+                        title={names.join(' · ')}
+                        style={vars({
+                          '--top': (stack.startMin - firstMinute) / 60,
+                          '--span': (stack.endMin - stack.startMin) / 60,
+                          '--col': stack.column,
+                          '--cols': stack.columns,
+                        })}
+                      >
+                        <span className="sr-only">
+                          {t.moreEvents.replace('{n}', String(stack.hidden.length))}: {marked ? `${t.conflictMark}. ` : ''}
+                          {names.join('; ')}
+                        </span>
+                        <span aria-hidden="true" className={styles.name}>
+                          +{stack.hidden.length}
+                        </span>
                       </li>
                     );
                   })}

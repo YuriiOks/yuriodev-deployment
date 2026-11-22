@@ -63,3 +63,8 @@
   font-size: var(--fs-xs);
   line-height: var(--lh-snug);
 }
+
+/* The odd panel left over when the others are in pairs: the whole row. */
+.fill {
+  grid-column: 1 / -1;
+}

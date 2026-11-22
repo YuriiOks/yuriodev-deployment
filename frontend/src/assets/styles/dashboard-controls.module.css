@@ -43,9 +43,20 @@
     padding: 0;
 }
 
+/* The selected one: the fill alone (no hover ring), and its keyboard focus ring is drawn inside it
+   in the fill's own ink, so there is one clear selected state and no second outline on it. */
 .optionOn {
     background: var(--dash-fill);
     color: var(--dash-on-fill);
+}
+
+.optionOn:hover {
+    box-shadow: none;
+}
+
+.optionOn:focus-visible {
+    outline: 2px solid var(--dash-on-fill);
+    outline-offset: -4px;
 }
 
 /* Hover rings the button's own shape in the accent, so it never looks like the selected (filled) one. */
