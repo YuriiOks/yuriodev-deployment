@@ -10,13 +10,18 @@ import styles from './DashboardBar.module.css';
 
 const navClass = ({ isActive }: { isActive: boolean }) => cx(styles.link, isActive && styles.active);
 
+export interface DashboardBarProps {
+  /** A phone: the bar is only the pages (no brand, no switches; the shell puts the switches at the page's end). */
+  phone?: boolean;
+}
+
 /**
- * The dashboards' only chrome (the site's header is not on these pages): a
- * link back to the site, the five pages, the language switch and the theme
- * toggle. On a narrow screen the pages become one scrollable row under the
- * brand and the two switches.
+ * The dashboards' only chrome (the site's header is not on these pages), sticky at the top: the one place
+ * that is glass, because the content scrolls under it. A link back to the site, a hairline divider, the five
+ * pages as text links (the current one underlined in the space's colour), the language switch and the theme
+ * toggle.
  */
-const DashboardBar: React.FC = () => {
+const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t, text } = useDashboardLang();
   const items: ReadonlyArray<readonly [PageId, string]> = [
     ['dashboards', t.navAll],
@@ -25,22 +30,31 @@ const DashboardBar: React.FC = () => {
   ];
 
   return (
-    <div className={styles.bar}>
-      <Link to="/" className={styles.brand} aria-label={t.backToSite}>
-        yuriodev
-      </Link>
-      <nav aria-label={t.navLabel} className={styles.nav}>
-        {items.map(([id, label]) => (
-          <NavLink key={id} to={pagePath(id)} end className={navClass}>
-            {label}
-          </NavLink>
-        ))}
-      </nav>
-      <div className={styles.tools}>
-        <LangSwitch />
-        <ThemeToggle />
+    <header className={styles.bar}>
+      <div className={styles.inner}>
+        {!phone && (
+          <>
+            <Link to="/" className={styles.brand} aria-label={t.backToSite}>
+              yuriodev
+            </Link>
+            <span aria-hidden="true" className={styles.divider} />
+          </>
+        )}
+        <nav aria-label={t.navLabel} className={styles.nav}>
+          {items.map(([id, label]) => (
+            <NavLink key={id} to={pagePath(id)} end className={navClass}>
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+        {!phone && (
+          <div className={styles.tools}>
+            <LangSwitch />
+            <ThemeToggle />
+          </div>
+        )}
       </div>
-    </div>
+    </header>
   );
 };
 

@@ -1,44 +1,4 @@
-/* A glyph in the colour of its tone; with none it takes the text colour around it. */
+/* A glyph takes the colour of the text around it. */
 .icon {
   flex: none;
-}
-
-.icon[data-tone="accent"] {
-  color: var(--dash-accent);
-}
-
-.icon[data-tone="ink"] {
-  color: var(--dash-t1);
-}
-
-.icon[data-tone="violet"] {
-  color: var(--hue-violet);
-}
-
-.icon[data-tone="teal"] {
-  color: var(--hue-teal);
-}
-
-.icon[data-tone="green"] {
-  color: var(--hue-green);
-}
-
-.icon[data-tone="blue"] {
-  color: var(--hue-blue);
-}
-
-.icon[data-tone="orange"] {
-  color: var(--hue-orange);
-}
-
-.icon[data-tone="pink"] {
-  color: var(--hue-pink);
-}
-
-.icon[data-tone="red"] {
-  color: var(--dash-danger);
-}
-
-.icon[data-tone="amber"] {
-  color: var(--dash-warn);
 }

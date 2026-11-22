@@ -1,10 +1,7 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { TAB_TONE } from '../../../services/dashboards/spaces';
 import type { Panel as PanelData } from '../../../services/dashboards/types';
-import { cx } from '../../../utils/cx';
 import AreaTiles from '../AreaTiles/AreaTiles';
-import DashIcon from '../DashIcon/DashIcon';
 import PanelRow from '../PanelRow/PanelRow';
 import styles from './Panel.module.css';
 
@@ -13,21 +10,18 @@ export interface PanelProps {
   /** Which tasks the visitor has ticked off or un-ticked, by row id, over each task's own state. */
   done: Readonly<Record<string, boolean>>;
   onToggle: (id: string) => void;
-  /** Spans the whole row of the grid (the odd panel left over when the rest are in pairs). */
-  fill?: boolean;
 }
 
-/** A titled group of rows (or the life-areas tiles). The priority panel spans the full row and tints its rows. */
-const Panel: React.FC<PanelProps> = ({ panel, done, onToggle, fill = false }) => {
+/** A titled group of rows (or the life-areas list): the title, a plain count, then the rows. No icon, no capsule. */
+const Panel: React.FC<PanelProps> = ({ panel, done, onToggle }) => {
   const { text } = useDashboardLang();
   const titleId = `panel-${panel.id}-title`;
-  // The priority panel has a flag; other overview panels are titled with no icon (it would be the same grid on each).
-  const headingIcon = panel.priority ? 'flag' : panel.tab === 'overview' ? null : panel.tab;
+  // One lead column per panel (checkbox or CI icon), reserved for every row if any row has one, so titles line up.
+  const lead = panel.rows.some((row) => row.kind !== 'info');
 
   return (
-    <section aria-labelledby={titleId} className={cx(styles.panel, panel.priority && styles.priority, fill && styles.fill)}>
+    <section aria-labelledby={titleId} className={styles.panel}>
       <div className={styles.head}>
-        {headingIcon && <DashIcon name={headingIcon} tone={TAB_TONE[panel.tab]} />}
         <h2 id={titleId} className={styles.title}>
           {text(panel.title)}
         </h2>
@@ -42,10 +36,9 @@ const Panel: React.FC<PanelProps> = ({ panel, done, onToggle, fill = false }) =>
             <PanelRow
               key={row.id}
               row={row}
-              tab={panel.tab}
+              lead={lead}
               done={done[row.id] ?? (row.kind === 'task' && row.done === true)}
               onToggle={onToggle}
-              tinted={panel.priority === true}
             />
           ))}
         </ul>

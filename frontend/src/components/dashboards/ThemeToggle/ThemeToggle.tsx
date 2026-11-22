@@ -11,7 +11,7 @@ const ThemeToggle: React.FC = () => {
   const dark = theme === 'dark';
   return (
     <button type="button" className={styles.toggle} onClick={toggleTheme} aria-label={dark ? t.themeToLight : t.themeToDark}>
-      <DashIcon name={dark ? 'sun' : 'moon'} size={20} />
+      <DashIcon name={dark ? 'sun' : 'moon'} size={16} />
     </button>
   );
 };

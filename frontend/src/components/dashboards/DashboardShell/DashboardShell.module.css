@@ -1,16 +1,24 @@
 /* The dashboards' page. The colours are the space's (data-space remaps the --dash-* tokens,
    _variables.css section 6). The background is its own full-viewport layer, fixed behind the content
    and sized to the viewport rather than to the page: the page colour and three soft radial glows
-   (--dash-glow-a/b/c, each a triplet and a strength per space and theme), so a short page is as
-   coloured as a long one and the glass visibly picks the colour up as the page scrolls. The root
-   itself is transparent. Text contrast is measured on the solid colour, and contrast.test.ts also
-   holds the text over each glow's peak. */
+   (--dash-glow-a/b/c, a triplet and a strength per space and theme, kept quiet), so a short page is as
+   coloured as a long one and the glass picks the colour up as the page scrolls. The root itself is
+   transparent. contrast.test.ts holds the text over the page and over each glow's peak.
+   The column is 72rem for the list pages and 96rem for the calendar (data-wide); the bar uses the
+   same column, so the brand, the first tab and the panels start at one edge. */
 .root {
+  --dash-column: 72rem;
   position: relative;
   min-height: 100vh;
-  padding: var(--space-4) var(--space-4) var(--space-7);
+  padding-bottom: var(--space-6);
   color: var(--dash-t2);
-  font-family: var(--font-mono);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+}
+
+.root[data-wide="true"] {
+  --dash-column: 96rem;
 }
 
 .root::before {
@@ -28,32 +36,31 @@
 
 /* The site's App.css gives every `main section` auto side margins, which shrink-wraps
    and centres a section that is a flex or grid item. The dashboards' sections
-   (hero, panels, cards) always fill their cell. */
+   always fill their cell. */
 .root section {
   max-width: none;
   margin: 0;
 }
 
-/* Centred, up to 96rem: the dashboards have no site chrome (data/site.ts
-   `chrome: false`), so they are not held to the site's narrow content column
-   and the calendar gets room for overlapping events. */
+/* The content column, centred: the dashboards have no site chrome (data/site.ts `chrome: false`). */
 .inner {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   width: 100%;
-  max-width: 96rem;
+  max-width: var(--dash-column);
   margin-inline: auto;
+  padding: 0 var(--space-4);
+  box-sizing: border-box;
 }
 
-/* A little more air at the sides from a tablet up. */
 @media (min-width: 48rem) {
-  .root {
-    padding-inline: var(--space-6);
+  .inner {
+    padding-inline: var(--space-5);
   }
 }
 
-/* The page's content area: the bar's sibling, a column with the same gaps, and a focus target. */
+/* The page's content area: the bar's sibling, a column, and a focus target. */
 .content {
   display: flex;
   flex-direction: column;
@@ -63,4 +70,12 @@
 
 .content:focus {
   outline: none;
+}
+
+/* A phone: the language and theme switches, at the end of the page. */
+.switches {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }

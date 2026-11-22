@@ -1,21 +1,4 @@
-/* A standalone control: 44px, round. */
+/* A ghost icon button (assets/styles/dashboard-controls.module.css). */
 .toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  padding: 0;
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-edge);
-  border-radius: var(--radius-pill);
-  color: var(--dash-t1);
-  cursor: pointer;
-}
-
-@media (hover: hover) {
-  .toggle:hover {
-    box-shadow: inset 0 0 0 1px var(--dash-accent);
-  }
+  composes: iconButton from '../../../assets/styles/dashboard-controls.module.css';
 }

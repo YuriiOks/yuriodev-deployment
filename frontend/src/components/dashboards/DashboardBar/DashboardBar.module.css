@@ -1,101 +1,111 @@
-/* The bar: dashboards glass (recipes.module.css). One row on a tablet and up:
-   brand, the pages, the switches. Below 64rem the brand and the switches share
-   the first row and the pages are one scrollable row under them, so the bar
-   never wraps into ragged lines. */
+/* The bar: sticky, full width, 48px, the one glass surface of the dashboards (recipes.module.css
+   .glassBar, a denser veil over the page's glows) with a hairline under it, no radius. Its content sits in
+   the page's column. The pages are text links: t2, t1 on hover, the current one t1 with a 2px underline in the
+   space's colour that sits on the bar's bottom edge. */
 .bar {
-  composes: glassDash from '../../../assets/styles/recipes.module.css';
-  display: grid;
-  grid-template-areas: 'brand tools' 'nav nav';
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-  border-radius: var(--dash-r-panel);
+  composes: glassBar from '../../../assets/styles/recipes.module.css';
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  height: var(--dash-h-bar);
+  box-sizing: border-box;
+}
+
+.inner {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  height: 100%;
+  max-width: var(--dash-column);
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+  box-sizing: border-box;
+}
+
+@media (min-width: 48rem) {
+  .inner {
+    padding-inline: var(--space-5);
+  }
 }
 
 .brand {
-  grid-area: brand;
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
-  color: var(--dash-accent);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
   text-decoration: none;
 }
 
+.divider {
+  align-self: center;
+  width: 1px;
+  height: 1.25rem;
+  margin-inline: var(--space-1);
+  background: var(--dash-line);
+}
+
 .nav {
-  grid-area: nav;
   display: flex;
-  gap: var(--space-2);
+  flex: 1 1 auto;
+  gap: var(--space-4);
   min-width: 0;
-  /* Room for the focus rings, which an overflow box would clip, and for the fade. */
-  padding: 0.25rem 3.5rem 0.25rem 0.25rem;
   overflow-x: auto;
   scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - 4rem), transparent);
-  mask-image: linear-gradient(to right, black calc(100% - 4rem), transparent);
 }
 
 .nav::-webkit-scrollbar {
   display: none;
 }
 
-.tools {
-  grid-area: tools;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .link {
+  position: relative;
   display: inline-flex;
   flex: none;
   align-items: center;
-  min-height: 2.75rem;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-pill);
   color: var(--dash-t2);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
-  transition:
-    background-color var(--dur-2) var(--ease-std),
-    border-color var(--dur-2) var(--ease-std);
+  transition: color 120ms;
 }
 
 .link.active {
-  background: var(--dash-sel-bg);
-  border-color: var(--dash-sel-edge);
   color: var(--dash-t1);
-  font-weight: var(--fw-bold);
+}
+
+.link.active::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--dash-accent);
 }
 
 @media (hover: hover) {
   .link:hover {
-    border-color: var(--dash-edge);
     color: var(--dash-t1);
   }
 }
 
-@media (min-width: 64rem) {
-  .bar {
-    grid-template-areas: 'brand nav tools';
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
 
-  /* From a laptop up everything fits: no fade, no reserved padding. */
+/* Wide enough for all of it: the pages sit next to the brand, the switches at the end. */
+@media (min-width: 64rem) {
   .nav {
-    padding: 0.25rem;
-    -webkit-mask-image: none;
-    mask-image: none;
+    flex: 0 1 auto;
   }
 }
 
 @media (forced-colors: active) {
-  .link.active {
-    border-color: Highlight;
+  .link.active::after {
+    background: Highlight;
   }
 }
