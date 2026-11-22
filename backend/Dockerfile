@@ -37,7 +37,10 @@ COPY requirements.txt .
 # Install pinned deps from the prebuilt wheels only (no network, no source builds),
 # then strip pip's own build tooling: wheel/setuptools (and the jaraco.* packages
 # setuptools vendors under _vendor/) carry fixable CVEs and are never needed at
-# runtime since every dependency is already an installed wheel.
+# runtime since every dependency is already an installed wheel. pip itself goes
+# last, for the same reason: the pip shipped with Python 3.15 vendors msgpack,
+# urllib3 and setuptools builds with fixable HIGH findings, and nothing installs
+# packages in a running container.
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
     && (pip uninstall -y wheel setuptools || true) \
     && SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" \
@@ -48,7 +51,9 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
         "$SITE"/pkg_resources* \
         "$SITE"/_distutils_hack* \
         "$SITE"/jaraco* \
-        "$SITE"/distutils-precedence.pth
+        "$SITE"/distutils-precedence.pth \
+        "$SITE"/pip "$SITE"/pip-*.dist-info \
+        /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.*
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app
