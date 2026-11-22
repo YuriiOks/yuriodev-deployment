@@ -1,10 +1,17 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { primeBootstrap } from './services/dashboards/bootstrapStore';
 
 // Unmount React trees mounted by tests between each test.
 afterEach(() => {
   cleanup();
+});
+
+// The dashboards decide once per page load whether they run on the API; every test starts on the bundled sample
+// data (as if the bootstrap answered "disabled"), and the live tests prime their own answer.
+beforeEach(() => {
+  primeBootstrap(null);
 });
 
 // jsdom does not implement matchMedia; ThemeContext reads it on first render

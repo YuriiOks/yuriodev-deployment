@@ -21,6 +21,57 @@ export function pick(text: Localized, lang: Lang): string {
 /** Every fixed text of the dashboards' interface. Sample content lives in sampleData.ts. */
 export interface Strings {
   readonly navLabel: string;
+  readonly dueOverdue: string;
+  readonly dueToday: string;
+  readonly pendingSave: string;
+  readonly loading: string;
+  readonly loadFailed: string;
+  readonly retry: string;
+  readonly notConnectedTitle: string;
+  readonly notConnectedText: string;
+  readonly groupPriority: string;
+  readonly groupDue: string;
+  readonly groupWeek: string;
+  readonly groupLater: string;
+  readonly groupNoDate: string;
+  readonly groupDone: string;
+  readonly emptyPriority: string;
+  readonly emptyTasks: string;
+  readonly addTask: string;
+  readonly addTaskFailed: string;
+  readonly toggleFailed: string;
+  readonly editTask: string;
+  readonly fieldTitle: string;
+  readonly fieldNotes: string;
+  readonly fieldArea: string;
+  readonly noArea: string;
+  readonly fieldPriority: string;
+  readonly fieldDue: string;
+  readonly clearDue: string;
+  readonly save: string;
+  readonly cancel: string;
+  readonly deleteTask: string;
+  readonly confirmDelete: string;
+  readonly saveFailed: string;
+  readonly deleteFailed: string;
+  readonly titleRequired: string;
+  readonly allAreas: string;
+  readonly areaFilter: string;
+  readonly showDone: string;
+  readonly summaryFailed: string;
+  readonly noNextEvent: string;
+  readonly newEvent: string;
+  readonly evTitle: string;
+  readonly evDate: string;
+  readonly evStart: string;
+  readonly evEnd: string;
+  readonly evSpace: string;
+  readonly evBusy: string;
+  readonly evAdd: string;
+  readonly evAdded: string;
+  readonly evFailed: string;
+  readonly evInvalid: string;
+  readonly eventsFailed: string;
   readonly backToSite: string;
   readonly themeToLight: string;
   readonly themeToDark: string;
@@ -97,6 +148,57 @@ export interface Strings {
 export const STRINGS: Record<Lang, Strings> = {
   ru: {
     navLabel: 'Дашборды',
+    dueOverdue: 'просрочено',
+    dueToday: 'сегодня',
+    pendingSave: 'Сохраняется…',
+    loading: 'Загрузка…',
+    loadFailed: 'Не удалось загрузить.',
+    retry: 'Повторить',
+    notConnectedTitle: 'Пока не подключено',
+    notConnectedText: 'Этот источник ещё не подключён к дашбордам: здесь появятся его данные. Пока рабочая поверхность — задачи и календарь.',
+    groupPriority: 'Приоритет',
+    groupDue: 'Сегодня и просрочено',
+    groupWeek: 'На этой неделе',
+    groupLater: 'Позже',
+    groupNoDate: 'Без даты',
+    groupDone: 'Готово',
+    emptyPriority: 'Приоритетных задач нет',
+    emptyTasks: 'Задач пока нет. Добавьте первую в поле выше.',
+    addTask: 'Добавить задачу',
+    addTaskFailed: 'Не удалось добавить задачу. Повторите.',
+    toggleFailed: 'Не удалось сохранить: задача возвращена как была.',
+    editTask: 'Изменить',
+    fieldTitle: 'Название',
+    fieldNotes: 'Заметки',
+    fieldArea: 'Сфера',
+    noArea: 'Без сферы',
+    fieldPriority: 'Приоритет',
+    fieldDue: 'Срок',
+    clearDue: 'Убрать срок',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    deleteTask: 'Удалить',
+    confirmDelete: 'Подтвердить удаление',
+    saveFailed: 'Не удалось сохранить. Повторите.',
+    deleteFailed: 'Не удалось удалить. Повторите.',
+    titleRequired: 'Укажите название.',
+    allAreas: 'Все сферы',
+    areaFilter: 'Фильтр по сфере',
+    showDone: 'Готово: {n}',
+    summaryFailed: 'Не удалось загрузить сводку.',
+    noNextEvent: 'Ближайших событий нет',
+    newEvent: 'Новое событие',
+    evTitle: 'Название',
+    evDate: 'Дата',
+    evStart: 'Начало',
+    evEnd: 'Конец',
+    evSpace: 'Пространство',
+    evBusy: 'Показывать в других пространствах как «Фокус-время»',
+    evAdd: 'Добавить событие',
+    evAdded: 'Событие добавлено',
+    evFailed: 'Не удалось добавить событие. Повторите.',
+    evInvalid: 'Конец должен быть позже начала.',
+    eventsFailed: 'Не удалось загрузить события.',
     backToSite: 'yuriodev: на сайт',
     themeToLight: 'Включить светлую тему',
     themeToDark: 'Включить тёмную тему',
@@ -174,6 +276,57 @@ export const STRINGS: Record<Lang, Strings> = {
   },
   en: {
     navLabel: 'Dashboards',
+    dueOverdue: 'overdue',
+    dueToday: 'today',
+    pendingSave: 'Saving…',
+    loading: 'Loading…',
+    loadFailed: 'Could not load this.',
+    retry: 'Try again',
+    notConnectedTitle: 'Not connected yet',
+    notConnectedText: 'This source is not connected to the dashboards yet; its data will appear here. For now the working surface is tasks and the calendar.',
+    groupPriority: 'Priority',
+    groupDue: 'Due and overdue',
+    groupWeek: 'This week',
+    groupLater: 'Later',
+    groupNoDate: 'No date',
+    groupDone: 'Done',
+    emptyPriority: 'Nothing prioritised',
+    emptyTasks: 'No tasks yet. Add the first one in the field above.',
+    addTask: 'Add a task',
+    addTaskFailed: 'Could not add the task. Try again.',
+    toggleFailed: 'Could not save: the task is back as it was.',
+    editTask: 'Edit',
+    fieldTitle: 'Title',
+    fieldNotes: 'Notes',
+    fieldArea: 'Area',
+    noArea: 'No area',
+    fieldPriority: 'Priority',
+    fieldDue: 'Due date',
+    clearDue: 'Clear the date',
+    save: 'Save',
+    cancel: 'Cancel',
+    deleteTask: 'Delete',
+    confirmDelete: 'Confirm delete',
+    saveFailed: 'Could not save. Try again.',
+    deleteFailed: 'Could not delete. Try again.',
+    titleRequired: 'Enter a title.',
+    allAreas: 'All areas',
+    areaFilter: 'Filter by area',
+    showDone: 'Done: {n}',
+    summaryFailed: 'Could not load the summary.',
+    noNextEvent: 'No upcoming events',
+    newEvent: 'New event',
+    evTitle: 'Title',
+    evDate: 'Date',
+    evStart: 'Start',
+    evEnd: 'End',
+    evSpace: 'Space',
+    evBusy: 'Show in the other spaces as Focus time',
+    evAdd: 'Add event',
+    evAdded: 'Event added',
+    evFailed: 'Could not add the event. Try again.',
+    evInvalid: 'The end must be after the start.',
+    eventsFailed: 'Could not load the events.',
     backToSite: 'yuriodev: back to the site',
     themeToLight: 'Switch to light theme',
     themeToDark: 'Switch to dark theme',

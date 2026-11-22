@@ -121,6 +121,8 @@ export interface CalendarEvent {
 
 /** The next event, as the one-line strip at the top of a space. */
 export interface Hero {
+  /** A date in words ("24 November") when the event is not today: shown in the interface face before the time. */
+  readonly date?: string;
   readonly at: string;
   readonly title: Localized;
   /** Whole minutes until it starts (shown as "in 47 min"; never seconds). */
