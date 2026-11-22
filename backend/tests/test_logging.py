@@ -129,3 +129,11 @@ def test_http_client_loggers_stay_at_warning(make_settings):
 
     assert logging.getLogger("httpx").level == logging.WARNING
     assert logging.getLogger("httpcore").level == logging.WARNING
+
+
+def test_sql_statements_and_the_mcp_sdk_stay_quiet_at_debug(make_settings):
+    configure_logging(make_settings(log_level="DEBUG"))
+
+    # SQLAlchemy would log every statement with its parameters (task titles and notes).
+    assert logging.getLogger("sqlalchemy.engine.Engine").getEffectiveLevel() == logging.WARNING
+    assert logging.getLogger("mcp.server.streamable_http").getEffectiveLevel() == logging.WARNING
