@@ -136,11 +136,11 @@ class FeedService:
     def from_settings(
         cls,
         settings: Settings,
-        http: "httpx.AsyncClient | None" = None,
+        http: httpx.AsyncClient | None = None,
         *,
         clock: Clock = utc_now,
         curation_path: Path = CURATION_PATH,
-    ) -> "FeedService":
+    ) -> FeedService:
         config = FeedConfig(
             enabled=settings.social_feed_enabled,
             refresh_seconds=settings.social_feed_refresh_seconds,

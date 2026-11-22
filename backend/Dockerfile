@@ -1,4 +1,4 @@
-FROM python:3.11-slim@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535 AS base
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -37,17 +37,23 @@ COPY requirements.txt .
 # Install pinned deps from the prebuilt wheels only (no network, no source builds),
 # then strip pip's own build tooling: wheel/setuptools (and the jaraco.* packages
 # setuptools vendors under _vendor/) carry fixable CVEs and are never needed at
-# runtime since every dependency is already an installed wheel.
+# runtime since every dependency is already an installed wheel. pip itself goes
+# last, for the same reason: the pip shipped with Python 3.15 vendors msgpack,
+# urllib3 and setuptools builds with fixable HIGH findings, and nothing installs
+# packages in a running container.
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
     && (pip uninstall -y wheel setuptools || true) \
+    && SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" \
+    && test -d "$SITE" \
     && rm -rf /wheels requirements.txt \
-        /usr/local/lib/python3.11/site-packages/setuptools* \
-        /usr/local/lib/python3.11/site-packages/wheel* \
-        /usr/local/lib/python3.11/site-packages/pkg_resources* \
-        /usr/local/lib/python3.11/site-packages/_distutils_hack* \
-        /usr/local/lib/python3.11/site-packages/jaraco* \
-        /usr/local/lib/python3.11/site-packages/distutils-precedence.pth
-
+        "$SITE"/setuptools* \
+        "$SITE"/wheel* \
+        "$SITE"/pkg_resources* \
+        "$SITE"/_distutils_hack* \
+        "$SITE"/jaraco* \
+        "$SITE"/distutils-precedence.pth \
+        "$SITE"/pip "$SITE"/pip-*.dist-info \
+        /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.*
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app

@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("app stopped", extra={"event": "app.stop"})
 
 
-def _log_task_exit(task: "asyncio.Task[None]") -> None:
+def _log_task_exit(task: asyncio.Task[None]) -> None:
     if not task.cancelled() and task.exception() is not None:
         logger.error(
             "background task died",

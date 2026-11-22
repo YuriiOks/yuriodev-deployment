@@ -131,7 +131,7 @@ async def get_json_capped(
             return json.loads(body), response.headers
     except UpstreamError:
         raise
-    except (TimeoutError, httpx.TimeoutException):
+    except TimeoutError, httpx.TimeoutException:
         kind, status = "timeout", None
     except httpx.HTTPError:  # transport and protocol errors; the message may quote a header
         kind, status = "connect", None
@@ -144,7 +144,7 @@ async def get_json_capped(
     raise UpstreamError(kind, status)
 
 
-def _inflater(content_encoding: str) -> "zlib._Decompress | None":
+def _inflater(content_encoding: str) -> zlib._Decompress | None:
     """A bounded decompressor for the response's Content-Encoding; None for an identity body."""
     encoding = content_encoding.strip().lower()
     if encoding in ("", "identity"):
