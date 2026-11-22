@@ -397,6 +397,13 @@ describe('the calendar: no tasks', () => {
     resetStorageFallback();
   });
 
+  it('has seven equal day columns', () => {
+    renderAt('/dashboards/calendar');
+    const widths = [...main().querySelectorAll<HTMLElement>('colgroup col')].slice(1).map((c) => c.style.width);
+    expect(widths).toHaveLength(7);
+    expect(new Set(widths).size).toBe(1);
+  });
+
   it('shows no task: no checkbox anywhere', () => {
     renderAt('/dashboards/calendar');
     expect(within(main()).queryAllByRole('checkbox')).toHaveLength(0);
@@ -445,6 +452,44 @@ describe('the dashboards bar is the only chrome', () => {
     expect(document.title).toBe('Work 1 | Yurii Oksamytnyi');
     expect(within(main()).getByRole('heading', { level: 1, name: 'Work 1' })).toBeInTheDocument();
     expect(within(main()).getByRole('link', { name: 'Personal' })).toBeInTheDocument();
+  });
+});
+
+describe('the space page: details', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+  });
+
+  it('the hero chips are the rest of the day: the next event is the headline, not repeated', () => {
+    renderAt('/dashboards/personal');
+    const chips = within(main()).getAllByRole('listitem').filter((li) => /^\d{2}:\d{2}/.test(li.textContent ?? '') && li.textContent?.includes('Урок языка'));
+    expect(chips).toHaveLength(1);
+    expect(within(main()).queryAllByRole('listitem').filter((li) => li.textContent?.includes('Тренировка'))).toHaveLength(0);
+    expect(within(main()).getByText(/мин$/)).toBeInTheDocument();
+  });
+
+  it('an empty panel shows a muted line, no rows and no count', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/personal');
+    await user.click(within(main()).getByRole('tab', { name: /^Работа и доход/ }));
+    const leads = within(main()).getByRole('region', { name: 'Лиды' });
+    expect(within(leads).getByText(/Здесь появятся лиды/)).toBeInTheDocument();
+    expect(within(leads).queryAllByRole('listitem')).toHaveLength(0);
+    // The tab counts rows only: the empty state is not an item.
+    expect(within(main()).getByRole('tab', { name: /^Работа и доход/ })).toHaveTextContent('6');
+  });
+
+  it('every row of every panel has a leading marker, and panel titles do not repeat the action', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(within(main()).getByRole('tab', { name: /^Slack/ }));
+    expect(within(main()).getByRole('region', { name: /Ждут ответа/ })).toBeInTheDocument();
+    expect(within(main()).getByRole('region', { name: /Что спросить/ })).toBeInTheDocument();
+    for (const li of main().querySelectorAll('[role=tabpanel] li')) {
+      expect(li.firstElementChild?.children.length, li.textContent ?? '').toBeGreaterThan(0);
+    }
   });
 });
 

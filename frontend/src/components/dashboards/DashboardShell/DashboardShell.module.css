@@ -44,3 +44,15 @@
     padding-inline: var(--space-6);
   }
 }
+
+/* The page's content area: the bar's sibling, a column with the same gaps, and a focus target. */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.content:focus {
+  outline: none;
+}

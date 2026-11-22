@@ -36,9 +36,10 @@
     cursor: pointer;
 }
 
-/* An arrow button: the same height, a little wider than tall. */
+/* An arrow button: square, the same height. */
 .optionSquare {
-    width: 2.75rem;
+    width: 2.375rem;
+    min-width: 0;
     padding: 0;
 }
 
@@ -47,13 +48,10 @@
     color: var(--dash-on-fill);
 }
 
+/* Hover rings the button's own shape in the accent, so it never looks like the selected (filled) one. */
 @media (hover: hover) {
     .option:hover {
-        background: var(--dash-sel-bg);
-    }
-
-    .optionOn:hover {
-        background: var(--dash-fill);
+        box-shadow: inset 0 0 0 1px var(--dash-accent);
     }
 }
 

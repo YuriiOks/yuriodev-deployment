@@ -30,8 +30,17 @@
 }
 
 /* The days of the neighbouring months: a sunken well and a quiet number. */
+/* The days of the neighbouring months: a sunken well with fine diagonal hatching, so they read as
+   "not this month" in both themes without dimming their text. */
 .cell[data-muted="true"] {
-  background: var(--dash-well);
+  background-color: var(--dash-well);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0,
+    transparent 0.3125rem,
+    var(--dash-edge) 0.3125rem,
+    var(--dash-edge) 0.375rem
+  );
 }
 
 /* Today, as in the week view: the selected tint, and the number in the title ink. */

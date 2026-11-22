@@ -35,8 +35,7 @@ const vars = (values: Record<string, string | number>) => values as React.CSSPro
  * A week (or one day) as a table: days are columns, hours run down the page.
  * Each event is a block placed by its start time, as tall as it lasts, in its
  * space's colour. Events that overlap in a day sit side by side, sharing the
- * width of the day equally (layoutDay); a day with a crowded cluster gets a
- * wider column. An overlap between two spaces is marked with an icon, a
+ * width of the day equally (layoutDay); every day has the same width. An overlap between two spaces is marked with an icon, a
  * dashed edge and words. On a narrow screen the week scrolls sideways inside
  * its own box (or the page shows one day).
  */
@@ -46,22 +45,17 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
   const endLabel = `${String(Math.floor((toMinutes(hours[hours.length - 1]) + 60) / 60)).padStart(2, '0')}:00`;
   const single = dates.length === 1;
 
-  const days = dates.map((date) => {
-    const placed = layoutDay(events.filter((event) => event.date === date));
-    const widest = placed.reduce((most, p) => Math.max(most, p.columns), 1);
-    // A crowded day gets a wider column (one lane 1.3, two 1.8, three or more 2.3); an empty day a narrower one.
-    const weight = placed.length === 0 ? 0.6 : [1.3, 1.8, 2.3][Math.min(widest, 3) - 1];
-    return { date, placed, weight };
-  });
-  const totalWeight = days.reduce((sum, day) => sum + day.weight, 0);
+  // Every day has the same width, as in a calendar; a day's own overlapping events share its column.
+  const days = dates.map((date) => ({ date, placed: layoutDay(events.filter((event) => event.date === date)) }));
 
   return (
-    <div role="region" aria-label={t.calendarCaption} tabIndex={0} className={styles.scroll}>
+    <div className={styles.scroll}>
+      <div role="region" aria-label={t.calendarCaption} tabIndex={0} className={styles.scroller}>
       <table className={cx(styles.table, single && styles.single)} style={vars({ '--hours': hours.length })}>
         <colgroup>
           <col className={styles.gutterCol} />
-          {days.map(({ date, weight }) => (
-            <col key={date} style={single ? undefined : { width: `${((weight / totalWeight) * 95).toFixed(3)}%` }} />
+          {days.map(({ date }) => (
+            <col key={date} style={single ? undefined : { width: `${(95 / days.length).toFixed(3)}%` }} />
           ))}
         </colgroup>
         <thead>
@@ -142,6 +136,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   );
 };

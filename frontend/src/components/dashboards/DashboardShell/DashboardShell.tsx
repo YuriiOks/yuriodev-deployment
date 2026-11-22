@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { DashboardLangProvider } from '../../../context/DashboardLangProvider';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { PAGE_CONTENT_ID } from '../../../constants/pageContent';
 import { spaceAt } from '../../../services/dashboards/spaces';
 import DashboardBar from '../DashboardBar/DashboardBar';
 import styles from './DashboardShell.module.css';
@@ -15,7 +16,10 @@ const Frame: React.FC = () => {
       <meta name="robots" content="noindex" />
       <div className={styles.inner}>
         <DashboardBar />
-        <Outlet />
+        {/* The skip link and the focus after a navigation come here, below the bar. */}
+        <div id={PAGE_CONTENT_ID} tabIndex={-1} className={styles.content}>
+          <Outlet />
+        </div>
       </div>
     </div>
   );

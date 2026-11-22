@@ -274,6 +274,23 @@ describe('PageLayout on a page with no site chrome (the dashboards)', () => {
     expect(screen.getByRole('main')).toHaveFocus();
   });
 
+  it('the skip link and the focus after a navigation go to the page content area below its bar when it has one', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/dashboards']}>
+          <PageLayout currentPath="/dashboards">
+            <div>bar</div>
+            <div id="page-content" tabIndex={-1}>content</div>
+          </PageLayout>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+    await user.tab();
+    await user.keyboard('{Enter}');
+    expect(screen.getByText('content')).toHaveFocus();
+  });
+
   it('the site shortcuts do nothing there: Ctrl+K opens no palette', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards');

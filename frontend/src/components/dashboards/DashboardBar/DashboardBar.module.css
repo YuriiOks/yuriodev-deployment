@@ -29,9 +29,16 @@
   display: flex;
   gap: var(--space-2);
   min-width: 0;
-  padding-bottom: 0.125rem;
+  /* Room for the focus rings, which an overflow box would clip, and for the fade. */
+  padding: 0.25rem 3.5rem 0.25rem 0.25rem;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 4rem), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 4rem), transparent);
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .tools {
@@ -79,8 +86,11 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
+  /* From a laptop up everything fits: no fade, no reserved padding. */
   .nav {
-    padding-bottom: 0;
+    padding: 0.25rem;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 }
 
