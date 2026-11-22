@@ -5,7 +5,7 @@
    coloured as a long one and the glass picks the colour up as the page scrolls. The root itself is
    transparent. contrast.test.ts holds the text over the page and over each glow's peak.
    The column is 72rem for the list pages and 96rem for the calendar (data-wide); the bar uses the
-   same column, so the brand, the first tab and the panels start at one edge. */
+   page's content only; the bar always uses the wide cap (96rem), so it stays put from page to page. */
 .root {
   --dash-column: 72rem;
   position: relative;

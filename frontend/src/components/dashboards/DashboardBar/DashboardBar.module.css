@@ -16,7 +16,8 @@
   align-items: stretch;
   gap: var(--space-3);
   height: 100%;
-  max-width: var(--dash-column);
+  /* Always the wide cap (the calendar's), whatever the page's own column: the bar never moves between pages. */
+  max-width: 96rem;
   margin-inline: auto;
   padding-inline: var(--space-4);
   box-sizing: border-box;

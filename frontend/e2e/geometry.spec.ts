@@ -366,9 +366,10 @@ test.describe('dashboards: no site chrome', () => {
     await open(page, '/dashboards/personal');
     const list = (await column())!;
     expect(list.width).toBeLessThanOrEqual(1152);
-    // One content edge: the brand in the bar starts where the column's own padding does (24px in from its edge).
-    expect(Math.abs(list.brand - (list.left + 24)), 'the brand and the content share an edge').toBeLessThanOrEqual(1);
-    expect(Math.abs(list.first - (list.left + 24)), 'the page content starts at that edge').toBeLessThanOrEqual(1);
+    // The bar keeps the wide cap on every page (the brand is where the calendar's is: 24px in from the 96rem column),
+    // while the list page's own content starts at its narrower column's edge.
+    expect(Math.abs(list.brand - (Math.round((1920 - 1536) / 2) + 24)), 'the brand sits at the wide cap').toBeLessThanOrEqual(1);
+    expect(Math.abs(list.first - (list.left + 24)), 'the page content starts at its own column edge').toBeLessThanOrEqual(1);
   });
 
   test('the bar is sticky: it stays at the top while the page scrolls', async ({ page }, testInfo) => {
