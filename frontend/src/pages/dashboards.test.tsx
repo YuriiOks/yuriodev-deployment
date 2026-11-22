@@ -508,6 +508,17 @@ describe('the panel grid follows the panels', () => {
     expect(grid().style.getPropertyValue('--cols-md')).toBe('1');
   });
 
+  it('panels with references or long titles (GitHub) go two to a row, the odd one taking the whole row', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(within(main()).getByRole('tab', { name: /^GitHub/ }));
+    expect([grid().style.getPropertyValue('--cols-md'), grid().style.getPropertyValue('--cols-lg')]).toEqual(['2', '2']);
+    const panels = [...grid().children] as HTMLElement[];
+    expect(panels).toHaveLength(3);
+    expect(panels[2].className).toMatch(/fill/);
+    expect(panels[0].className).not.toMatch(/fill/);
+  });
+
   it('two panels share the row, three take three columns, four sit two by two', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/personal');

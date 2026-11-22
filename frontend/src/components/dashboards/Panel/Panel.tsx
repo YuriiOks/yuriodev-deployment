@@ -13,17 +13,19 @@ export interface PanelProps {
   /** Which tasks the visitor has ticked off or un-ticked, by row id, over each task's own state. */
   done: Readonly<Record<string, boolean>>;
   onToggle: (id: string) => void;
+  /** Spans the whole row of the grid (the odd panel left over when the rest are in pairs). */
+  fill?: boolean;
 }
 
 /** A titled group of rows (or the life-areas tiles). The priority panel spans the full row and tints its rows. */
-const Panel: React.FC<PanelProps> = ({ panel, done, onToggle }) => {
+const Panel: React.FC<PanelProps> = ({ panel, done, onToggle, fill = false }) => {
   const { text } = useDashboardLang();
   const titleId = `panel-${panel.id}-title`;
   // The priority panel has a flag; other overview panels are titled with no icon (it would be the same grid on each).
   const headingIcon = panel.priority ? 'flag' : panel.tab === 'overview' ? null : panel.tab;
 
   return (
-    <section aria-labelledby={titleId} className={cx(styles.panel, panel.priority && styles.priority)}>
+    <section aria-labelledby={titleId} className={cx(styles.panel, panel.priority && styles.priority, fill && styles.fill)}>
       <div className={styles.head}>
         {headingIcon && <DashIcon name={headingIcon} tone={TAB_TONE[panel.tab]} />}
         <h2 id={titleId} className={styles.title}>

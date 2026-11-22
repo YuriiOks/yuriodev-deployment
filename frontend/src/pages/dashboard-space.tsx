@@ -34,7 +34,12 @@ const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
   // The grid's columns follow the panels: a tab with one panel fills the row, two share it, three sit in
   // three columns, four in two by two; the priority panel always spans the full row on its own.
   const others = panels.filter((panel) => !panel.priority).length;
-  const wide = others === 4 ? 2 : Math.min(Math.max(others, 1), 3);
+  // Panels with references or long titles get two to a row; the others up to three.
+  const roomy = panels.some((panel) => !panel.priority && panel.roomy);
+  const wide = roomy ? Math.min(Math.max(others, 1), 2) : others === 4 ? 2 : Math.min(Math.max(others, 1), 3);
+  // With two columns and an odd number of panels, the last one takes the whole row.
+  const lastOther = panels.filter((panel) => !panel.priority).at(-1);
+  const fillLast = wide === 2 && others > 1 && others % 2 === 1;
   const gridStyle = { '--cols-md': Math.min(Math.max(others, 1), 2), '--cols-lg': wide } as CSSProperties;
 
   const toggle = (rowId: string) => {
@@ -56,7 +61,7 @@ const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
         style={gridStyle}
       >
         {panels.map((panel) => (
-          <Panel key={panel.id} panel={panel} done={done} onToggle={toggle} />
+          <Panel key={panel.id} panel={panel} done={done} onToggle={toggle} fill={fillLast && panel === lastOther} />
         ))}
       </div>
     </>

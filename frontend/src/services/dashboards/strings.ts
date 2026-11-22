@@ -54,6 +54,8 @@ export interface Strings {
   readonly calendarCaption: string;
   readonly conflicts: string;
   readonly noConflicts: string;
+  /** The hidden events of a crowded column: '{n} more events'. */
+  readonly moreEvents: string;
   readonly conflictMark: string;
   readonly viewLabel: string;
   readonly week: string;
@@ -116,6 +118,7 @@ export const STRINGS: Record<Lang, Strings> = {
     calendarCaption: 'Неделя, события трёх пространств',
     conflicts: 'Конфликты',
     noConflicts: 'Конфликтов нет',
+    moreEvents: 'Ещё событий: {n}',
     conflictMark: 'Конфликт: пересекается с событием другого пространства',
     viewLabel: 'Вид',
     week: 'Неделя',
@@ -188,6 +191,7 @@ export const STRINGS: Record<Lang, Strings> = {
     calendarCaption: 'Week, events of all three spaces',
     conflicts: 'Conflicts',
     noConflicts: 'No conflicts',
+    moreEvents: '{n} more events',
     conflictMark: 'Conflict: overlaps an event of another space',
     viewLabel: 'View',
     week: 'Week',
