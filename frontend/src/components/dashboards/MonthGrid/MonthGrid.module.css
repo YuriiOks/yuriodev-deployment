@@ -18,9 +18,11 @@
   padding: 0 0 var(--space-2);
   border-bottom: 1px solid var(--dash-line);
   color: var(--dash-t2);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-caps);
   text-align: center;
+  text-transform: uppercase;
 }
 
 .cell {
@@ -29,33 +31,24 @@
   vertical-align: top;
 }
 
-/* The days of the neighbouring months: a sunken well and a quiet number. */
-/* The days of the neighbouring months: a sunken well with fine diagonal hatching, so they read as
-   "not this month" in both themes without dimming their text. */
+/* Days of the neighbouring months: simply quieter - a faint fill, a lighter number, outlined chips. */
 .cell[data-muted="true"] {
-  background-color: var(--dash-well);
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0,
-    transparent 0.3125rem,
-    var(--dash-edge) 0.3125rem,
-    var(--dash-edge) 0.375rem
-  );
+  background-color: var(--dash-chip);
 }
 
-/* Today, as in the week view: the selected tint, and the number in the title ink. */
+/* Today: a filled circle behind the date number, and a faint tint on the cell. */
 .today {
-  background-color: var(--dash-sel-bg);
+  background-color: rgba(var(--dash-fill-rgb), 0.06);
 }
 
 /* The whole day is the button: a target far above 44px. */
 .day {
   display: flex;
   flex-direction: column;
-  gap: 0.1875rem;
+  gap: 0.25rem;
   width: 100%;
-  min-height: 6.75rem;
-  padding: 0.4375rem;
+  min-height: 7rem;
+  padding: 0.5rem;
   background: transparent;
   border: 0;
   color: var(--dash-t1);
@@ -65,17 +58,25 @@
   cursor: pointer;
 }
 
+/* The date number, then (when there is a conflict) the warning icon beside it. */
 .top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 1.25rem;
+  gap: 0.375rem;
+  min-height: 1.75rem;
 }
 
 .number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-pill);
   color: var(--dash-t1);
   font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-semibold);
 }
 
 .cell[data-muted="true"] .number {
@@ -84,7 +85,9 @@
 }
 
 .today .number {
-  color: var(--dash-title);
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
+  font-weight: var(--fw-bold);
 }
 
 .alert {
@@ -100,13 +103,13 @@
 .chip {
   --event-rgb: var(--dash-ink-personal-rgb);
   display: block;
-  padding: 0.125rem 0.3125rem;
+  padding: 0.25rem 0.5rem;
   overflow: hidden;
   background: rgba(var(--event-rgb), 0.14);
-  border: 1px solid rgba(var(--event-rgb), 0.45);
-  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--event-rgb), 0.4);
+  border-radius: var(--radius-md);
   color: var(--dash-t1);
-  line-height: 1.25;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -119,27 +122,27 @@
   --event-rgb: var(--dash-ink-work-2-rgb);
 }
 
+/* "+N more": a quiet text button, in line with the chips' text. */
 .more {
+  padding: 0.125rem 0.5rem;
+  color: var(--dash-t2);
+  font-weight: var(--fw-medium);
+}
+
+.day:hover .more {
   color: var(--dash-accent);
-  font-weight: var(--fw-semibold);
   text-decoration: underline;
   text-underline-offset: 0.1875rem;
 }
 
 /* A neighbouring month's events are muted with it: neutral chips in the secondary ink. */
 .cell[data-muted="true"] .chip {
-  background: var(--dash-chip);
+  background: transparent;
   border-color: var(--dash-line);
   color: var(--dash-t2);
 }
 
-/* A day with a conflict: the same dashed danger edge as in the week view. */
-.day[data-conflict="true"] {
-  outline: 2px dashed var(--dash-danger);
-  outline-offset: -3px;
-}
-
-/* The keyboard ring wins over the conflict edge. */
+/* A conflict is the warning icon beside the date (and the button's name); the cell is not framed. */
 .day:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
