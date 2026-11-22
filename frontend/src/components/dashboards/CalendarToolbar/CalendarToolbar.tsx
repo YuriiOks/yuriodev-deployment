@@ -17,6 +17,9 @@ export interface CalendarToolbarProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  /** Show Monday to Friday only. */
+  workdaysOnly: boolean;
+  onWorkdaysOnly: (on: boolean) => void;
 }
 
 /**
@@ -24,7 +27,7 @@ export interface CalendarToolbarProps {
  * conflicts, previous / today / next (a week or a month, by the view) and the
  * Week / Month switch.
  */
-const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, day = false, onView, onPrev, onNext, onToday }) => {
+const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, day = false, onView, onPrev, onNext, onToday, workdaysOnly, onWorkdaysOnly }) => {
   const { t, text } = useDashboardLang();
   const week = view === 'week';
   const prev = week ? (day ? t.prevDay : t.prevWeek) : t.prevMonth;
@@ -46,6 +49,18 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, day 
       </p>
       </div>
       <div className={styles.controls}>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={workdaysOnly}
+          className={styles.switch}
+          onClick={() => onWorkdaysOnly(!workdaysOnly)}
+        >
+          <span aria-hidden="true" className={styles.track}>
+            <span className={styles.thumb} />
+          </span>
+          {t.workdaysOnly}
+        </button>
       <div role="group" aria-label={t.periodLabel} className={styles.steps}>
         <button type="button" className={cx(styles.step, styles.square)} aria-label={prev} onClick={onPrev}>
           <DashIcon name="prev" size={18} strokeWidth={2.2} />

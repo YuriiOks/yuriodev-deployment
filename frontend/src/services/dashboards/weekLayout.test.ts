@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collapseColumns, findConflicts, layoutDay, overlaps, toMinutes, type DatedEvent } from './weekLayout';
+import { collapseColumns, summarizeHidden, findConflicts, layoutDay, overlaps, toMinutes, type DatedEvent } from './weekLayout';
 
 const ev = (id: string, start: string, end: string) => ({ id, start, end });
 const cols = (events: ReturnType<typeof ev>[]) =>
@@ -183,5 +183,31 @@ describe('collapseColumns', () => {
     const result = collapseColumns(placed([...cluster(10), ...cluster(14)]));
     expect(result.stacks).toHaveLength(2);
     expect(result.stacks.map((s) => s.hidden.length)).toEqual([2, 2]);
+  });
+});
+
+describe('summarizeHidden', () => {
+  const dated = (id: string, date: string, start: string, end: string, space: DatedEvent['space']) => ({
+    id,
+    date,
+    day: date,
+    start,
+    end,
+    space,
+  });
+
+  it('counts the events on the hidden days and ignores the others', () => {
+    const events = [
+      dated('a', '2026-11-27', '10:00', '11:00', 'personal'),
+      dated('b', '2026-11-28', '10:00', '11:00', 'personal'),
+      dated('c', '2026-11-29', '10:00', '11:00', 'work-1'),
+    ];
+    expect(summarizeHidden(events, new Set(['2026-11-28', '2026-11-29']))).toEqual({ count: 2, conflict: false });
+    expect(summarizeHidden(events, new Set())).toEqual({ count: 0, conflict: false });
+  });
+
+  it('says so when two hidden events of different spaces overlap', () => {
+    const events = [dated('a', '2026-11-28', '10:00', '11:00', 'personal'), dated('b', '2026-11-28', '10:30', '11:30', 'work-1')];
+    expect(summarizeHidden(events, new Set(['2026-11-28']))).toEqual({ count: 2, conflict: true });
   });
 });

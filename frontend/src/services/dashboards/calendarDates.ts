@@ -36,10 +36,27 @@ export function weekStart(iso: string): string {
   return addDays(iso, -weekdayIndex(iso));
 }
 
-/** The seven dates of the week that contains `iso`, Monday first. */
-export function weekDates(iso: string): string[] {
+/** Saturday or Sunday. */
+export function isWeekend(iso: string): boolean {
+  return weekdayIndex(iso) >= 5;
+}
+
+/** The date itself on a working day; on a weekend, the Monday after it. */
+export function nearestWorkday(iso: string): string {
+  return isWeekend(iso) ? addDays(iso, 7 - weekdayIndex(iso)) : iso;
+}
+
+/** One day forward (1) or back (-1), skipping Saturday and Sunday when `workdaysOnly`. */
+export function stepDay(iso: string, direction: 1 | -1, workdaysOnly = false): string {
+  let next = addDays(iso, direction);
+  if (workdaysOnly) while (isWeekend(next)) next = addDays(next, direction);
+  return next;
+}
+
+/** The dates of the week that contains `iso`, Monday first: seven, or the five working days. */
+export function weekDates(iso: string, workdaysOnly = false): string[] {
   const monday = weekStart(iso);
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  return Array.from({ length: workdaysOnly ? 5 : 7 }, (_, i) => addDays(monday, i));
 }
 
 /** The year and month (1-12) of a date. */
@@ -71,21 +88,25 @@ export interface MonthDay {
 }
 
 /**
- * A month as full weeks, Monday first: the days before the 1st and after the
- * last day come from the neighbouring months and are marked `inMonth: false`.
+ * A month as full weeks, Monday first (Monday to Friday with `workdaysOnly`): the days before the
+ * 1st and after the last day come from the neighbouring months and are marked `inMonth: false`.
  */
-export function monthMatrix(year: number, month: number): MonthDay[][] {
+export function monthMatrix(year: number, month: number, workdaysOnly = false): MonthDay[][] {
   const first = `${year}-${String(month).padStart(2, '0')}-01`;
   const offset = weekdayIndex(first);
   const weeks = Math.ceil((offset + daysInMonth(year, month)) / 7);
   const start = addDays(first, -offset);
-  return Array.from({ length: weeks }, (_, week) =>
-    Array.from({ length: 7 }, (_, day) => {
+  const columns = workdaysOnly ? 5 : 7;
+  const matrix = Array.from({ length: weeks }, (_, week) =>
+    Array.from({ length: columns }, (_, day) => {
       const date = addDays(start, week * 7 + day);
       const { year: y, month: m } = parts(date);
       return { date, inMonth: y === year && m === month };
     }),
   );
+  // With only the working days, a week none of whose working days is in the month (a month that
+  // starts or ends on a weekend) is not shown.
+  return workdaysOnly ? matrix.filter((week) => week.some((day) => day.inMonth)) : matrix;
 }
 
 /** Items grouped by their `date`, each day's items in their original order. */

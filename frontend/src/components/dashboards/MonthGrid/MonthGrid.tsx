@@ -17,6 +17,8 @@ export interface MonthGridProps {
   conflicts: Conflicts;
   /** A day was picked: the calendar goes to the week that contains it. */
   onPickDay: (date: string) => void;
+  /** Monday to Friday only. */
+  workdaysOnly?: boolean;
 }
 
 /** How many event chips a day shows before "+N more". */
@@ -29,16 +31,16 @@ const MAX_CHIPS = 3;
  * shows up to three chips, then "+N more", and the conflict mark when an
  * overlap between two spaces falls on it.
  */
-const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, conflicts, onPickDay }) => {
+const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, conflicts, onPickDay, workdaysOnly = false }) => {
   const { t, text } = useDashboardLang();
   const byDate = groupByDate(events);
 
   return (
     <div role="region" aria-label={t.monthCaption} tabIndex={0} className={styles.scroll}>
-      <table className={styles.table}>
+      <table className={cx(styles.table, workdaysOnly && styles.five)}>
         <thead>
           <tr>
-            {t.weekdaysShort.map((name) => (
+            {t.weekdaysShort.slice(0, workdaysOnly ? 5 : 7).map((name) => (
               <th key={name} scope="col" className={styles.weekday}>
                 {name}
               </th>
@@ -46,7 +48,7 @@ const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, confl
           </tr>
         </thead>
         <tbody>
-          {monthMatrix(year, month).map((week) => (
+          {monthMatrix(year, month, workdaysOnly).map((week) => (
             <tr key={week[0].date}>
               {week.map(({ date, inMonth }) => {
                 const day = byDate.get(date) ?? [];

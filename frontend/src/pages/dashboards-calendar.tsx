@@ -8,9 +8,11 @@ import { maxWidth } from '../constants/breakpoints';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useCalendar } from '../hooks/useDashboards';
-import { addDays, addMonths, monthMatrix, monthOf, weekDates } from '../services/dashboards/calendarDates';
+import { addDays, addMonths, isWeekend, monthMatrix, monthOf, nearestWorkday, stepDay, weekDates } from '../services/dashboards/calendarDates';
 import { dateLabel, monthTitle, weekRangeLabel } from '../services/dashboards/calendarLabels';
-import { findConflicts } from '../services/dashboards/weekLayout';
+import { readWorkdaysOnly, writeWorkdaysOnly } from '../services/dashboards/preferences';
+import { fill } from '../services/dashboards/calendarLabels';
+import { findConflicts, summarizeHidden } from '../services/dashboards/weekLayout';
 import styles from './dashboards-calendar.module.css';
 
 /**
@@ -25,15 +27,18 @@ const DashboardsCalendar = () => {
   usePageTitle(t.titles.calendar);
   const calendar = useCalendar();
   const [view, setView] = useState<CalendarView>('week');
-  const [anchor, setAnchor] = useState(calendar.today);
+  const [workdaysOnly, setWorkdaysOnly] = useState(readWorkdaysOnly);
+  const [anchor, setAnchor] = useState(() => (workdaysOnly ? nearestWorkday(calendar.today) : calendar.today));
   // Seven columns do not fit a phone: from the tablet breakpoint up the week, below it one day.
   const phone = useMediaQuery(maxWidth('md'));
 
   const week = view === 'week';
   const singleDay = week && phone;
   const { year, month } = monthOf(anchor);
-  const dates = singleDay ? [anchor] : weekDates(anchor);
-  const shown = new Set(week ? dates : monthMatrix(year, month).flat().map((day) => day.date));
+  // On a phone with the weekend hidden, the one day on screen is never a Saturday or a Sunday.
+  const dayOnScreen = workdaysOnly ? nearestWorkday(anchor) : anchor;
+  const dates = singleDay ? [dayOnScreen] : weekDates(anchor, workdaysOnly);
+  const shown = new Set(week ? dates : monthMatrix(year, month, workdaysOnly).flat().map((day) => day.date));
   const events = calendar.events.filter((event) => shown.has(event.date));
   const conflicts = findConflicts(events.map((event) => ({ ...event, day: event.date })));
   // The count is of what is marked on screen: blocks in a week, days in a month.
@@ -41,13 +46,28 @@ const DashboardsCalendar = () => {
     ? conflicts.ids.size
     : new Set(events.filter((event) => conflicts.ids.has(event.id)).map((event) => event.date)).size;
 
+  // What the option hides in this range: the weekend days of the week (or of every week of the month).
+  const range = week ? weekDates(anchor) : monthMatrix(year, month).flat().map((day) => day.date);
+  const hiddenDates = new Set(workdaysOnly ? range.filter(isWeekend) : []);
+  const hidden = summarizeHidden(
+    calendar.events.map((event) => ({ ...event, day: event.date })),
+    hiddenDates,
+  );
+
+  const chooseWorkdaysOnly = (on: boolean) => {
+    setWorkdaysOnly(on);
+    writeWorkdaysOnly(on);
+    // A weekend day cannot stay on screen on a phone once the weekend is hidden.
+    if (on && singleDay) setAnchor(nearestWorkday(anchor));
+  };
+  const today = () => setAnchor(workdaysOnly ? nearestWorkday(calendar.today) : calendar.today);
   const step = (direction: 1 | -1) =>
-    setAnchor(singleDay ? addDays(anchor, direction) : week ? addDays(anchor, 7 * direction) : addMonths(anchor, direction));
+    setAnchor(singleDay ? stepDay(dayOnScreen, direction, workdaysOnly) : week ? addDays(anchor, 7 * direction) : addMonths(anchor, direction));
   const pickDay = (date: string) => {
     setAnchor(date);
     setView('week');
   };
-  const period = singleDay ? dateLabel(anchor, t) : week ? weekRangeLabel(anchor, t) : monthTitle(anchor, t);
+  const period = singleDay ? dateLabel(dayOnScreen, t) : week ? weekRangeLabel(anchor, t) : monthTitle(anchor, t);
 
   return (
     <>
@@ -59,13 +79,24 @@ const DashboardsCalendar = () => {
           onView={setView}
           onPrev={() => step(-1)}
           onNext={() => step(1)}
-          onToday={() => setAnchor(calendar.today)}
+          onToday={today}
+          workdaysOnly={workdaysOnly}
+          onWorkdaysOnly={chooseWorkdaysOnly}
         />
       </DashboardHeading>
       {week ? (
         <WeekGrid dates={dates} today={calendar.today} hours={calendar.hours} events={events} conflicts={conflicts} />
       ) : (
-        <MonthGrid year={year} month={month} today={calendar.today} events={events} conflicts={conflicts} onPickDay={pickDay} />
+        <MonthGrid year={year} month={month} today={calendar.today} events={events} conflicts={conflicts} onPickDay={pickDay} workdaysOnly={workdaysOnly} />
+      )}
+      {hidden.count > 0 && (
+        <p className={styles.hidden} role="status">
+          {fill(t.weekendHidden, { n: hidden.count })}
+          {hidden.conflict && ` ${t.weekendHiddenConflict}`}
+          <button type="button" className={styles.show} onClick={() => chooseWorkdaysOnly(false)}>
+            {t.showWeekend}
+          </button>
+        </p>
       )}
       <p className={styles.note}>{t.calendarNote}</p>
     </>

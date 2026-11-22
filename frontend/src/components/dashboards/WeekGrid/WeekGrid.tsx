@@ -52,7 +52,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
   return (
     <div className={styles.scroll}>
       <div role="region" aria-label={t.calendarCaption} tabIndex={0} className={styles.scroller}>
-      <table className={cx(styles.table, single && styles.single)} style={vars({ '--hours': hours.length })}>
+      <table className={cx(styles.table, single && styles.single, dates.length === 5 && styles.five)} style={vars({ '--hours': hours.length })}>
         <colgroup>
           <col className={styles.gutterCol} />
           {days.map(({ date }) => (

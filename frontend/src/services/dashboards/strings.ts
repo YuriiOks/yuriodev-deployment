@@ -54,6 +54,11 @@ export interface Strings {
   readonly calendarCaption: string;
   readonly conflicts: string;
   readonly noConflicts: string;
+  readonly workdaysOnly: string;
+  /** The weekend events hidden by the working-days option, with their count as '{n}'. */
+  readonly weekendHidden: string;
+  readonly weekendHiddenConflict: string;
+  readonly showWeekend: string;
   /** The hidden events of a crowded column: '{n} more events'. */
   readonly moreEvents: string;
   readonly conflictMark: string;
@@ -118,6 +123,10 @@ export const STRINGS: Record<Lang, Strings> = {
     calendarCaption: 'Неделя, события трёх пространств',
     conflicts: 'Конфликты',
     noConflicts: 'Конфликтов нет',
+    workdaysOnly: 'Показывать только рабочие дни',
+    weekendHidden: 'Скрыто событий в выходные: {n}.',
+    weekendHiddenConflict: 'Среди них есть конфликт.',
+    showWeekend: 'Показать выходные',
     moreEvents: 'Ещё событий: {n}',
     conflictMark: 'Конфликт: пересекается с событием другого пространства',
     viewLabel: 'Вид',
@@ -191,6 +200,10 @@ export const STRINGS: Record<Lang, Strings> = {
     calendarCaption: 'Week, events of all three spaces',
     conflicts: 'Conflicts',
     noConflicts: 'No conflicts',
+    workdaysOnly: 'Show working days only',
+    weekendHidden: 'Weekend events hidden: {n}.',
+    weekendHiddenConflict: 'They include a conflict.',
+    showWeekend: 'Show weekends',
     moreEvents: '{n} more events',
     conflictMark: 'Conflict: overlaps an event of another space',
     viewLabel: 'View',
