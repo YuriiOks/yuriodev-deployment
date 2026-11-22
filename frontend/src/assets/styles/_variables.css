@@ -578,6 +578,12 @@
     --dash-sel-edge: var(--dash-accent);
 }
 
+/* Personal in daylight: the site's burnt-orange title ink, a shade darker, so it holds 4.5:1 on the
+   selected tint over the glass and the strongest glow (contrast.test.ts). */
+[data-theme="light"] {
+    --dash-title: #a04000;
+}
+
 [data-space="work-1"] {
     --dash-bg: #120e24;
     --dash-glow-a-rgb: 138, 45, 227;
