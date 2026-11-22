@@ -6,6 +6,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -130,6 +131,7 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     )
     app.state.settings = settings
     app.state.clock = clock or utc_now
+    app.state.zone = ZoneInfo(settings.dashboards_timezone)
     app.state.dashboards = None  # the database seam, set by the lifespan
     app.state.mcp = None
 
@@ -164,7 +166,7 @@ def _add_mcp(app: FastAPI) -> None:
     def runtime() -> DashboardsRuntime | None:
         return cast(DashboardsRuntime | None, app.state.dashboards)
 
-    server = build_mcp_server(runtime, app.state.clock)
+    server = build_mcp_server(runtime, app.state.clock, app.state.zone)
     app.state.mcp = server
     endpoint = McpEndpoint(server.session_manager, runtime)
     app.router.routes.append(Route(MCP_PATH, endpoint, methods=["POST"]))

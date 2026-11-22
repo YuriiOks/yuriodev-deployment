@@ -1,6 +1,7 @@
 """Dependency seams: handlers get collaborators here, so tests can override them."""
 
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from fastapi import Request
 
@@ -22,3 +23,8 @@ def get_feed_service(request: Request) -> FeedService:
 def get_clock(request: Request) -> Clock:
     """The app's clock (`create_app(clock=...)`), so tests can fix the time."""
     return cast(Clock, request.app.state.clock)
+
+
+def get_zone(request: Request) -> ZoneInfo:
+    """The time zone that decides what "today" is (`DASHBOARDS_TIMEZONE`)."""
+    return cast(ZoneInfo, request.app.state.zone)

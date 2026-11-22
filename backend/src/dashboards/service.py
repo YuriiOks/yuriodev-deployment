@@ -10,7 +10,7 @@ logged, because a driver message can quote the SQL parameters, that is, titles a
 import logging
 import uuid
 from collections.abc import Callable, Coroutine, Sequence
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 
 from sqlalchemy import case, false, func, or_, select
@@ -123,8 +123,8 @@ async def list_areas(session: AsyncSession) -> Sequence[Area]:
 
 
 @guarded
-async def summary(session: AsyncSession, now: datetime) -> list[SpaceSummary]:
-    day = now.date()
+async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> dict[str, SpaceSummary]:
+    day = now.astimezone(zone).date()
     is_open = Task.status == "open"
     open_count = func.count().filter(is_open)
     priority_count = func.count().filter(is_open, Task.priority)
@@ -135,17 +135,16 @@ async def summary(session: AsyncSession, now: datetime) -> list[SpaceSummary]:
     upcoming = (
         select(Event)
         .ext(distinct_on(Event.space_id))
-        .where(Event.starts_at >= now)
+        .where(Event.ends_at > now)
         .order_by(Event.space_id, Event.starts_at, Event.id)
     )
     next_by_space = {event.space_id: event for event in (await session.scalars(upcoming)).all()}
-    out: list[SpaceSummary] = []
+    out: dict[str, SpaceSummary] = {}
     for space_id in SPACE_IDS:
         total, urgent, late = by_space.get(space_id, (0, 0, 0))
         event = next_by_space.get(space_id)
         nxt = None if event is None else NextEvent.model_validate(event)
-        row = SpaceSummary(id=space_id, open=total, priority=urgent, overdue=late, next_event=nxt)
-        out.append(row)
+        out[space_id] = SpaceSummary(open=total, priority=urgent, overdue=late, next_event=nxt)
     return out
 
 
@@ -237,21 +236,23 @@ async def delete_task(session: AsyncSession, task_id: str) -> None:
 # events ---------------------------------------------------------------------------------------
 
 
-def validate_range(start: date, end: date) -> tuple[datetime, datetime]:
-    """The UTC window [start 00:00, end + 1 day 00:00) of an inclusive date range of at most
-    62 days."""
+def validate_range(start: date, end: date, zone: tzinfo) -> tuple[datetime, datetime]:
+    """The window [start 00:00, end + 1 day 00:00) in the configured zone, for an inclusive date
+    range of at most 62 days."""
     if end < start or (end - start).days + 1 > MAX_RANGE_DAYS:
         raise _invalid("Invalid date range")
     return (
-        datetime.combine(start, time.min, tzinfo=UTC),
-        datetime.combine(end + timedelta(days=1), time.min, tzinfo=UTC),
+        datetime.combine(start, time.min, tzinfo=zone),
+        datetime.combine(end + timedelta(days=1), time.min, tzinfo=zone),
     )
 
 
 @guarded
-async def list_events(session: AsyncSession, start: date, end: date) -> Sequence[Event]:
+async def list_events(
+    session: AsyncSession, start: date, end: date, zone: tzinfo
+) -> Sequence[Event]:
     """Events of all spaces that intersect the range (the one query that spans spaces)."""
-    window_start, window_end = validate_range(start, end)
+    window_start, window_end = validate_range(start, end, zone)
     query = (
         select(Event)
         .where(Event.starts_at < window_end, Event.ends_at > window_start)
@@ -316,14 +317,14 @@ async def delete_event(session: AsyncSession, event_id: str) -> None:
 
 
 @guarded
-async def today(session: AsyncSession, space: str | None, now: datetime) -> TodayOut:
+async def today(session: AsyncSession, space: str | None, now: datetime, zone: tzinfo) -> TodayOut:
     """Open priority tasks and open tasks due today or earlier, plus today's events, per space
     (one space, or all of them when `space` is None)."""
     if space is not None:
         check_space(space)
     spaces: tuple[str, ...] = SPACE_IDS if space is None else (space,)
-    day = now.date()
-    window_start, window_end = validate_range(day, day)
+    day = now.astimezone(zone).date()
+    window_start, window_end = validate_range(day, day, zone)
     task_query = select(Task).where(
         Task.space_id.in_(spaces),
         Task.status == "open",

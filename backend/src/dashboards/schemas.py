@@ -101,7 +101,6 @@ class TaskOut(BaseModel):
     status: TaskStatus
     done_at: datetime | None
     source: Source
-    source_ref: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -116,8 +115,6 @@ class EventOut(BaseModel):
     ends_at: datetime
     busy_only: bool
     source: Source
-    created_at: datetime
-    updated_at: datetime
 
 
 class AreaOut(BaseModel):
@@ -155,7 +152,6 @@ class NextEvent(BaseModel):
 class SpaceSummary(BaseModel):
     model_config = _RESPONSE
 
-    id: str
     open: int
     priority: int
     overdue: int
@@ -165,13 +161,12 @@ class SpaceSummary(BaseModel):
 class SummaryOut(BaseModel):
     model_config = _RESPONSE
 
-    spaces: list[SpaceSummary]
+    spaces: dict[str, SpaceSummary]
 
 
 class TasksOut(BaseModel):
     model_config = _RESPONSE
 
-    space: str
     tasks: list[TaskOut]
 
 

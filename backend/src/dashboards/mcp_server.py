@@ -18,6 +18,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -70,7 +71,9 @@ def _validated[M: BaseModel](model: type[M], fields: dict[str, Any]) -> M:
         raise ToolError(INVALID_ARGUMENTS) from None
 
 
-def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock) -> MCPServer[Any]:
+def build_mcp_server(
+    get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo
+) -> MCPServer[Any]:
     """The server with its ten tools, and its streamable-HTTP session manager created (stateless,
     JSON answers). `get_runtime` is read per call: the runtime only exists once the app runs."""
     server: MCPServer[Any] = MCPServer("yuriodev-dashboards", instructions=INSTRUCTIONS)
@@ -175,9 +178,10 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock) -> MCPServer[Any]
     @server.tool(structured_output=False)
     async def today(space: str | None = None) -> str:
         """What needs attention now: open priority tasks plus open tasks due today or overdue,
-        and today's events (UTC day). One space, or all three, each listed separately."""
+        and today's events (day in the configured time zone). One space, or all three, each
+        listed separately."""
         async with scope("today") as (session, now):
-            view = await service.today(session, space, now)
+            view = await service.today(session, space, now, zone)
             return _json(view.model_dump(mode="json"))
 
     @server.tool(structured_output=False)
@@ -185,7 +189,7 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock) -> MCPServer[Any]
         """List the calendar events of all spaces that intersect the date range (YYYY-MM-DD,
         both days included, at most 62 days)."""
         async with scope("list_events") as (session, _):
-            events = await service.list_events(session, from_date, to_date)
+            events = await service.list_events(session, from_date, to_date, zone)
             return _json({"events": [_event(e) for e in events]})
 
     @server.tool(structured_output=False)

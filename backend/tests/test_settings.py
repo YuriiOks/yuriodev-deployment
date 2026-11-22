@@ -183,6 +183,7 @@ def test_dashboards_are_off_and_closed_by_default(clean_env):
     assert settings.dashboards_api_token is None
     assert settings.dashboards_trust_proxy_auth is False
     assert settings.dashboards_enabled is False
+    assert settings.dashboards_timezone == "Europe/London"
 
 
 def test_dashboards_settings_are_read_from_the_environment(clean_env):
@@ -210,3 +211,13 @@ def test_blank_dashboards_secrets_mean_unset(clean_env):
 
     clean_env.setenv("DATABASE_URL", "   ")
     assert fresh().database_url is None
+
+
+def test_the_dashboards_time_zone_must_be_an_iana_name(clean_env):
+    clean_env.setenv("DASHBOARDS_TIMEZONE", "Pacific/Auckland")
+    assert fresh().dashboards_timezone == "Pacific/Auckland"
+
+    for bad in ("Mars/Olympus", "../etc/passwd", "BST"):
+        clean_env.setenv("DASHBOARDS_TIMEZONE", bad)
+        with pytest.raises(ValidationError):
+            fresh()

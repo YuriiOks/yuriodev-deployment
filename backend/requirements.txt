@@ -20,3 +20,6 @@ mcp==2.3.0
 httpx2==2.16.0
 httpcore2==2.16.0
 python-multipart==0.0.33
+# Time zone database for DASHBOARDS_TIMEZONE (zoneinfo), so the slim image needs no system tzdata
+# (2026.6, 2026-10-28; pure Python).
+tzdata==2026.6

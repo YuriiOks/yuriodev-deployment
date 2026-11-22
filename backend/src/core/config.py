@@ -5,6 +5,7 @@ both files as container environment variables; nothing reads a dotenv file from 
 """
 
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 from typing import Any, Literal
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
@@ -76,6 +77,8 @@ class Settings(BaseSettings):
     # dev and stage only: nginx basic auth has already authenticated the caller, so the API
     # accepts requests without the token header. Never set it in prod.
     dashboards_trust_proxy_auth: bool = False
+    # IANA zone that decides what "today" is (overdue, `today`, day ranges). Not secret.
+    dashboards_timezone: str = "Europe/London"
 
     @property
     def dashboards_enabled(self) -> bool:
@@ -88,6 +91,15 @@ class Settings(BaseSettings):
             return value
         value = value.strip()
         return value.upper() if info.field_name == "log_level" else value.lower()
+
+    @field_validator("dashboards_timezone")
+    @classmethod
+    def _known_zone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (KeyError, ValueError, OSError):  # an unknown name is a ZoneInfoNotFoundError
+            raise ValueError("DASHBOARDS_TIMEZONE must be an IANA time zone name") from None
+        return value
 
     @field_validator("typefully_api_key", "database_url", "dashboards_api_token", mode="before")
     @classmethod

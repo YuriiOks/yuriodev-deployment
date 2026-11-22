@@ -101,7 +101,6 @@ async def test_a_task_is_created_with_defaults(db_url, make_dashboards_app):
     assert task["due_date"] is None
     assert task["done_at"] is None
     assert task["source"] == "web"
-    assert task["source_ref"] is None
     assert task["created_at"] == task["updated_at"] == "2026-11-22T12:00:00Z"
     assert set(task) == {
         "id",
@@ -114,7 +113,6 @@ async def test_a_task_is_created_with_defaults(db_url, make_dashboards_app):
         "status",
         "done_at",
         "source",
-        "source_ref",
         "created_at",
         "updated_at",
     }
@@ -366,7 +364,6 @@ async def test_a_spaces_task_list_never_holds_another_spaces_task(db_url, make_d
 
     for space, response in lists.items():
         body = response.json()
-        assert body["space"] == space
         assert {task["space_id"] for task in body["tasks"]} == {space}
     personal_titles = [t["title"] for t in lists["personal"].json()["tasks"]]
     assert personal_titles == ["same title everywhere", "personal one"]
@@ -385,29 +382,43 @@ async def test_summary_counts_per_space_and_names_the_next_event(db_url, make_da
         await add_event(client, "work-1", "later", "11-25T08:00", "11-25T09:00")
         await add_event(client, "work-1", "soonest", "11-22T15:00", "11-22T16:00")
         await add_event(client, "work-1", "past", "11-22T08:00", "11-22T09:00")
-        await add_event(client, "personal", "dinner", "11-22T12:00", "11-22T13:00")
+        await add_event(client, "personal", "lunch", "11-22T11:30", "11-22T12:30")
         response = await client.get(f"{BASE}/summary")
 
     assert response.status_code == 200
     assert response.json() == {
-        "spaces": [
-            {
-                "id": "personal",
+        "spaces": {
+            "personal": {
                 "open": 3,
                 "priority": 1,
                 "overdue": 1,
-                "next_event": {"title": "dinner", "starts_at": "2026-11-22T12:00:00Z"},
+                "next_event": {"title": "lunch", "starts_at": "2026-11-22T11:30:00Z"},
             },
-            {
-                "id": "work-1",
+            "work-1": {
                 "open": 1,
                 "priority": 1,
                 "overdue": 1,
                 "next_event": {"title": "soonest", "starts_at": "2026-11-22T15:00:00Z"},
             },
-            {"id": "work-2", "open": 0, "priority": 0, "overdue": 0, "next_event": None},
-        ]
+            "work-2": {"open": 0, "priority": 0, "overdue": 0, "next_event": None},
+        }
     }
+
+
+async def test_today_follows_the_configured_time_zone(db_url, make_dashboards_app):
+    # 12:00 UTC on the 22nd is already 01:00 on the 23rd in Auckland (UTC+13 in November).
+    app = make_dashboards_app(db_url, dashboards_timezone="Pacific/Auckland")
+    async with running(app, AUTH) as client:
+        await add_task(client, title="due the 22nd", due_date="2026-11-22")
+        await add_task(client, title="due the 23rd", due_date="2026-11-23")
+        await add_event(client, "work-1", "early on the 23rd", "11-22T11:00", "11-22T11:30")
+        await add_event(client, "work-1", "late on the 23rd", "11-23T10:00", "11-23T10:30")
+        await add_event(client, "work-1", "on the 24th", "11-23T11:00", "11-23T12:00")
+        summary = (await client.get(f"{BASE}/summary")).json()
+        on_the_23rd = await event_titles(client, "2026-11-23", "2026-11-23")
+
+    assert summary["spaces"]["personal"]["overdue"] == 1  # only the 22nd is before the 23rd
+    assert on_the_23rd == ["early on the 23rd", "late on the 23rd"]
 
 
 async def test_events_are_created_and_listed_across_spaces_in_order(db_url, make_dashboards_app):
@@ -425,7 +436,6 @@ async def test_events_are_created_and_listed_across_spaces_in_order(db_url, make
     assert early["busy_only"] is False
     assert focus["busy_only"] is True
     assert early["starts_at"] == "2026-11-23T08:00:00Z"
-    assert early["created_at"] == "2026-11-22T12:00:00Z"
     assert set(early) == {
         "id",
         "space_id",
@@ -434,8 +444,6 @@ async def test_events_are_created_and_listed_across_spaces_in_order(db_url, make
         "ends_at",
         "busy_only",
         "source",
-        "created_at",
-        "updated_at",
     }
     # by start, then end: "early" (ends 09:00) before "focus" (ends 10:00), then "late"
     assert [e["title"] for e in response.json()["events"]] == ["early", "focus", "late"]
@@ -536,7 +544,6 @@ async def test_an_event_can_be_changed_and_deleted(db_url, make_dashboards_app, 
     assert renamed.status_code == 200
     assert renamed.json()["title"] == "new"
     assert renamed.json()["busy_only"] is True
-    assert renamed.json()["updated_at"] == "2026-11-22T13:00:00Z"
     assert renamed.json()["starts_at"] == "2026-11-23T09:00:00Z"
     assert later_end.json()["ends_at"] == "2026-11-23T12:00:00Z"
     assert before_start.status_code == 422  # merged with the stored start
