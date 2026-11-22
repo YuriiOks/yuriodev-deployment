@@ -30,7 +30,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   ];
 
   return (
-    <header className={styles.bar}>
+    <div className={styles.bar}>
       <div className={styles.inner}>
         {!phone && (
           <>
@@ -54,7 +54,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
           </div>
         )}
       </div>
-    </header>
+    </div>
   );
 };
 

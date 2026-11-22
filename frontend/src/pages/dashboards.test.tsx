@@ -70,7 +70,7 @@ describe('the entrance', () => {
     resetStorageFallback();
   });
 
-  it('has a card per space with three counters, the next event and a way in, and no task', () => {
+  it('has a card per space with three counters, the next event and a way in, and no task, no blurb, no Open button', () => {
     renderAt('/dashboards');
     for (const [name, path, next] of [
       ['Личное', '/dashboards/personal', '18:00 Тренировка'],
@@ -83,9 +83,24 @@ describe('the entrance', () => {
       expect(card).toHaveTextContent('приоритет');
       expect(card).toHaveTextContent('просрочено');
       expect(card).toHaveTextContent(next);
-      expect(within(card).getByRole('link', { name: `Открыть ${name}` })).toHaveAttribute('href', path);
+      // The whole card is the link: the title's anchor is stretched over it.
+      expect(within(card).getByRole('link', { name })).toHaveAttribute('href', path);
     }
     expect(within(main()).queryAllByRole('checkbox')).toHaveLength(0);
+    expect(within(main()).queryByRole('link', { name: /^Открыть/ })).toBeNull();
+    expect(main()).not.toHaveTextContent('Три отдельных пространства');
+  });
+
+  it('says what is overdue in danger only above zero, and a zero is quiet', () => {
+    renderAt('/dashboards');
+    const personal = within(main()).getByRole('region', { name: 'Личное' });
+    const overdue = within(personal).getByText('просрочено').previousElementSibling as HTMLElement;
+    expect(overdue).toHaveTextContent('1');
+    expect(overdue.className).toMatch(/alarm/);
+    const work = within(main()).getByRole('region', { name: 'Работа 1' });
+    const none = within(work).getByText('просрочено').previousElementSibling as HTMLElement;
+    expect(none.className).toMatch(/zero/);
+    expect(none.className).not.toMatch(/alarm/);
   });
 
   it('switches to English and keeps the choice', async () => {
@@ -96,7 +111,7 @@ describe('the entrance', () => {
 
     await user.click(within(group).getByRole('button', { name: 'EN' }));
     expect(within(main()).getByRole('heading', { level: 1, name: /Dashboards/ })).toBeInTheDocument();
-    expect(within(main()).getByRole('link', { name: 'Open Work 1' })).toBeInTheDocument();
+    expect(within(within(main()).getByRole('region', { name: 'Work 1' })).getByRole('link', { name: 'Work 1' })).toBeInTheDocument();
     expect(main().querySelector('[lang]')).toHaveAttribute('lang', 'en');
     expect(localStorage.getItem(LANG_STORAGE_KEY)).toBe('en');
 
@@ -126,10 +141,12 @@ describe('a space page', () => {
     resetStorageFallback();
   });
 
-  it('shows the hero, the quick-add field, the tabs and the overview panels', () => {
+  it('shows the next-event strip, the quick-add field, the tabs and the overview panels', () => {
     renderAt('/dashboards/work-1');
     const m = within(main());
     expect(m.getByText('Стендап команды', { selector: 'p' })).toBeInTheDocument();
+    expect(m.getByText('через 47 мин')).toBeInTheDocument();
+    expect(m.getByText(/затем/)).toHaveTextContent('затем 13:00 Онбординг-синк');
     expect(m.getByRole('button', { name: 'Подключиться' })).toBeInTheDocument();
     expect(m.getByRole('textbox', { name: 'добавить задачу в «Работа 1»…' })).toBeInTheDocument();
     const tabs = m.getByRole('navigation', { name: 'Источники' });
@@ -178,20 +195,22 @@ describe('a space page', () => {
     expect(box).not.toBeChecked();
   });
 
-  it('the priority panel spans the row and holds only tinted, flagged tasks', () => {
+  it('the priority panel is the main list: first in the grid, three flagged tasks that look like any other row', () => {
     renderAt('/dashboards/personal');
     const panel = within(main()).getByRole('region', { name: 'Приоритет' });
     expect(within(panel).getAllByRole('checkbox')).toHaveLength(3);
-    expect(panel.className).toMatch(/priority/);
+    expect(main().querySelector('[role=tabpanel]')!.firstElementChild).toBe(panel);
+    expect(within(panel).getAllByText('Приоритет', { selector: '.sr-only' })).toHaveLength(3);
   });
 
-  it('the life-areas tab shows the area tiles with their counts', async () => {
+  it('the life-areas tab shows the areas as plain rows with their counts, a zero quiet', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/personal');
     await user.click(within(main()).getByRole('tab', { name: /^Сферы/  }));
     const tiles = within(main()).getByRole('region', { name: 'Сферы' });
     expect(within(tiles).getAllByRole('listitem')).toHaveLength(10);
     expect(within(tiles).getByText('Деньги').closest('li')).toHaveTextContent('4');
+    expect(within(tiles).getByText('Друзья').closest('li')!.querySelector('[data-zero="true"]')).toHaveTextContent('0');
   });
 
   it('a row with an action has a button naming the verb and the tool; the sample has nothing to open, so it does nothing yet', async () => {
@@ -260,20 +279,21 @@ describe('the calendar', () => {
     expect(within(main()).getAllByText(/Conflict: overlaps an event of another space/)).toHaveLength(5);
   });
 
-  it('places an event by its time and sizes it by its length, sharing the width in a cluster', () => {
+  it('places an event by its time and sizes it by its length, cascading a crowded cluster', () => {
     renderAt('/dashboards/calendar');
     const grid = within(main()).getByRole('table');
     // The first match is Monday's: columns come in day order.
     const block = (name: RegExp) => within(grid).getAllByText(name)[0].closest('li')!;
     const prop = (el: HTMLElement, name: string) => el.style.getPropertyValue(name);
+    const slotOf = (el: HTMLElement) => [prop(el, '--level'), prop(el, '--slot'), prop(el, '--slots')];
     // Stand-up on Monday is 10:00-10:30: one hour below the 09:00 start, half an hour tall, the whole width.
     const standup = block(/Стендап команды/);
     expect(prop(standup, '--top')).toBe('1');
     expect(prop(standup, '--span')).toBe('0.5');
-    expect([prop(standup, '--col'), prop(standup, '--cols')]).toEqual(['0', '1']);
-    // Friday's three-way overlap: each takes a third.
+    expect(slotOf(standup)).toEqual(['0', '0', '1']);
+    // Friday's three-way overlap is a cascade: the third start (16:00) is two steps in.
     const vendor = block(/Звонок поставщику/);
-    expect([prop(vendor, '--col'), prop(vendor, '--cols')]).toEqual(['2', '3']);
+    expect(slotOf(vendor)).toEqual(['2', '0', '1']);
     // A 45-minute call starting at 16:00: seven hours below 09:00, three quarters of an hour tall.
     expect(prop(vendor, '--top')).toBe('7');
     expect(prop(vendor, '--span')).toBe('0.75');
@@ -319,8 +339,8 @@ describe('the calendar: month view', () => {
     await openMonth();
     const today = monthTable().getByRole('button', { name: '23 ноября, событий: 5' });
     expect(today).toHaveAttribute('aria-current', 'date');
-    // Up to three chips, then how many more.
-    expect(within(today).getAllByText(/^\d{2}:\d{2} /)).toHaveLength(3);
+    // Up to three rows (a dot, the title, the start time), then how many more.
+    expect(within(today).getAllByText(/^\d{2}:\d{2}$/)).toHaveLength(3);
     expect(within(today).getByText('+2 ещё')).toBeInTheDocument();
     expect(monthTable().getByRole('button', { name: '24 ноября, событий: 4, есть конфликт' })).toBeInTheDocument();
   });
@@ -370,8 +390,8 @@ describe('the calendar: month view', () => {
     await user.click(within(main()).getByRole('button', { name: 'Месяц' }));
     await user.click(within(main()).getByRole('button', { name: 'Следующий месяц' }));
     expect(heading()).toHaveTextContent('Декабрь 2026');
-    // December has no overlap between two spaces: no conflict, and five weeks.
-    expect(within(main()).getByText('Конфликтов нет')).toBeInTheDocument();
+    // December has no overlap between two spaces: the count is not shown at all, and there are five weeks.
+    expect(within(main()).queryByText(/Конфликты:/)).toBeNull();
     expect(monthTable().getAllByRole('button')).toHaveLength(35);
     await user.click(within(main()).getByRole('button', { name: 'Предыдущий месяц' }));
     await user.click(within(main()).getByRole('button', { name: 'Предыдущий месяц' }));
@@ -463,12 +483,22 @@ describe('the space page: details', () => {
     resetStorageFallback();
   });
 
-  it('the hero chips are the rest of the day: the next event is the headline, not repeated', () => {
+  it('the strip names the next event once, then what comes after, and counts whole minutes', () => {
     renderAt('/dashboards/personal');
-    const chips = within(main()).getAllByRole('listitem').filter((li) => /^\d{2}:\d{2}/.test(li.textContent ?? '') && li.textContent?.includes('Урок языка'));
-    expect(chips).toHaveLength(1);
-    expect(within(main()).queryAllByRole('listitem').filter((li) => li.textContent?.includes('Тренировка'))).toHaveLength(0);
-    expect(within(main()).getByText(/мин$/)).toBeInTheDocument();
+    const m = within(main());
+    expect(m.getByText('Тренировка', { selector: 'p' })).toBeInTheDocument();
+    expect(m.getByText('через 8 ч 47 мин')).toBeInTheDocument();
+    expect(m.getByText(/затем/)).toHaveTextContent('затем 19:30 Урок языка');
+    expect(m.queryAllByText(/Тренировка/)).toHaveLength(1);
+  });
+
+  it('the strip is in English too', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(within(main()).getByRole('button', { name: 'EN' }));
+    expect(within(main()).getByText('in 47 min')).toBeInTheDocument();
+    expect(within(main()).getByText(/then/)).toHaveTextContent('then 13:00 Onboarding sync');
+    expect(within(main()).getByText(/^Synced:/)).toHaveTextContent('Synced: GitHub 2 min ago');
   });
 
   it('an empty panel shows a muted line, no rows and no count', async () => {
@@ -482,15 +512,22 @@ describe('the space page: details', () => {
     expect(within(main()).getByRole('tab', { name: /^Работа и доход/ })).toHaveTextContent('6');
   });
 
-  it('every row of every panel has a leading marker, and panel titles do not repeat the action', async () => {
+  it('panel titles do not repeat the action, and the rows of a panel share one lead column', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/work-1');
     await user.click(within(main()).getByRole('tab', { name: /^Slack/ }));
     expect(within(main()).getByRole('region', { name: /Ждут ответа/ })).toBeInTheDocument();
     expect(within(main()).getByRole('region', { name: /Что спросить/ })).toBeInTheDocument();
-    for (const li of main().querySelectorAll('[role=tabpanel] li')) {
-      expect(li.firstElementChild?.children.length, li.textContent ?? '').toBeGreaterThan(0);
+    for (const list of main().querySelectorAll('[role=tabpanel] ul')) {
+      const states = new Set([...list.querySelectorAll(':scope > li')].map((li) => li.getAttribute('data-lead')));
+      expect(states.size, list.textContent ?? '').toBe(1);
     }
+  });
+
+  it('shows how fresh the sources are as a quiet footer line, and no sentence about how the page works', () => {
+    renderAt('/dashboards/work-2');
+    expect(within(main()).getByText(/^Синхр\.:/)).toHaveTextContent('Синхр.: вручную');
+    expect(main()).not.toHaveTextContent('только ручной ввод');
   });
 });
 
@@ -501,35 +538,29 @@ describe('the panel grid follows the panels', () => {
     resetStorageFallback();
   });
 
-  const grid = () => main().querySelector<HTMLElement>('[style*="--cols-lg"]')!;
+  const grid = () => main().querySelector<HTMLElement>('[role=tabpanel]')!;
 
-  it('a tab with one panel besides the priority panel fills the row; the priority panel is its own full row', () => {
-    renderAt('/dashboards/personal');
-    expect(grid().style.getPropertyValue('--cols-lg')).toBe('1');
-    expect(grid().style.getPropertyValue('--cols-md')).toBe('1');
-  });
-
-  it('panels with references or long titles (GitHub) go two to a row, the odd one taking the whole row', async () => {
+  it('with more than one panel the first is the main list and the others stack beside it', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/work-1');
+    expect(grid()).toHaveAttribute('data-split', 'true');
+    expect(grid().style.getPropertyValue('--rows')).toBe('1');
     await user.click(within(main()).getByRole('tab', { name: /^GitHub/ }));
-    expect([grid().style.getPropertyValue('--cols-md'), grid().style.getPropertyValue('--cols-lg')]).toEqual(['2', '2']);
-    const panels = [...grid().children] as HTMLElement[];
-    expect(panels).toHaveLength(3);
-    expect(panels[2].className).toMatch(/fill/);
-    expect(panels[0].className).not.toMatch(/fill/);
+    expect(grid()).toHaveAttribute('data-split', 'true');
+    expect(grid().children).toHaveLength(3);
+    // The first panel spans the two stacked ones.
+    expect(grid().style.getPropertyValue('--rows')).toBe('2');
   });
 
-  it('two panels share the row, three take three columns, four sit two by two', async () => {
+  it('a tab with a single panel is one column', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/personal');
-    const cols = () => [grid().style.getPropertyValue('--cols-md'), grid().style.getPropertyValue('--cols-lg')];
-    await user.click(within(main()).getByRole('tab', { name: /^Сферы/  }));
-    expect(cols()).toEqual(['2', '2']);
-    await user.click(within(main()).getByRole('tab', { name: /^Работа и доход/  }));
-    expect(cols()).toEqual(['2', '3']);
-    await user.click(within(main()).getByRole('tab', { name: /^Суд/  }));
-    expect(cols()).toEqual(['2', '2']);
+    for (const tab of within(main()).getAllByRole('tab')) {
+      await user.click(tab);
+      const count = grid().children.length;
+      expect(grid().hasAttribute('data-split'), tab.textContent ?? '').toBe(count > 1);
+      expect(grid().style.getPropertyValue('--rows')).toBe(String(Math.max(count - 1, 1)));
+    }
   });
 });
 
@@ -569,6 +600,30 @@ describe('the calendar on a phone', () => {
     expect(within(main()).getByText('Конфликты: 2')).toBeInTheDocument();
     await user.click(within(main()).getByRole('button', { name: 'Предыдущий день' }));
     expect(heading()).toHaveTextContent('23 ноября');
+  });
+
+  it('has a strip of the week above the day: a button per day, the selected one pressed, a dot for events', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    const strip = within(main()).getByRole('group', { name: 'Дни недели' });
+    const days = within(strip).getAllByRole('button');
+    expect(days).toHaveLength(7);
+    expect(within(strip).getByRole('button', { name: /^23 ноября/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(strip).getByRole('button', { name: /^23 ноября/ })).toHaveAttribute('aria-current', 'date');
+    expect(within(strip).getByRole('button', { name: /^24 ноября.*есть конфликт/ })).toBeInTheDocument();
+    await user.click(within(strip).getByRole('button', { name: /^26 ноября/ }));
+    expect(within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Чт 26']);
+    expect(within(strip).getByRole('button', { name: /^26 ноября/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(strip).getByRole('button', { name: /^23 ноября/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('the bar is only the pages: no brand, and the language and theme switches sit at the end of the page', () => {
+    renderAt('/dashboards/personal');
+    expect(within(main()).queryByRole('link', { name: 'yuriodev: на сайт' })).toBeNull();
+    expect(within(main()).getAllByRole('group', { name: 'Язык' })).toHaveLength(1);
+    const switches = within(main()).getByRole('group', { name: 'Язык' }).parentElement!;
+    expect(switches).toBe(main().querySelector('[class*="switches"]'));
+    expect(within(switches).getByRole('button', { name: /тему/ })).toBeInTheDocument();
   });
 
   it('picking a day in the month opens that day', async () => {

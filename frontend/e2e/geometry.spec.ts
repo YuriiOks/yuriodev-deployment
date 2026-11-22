@@ -340,17 +340,46 @@ test.describe('dashboards: no site chrome', () => {
     });
   }
 
-  test('the content uses the wide screen: wider than the site column at 1920px', async ({ page }, testInfo) => {
+  test('the calendar uses the wide screen (96rem), the list pages hold a 72rem column, and the bar keeps to it', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
     await page.setViewportSize({ width: 1920, height: 1000 });
+    const column = () =>
+      page.evaluate(() => {
+        const content = document.querySelector('main [lang] > div[class*="inner"]');
+        const brand = document.querySelector('main [lang] a[href="/"]');
+        const first = document.querySelector('main [lang] [tabindex="-1"]');
+        if (!content || !brand || !first) return null;
+        const box = content.getBoundingClientRect();
+        return {
+          width: Math.round(box.width),
+          left: Math.round(box.left),
+          brand: Math.round(brand.getBoundingClientRect().left),
+          first: Math.round(first.getBoundingClientRect().left),
+        };
+      });
     await open(page, '/dashboards/calendar');
-    const width = await page.evaluate(() => {
-      const content = document.querySelector('main [lang] > div');
-      return content ? Math.round(content.getBoundingClientRect().width) : 0;
-    });
-    // The site's column caps at 72rem (1152px); the dashboards cap at 96rem (1536px).
-    expect(width).toBeGreaterThan(1152);
-    expect(width).toBeLessThanOrEqual(1536);
+    const wide = (await column())!;
+    // The site's column caps at 72rem (1152px); the calendar caps at 96rem (1536px).
+    expect(wide.width).toBeGreaterThan(1152);
+    expect(wide.width).toBeLessThanOrEqual(1536);
+
+    await open(page, '/dashboards/personal');
+    const list = (await column())!;
+    expect(list.width).toBeLessThanOrEqual(1152);
+    // One content edge: the brand in the bar starts where the column's own padding does (24px in from its edge).
+    expect(Math.abs(list.brand - (list.left + 24)), 'the brand and the content share an edge').toBeLessThanOrEqual(1);
+    expect(Math.abs(list.first - (list.left + 24)), 'the page content starts at that edge').toBeLessThanOrEqual(1);
+  });
+
+  test('the bar is sticky: it stays at the top while the page scrolls', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    await page.setViewportSize({ width: 1440, height: 500 });
+    await open(page, '/dashboards/calendar');
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(200);
+    const top = await page.evaluate(() => document.querySelector('main [lang] a[href="/"]')!.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(top).toBeLessThan(48);
   });
 });
 

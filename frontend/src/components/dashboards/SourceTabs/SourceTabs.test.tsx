@@ -40,6 +40,13 @@ describe('SourceTabs', () => {
     expect(onSelect).toHaveBeenCalledWith('jira');
   });
 
+  it('has no icons, and a tab with no items shows no number', () => {
+    renderTabs();
+    for (const tab of screen.getAllByRole('tab')) expect(tab.querySelector('svg')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Jira' })).toHaveTextContent(/^Jira$/);
+    expect(screen.getByRole('tab', { name: 'Обзор' })).toHaveTextContent(/^Обзор$/);
+  });
+
   it('only the selected tab is a tab stop; the arrow keys, Home and End move and select', async () => {
     const user = userEvent.setup();
     const onSelect = renderTabs('github');
