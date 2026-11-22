@@ -13,6 +13,15 @@
    (--top and --span, in hours, come from the markup). 64rem keeps three events side by side wide enough to
    read a title. */
 .table {
+  /* Layout inputs, set inline per element by WeekGrid.tsx (hours on the
+     table, i on each hour line, top/span/col/cols on each event). These are
+     the defaults, so every var() below resolves even without the markup. */
+  --hours: 12;
+  --i: 0;
+  --top: 0;
+  --span: 1;
+  --col: 0;
+  --cols: 1;
   --hour-h: 3.625rem;
   width: 100%;
   min-width: 64rem;
