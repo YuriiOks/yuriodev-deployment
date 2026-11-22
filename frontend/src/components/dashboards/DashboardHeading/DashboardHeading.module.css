@@ -1,36 +1,23 @@
-/* The page title block: title and lead, then (optionally) a row of controls
-   across the full width. No left inset: it shares the page's left edge with
-   the bar and the cards. */
 .heading {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3) 0 0;
+  min-height: var(--dash-h-strip);
 }
 
-.text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
+/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+.heading .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
 }
 
-.title {
-  color: var(--dash-title);
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
-}
-
-.aside {
-  color: var(--dash-t2);
-  font-size: var(--fs-md);
-  font-weight: var(--fw-medium);
-}
-
-.lead {
-  color: var(--dash-t2);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-snug);
-  max-width: var(--measure);
+.heading .title::before,
+.heading .title::after {
+  content: none;
 }

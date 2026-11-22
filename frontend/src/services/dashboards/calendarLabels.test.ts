@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dateLabel, fill, monthTitle, weekRangeLabel } from './calendarLabels';
+import { dateLabel, fill, monthTitle, weekRangeLabel, countdownLabel } from './calendarLabels';
 import { STRINGS } from './strings';
 
 describe('calendar labels', () => {
@@ -20,5 +20,16 @@ describe('calendar labels', () => {
   it('fills placeholders and leaves unknown ones alone', () => {
     expect(fill('{date}, events: {n}', { date: '23 November', n: 5 })).toBe('23 November, events: 5');
     expect(fill('{missing}', {})).toBe('{missing}');
+  });
+
+  it('the countdown is whole minutes, hours from 60, "now" under one', () => {
+    expect(countdownLabel(47, STRINGS.en)).toBe('in 47 min');
+    expect(countdownLabel(47, STRINGS.ru)).toBe('через 47 мин');
+    expect(countdownLabel(80, STRINGS.en)).toBe('in 1 h 20 min');
+    expect(countdownLabel(120, STRINGS.en)).toBe('in 2 h');
+    expect(countdownLabel(527, STRINGS.ru)).toBe('через 8 ч 47 мин');
+    expect(countdownLabel(0.4, STRINGS.en)).toBe('now');
+    expect(countdownLabel(0, STRINGS.ru)).toBe('сейчас');
+    expect(countdownLabel(-5, STRINGS.en)).toBe('now');
   });
 });

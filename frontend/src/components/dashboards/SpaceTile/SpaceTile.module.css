@@ -1,0 +1,17 @@
+/* One of the five places a space's colour shows (the others: the active underline, the primary button, a
+   ticked checkbox, the calendar's bars). data-space on the tile itself remaps --dash-fill / --dash-on-fill. */
+.tile {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--dash-fill);
+  border-radius: var(--dash-r-tag);
+  color: var(--dash-on-fill);
+  font-size: var(--dash-fs-meta);
+  font-weight: 600;
+  line-height: 1;
+}

@@ -40,7 +40,7 @@ describe('dashboard strings', () => {
     const same = leaves(STRINGS.ru).filter((key) => at(STRINGS.ru, key) === at(STRINGS.en, key));
     // Tool names (GitHub, Slack ...) are the same in both; the sentences are not.
     expect(same.every((key) => key.startsWith('tabs.'))).toBe(true);
-    expect(STRINGS.ru.hubLead).not.toBe(STRINGS.en.hubLead);
+    expect(STRINGS.ru.countdownMin).not.toBe(STRINGS.en.countdownMin);
   });
 
   it('pick returns the text in the language asked for', () => {

@@ -1,32 +1,26 @@
-/* Each card wears its own space's ink and fill (data-card), whatever skin the
-   page has: the entrance itself is Personal. */
+/* An entrance card: the content surface (glass, hairline, 12px radius); hovering lifts the edge to the
+   control edge. The whole card is the link: the title's anchor is stretched over it. */
 .card {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
-  --card-ink: var(--dash-ink-personal);
-  --card-rgb: var(--dash-ink-personal-rgb);
-  --card-fill: var(--dash-fill-personal);
-  --card-on-fill: var(--dash-on-fill-personal);
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  min-width: 0;
   padding: var(--space-5);
-  border-color: rgba(var(--card-rgb), 0.4);
-  border-radius: var(--dash-r-card);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+  transition: border-color 120ms;
 }
 
-.card[data-card="work-1"] {
-  --card-ink: var(--dash-ink-work-1);
-  --card-rgb: var(--dash-ink-work-1-rgb);
-  --card-fill: var(--dash-fill-work-1);
-  --card-on-fill: var(--dash-on-fill-work-1);
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--dash-edge);
+  }
 }
 
-.card[data-card="work-2"] {
-  --card-ink: var(--dash-ink-work-2);
-  --card-rgb: var(--dash-ink-work-2-rgb);
-  --card-fill: var(--dash-fill-work-2);
-  --card-on-fill: var(--dash-on-fill-work-2);
+.card:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .head {
@@ -35,33 +29,13 @@
   gap: var(--space-3);
 }
 
-.badge {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  background: rgba(var(--card-rgb), 0.12);
-  border: 1px solid rgba(var(--card-rgb), 0.4);
-  border-radius: var(--dash-r-control);
-  color: var(--card-ink);
-}
-
-.titles {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-}
-
-/* global.css gives every h2 a '# ', an underline and spacing; a card's name has none of them. */
+/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
 .card .name {
   margin: 0;
   padding: 0;
-  color: var(--card-ink);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
+  font-size: var(--dash-fs-title);
+  font-weight: 600;
+  line-height: var(--dash-lh-title);
 }
 
 .card .name::before,
@@ -69,98 +43,82 @@
   content: none;
 }
 
-.about {
-  color: var(--dash-t2);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-snug);
+.link {
+  color: var(--dash-t1);
+  text-decoration: none;
 }
 
+.link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--dash-r-surface);
+}
+
+.link:focus-visible {
+  outline: none;
+}
+
+/* Three stats side by side, a 24px gap and a hairline between them. */
 .stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
+  display: flex;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-1);
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-md);
-  text-align: center;
+  padding-inline: var(--space-5);
+}
+
+.stat:first-child {
+  padding-left: 0;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--dash-line);
 }
 
 .number {
   color: var(--dash-t1);
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-bold);
-  line-height: 1;
+  font-size: var(--dash-fs-stat);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: var(--dash-lh-stat);
 }
 
-.number[data-kind="priority"] {
-  color: var(--dash-title);
-}
-
-.number[data-kind="overdue"] {
-  color: var(--dash-danger);
-}
-
-.number[data-kind="none"] {
+.zero {
   color: var(--dash-t3);
+}
+
+.alarm {
+  color: var(--dash-danger);
 }
 
 .label {
   color: var(--dash-t2);
-  font-size: var(--fs-2xs);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
 }
 
 .next {
-  color: var(--dash-t2);
-  font-size: var(--fs-xs);
-}
-
-.nextLabel {
+  margin: 0;
   color: var(--dash-t2);
 }
 
-.nextText {
-  color: var(--dash-t1);
+.at {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
 }
 
-.open {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 3rem;
-  margin-top: auto;
-  padding: 0 var(--space-4);
-  background: rgba(var(--card-rgb), 0.14);
-  border: 1px solid rgba(var(--card-rgb), 0.5);
-  border-radius: var(--dash-r-control);
-  box-shadow: 0 0.5rem 1.4rem rgba(var(--card-rgb), 0.25);
-  color: var(--dash-t1);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-  text-align: center;
-  text-decoration: none;
-  transition: box-shadow var(--dur-2) var(--ease-std);
-}
-
-@media (hover: hover) {
-  .open:hover {
-    background: rgba(var(--card-rgb), 0.22);
-    box-shadow: 0 0.5rem 1.4rem rgba(var(--card-rgb), 0.4);
+@media (max-width: 47.99rem) {
+  .card {
+    padding: var(--space-4);
   }
-}
 
-@media (forced-colors: active) {
-  .card,
-  .open {
-    border: 1px solid CanvasText;
+  .stat {
+    padding-inline: var(--space-4);
   }
 }

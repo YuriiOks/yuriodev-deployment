@@ -30,16 +30,20 @@ export interface Strings {
   readonly navCalendar: string;
   readonly langLabel: string;
   readonly hubTitle: string;
-  readonly hubLead: string;
   readonly next: string;
-  readonly open: string;
-  readonly inWord: string;
+  /** Shown in the strip after the next event: 'then 13:00 ...'. */
+  readonly thenWord: string;
+  /** The page footer's source-freshness prefix. */
+  readonly syncedLabel: string;
+  /** The strip's countdown: {n} minutes, {h} hours; whole minutes, never seconds. */
+  readonly countdownNow: string;
+  readonly countdownMin: string;
+  readonly countdownHour: string;
+  readonly countdownHourMin: string;
   readonly statOpen: string;
   readonly statPriority: string;
   readonly statOverdue: string;
   readonly join: string;
-  /** The unit of the hero's countdown (mm:ss). */
-  readonly minutesShort: string;
   readonly sourcesLabel: string;
   readonly priorityRow: string;
   readonly ciPass: string;
@@ -49,11 +53,10 @@ export interface Strings {
   /** The tooltip of an action that does nothing yet (sample data). */
   readonly notConnected: string;
   readonly calendarTitle: string;
-  readonly calendarLead: string;
-  readonly calendarNote: string;
   readonly calendarCaption: string;
   readonly conflicts: string;
-  readonly noConflicts: string;
+  /** The legend's hatched swatch: a block with no details. */
+  readonly busyNoDetails: string;
   readonly workdaysOnly: string;
   /** The weekend events hidden by the working-days option, with their count as '{n}'. */
   readonly weekendHidden: string;
@@ -100,16 +103,17 @@ export const STRINGS: Record<Lang, Strings> = {
     navCalendar: 'Календарь',
     langLabel: 'Язык',
     hubTitle: 'Дашборды',
-    hubLead:
-      'Три отдельных пространства. Задачи, встречи и напоминания между ними не смешиваются: здесь только вход и счётчики.',
     next: 'Дальше',
-    open: 'Открыть',
-    inWord: 'через',
+    thenWord: 'затем',
+    syncedLabel: 'Синхр.:',
+    countdownNow: 'сейчас',
+    countdownMin: 'через {n} мин',
+    countdownHour: 'через {h} ч',
+    countdownHourMin: 'через {h} ч {m} мин',
     statOpen: 'открыто',
     statPriority: 'приоритет',
     statOverdue: 'просрочено',
     join: 'Подключиться',
-    minutesShort: 'мин',
     sourcesLabel: 'Источники',
     priorityRow: 'Приоритет',
     ciPass: 'CI проходит',
@@ -118,11 +122,9 @@ export const STRINGS: Record<Lang, Strings> = {
     opensInNewTab: 'откроется в новой вкладке',
     notConnected: 'Пример: источник не подключён',
     calendarTitle: 'Календарь',
-    calendarLead: 'Личное и работа на одной сетке. Только события, без задач.',
-    calendarNote: 'Личное событие в рабочие часы видно в рабочем календаре как «Focus time», без подробностей.',
     calendarCaption: 'Неделя, события трёх пространств',
     conflicts: 'Конфликты',
-    noConflicts: 'Конфликтов нет',
+    busyNoDetails: 'Занято, без деталей',
     workdaysOnly: 'Показывать только рабочие дни',
     weekendHidden: 'Скрыто событий в выходные: {n}.',
     weekendHiddenConflict: 'Среди них есть конфликт.',
@@ -177,16 +179,17 @@ export const STRINGS: Record<Lang, Strings> = {
     navCalendar: 'Calendar',
     langLabel: 'Language',
     hubTitle: 'Dashboards',
-    hubLead:
-      'Three separate spaces. Tasks, meetings and reminders never mix between them: this page is only the entrance and the counters.',
     next: 'Next',
-    open: 'Open',
-    inWord: 'in',
+    thenWord: 'then',
+    syncedLabel: 'Synced:',
+    countdownNow: 'now',
+    countdownMin: 'in {n} min',
+    countdownHour: 'in {h} h',
+    countdownHourMin: 'in {h} h {m} min',
     statOpen: 'open',
     statPriority: 'priority',
     statOverdue: 'overdue',
     join: 'Join',
-    minutesShort: 'min',
     sourcesLabel: 'Sources',
     priorityRow: 'Priority',
     ciPass: 'CI passing',
@@ -195,11 +198,9 @@ export const STRINGS: Record<Lang, Strings> = {
     opensInNewTab: 'opens in a new tab',
     notConnected: 'Sample: the source is not connected',
     calendarTitle: 'Calendar',
-    calendarLead: 'Personal and work on one grid. Events only, no tasks.',
-    calendarNote: 'A personal event during work hours shows in the work calendar as "Focus time", with no details.',
     calendarCaption: 'Week, events of all three spaces',
     conflicts: 'Conflicts',
-    noConflicts: 'No conflicts',
+    busyNoDetails: 'Busy, no details',
     workdaysOnly: 'Show working days only',
     weekendHidden: 'Weekend events hidden: {n}.',
     weekendHiddenConflict: 'They include a conflict.',

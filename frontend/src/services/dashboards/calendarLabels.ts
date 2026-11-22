@@ -26,3 +26,19 @@ export function monthTitle(iso: string, t: Pick<Strings, 'months'>): string {
 export function fill(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in values ? String(values[key]) : whole));
 }
+
+/**
+ * Time until an event, in whole minutes and never seconds: "in 47 min", "in 1 h 20 min", "in 2 h", and "now"
+ * (under a minute, or already started).
+ */
+export function countdownLabel(
+  minutes: number,
+  t: Pick<Strings, 'countdownNow' | 'countdownMin' | 'countdownHour' | 'countdownHourMin'>,
+): string {
+  const total = Math.floor(minutes);
+  if (total < 1) return t.countdownNow;
+  if (total < 60) return fill(t.countdownMin, { n: total });
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? fill(t.countdownHour, { h }) : fill(t.countdownHourMin, { h, m });
+}

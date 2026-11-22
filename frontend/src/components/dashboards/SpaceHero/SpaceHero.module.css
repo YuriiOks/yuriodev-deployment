@@ -1,168 +1,103 @@
-/* The hero: the space's icon and name, the next event, a countdown (and Join),
-   and the day's events. One grid at every width: on a tablet and up the
-   countdown sits at the right of the event; on a phone it moves to its own
-   row under it, so the icon and the title stay together. */
-.hero {
-  composes: glassDash from '../../../assets/styles/recipes.module.css';
+/* The next-event strip: one 56px row, no box, no border, no icon square. Desktop: tile, name, the event as
+   the page's one 20px line, the countdown, "then ...", Join at the right. A phone: two lines, the tile with
+   the name and Join, then the event and the countdown. */
+.strip {
   display: grid;
-  grid-template-areas:
-    'badge next'
-    'aside aside'
-    'day day';
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(0, max-content) auto minmax(0, 1fr) auto;
+  grid-template-areas: 'tile name event left then join';
   align-items: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-4);
-  border-color: rgba(var(--dash-fill-rgb), 0.4);
-  border-radius: var(--dash-r-hero);
+  column-gap: var(--space-3);
+  min-height: var(--dash-h-strip);
 }
 
-.badge {
-  grid-area: badge;
+.tile {
+  grid-area: tile;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  background: var(--dash-sel-bg);
-  border: 1px solid var(--dash-sel-edge);
-  border-radius: var(--dash-r-control);
-  color: var(--dash-accent);
 }
 
-.next {
-  grid-area: next;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.name {
-  color: var(--dash-title);
-  font-size: var(--fs-md);
-  font-weight: var(--fw-bold);
-}
-
-.label {
+/* global.css gives h1 a '# ' and spacing; the name is a quiet label, the event is the line that matters. */
+.strip .name {
+  grid-area: name;
+  margin: 0;
+  padding: 0;
   color: var(--dash-t2);
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--tracking-caps);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  line-height: var(--dash-lh-ui);
+}
+
+.strip .name::before,
+.strip .name::after {
+  content: none;
 }
 
 .event {
+  grid-area: event;
+  margin: 0 var(--space-2) 0 var(--space-2);
+  overflow: hidden;
   color: var(--dash-t1);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  line-height: var(--lh-snug);
-}
-
-.at {
-  color: var(--dash-accent);
-}
-
-.aside {
-  grid-area: aside;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.countdown {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  color: var(--dash-title);
-  font-size: var(--fs-xl);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--fw-bold);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.unit {
-  color: var(--dash-t2);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
+.at {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  font-weight: 500;
 }
 
-.in {
+.left {
+  grid-area: left;
+  margin: 0;
   color: var(--dash-t2);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.then {
+  grid-area: then;
+  display: none;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thenAt {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
 }
 
 .join {
-  min-height: 2.75rem;
-  padding: 0 var(--space-5);
-  border: 0;
-  border-radius: var(--dash-r-control);
-  background: var(--dash-fill);
-  color: var(--dash-on-fill);
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-  cursor: pointer;
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+  grid-area: join;
 }
 
-.day {
-  grid-area: day;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--dash-line);
+@media (min-width: 64rem) {
+  .then {
+    display: block;
+    padding-left: var(--space-2);
+  }
 }
 
-.events {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  list-style: none;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.3125rem 0.6875rem;
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-pill);
-  color: var(--dash-t2);
-  font-size: var(--fs-2xs);
-}
-
-.chipAt {
-  color: var(--dash-t1);
-  font-weight: var(--fw-semibold);
-}
-
-.sync {
-  color: var(--dash-t2);
-  font-size: var(--fs-2xs);
-}
-
-@media (min-width: 48rem) {
-  .hero {
-    grid-template-areas:
-      'badge next aside'
-      'day day day';
+@media (max-width: 47.99rem) {
+  .strip {
     grid-template-columns: auto minmax(0, 1fr) auto;
-    padding: var(--space-5);
+    grid-template-areas:
+      'tile name join'
+      'event event left';
+    row-gap: var(--space-1);
+    padding-block: var(--space-2);
   }
 
-  .aside {
-    justify-content: flex-end;
-  }
-
-  /* The source line goes to the right edge from a tablet up; on a phone it keeps the left edge. */
-  .sync {
-    margin-left: auto;
-  }
-
-  .countdown {
-    font-size: var(--fs-2xl);
+  .event {
+    margin: 0;
+    font-size: var(--dash-fs-title);
+    font-weight: 600;
+    line-height: var(--dash-lh-title);
   }
 }
