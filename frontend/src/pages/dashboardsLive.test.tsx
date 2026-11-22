@@ -54,7 +54,8 @@ describe('the switch between real data and the sample data', () => {
     const user = userEvent.setup();
     renderAt('/dashboards');
     await within(main()).findByRole('region', { name: 'Личное' });
-    await user.click(within(main()).getByRole('link', { name: 'Работа 1' }));
+    // The name is a link twice on the entrance (the bar and the card): the card's is the one to follow.
+    await user.click(within(within(main()).getByRole('region', { name: 'Работа 1' })).getByRole('link', { name: 'Работа 1' }));
     await within(main()).findByText('Review the pull request');
     expect(api.calls.filter((call) => call.path === '/bootstrap')).toHaveLength(1);
   });
@@ -382,7 +383,8 @@ describe('ticking a task on real data', () => {
 const editor = () => within(main()).queryByRole('form', { name: /^Изменить:/ });
 
 describe('editing a task on real data', () => {
-  async function openEditor(title: string) {
+  async function openEditor(title: string, path = '/dashboards/personal') {
+    renderAt(path);
     const user = userEvent.setup();
     const m = within(main());
     await user.click(await m.findByRole('button', { name: `Изменить: ${title}` }));
@@ -403,7 +405,7 @@ describe('editing a task on real data', () => {
 
   it('has no area field on a work space', async () => {
     setup();
-    const { form } = await openEditor('Review the pull request');
+    const { form } = await openEditor('Review the pull request', '/dashboards/work-1');
     expect(within(form).queryByLabelText('Сфера')).toBeNull();
   });
 
