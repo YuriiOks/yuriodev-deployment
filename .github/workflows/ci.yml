@@ -119,6 +119,7 @@ jobs:
       - name: Types (mypy strict)
         run: mypy
       - name: Tests (90% branch-coverage gate from pyproject.toml)
+        timeout-minutes: 10
         env:
           # Without it the database tests skip and the coverage gate would fail.
           DASHBOARDS_TEST_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci

@@ -32,6 +32,9 @@ warn_required_dynamic_aliases = true
 testpaths = ["tests"]
 pythonpath = ["."]
 # Coverage is opt-in (CI passes `--cov`), so a subset run is not failed by the 90% gate.
+# A test stuck for 2 minutes dumps every thread's stack (the CI job itself is bounded by
+# timeout-minutes), so a hang names its cause instead of ending as a silent job timeout.
+faulthandler_timeout = 120
 addopts = ["-ra", "--strict-markers", "--strict-config"]
 filterwarnings = [
     "error",

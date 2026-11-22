@@ -21,6 +21,7 @@ TEST_DB_ENV = "DASHBOARDS_TEST_DATABASE_URL"
 CRED = "dash-cred-7f3a91c2e4b8d605a1f9"
 AUTH = {ACCESS_HEADER: CRED}
 # Nothing listens on port 1: a URL for tests that never need a database to answer.
+RUNNING_TIMEOUT = 90  # seconds for one app run in a test, startup to shutdown
 UNREACHABLE_URL = "postgresql://dashboards:pw-unreachable@127.0.0.1:1/dashboards"
 
 
@@ -49,10 +50,15 @@ def url_for(server_url: str, database: str) -> str:
 async def execute(url: str, *statements: str) -> None:
     """Run statements outside a transaction (CREATE/DROP DATABASE need that)."""
     engine = create_async_engine(
-        to_async_url(url), isolation_level="AUTOCOMMIT", poolclass=NullPool
+        to_async_url(url),
+        isolation_level="AUTOCOMMIT",
+        poolclass=NullPool,
+        connect_args={"timeout": 10},
     )
     try:
-        async with engine.connect() as connection:
+        async with asyncio.timeout(30), engine.connect() as connection:
+            # A lock held by a leaked transaction must fail the test, not hang it.
+            await connection.execute(text("SET lock_timeout = '15s'"))
             for statement in statements:
                 await connection.execute(text(statement))
     finally:
@@ -60,9 +66,11 @@ async def execute(url: str, *statements: str) -> None:
 
 
 async def scalar(url: str, statement: str) -> object:
-    engine = create_async_engine(to_async_url(url), poolclass=NullPool)
+    engine = create_async_engine(
+        to_async_url(url), poolclass=NullPool, connect_args={"timeout": 10}
+    )
     try:
-        async with engine.connect() as connection:
+        async with asyncio.timeout(30), engine.connect() as connection:
             return (await connection.execute(text(statement))).scalar_one()
     finally:
         await engine.dispose()
@@ -72,8 +80,12 @@ async def scalar(url: str, statement: str) -> object:
 async def running(
     app: FastAPI, headers: dict[str, str] | None = None, wait: bool = True
 ) -> AsyncIterator[httpx.AsyncClient]:
-    """The app with its lifespan started (and, by default, its database migrated), and a client."""
-    async with app.router.lifespan_context(app):
+    """The app with its lifespan started (and, by default, its database migrated), and a client.
+
+    The whole block, shutdown included, is bounded: a stuck await fails the test with a
+    TimeoutError instead of holding the CI job.
+    """
+    async with asyncio.timeout(RUNNING_TIMEOUT), app.router.lifespan_context(app):
         if wait:
             await asyncio.wait_for(app.state.dashboards.ready.wait(), timeout=30)
         transport = httpx.ASGITransport(app=app)

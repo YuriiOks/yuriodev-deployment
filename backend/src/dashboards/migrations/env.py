@@ -8,7 +8,7 @@ import asyncio
 import os
 
 from alembic import context
-from sqlalchemy import pool, text
+from sqlalchemy import BigInteger, bindparam, pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -32,7 +32,11 @@ def _database_url() -> str:
 def _migrate(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=Base.metadata)
     with context.begin_transaction():
-        connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": ADVISORY_LOCK_KEY})
+        # Typed as bigint: an untyped Python int is bound as int32, which this key exceeds.
+        lock = text("SELECT pg_advisory_xact_lock(:key)").bindparams(
+            bindparam("key", ADVISORY_LOCK_KEY, type_=BigInteger)
+        )
+        connection.execute(lock)
         context.run_migrations()
 
 
