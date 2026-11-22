@@ -1,12 +1,10 @@
 /* The scroll box is focusable (tabIndex 0 in the markup) so a keyboard user
    can scroll it on a narrow screen; the global focus ring shows on it. */
 .scroll {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   padding: var(--space-3);
   overflow-x: auto;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--dash-r-hero);
 }
 
 .table {

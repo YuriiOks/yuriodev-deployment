@@ -1,10 +1,8 @@
 .panel {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   min-width: 0;
   padding: var(--space-4) 0.375rem 0.5rem;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--dash-r-panel);
 }
 
 .priority {
@@ -53,7 +51,7 @@
 
 .note {
   margin-left: auto;
-  color: var(--dash-t3);
+  color: var(--dash-t2);
   font-size: var(--fs-2xs);
 }
 

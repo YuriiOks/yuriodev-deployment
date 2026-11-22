@@ -6,6 +6,7 @@ import CanvasBackground from '../../ui/CanvasBackground/CanvasBackground';
 import CommandPalette from '../../ui/CommandPalette/CommandPalette';
 import HelpPanel from '../../ui/HelpPanel/HelpPanel';
 import ScrollToTop from '../../ui/ScrollToTop/ScrollToTop';
+import { canvasAllowedAt } from '../../../data/site';
 import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
 import { useGlobalShortcuts } from '../../../hooks/useGlobalShortcuts';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
@@ -72,7 +73,7 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
       <a href="#main-content" className={styles.skipLink} onClick={skipToMain}>
         Skip to main content
       </a>
-      <CanvasBackground />
+      {canvasAllowedAt(currentPath) && <CanvasBackground />}
       <CommandPalette
         open={active === 'palette'}
         onClose={closePalette}

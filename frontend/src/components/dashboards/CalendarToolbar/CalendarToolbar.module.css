@@ -1,3 +1,6 @@
+/* One row: every part is 46px high (the segmented controls' height) and
+   sits on one centre line. The controls themselves are the shared system in
+   assets/styles/dashboard-controls.module.css. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -8,6 +11,7 @@
 .legend {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3) var(--space-4);
   list-style: none;
 }
@@ -16,6 +20,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4375rem;
+  min-height: 2.875rem;
   color: var(--dash-t1);
   font-size: var(--fs-xs);
 }
@@ -39,41 +44,13 @@
   background: var(--dash-ink-work-2);
 }
 
-.view {
-  display: inline-flex;
-  gap: 0.125rem;
-  padding: 0.1875rem;
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-edge);
-  border-radius: var(--radius-pill);
-}
-
-.option {
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0 var(--space-4);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--dash-t2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  cursor: pointer;
-}
-
-.on {
-  background: var(--dash-fill);
-  color: var(--dash-on-fill);
-}
-
-/* The week's conflicts: a pill, in the danger ink with an icon when there are any. */
+/* The week's conflicts: a pill of the same height, in the danger ink with an icon when there are any. */
 .conflicts {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  min-height: 2rem;
-  padding: 0 var(--space-3);
+  min-height: 2.875rem;
+  padding: 0 var(--space-4);
   background: var(--dash-chip);
   border: 1px solid var(--dash-line);
   border-radius: var(--radius-pill);
@@ -87,39 +64,26 @@
   color: var(--dash-danger);
 }
 
-/* Previous / today / next: one group, every control 44px high. */
 .steps {
-  display: inline-flex;
-  gap: 0.125rem;
-  padding: 0.1875rem;
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-edge);
-  border-radius: var(--radius-pill);
+  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.view {
+  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
 }
 
 .step {
-  min-height: 2.75rem;
-  padding: 0 var(--space-4);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--dash-t1);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  cursor: pointer;
+  composes: option from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.option {
+  composes: option from '../../../assets/styles/dashboard-controls.module.css';
 }
 
 .square {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  padding: 0;
+  composes: optionSquare from '../../../assets/styles/dashboard-controls.module.css';
 }
 
-@media (hover: hover) {
-  .step:hover {
-    background: var(--dash-sel-bg);
-  }
+.on {
+  composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
 }

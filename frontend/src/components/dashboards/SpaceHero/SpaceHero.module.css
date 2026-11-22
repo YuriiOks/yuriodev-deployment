@@ -1,13 +1,12 @@
 .hero {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3) var(--space-5);
   padding: var(--space-5);
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-sel-edge);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-color: rgba(var(--dash-fill-rgb), 0.4);
+  border-radius: var(--dash-r-hero);
 }
 
 .badge {
@@ -19,7 +18,7 @@
   height: 3.5rem;
   background: var(--dash-sel-bg);
   border: 1px solid var(--dash-sel-edge);
-  border-radius: var(--radius-lg);
+  border-radius: var(--dash-r-control);
   color: var(--dash-accent);
 }
 
@@ -38,7 +37,7 @@
 }
 
 .label {
-  color: var(--dash-t3);
+  color: var(--dash-t2);
   font-size: var(--fs-2xs);
   letter-spacing: var(--tracking-caps);
 }
@@ -72,7 +71,7 @@
   min-height: 3rem;
   padding: 0 var(--space-6);
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--dash-r-control);
   background: var(--dash-fill);
   color: var(--dash-on-fill);
   font-family: var(--font-mono);
@@ -117,6 +116,6 @@
 
 .sync {
   margin-left: auto;
-  color: var(--dash-t3);
+  color: var(--dash-t2);
   font-size: var(--fs-2xs);
 }

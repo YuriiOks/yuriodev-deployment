@@ -93,6 +93,11 @@ export interface PageDef {
    * Unset: the rail shows wherever it has room (hooks/useRailViable.ts).
    */
   readonly rail?: false;
+  /**
+   * `false`: the page draws no animated dot canvas behind it (the dashboards
+   * have their own glows). Unset: the canvas shows.
+   */
+  readonly canvas?: false;
 }
 
 export const PAGES: readonly PageDef[] = [
@@ -103,11 +108,11 @@ export const PAGES: readonly PageDef[] = [
   { id: 'privacy', path: '/privacy', label: 'Privacy notice', navLabel: '--privacy' },
   // The private dashboards: routed pages with no `nav`, so the header, the
   // palette and the footer never list them (the terminal reads none of PAGES).
-  { id: 'dashboards', path: '/dashboards', label: 'Dashboards', navLabel: '--dashboards', rail: false },
-  { id: 'dashboards-personal', path: '/dashboards/personal', label: 'Personal dashboard', navLabel: '--dashboards-personal', rail: false },
-  { id: 'dashboards-work-1', path: '/dashboards/work-1', label: 'Work 1 dashboard', navLabel: '--dashboards-work-1', rail: false },
-  { id: 'dashboards-work-2', path: '/dashboards/work-2', label: 'Work 2 dashboard', navLabel: '--dashboards-work-2', rail: false },
-  { id: 'dashboards-calendar', path: '/dashboards/calendar', label: 'Dashboards calendar', navLabel: '--dashboards-calendar', rail: false },
+  { id: 'dashboards', path: '/dashboards', label: 'Dashboards', navLabel: '--dashboards', rail: false, canvas: false },
+  { id: 'dashboards-personal', path: '/dashboards/personal', label: 'Personal dashboard', navLabel: '--dashboards-personal', rail: false, canvas: false },
+  { id: 'dashboards-work-1', path: '/dashboards/work-1', label: 'Work 1 dashboard', navLabel: '--dashboards-work-1', rail: false, canvas: false },
+  { id: 'dashboards-work-2', path: '/dashboards/work-2', label: 'Work 2 dashboard', navLabel: '--dashboards-work-2', rail: false, canvas: false },
+  { id: 'dashboards-calendar', path: '/dashboards/calendar', label: 'Dashboards calendar', navLabel: '--dashboards-calendar', rail: false, canvas: false },
 ];
 
 /** Every page the header lists, primary first: the one list the narrow-screen menu shows. */
@@ -133,6 +138,11 @@ export function pageLabel(id: PageId): string {
  */
 export function railAllowedAt(pathname: string): boolean {
   return pageAt(pathname)?.rail !== false;
+}
+
+/** Whether the animated dot canvas may draw behind the page at `pathname` (all but those with `canvas: false`). */
+export function canvasAllowedAt(pathname: string): boolean {
+  return pageAt(pathname)?.canvas !== false;
 }
 
 /** The page at `pathname` (trailing slash ignored), if it is one of PAGES. */

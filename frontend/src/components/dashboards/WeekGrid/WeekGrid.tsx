@@ -83,6 +83,7 @@ const vars = (values: Record<string, string | number>) => values as React.CSSPro
                           data-for={event.space}
                           data-conflict={conflict ? 'true' : undefined}
                           data-short={endMin - startMin <= SHORT_MINUTES ? 'true' : undefined}
+                          data-dense={dense ? 'true' : undefined}
                           title={name}
                           style={vars({
                             '--top': (startMin - firstMinute) / 60,

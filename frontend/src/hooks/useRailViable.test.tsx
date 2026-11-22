@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { minHeight, minWidth, RAIL_MIN_HEIGHT_REM } from '../constants/breakpoints';
-import { PAGES, railAllowedAt } from '../data/site';
+import { PAGES, canvasAllowedAt, railAllowedAt } from '../data/site';
 import { useRailViable } from './useRailViable';
 
 let wide = true;
@@ -77,5 +77,20 @@ describe('useRailViable', () => {
     tall = false;
     expect(viableAt('/')).toBe(false);
     expect(viableAt('/privacy')).toBe(false);
+  });
+});
+
+describe('canvasAllowedAt', () => {
+  it('the dashboards draw no dot canvas (they have their own glows); every other page does', () => {
+    const without = PAGES.filter((page) => page.canvas === false).map(({ path }) => path);
+    expect([...without].sort()).toEqual([
+      '/dashboards',
+      '/dashboards/calendar',
+      '/dashboards/personal',
+      '/dashboards/work-1',
+      '/dashboards/work-2',
+    ]);
+    for (const path of ['/', '/courses', '/dashboard', '/privacy', '/no-such-page']) expect(canvasAllowedAt(path), path).toBe(true);
+    for (const path of without) expect(canvasAllowedAt(path), path).toBe(false);
   });
 });

@@ -227,3 +227,26 @@ describe('PageLayout keyboard shortcuts', () => {
     expect(helpDialog()).toBeInTheDocument();
   });
 });
+
+describe('PageLayout canvas', () => {
+  const renderAt = (path: string) =>
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <PageLayout currentPath={path}>
+            <p>page</p>
+          </PageLayout>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+  it('draws the animated dot canvas behind the site pages', () => {
+    renderAt('/privacy');
+    expect(document.querySelector('canvas')).not.toBeNull();
+  });
+
+  it.each(['/dashboards', '/dashboards/work-1', '/dashboards/calendar'])('draws none behind %s, which has its own glows', (path) => {
+    renderAt(path);
+    expect(document.querySelector('canvas')).toBeNull();
+  });
+});

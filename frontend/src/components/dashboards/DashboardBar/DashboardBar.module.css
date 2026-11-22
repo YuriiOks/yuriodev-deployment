@@ -1,15 +1,12 @@
-/* A bar of solid surface (glass is for the site's own chrome). Every link is
-   at least 44px high. */
+/* The bar: dashboards glass (recipes.module.css). Every link is at least 44px high. */
 .bar {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--dash-r-panel);
 }
 
 .where {

@@ -1,6 +1,7 @@
 /* Each card wears its own space's ink and fill (data-card), whatever skin the
    page has: the entrance itself is Personal. */
 .card {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   --card-ink: var(--dash-ink-personal);
   --card-rgb: var(--dash-ink-personal-rgb);
   --card-fill: var(--dash-fill-personal);
@@ -10,10 +11,8 @@
   gap: var(--space-4);
   min-width: 0;
   padding: var(--space-5);
-  background: var(--dash-surface);
-  border: 1px solid rgba(var(--card-rgb), 0.4);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-color: rgba(var(--card-rgb), 0.4);
+  border-radius: var(--dash-r-card);
 }
 
 .card[data-card="work-1"] {
@@ -45,7 +44,7 @@
   height: 3.25rem;
   background: rgba(var(--card-rgb), 0.12);
   border: 1px solid rgba(var(--card-rgb), 0.4);
-  border-radius: var(--radius-lg);
+  border-radius: var(--dash-r-control);
   color: var(--card-ink);
 }
 
@@ -71,7 +70,7 @@
 }
 
 .route {
-  color: var(--dash-t3);
+  color: var(--dash-t2);
   font-size: var(--fs-xs);
 }
 
@@ -131,7 +130,7 @@
 }
 
 .nextLabel {
-  color: var(--dash-t3);
+  color: var(--dash-t2);
 }
 
 .nextText {
@@ -146,7 +145,7 @@
   margin-top: auto;
   padding: 0 var(--space-4);
   background: var(--card-fill);
-  border-radius: var(--radius-md);
+  border-radius: var(--dash-r-control);
   color: var(--card-on-fill);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);

@@ -1,12 +1,10 @@
 /* The scroll box is focusable (tabIndex 0 in the markup) so a keyboard user
    can scroll it; the global focus ring shows on it. */
 .scroll {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   padding: var(--space-3);
   overflow-x: auto;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--dash-r-hero);
 }
 
 /* One hour is --hour-h tall: an event's top and height are worked out from it
@@ -54,7 +52,7 @@
   position: absolute;
   top: calc(var(--hour-h) * var(--i));
   right: 0.5rem;
-  color: var(--dash-t3);
+  color: var(--dash-t2);
   font-size: var(--fs-2xs);
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -130,14 +128,24 @@ th.today {
   border-width: 2px;
 }
 
+/* The title wraps at spaces only, never inside a word, and is cut with an
+   ellipsis: a roomy block shows up to four lines; a short block or a column
+   shared by three or more events is one line (the full text is in the
+   block's tooltip and in the screen-reader text). */
 .name {
+  display: -webkit-box;
   min-width: 0;
+  overflow: hidden;
   font-weight: var(--fw-semibold);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
-.event[data-short="true"] .name {
-  overflow: hidden;
+.event[data-short="true"] .name,
+.event[data-dense="true"] .name {
+  display: block;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -155,7 +163,7 @@ th.today {
 
 .note {
   overflow: hidden;
-  color: var(--dash-t2);
+  color: var(--dash-t1);
   text-overflow: ellipsis;
 }
 
