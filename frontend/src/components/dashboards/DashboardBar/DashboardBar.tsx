@@ -3,23 +3,20 @@ import { Link, NavLink } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath, type PageId } from '../../../data/site';
 import { SPACES, SPACE_NAME, SPACE_PAGE } from '../../../services/dashboards/spaces';
-import type { SpaceId } from '../../../services/dashboards/types';
 import { cx } from '../../../utils/cx';
 import LangSwitch from '../LangSwitch/LangSwitch';
+import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import styles from './DashboardBar.module.css';
-
-export interface DashboardBarProps {
-  /** The space on screen; none on the entrance and the calendar. */
-  space?: SpaceId;
-}
 
 const navClass = ({ isActive }: { isActive: boolean }) => cx(styles.link, isActive && styles.active);
 
 /**
- * The dashboards' own bar: where you are (yuriodev/dashboards/work-1), the
- * five pages, and the language switch. Theme is the site header's toggle.
+ * The dashboards' only chrome (the site's header is not on these pages): a
+ * link back to the site, the five pages, the language switch and the theme
+ * toggle. On a narrow screen the pages become one scrollable row under the
+ * brand and the two switches.
  */
-const DashboardBar: React.FC<DashboardBarProps> = ({ space }) => {
+const DashboardBar: React.FC = () => {
   const { t, text } = useDashboardLang();
   const items: ReadonlyArray<readonly [PageId, string]> = [
     ['dashboards', t.navAll],
@@ -29,12 +26,9 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ space }) => {
 
   return (
     <div className={styles.bar}>
-      <p className={styles.where}>
-        <Link to={pagePath('dashboards')} className={styles.home}>
-          yuriodev/dashboards
-        </Link>
-        {space && <span className={styles.segment}>/{space}</span>}
-      </p>
+      <Link to="/" className={styles.brand} aria-label={t.backToSite}>
+        yuriodev
+      </Link>
       <nav aria-label={t.navLabel} className={styles.nav}>
         {items.map(([id, label]) => (
           <NavLink key={id} to={pagePath(id)} end className={navClass}>
@@ -42,7 +36,10 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ space }) => {
           </NavLink>
         ))}
       </nav>
-      <LangSwitch />
+      <div className={styles.tools}>
+        <LangSwitch />
+        <ThemeToggle />
+      </div>
     </div>
   );
 };

@@ -139,7 +139,6 @@ describe('the sample data', () => {
     const panels = SPACES.flatMap((id) => getSpace(id).panels);
     expect(panels.some((p) => p.priority)).toBe(true);
     expect(panels.some((p) => p.tiles && p.tiles.length > 0)).toBe(true);
-    expect(panels.some((p) => p.showCount)).toBe(true);
     expect(panels.some((p) => p.note)).toBe(true);
   });
 

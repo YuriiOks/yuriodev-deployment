@@ -1,33 +1,12 @@
+/* The segmented-control system (assets/styles/dashboard-controls.module.css). */
 .group {
-  display: inline-flex;
-  gap: 0.125rem;
-  padding: 0.1875rem;
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-edge);
-  border-radius: var(--radius-pill);
+  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
 }
 
 .option {
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--dash-t2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  cursor: pointer;
+  composes: option from '../../../assets/styles/dashboard-controls.module.css';
 }
 
 .on {
-  background: var(--dash-fill);
-  color: var(--dash-on-fill);
-}
-
-@media (forced-colors: active) {
-  .on {
-    outline: 2px solid Highlight;
-  }
+  composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
 }

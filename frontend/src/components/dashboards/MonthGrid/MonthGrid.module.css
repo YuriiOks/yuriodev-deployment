@@ -1,12 +1,10 @@
 /* The scroll box is focusable (tabIndex 0 in the markup) so a keyboard user
    can scroll it on a narrow screen; the global focus ring shows on it. */
 .scroll {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   padding: var(--space-3);
   overflow-x: auto;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--dash-r-hero);
 }
 
 .table {
@@ -48,7 +46,7 @@
   gap: 0.1875rem;
   width: 100%;
   min-height: 6.75rem;
-  padding: 0.3125rem;
+  padding: 0.4375rem;
   background: transparent;
   border: 0;
   color: var(--dash-t1);
@@ -84,6 +82,12 @@
   color: var(--dash-danger);
 }
 
+.chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+}
+
 .chip {
   --event-rgb: var(--dash-ink-personal-rgb);
   display: block;
@@ -107,8 +111,17 @@
 }
 
 .more {
-  color: var(--dash-t2);
+  color: var(--dash-accent);
   font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.1875rem;
+}
+
+/* A neighbouring month's events are muted with it: neutral chips in the secondary ink. */
+.cell[data-muted="true"] .chip {
+  background: var(--dash-chip);
+  border-color: var(--dash-line);
+  color: var(--dash-t2);
 }
 
 /* A day with a conflict: the same dashed danger edge as in the week view. */
@@ -121,6 +134,49 @@
 .day:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
+}
+
+/* A phone: seven columns are about 55px each, so a day is its number and one dot per event
+   (the button's name says the count), and the table fits the screen. */
+@media (max-width: 47.99rem) {
+  .table {
+    min-width: 0;
+  }
+
+  .day {
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 4rem;
+    padding: 0.375rem 0.125rem;
+  }
+
+  .top {
+    gap: 0.125rem;
+  }
+
+  .chips {
+    flex-flow: row wrap;
+    justify-content: center;
+    gap: 0.1875rem;
+  }
+
+  .chip {
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    font-size: 0;
+    border-radius: var(--radius-round);
+    background: rgba(var(--event-rgb), 0.9);
+    border: 0;
+  }
+
+  .cell[data-muted="true"] .chip {
+    background: var(--dash-t3);
+  }
+
+  .more {
+    display: none;
+  }
 }
 
 @media (hover: hover) {

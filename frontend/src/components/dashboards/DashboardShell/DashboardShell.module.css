@@ -1,32 +1,46 @@
-/* The dashboards' page: the space's own background and ink (data-space
-   remaps the --dash-* tokens, _variables.css section 6). The glow is a
-   background image over a solid colour, so text contrast is measured on
-   the solid. */
+/* The dashboards' page: the space's own colours (data-space remaps the
+   --dash-* tokens, _variables.css section 6) and three soft radial glows
+   behind the content, sized and placed as in the prototype. The glass
+   surfaces blur them, so they must show: each has its own strength per
+   space and theme (--dash-glow-a/b/c). The glows are a background image over
+   a solid colour, so text contrast is measured on the solid, and
+   contrast.test.ts also holds the text over the glow peaks. */
 .root {
-  min-height: calc(100vh - var(--header-h));
+  min-height: 100vh;
   padding: var(--space-4) var(--space-4) var(--space-7);
   background-color: var(--dash-bg);
   background-image:
-    radial-gradient(44rem 30rem at 14% 4%, rgba(var(--dash-glow-a-rgb), var(--dash-glow-a)), transparent 62%),
-    radial-gradient(40rem 29rem at 90% 16%, rgba(var(--dash-glow-b-rgb), calc(var(--dash-glow-a) * 0.65)), transparent 64%);
+    radial-gradient(43.75rem 30rem at 14% 4%, rgba(var(--dash-glow-a-rgb), var(--dash-glow-a)), transparent 62%),
+    radial-gradient(38.75rem 28.75rem at 90% 16%, rgba(var(--dash-glow-b-rgb), var(--dash-glow-b)), transparent 64%),
+    radial-gradient(47.5rem 35rem at 60% 96%, rgba(var(--dash-glow-c-rgb), var(--dash-glow-c)), transparent 66%);
   background-repeat: no-repeat;
   color: var(--dash-t2);
   font-family: var(--font-mono);
 }
 
-/* Up to 80rem; with the section rail (88rem and up) in the left gutter, the
-   site's content column, so the rail never lands on a card. */
+/* The site's App.css gives every `main section` auto side margins, which shrink-wraps
+   and centres a section that is a flex or grid item. The dashboards' sections
+   (hero, panels, cards) always fill their cell. */
+.root section {
+  max-width: none;
+  margin: 0;
+}
+
+/* Centred, up to 96rem: the dashboards have no site chrome (data/site.ts
+   `chrome: false`), so they are not held to the site's narrow content column
+   and the calendar gets room for overlapping events. */
 .inner {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   width: 100%;
-  max-width: 80rem;
+  max-width: 96rem;
   margin-inline: auto;
 }
 
-@media (min-width: 88rem) {
-  .inner {
-    max-width: var(--content-max-width);
+/* A little more air at the sides from a tablet up. */
+@media (min-width: 48rem) {
+  .root {
+    padding-inline: var(--space-6);
   }
 }

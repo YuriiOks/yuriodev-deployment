@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
 import { NAV_PAGES, PAGES, pagePath } from '../data/site';
+import { maxWidth } from '../constants/breakpoints';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
 
@@ -27,11 +28,11 @@ describe('the private dashboards: routes', () => {
   });
 
   it.each([
-    ['/dashboards', 'Дашборды', 'Dashboards | Yurii Oksamytnyi'],
-    ['/dashboards/personal', 'Personal', 'Personal dashboard | Yurii Oksamytnyi'],
-    ['/dashboards/work-1', 'Работа 1', 'Work 1 dashboard | Yurii Oksamytnyi'],
-    ['/dashboards/work-2', 'Работа 2', 'Work 2 dashboard | Yurii Oksamytnyi'],
-    ['/dashboards/calendar', 'Календарь', 'Dashboards calendar | Yurii Oksamytnyi'],
+    ['/dashboards', 'Дашборды', 'Дашборды | Yurii Oksamytnyi'],
+    ['/dashboards/personal', 'Личное', 'Личное | Yurii Oksamytnyi'],
+    ['/dashboards/work-1', 'Работа 1', 'Работа 1 | Yurii Oksamytnyi'],
+    ['/dashboards/work-2', 'Работа 2', 'Работа 2 | Yurii Oksamytnyi'],
+    ['/dashboards/calendar', 'Календарь', 'Календарь | Yurii Oksamytnyi'],
   ])('%s renders its own page with the heading %s and its title', (path, heading, title) => {
     renderAt(path);
     expect(within(main()).getByRole('heading', { level: 1, name: new RegExp(heading) })).toBeInTheDocument();
@@ -71,7 +72,7 @@ describe('the entrance', () => {
   it('has a card per space with three counters, the next event and a way in, and no task', () => {
     renderAt('/dashboards');
     for (const [name, path, next] of [
-      ['Personal', '/dashboards/personal', '18:00 Тренировка'],
+      ['Личное', '/dashboards/personal', '18:00 Тренировка'],
       ['Работа 1', '/dashboards/work-1', '10:00 Стендап команды'],
       ['Работа 2', '/dashboards/work-2', '15:30 Синк по проекту'],
     ]) {
@@ -131,10 +132,10 @@ describe('a space page', () => {
     expect(m.getByRole('button', { name: 'Подключиться' })).toBeInTheDocument();
     expect(m.getByRole('textbox', { name: 'добавить задачу в «Работа 1»…' })).toBeInTheDocument();
     const tabs = m.getByRole('navigation', { name: 'Источники' });
-    expect(within(tabs).getAllByRole('button').map((b) => b.textContent)).toEqual([
+    expect(within(tabs).getAllByRole('tab').map((b) => b.textContent)).toEqual([
       'Обзор', 'GitHub7', 'Linear3', 'Slack5', 'Notion2', 'PostHog2', 'Grafana2', 'Встречи3',
     ]);
-    expect(within(tabs).getByRole('button', { name: 'Обзор' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(tabs).getByRole('tab', { name: 'Обзор' })).toHaveAttribute('aria-selected', 'true');
     expect(m.getByRole('region', { name: 'Приоритет' })).toBeInTheDocument();
     expect(m.getByRole('region', { name: /Меня ждут/ })).toBeInTheDocument();
     expect(m.queryByRole('region', { name: 'Мои PR' })).toBeNull();
@@ -149,8 +150,8 @@ describe('a space page', () => {
     const user = userEvent.setup();
     renderAt('/dashboards/work-1');
     const m = within(main());
-    await user.click(m.getByRole('button', { name: /^GitHub/ }));
-    expect(m.getByRole('button', { name: /^GitHub/ })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(m.getByRole('tab', { name: /^GitHub/  }));
+    expect(m.getByRole('tab', { name: /^GitHub/ })).toHaveAttribute('aria-selected', 'true');
     expect(m.getByRole('region', { name: /Ждут моего ревью/ })).toBeInTheDocument();
     expect(m.getByRole('region', { name: /Мои PR/ })).toBeInTheDocument();
     expect(m.queryByRole('region', { name: 'Приоритет' })).toBeNull();
@@ -161,7 +162,7 @@ describe('a space page', () => {
     expect(within(review).getAllByText('CI падает').length).toBeGreaterThan(0);
 
     await user.click(within(m.getByRole('navigation', { name: 'Дашборды' })).getByRole('link', { name: 'Работа 2' }));
-    expect(m.getByRole('button', { name: 'Обзор' })).toHaveAttribute('aria-pressed', 'true');
+    expect(m.getByRole('tab', { name: 'Обзор' })).toHaveAttribute('aria-selected', 'true');
     expect(m.getByRole('region', { name: 'Приоритет' })).toBeInTheDocument();
   });
 
@@ -186,21 +187,23 @@ describe('a space page', () => {
   it('the life-areas tab shows the area tiles with their counts', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/personal');
-    await user.click(within(main()).getByRole('button', { name: /^Сферы/ }));
+    await user.click(within(main()).getByRole('tab', { name: /^Сферы/  }));
     const tiles = within(main()).getByRole('region', { name: 'Сферы' });
     expect(within(tiles).getAllByRole('listitem')).toHaveLength(10);
     expect(within(tiles).getByText('Деньги').closest('li')).toHaveTextContent('4');
   });
 
-  it('a row with an action has a link naming the verb and the tool, opening in a new tab', async () => {
+  it('a row with an action has a button naming the verb and the tool; the sample has nothing to open, so it does nothing yet', async () => {
     const user = userEvent.setup();
     renderAt('/dashboards/work-1');
-    await user.click(within(main()).getByRole('button', { name: /^Slack/ }));
-    const link = within(main()).getAllByRole('link', { name: /Ответить · Slack/ })[0];
-    expect(link).toHaveAttribute('href', 'https://slack.com');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(within(main()).getAllByRole('link', { name: /Спросить · Slack/ }).length).toBeGreaterThan(0);
+    await user.click(within(main()).getByRole('tab', { name: /^Slack/  }));
+    const reply = within(main()).getAllByRole('button', { name: /Ответить · Slack/ })[0];
+    expect(reply).toHaveAttribute('title', 'Пример: источник не подключён');
+    await user.click(reply);
+    expect(window.location.pathname).toBe('/dashboards/work-1');
+    expect(within(main()).getAllByRole('button', { name: /Спросить · Slack/ }).length).toBeGreaterThan(0);
+    // No link out to a vendor's home page.
+    expect(main().querySelector('a[href^="https://slack.com"]')).toBeNull();
   });
 
   it('the quick-add field takes text and does nothing else', async () => {
@@ -232,14 +235,14 @@ describe('the calendar', () => {
     expect(within(grid).getAllByText(/^Работа 2:/).length).toBeGreaterThan(0);
     expect(within(grid).getByRole('columnheader', { name: 'Пн 23' })).toHaveAttribute('aria-current', 'date');
     expect(within(main()).getAllByRole('listitem').map((li) => li.textContent)).toEqual(
-      expect.arrayContaining(['Personal', 'Работа 1', 'Работа 2']),
+      expect.arrayContaining(['Личное', 'Работа 1', 'Работа 2']),
     );
   });
 
   it('counts the conflicts between spaces, and marks each conflicting event in words', () => {
     renderAt('/dashboards/calendar');
-    // Tuesday: one pair; Friday: three events of three spaces that all overlap.
-    expect(within(main()).getByText('Конфликты: 4')).toBeInTheDocument();
+    // Five blocks are marked: two on Tuesday, three on Friday.
+    expect(within(main()).getByText('Конфликты: 5')).toBeInTheDocument();
     const grid = within(main()).getByRole('table');
     expect(within(grid).getAllByText(/Конфликт: пересекается/)).toHaveLength(5);
     // An overlap inside one space is laid out side by side but not flagged.
@@ -252,7 +255,7 @@ describe('the calendar', () => {
     const user = userEvent.setup();
     renderAt('/dashboards/calendar');
     await user.click(within(main()).getByRole('button', { name: 'EN' }));
-    expect(within(main()).getByText('Conflicts: 4')).toBeInTheDocument();
+    expect(within(main()).getByText('Conflicts: 5')).toBeInTheDocument();
     expect(within(main()).getAllByText(/Conflict: overlaps an event of another space/)).toHaveLength(5);
   });
 
@@ -331,9 +334,9 @@ describe('the calendar: month view', () => {
     expect(monthTable().getByRole('button', { name: /^23 ноября/ })).not.toHaveAttribute('data-conflict');
   });
 
-  it('counts the conflicts of what is on screen: November and its edge days have six', async () => {
+  it('counts what is marked on screen: in a month, the days with a conflict (four in November)', async () => {
     await openMonth();
-    expect(within(main()).getByText('Конфликты: 6')).toBeInTheDocument();
+    expect(within(main()).getByText('Конфликты: 4')).toBeInTheDocument();
   });
 
   it('clicking a day goes to the week that contains it', async () => {
@@ -397,5 +400,125 @@ describe('the calendar: no tasks', () => {
   it('shows no task: no checkbox anywhere', () => {
     renderAt('/dashboards/calendar');
     expect(within(main()).queryAllByRole('checkbox')).toHaveLength(0);
+  });
+});
+
+describe('the dashboards bar is the only chrome', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+  });
+
+  it('has a link back to the site, the pages, the language switch and the theme toggle, and no site header or footer', () => {
+    renderAt('/dashboards/personal');
+    expect(screen.queryByRole('banner')).toBeNull();
+    expect(screen.queryByRole('contentinfo')).toBeNull();
+    const bar = within(main()).getByRole('navigation', { name: 'Дашборды' });
+    expect(within(bar).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([
+      '/dashboards', '/dashboards/personal', '/dashboards/work-1', '/dashboards/work-2', '/dashboards/calendar',
+    ]);
+    expect(within(main()).getByRole('link', { name: 'yuriodev: на сайт' })).toHaveAttribute('href', '/');
+    expect(within(main()).getByRole('group', { name: 'Язык' })).toBeInTheDocument();
+    // No raw path or slug as a label.
+    expect(main()).not.toHaveTextContent('/dashboards/');
+    expect(main()).not.toHaveTextContent('work-1');
+  });
+
+  it('the theme toggle drives the site theme and says what it will switch to', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards');
+    const html = document.documentElement;
+    const before = html.getAttribute('data-theme');
+    const label = before === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему';
+    await user.click(within(main()).getByRole('button', { name: label }));
+    expect(html.getAttribute('data-theme')).toBe(before === 'dark' ? 'light' : 'dark');
+    expect(localStorage.getItem('theme-choice')).toBe(before === 'dark' ? 'light' : 'dark');
+    expect(within(main()).getByRole('button', { name: before === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему' })).toBeInTheDocument();
+  });
+
+  it('the document title and the space names follow the language', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    expect(document.title).toBe('Работа 1 | Yurii Oksamytnyi');
+    await user.click(within(main()).getByRole('button', { name: 'EN' }));
+    expect(document.title).toBe('Work 1 | Yurii Oksamytnyi');
+    expect(within(main()).getByRole('heading', { level: 1, name: 'Work 1' })).toBeInTheDocument();
+    expect(within(main()).getByRole('link', { name: 'Personal' })).toBeInTheDocument();
+  });
+});
+
+describe('the panel grid follows the panels', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+  });
+
+  const grid = () => main().querySelector<HTMLElement>('[style*="--cols-lg"]')!;
+
+  it('a tab with one panel besides the priority panel fills the row; the priority panel is its own full row', () => {
+    renderAt('/dashboards/personal');
+    expect(grid().style.getPropertyValue('--cols-lg')).toBe('1');
+    expect(grid().style.getPropertyValue('--cols-md')).toBe('1');
+  });
+
+  it('two panels share the row, three take three columns, four sit two by two', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/personal');
+    const cols = () => [grid().style.getPropertyValue('--cols-md'), grid().style.getPropertyValue('--cols-lg')];
+    await user.click(within(main()).getByRole('tab', { name: /^Сферы/  }));
+    expect(cols()).toEqual(['2', '2']);
+    await user.click(within(main()).getByRole('tab', { name: /^Работа и доход/  }));
+    expect(cols()).toEqual(['2', '3']);
+    await user.click(within(main()).getByRole('tab', { name: /^Суд/  }));
+    expect(cols()).toEqual(['2', '2']);
+  });
+});
+
+describe('the calendar on a phone', () => {
+  const original = window.matchMedia;
+
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+    window.matchMedia = vi.fn((query: string) => ({
+      matches: query === maxWidth('md'),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+
+  it('shows one day at a time, and previous / next step by a day', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    const heading = () => within(main()).getByRole('heading', { level: 1 });
+    expect(within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Пн 23']);
+    expect(heading()).toHaveTextContent('23 ноября');
+
+    await user.click(within(main()).getByRole('button', { name: 'Следующий день' }));
+    expect(within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Вт 24']);
+    // Tuesday's two overlapping events are there, and the day's conflict is counted.
+    expect(within(main()).getByText('Конфликты: 2')).toBeInTheDocument();
+    await user.click(within(main()).getByRole('button', { name: 'Предыдущий день' }));
+    expect(heading()).toHaveTextContent('23 ноября');
+  });
+
+  it('picking a day in the month opens that day', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(within(main()).getByRole('button', { name: 'Месяц' }));
+    await user.click(within(main()).getByRole('button', { name: /^3 ноября/ }));
+    expect(within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Вт 3']);
   });
 });

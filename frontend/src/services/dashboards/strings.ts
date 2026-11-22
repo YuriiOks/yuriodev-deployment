@@ -1,4 +1,7 @@
-import type { ActionVerb, Lang, Localized, TabId } from './types';
+import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
+
+/** The page a document title is for. */
+export type TitleKey = SpaceId | 'hub' | 'calendar';
 
 export const LANGS: readonly Lang[] = ['ru', 'en'];
 export const DEFAULT_LANG: Lang = 'ru';
@@ -18,6 +21,11 @@ export function pick(text: Localized, lang: Lang): string {
 /** Every fixed text of the dashboards' interface. Sample content lives in sampleData.ts. */
 export interface Strings {
   readonly navLabel: string;
+  readonly backToSite: string;
+  readonly themeToLight: string;
+  readonly themeToDark: string;
+  /** The document title of each page, before " | <name>". */
+  readonly titles: Record<TitleKey, string>;
   readonly navAll: string;
   readonly navCalendar: string;
   readonly langLabel: string;
@@ -36,6 +44,8 @@ export interface Strings {
   readonly ciFail: string;
   readonly quickAdd: string;
   readonly opensInNewTab: string;
+  /** The tooltip of an action that does nothing yet (sample data). */
+  readonly notConnected: string;
   readonly calendarTitle: string;
   readonly calendarLead: string;
   readonly calendarNote: string;
@@ -48,6 +58,8 @@ export interface Strings {
   readonly month: string;
   readonly monthCaption: string;
   readonly periodLabel: string;
+  readonly prevDay: string;
+  readonly nextDay: string;
   readonly prevWeek: string;
   readonly nextWeek: string;
   readonly prevMonth: string;
@@ -71,6 +83,10 @@ export interface Strings {
 export const STRINGS: Record<Lang, Strings> = {
   ru: {
     navLabel: 'Дашборды',
+    backToSite: 'yuriodev: на сайт',
+    themeToLight: 'Включить светлую тему',
+    themeToDark: 'Включить тёмную тему',
+    titles: { hub: 'Дашборды', personal: 'Личное', 'work-1': 'Работа 1', 'work-2': 'Работа 2', calendar: 'Календарь' },
     navAll: 'Все',
     navCalendar: 'Календарь',
     langLabel: 'Язык',
@@ -90,11 +106,10 @@ export const STRINGS: Record<Lang, Strings> = {
     ciFail: 'CI падает',
     quickAdd: 'Быстрое добавление',
     opensInNewTab: 'откроется в новой вкладке',
+    notConnected: 'Пример: источник не подключён',
     calendarTitle: 'Календарь',
-    calendarLead:
-      'Единственная страница, где личное, «Работа 1» и «Работа 2» стоят на одной сетке. Задачи сюда не попадают, только события.',
-    calendarNote:
-      'Личное событие в рабочее время уходит в рабочий календарь блоком «Focus time» без подробностей.',
+    calendarLead: 'Личное и работа на одной сетке. Только события, без задач.',
+    calendarNote: 'Личное событие в рабочие часы видно в рабочем календаре как «Focus time», без подробностей.',
     calendarCaption: 'Неделя, события трёх пространств',
     conflicts: 'Конфликты',
     noConflicts: 'Конфликтов нет',
@@ -104,6 +119,8 @@ export const STRINGS: Record<Lang, Strings> = {
     month: 'Месяц',
     monthCaption: 'Месяц, события трёх пространств',
     periodLabel: 'Период',
+    prevDay: 'Предыдущий день',
+    nextDay: 'Следующий день',
     prevWeek: 'Предыдущая неделя',
     nextWeek: 'Следующая неделя',
     prevMonth: 'Предыдущий месяц',
@@ -137,6 +154,10 @@ export const STRINGS: Record<Lang, Strings> = {
   },
   en: {
     navLabel: 'Dashboards',
+    backToSite: 'yuriodev: back to the site',
+    themeToLight: 'Switch to light theme',
+    themeToDark: 'Switch to dark theme',
+    titles: { hub: 'Dashboards', personal: 'Personal', 'work-1': 'Work 1', 'work-2': 'Work 2', calendar: 'Calendar' },
     navAll: 'All',
     navCalendar: 'Calendar',
     langLabel: 'Language',
@@ -156,11 +177,10 @@ export const STRINGS: Record<Lang, Strings> = {
     ciFail: 'CI failing',
     quickAdd: 'Quick add',
     opensInNewTab: 'opens in a new tab',
+    notConnected: 'Sample: the source is not connected',
     calendarTitle: 'Calendar',
-    calendarLead:
-      'The one page where personal, Work 1 and Work 2 share a grid. No tasks here, only events.',
-    calendarNote:
-      'A personal event during working hours goes to the work calendar as a "Focus time" block with no details.',
+    calendarLead: 'Personal and work on one grid. Events only, no tasks.',
+    calendarNote: 'A personal event during work hours shows in the work calendar as "Focus time", with no details.',
     calendarCaption: 'Week, events of all three spaces',
     conflicts: 'Conflicts',
     noConflicts: 'No conflicts',
@@ -170,6 +190,8 @@ export const STRINGS: Record<Lang, Strings> = {
     month: 'Month',
     monthCaption: 'Month, events of all three spaces',
     periodLabel: 'Period',
+    prevDay: 'Previous day',
+    nextDay: 'Next day',
     prevWeek: 'Previous week',
     nextWeek: 'Next week',
     prevMonth: 'Previous month',

@@ -265,12 +265,56 @@ const SHARED_PAIRS: Pair[] = [
   ),
 ];
 
+/* The dashboards' glass (recipes.module.css .glassDash): its translucent fill
+   over what really sits behind it, which is only the page's own colour and
+   its three glows (nothing scrolls behind a card). The glows are held at
+   their peak strength, alone and the two strongest stacked on each other.
+   Text on glass is t1, t2, accent or title; t3 is for solid surfaces only. */
+const GLOW = (n: 'a' | 'b' | 'c') => `rgba(var(--dash-glow-${n}-rgb), var(--dash-glow-${n}))`;
+const GLASS_BACKS: readonly (readonly string[])[] = [
+  ['--dash-bg'],
+  [GLOW('a'), '--dash-bg'],
+  [GLOW('b'), '--dash-bg'],
+  [GLOW('c'), '--dash-bg'],
+  [GLOW('b'), GLOW('a'), '--dash-bg'],
+];
+/** `over` painted on the glass, on each of the backings. */
+const onGlass = (over: readonly string[] = []): (readonly string[])[] =>
+  GLASS_BACKS.map((back) => [...over, '--dash-glass', ...back]);
+
+const GLASS_TEXT_TOKENS = ['--dash-t1', '--dash-t2', '--dash-accent', '--dash-title'];
+
+const GLASS_PAIRS: Pair[] = [
+  // Text straight on the glass (the bar, hero, strip, panels, cards, calendar).
+  ...cross([...GLASS_TEXT_TOKENS, '--dash-ok'], onGlass(), TEXT),
+  // Text on the page itself, over the glows (the lead, the toolbar's legend). The
+  // title ink is only the page's h1 there, which is large text.
+  ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], GLASS_BACKS, TEXT),
+  ...cross(['--dash-title'], GLASS_BACKS, LARGE),
+  // A priority row (tinted) and the selected tab, day or link, on the glass.
+  ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], onGlass(['--dash-prio-bg']), TEXT),
+  ...cross(['--dash-t1', '--dash-title'], onGlass(['--dash-sel-bg']), TEXT),
+  // The accent border of the selected tab, as a state indicator, on the glass.
+  ...cross(['--dash-sel-edge'], onGlass(), UI),
+];
+
+/* The calendar's events (title and note in t1), the entrance cards' tinted Open buttons (t1 on a 14% tint of the
+   space's ink) and today's column, on the glass (the Personal skin). */
+const SHARED_GLASS_PAIRS: Pair[] = [
+  ...SPACES.flatMap(([, rgb]) =>
+    cross(['--dash-t1'], [...onGlass([`rgba(var(${rgb}), 0.14)`]), ...onGlass([`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg'])], TEXT),
+  ),
+  // A space's own ink as text on the glass (the entrance cards' names), over the page and each glow
+  // on its own: the two strongest glows are not centred on one card.
+  ...cross(SPACE_INKS, onGlass().slice(0, 4), TEXT),
+];
+
 describe('dashboard palettes meet WCAG AA', () => {
   for (const theme of ['dark', 'light'] as const) {
     for (const space of ['personal', 'work-1', 'work-2'] as const) {
       it(`${theme} theme, ${space} space: every text and UI pair`, () => {
         const tokens = tokensFor(theme, space);
-        const pairs = [...DASH_PAIRS, ...(space === 'personal' ? SHARED_PAIRS : [])];
+        const pairs = [...DASH_PAIRS, ...GLASS_PAIRS, ...(space === 'personal' ? [...SHARED_PAIRS, ...SHARED_GLASS_PAIRS] : [])];
         const failures = pairs
           .map(({ fg, bg, min }) => ({ fg, bg, min, got: ratio(paint(tokens, [fg]), paint(tokens, bg)) }))
           .filter(({ got, min }) => got < min)

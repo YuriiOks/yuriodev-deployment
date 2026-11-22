@@ -72,11 +72,13 @@ const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, confl
                         <span className={styles.number}>{dayOfMonth(date)}</span>
                         {conflict && <DashIcon name="alert" size={14} strokeWidth={2.2} className={styles.alert} />}
                       </span>
-                      {day.slice(0, MAX_CHIPS).map((event) => (
-                        <span key={event.id} className={styles.chip} data-for={event.space}>
-                          {event.start} {text(event.title)}
-                        </span>
-                      ))}
+                      <span className={styles.chips}>
+                        {day.slice(0, MAX_CHIPS).map((event) => (
+                          <span key={event.id} className={styles.chip} data-for={event.space}>
+                            {event.start} {text(event.title)}
+                          </span>
+                        ))}
+                      </span>
                       {day.length > MAX_CHIPS && (
                         <span className={styles.more}>{fill(t.more, { n: day.length - MAX_CHIPS })}</span>
                       )}

@@ -23,11 +23,11 @@ const Panel: React.FC<PanelProps> = ({ panel, done, onToggle }) => {
   return (
     <section aria-labelledby={titleId} className={cx(styles.panel, panel.priority && styles.priority)}>
       <div className={styles.head}>
-        {panel.tab !== 'overview' && <DashIcon name={panel.tab} tone={TAB_TONE[panel.tab]} />}
+        <DashIcon name={panel.tab} tone={TAB_TONE[panel.tab]} />
         <h2 id={titleId} className={styles.title}>
           {text(panel.title)}
         </h2>
-        {panel.showCount && <span className={styles.count}>{panel.rows.length}</span>}
+        {panel.rows.length > 0 && <span className={styles.count}>{panel.rows.length}</span>}
         {panel.note && <span className={styles.note}>{text(panel.note)}</span>}
       </div>
       {panel.tiles && <AreaTiles tiles={panel.tiles} />}

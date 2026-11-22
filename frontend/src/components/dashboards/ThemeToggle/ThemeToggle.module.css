@@ -1,0 +1,21 @@
+/* Same height as the segmented controls (46px), a round button of the same pill system. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t1);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .toggle:hover {
+    background: var(--dash-sel-bg);
+  }
+}

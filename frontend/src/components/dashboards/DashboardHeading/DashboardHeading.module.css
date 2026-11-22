@@ -1,15 +1,15 @@
+/* The page title block: title and lead, then (optionally) a row of controls
+   across the full width. No left inset: it shares the page's left edge with
+   the bar and the cards. */
 .heading {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-4) var(--space-2) 0;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) 0 0;
 }
 
 .text {
   display: flex;
-  flex: 1 1 24rem;
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
@@ -20,12 +20,6 @@
   font-size: var(--fs-xl);
   font-weight: var(--fw-bold);
   line-height: var(--lh-tight);
-}
-
-.title::before {
-  content: '# ';
-  content: '# ' / '';
-  color: var(--dash-accent);
 }
 
 .aside {

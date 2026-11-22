@@ -70,7 +70,7 @@ const PERSONAL: SpaceData = {
     'Жизнь по сферам: деньги, здоровье, бумаги, отношения, семья, дом.',
     'Life by area: money, health, paperwork, relationships, family, home.',
   ),
-  quickAddPlaceholder: L('добавить личную задачу… «завтра позвонить в клинику»', 'add a personal task… "call the clinic tomorrow"'),
+  quickAddPlaceholder: L('добавить личную задачу…', 'add a personal task…'),
   hero: {
     label: L('ДАЛЬШЕ СЕГОДНЯ', 'NEXT TODAY'),
     at: '18:00',
@@ -105,7 +105,7 @@ const PERSONAL: SpaceData = {
           priority: true,
         }),
       ],
-      { priority: true, showCount: true },
+      { priority: true },
     ),
     panel(
       'personal-week',
@@ -123,7 +123,6 @@ const PERSONAL: SpaceData = {
           due: due(L('сб 28 ноя', 'Sat 28 Nov')),
         }),
       ],
-      { showCount: true },
     ),
     panel('personal-areas', 'areas', L('Сферы', 'Life areas'), [], {
       note: L('открытых задач', 'open tasks'),
@@ -152,7 +151,6 @@ const PERSONAL: SpaceData = {
         }),
         task('personal-l3', L('Выписать расходы за 3 месяца', 'List the last 3 months of spending'), { meta: L('Деньги', 'Money') }),
       ],
-      { showCount: true },
     ),
     panel('personal-payments', 'payments', L('Платежи и дедлайны', 'Payments and deadlines'), [
       info('personal-pay1', L('Счёт за электричество', 'Electricity bill'), { meta: L('£120', '£120'), due: due(OVERDUE, 'danger') }),
@@ -317,7 +315,7 @@ const WORK_1: SpaceData = {
           priority: true,
         }),
       ],
-      { priority: true, showCount: true },
+      { priority: true },
     ),
     panel(
       'work-1-waiting',
@@ -337,48 +335,45 @@ const WORK_1: SpaceData = {
           action: act('slack'),
         }),
       ],
-      { showCount: true },
     ),
     panel(
       'work-1-review',
       'github',
       L('Ждут моего ревью', 'Waiting for my review'),
       [
-        pr('work-1-r1', '#123', L('[EX-101] Example change: add the checks', 'Example change: add the checks'), 'fail', {
+        pr('work-1-r1', '#123', L('[EX-101] Пример изменения: добавить проверки', '[EX-101] Example change: add the checks'), 'fail', {
           badge: L('Ждёт ревью', 'Needs review'),
           badgeTone: 'accent',
           meta: L('1 мин', '1 min'),
         }),
-        pr('work-1-r2', '#127', L('[EX-102] Keep the date of a record', 'Keep the date of a record'), 'pass', {
+        pr('work-1-r2', '#127', L('[EX-102] Сохранять дату записи', '[EX-102] Keep the date of a record'), 'pass', {
           badge: L('Ждёт ревью', 'Needs review'),
           badgeTone: 'accent',
           meta: L('11 мин', '11 min'),
         }),
-        pr('work-1-r3', '#128', L('[EX-103] Page misses live updates while loading', 'Page misses live updates while loading'), 'pass', {
+        pr('work-1-r3', '#128', L('[EX-103] Страница не получает обновления при загрузке', '[EX-103] Page misses live updates while loading'), 'pass', {
           badge: L('Ждёт ревью', 'Needs review'),
           badgeTone: 'accent',
           meta: L('1 ч', '1 h'),
         }),
       ],
-      { showCount: true },
     ),
     panel(
       'work-1-mine',
       'github',
       L('Мои PR', 'My PRs'),
       [
-        pr('work-1-m1', '#124', L('[EX-104] Settings are fixed in code', 'Settings are fixed in code'), 'fail', {
+        pr('work-1-m1', '#124', L('[EX-104] Настройки зашиты в код', '[EX-104] Settings are fixed in code'), 'fail', {
           badge: L('CI красный', 'CI failing'),
           badgeTone: 'neutral',
           meta: L('12 ч', '12 h'),
         }),
-        pr('work-1-m2', '#125', L('[EX-105] Evals: three cases from real failures', 'Evals: three cases from real failures'), 'pass', {
+        pr('work-1-m2', '#125', L('[EX-105] Оценки: три случая из реальных сбоев', '[EX-105] Evals: three cases from real failures'), 'pass', {
           badge: L('Есть комментарии', 'Has comments'),
           badgeTone: 'neutral',
           meta: L('32 мин', '32 min'),
         }),
       ],
-      { showCount: true },
     ),
     panel('work-1-comments', 'github', L('Комментарии ко мне', 'Comments addressed to me'), [
       info('work-1-c1', L('Коллега B: вопрос по порогам в #125', 'Colleague B: a question about thresholds in #125'), {
@@ -391,9 +386,9 @@ const WORK_1: SpaceData = {
       }),
     ]),
     panel('work-1-linear', 'linear', L('Мои тикеты', 'My tickets'), [
-      info('work-1-l1', L('EX-105 Evals', 'EX-105 Evals'), { due: due(L('In Progress', 'In Progress'), 'warn') }),
-      info('work-1-l2', L('EX-104 Settings fixed in code', 'EX-104 Settings fixed in code'), { due: due(L('In Review', 'In Review')) }),
-      info('work-1-l3', L('EX-106 Latency measurements', 'EX-106 Latency measurements'), { due: due(L('Todo', 'Todo')) }),
+      info('work-1-l1', L('EX-105 Оценки', 'EX-105 Evals'), { due: due(L('В работе', 'In Progress'), 'warn') }),
+      info('work-1-l2', L('EX-104 Настройки зашиты в код', 'EX-104 Settings fixed in code'), { due: due(L('На ревью', 'In Review')) }),
+      info('work-1-l3', L('EX-106 Замеры задержки', 'EX-106 Latency measurements'), { due: due(L('К выполнению', 'Todo')) }),
     ]),
     panel('work-1-slack-reply', 'slack', L('Ответить', 'Reply'), [
       info('work-1-s1', L('Коллега A: тред ревью по #124', 'Colleague A: the #124 review thread'), {
@@ -483,7 +478,7 @@ const WORK_2: SpaceData = {
           priority: true,
         }),
       ],
-      { priority: true, showCount: true },
+      { priority: true },
     ),
     panel(
       'work-2-week',
@@ -495,14 +490,12 @@ const WORK_2: SpaceData = {
           due: due(L('ср 25 ноя', 'Wed 25 Nov')),
         }),
       ],
-      { showCount: true },
     ),
     panel(
       'work-2-later',
       'overview',
       L('Потом', 'Later'),
       [task('work-2-l1', L('Заполнить timesheet за ноябрь', 'Fill in the November timesheet'), { due: due(L('30 ноя', '30 Nov')) })],
-      { showCount: true },
     ),
     panel('work-2-github', 'github', L('PR', 'PRs'), [
       task('work-2-g1', L('PR #83 и #84: решить, сливать ли в один', 'PRs #83 and #84: decide whether to merge them into one'), {

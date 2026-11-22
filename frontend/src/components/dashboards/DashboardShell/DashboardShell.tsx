@@ -14,7 +14,7 @@ const Frame: React.FC = () => {
       {/* A private area: React hoists this into <head> and removes it again on unmount. */}
       <meta name="robots" content="noindex" />
       <div className={styles.inner}>
-        <DashboardBar space={space} />
+        <DashboardBar />
         <Outlet />
       </div>
     </div>

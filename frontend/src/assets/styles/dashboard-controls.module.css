@@ -1,0 +1,64 @@
+/* The dashboards' segmented controls, one system (the RU/EN switch, Week /
+   Month, previous / Today / next). A pill with a hairline border and 3px of
+   padding holds buttons that are 38px tall and fully round, so the whole
+   control is 46px high; the selected button is filled with the space's accent
+   and its on-fill ink. Hover and focus fill the button's own shape, never an
+   inner rectangle. Components reach these with
+     composes: segment from '<relative path>/assets/styles/dashboard-controls.module.css';
+   (and `option`, `optionOn`). Buttons that stand alone elsewhere are 44px;
+   inside this pill 38px is enough because the pill itself is 46px. */
+.segment {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.1875rem;
+    background: var(--dash-chip);
+    border: 1px solid var(--dash-edge);
+    border-radius: var(--radius-pill);
+}
+
+.option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    height: 2.375rem;
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--dash-t1);
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    font-weight: var(--fw-bold);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* An arrow button: the same height, a little wider than tall. */
+.optionSquare {
+    width: 2.75rem;
+    padding: 0;
+}
+
+.optionOn {
+    background: var(--dash-fill);
+    color: var(--dash-on-fill);
+}
+
+@media (hover: hover) {
+    .option:hover {
+        background: var(--dash-sel-bg);
+    }
+
+    .optionOn:hover {
+        background: var(--dash-fill);
+    }
+}
+
+@media (forced-colors: active) {
+    .optionOn {
+        outline: 2px solid Highlight;
+    }
+}

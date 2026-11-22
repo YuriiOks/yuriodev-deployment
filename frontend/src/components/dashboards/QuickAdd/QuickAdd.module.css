@@ -1,11 +1,11 @@
 .form {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: 0.25rem var(--space-4);
-  background: var(--dash-well);
-  border: 1px solid var(--dash-edge);
-  border-radius: var(--radius-lg);
+  border-color: var(--dash-edge);
+  border-radius: var(--dash-r-control);
 }
 
 .prompt {
@@ -35,6 +35,6 @@
 }
 
 .input::placeholder {
-  color: var(--dash-t3);
+  color: var(--dash-t2);
   opacity: 1;
 }
