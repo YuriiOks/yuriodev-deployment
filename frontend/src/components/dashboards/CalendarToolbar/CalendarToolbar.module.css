@@ -112,6 +112,11 @@
   composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
 }
 
+/* "New event": a secondary button (real data only). */
+.newEvent {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
 /* The working-days switch: a label with a small track and a thumb, no box. */
 .switch {
   display: inline-flex;
