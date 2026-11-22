@@ -1,6 +1,7 @@
 name: Production monitor
 
-# Every 10 minutes, from outside (through Cloudflare): the site answers, the
+# Every hour (hourly keeps the monitor inside a private repository's Actions
+# minutes: a 10-minute cron alone is ~4,300 runs a month), from outside (through Cloudflare): the site answers, the
 # backend reports itself healthy as `prod`, and it runs the latest release
 # (drift = the deploy agent on the server is stuck). On failure one issue labelled
 # `monitor` is opened (GitHub emails the owner) and updated while the problem
@@ -8,7 +9,7 @@ name: Production monitor
 # Note: GitHub disables schedules after 60 days without a commit to master.
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
     inputs:
       simulate_failure:
