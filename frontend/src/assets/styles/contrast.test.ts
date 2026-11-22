@@ -286,7 +286,7 @@ const GLASS_TEXT_TOKENS = ['--dash-t1', '--dash-t2', '--dash-accent', '--dash-ti
 
 const GLASS_PAIRS: Pair[] = [
   // Text straight on the glass (the bar, hero, strip, panels, cards, calendar).
-  ...cross(GLASS_TEXT_TOKENS, onGlass(), TEXT),
+  ...cross([...GLASS_TEXT_TOKENS, '--dash-ok'], onGlass(), TEXT),
   // Text on the page itself, over the glows (the lead, the toolbar's legend). The
   // title ink is only the page's h1 there, which is large text.
   ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], GLASS_BACKS, TEXT),
@@ -298,10 +298,16 @@ const GLASS_PAIRS: Pair[] = [
   ...cross(['--dash-sel-edge'], onGlass(), UI),
 ];
 
-/* The calendar's events (title and note in t1) and today's column on the glass (the Personal skin). */
-const SHARED_GLASS_PAIRS: Pair[] = SPACES.flatMap(([, rgb]) =>
-  cross(['--dash-t1'], [...onGlass([`rgba(var(${rgb}), 0.14)`]), ...onGlass([`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg'])], TEXT),
-);
+/* The calendar's events (title and note in t1), the entrance cards' tinted Open buttons (t1 on a 14% tint of the
+   space's ink) and today's column, on the glass (the Personal skin). */
+const SHARED_GLASS_PAIRS: Pair[] = [
+  ...SPACES.flatMap(([, rgb]) =>
+    cross(['--dash-t1'], [...onGlass([`rgba(var(${rgb}), 0.14)`]), ...onGlass([`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg'])], TEXT),
+  ),
+  // A space's own ink as text on the glass (the entrance cards' names), over the page and each glow
+  // on its own: the two strongest glows are not centred on one card.
+  ...cross(SPACE_INKS, onGlass().slice(0, 4), TEXT),
+];
 
 describe('dashboard palettes meet WCAG AA', () => {
   for (const theme of ['dark', 'light'] as const) {

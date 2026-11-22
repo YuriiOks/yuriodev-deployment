@@ -11,6 +11,8 @@ export interface CalendarToolbarProps {
   /** Overlapping events of different spaces in what is on screen. */
   conflicts: number;
   view: CalendarView;
+  /** A phone shows one day at a time: the arrows step by a day. */
+  day?: boolean;
   onView: (view: CalendarView) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -22,11 +24,14 @@ export interface CalendarToolbarProps {
  * conflicts, previous / today / next (a week or a month, by the view) and the
  * Week / Month switch.
  */
-const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, onView, onPrev, onNext, onToday }) => {
+const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, day = false, onView, onPrev, onNext, onToday }) => {
   const { t, text } = useDashboardLang();
   const week = view === 'week';
+  const prev = week ? (day ? t.prevDay : t.prevWeek) : t.prevMonth;
+  const next = week ? (day ? t.nextDay : t.nextWeek) : t.nextMonth;
   return (
     <div className={styles.toolbar}>
+      <div className={styles.left}>
       <ul className={styles.legend}>
         {SPACES.map((space) => (
           <li key={space} className={styles.item}>
@@ -39,14 +44,16 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, onVi
         {conflicts > 0 && <DashIcon name="alert" size={14} strokeWidth={2.2} />}
         <span>{conflicts > 0 ? `${t.conflicts}: ${conflicts}` : t.noConflicts}</span>
       </p>
+      </div>
+      <div className={styles.controls}>
       <div role="group" aria-label={t.periodLabel} className={styles.steps}>
-        <button type="button" className={cx(styles.step, styles.square)} aria-label={week ? t.prevWeek : t.prevMonth} onClick={onPrev}>
+        <button type="button" className={cx(styles.step, styles.square)} aria-label={prev} onClick={onPrev}>
           <DashIcon name="prev" size={18} strokeWidth={2.2} />
         </button>
         <button type="button" className={styles.step} onClick={onToday}>
           {t.today}
         </button>
-        <button type="button" className={cx(styles.step, styles.square)} aria-label={week ? t.nextWeek : t.nextMonth} onClick={onNext}>
+        <button type="button" className={cx(styles.step, styles.square)} aria-label={next} onClick={onNext}>
           <DashIcon name="next" size={18} strokeWidth={2.2} />
         </button>
       </div>
@@ -67,6 +74,7 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ conflicts, view, onVi
         >
           {t.month}
         </button>
+      </div>
       </div>
     </div>
   );
