@@ -329,7 +329,7 @@ describe('dashboard palettes meet WCAG AA', () => {
     const accent = (theme: Theme, space: Space) => resolve(tokensFor(theme, space), 'var(--dash-accent)');
     expect(accent('dark', 'work-1')).toBe('#b88cff');
     expect(accent('light', 'work-1')).toBe('#7a22d0');
-    expect(accent('dark', 'work-2')).toBe('#ff5a66');
+    expect(accent('dark', 'work-2')).toBe('#ff6a75');
     expect(accent('light', 'work-2')).toBe('#c4000f');
     expect(accent('dark', 'personal')).toBe(resolve(tokensFor('dark'), 'var(--cyan-text)'));
     expect(resolve(tokensFor('light', 'work-1'), 'var(--dash-surface)')).toBe('#ffffff');
