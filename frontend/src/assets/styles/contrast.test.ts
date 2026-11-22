@@ -220,101 +220,68 @@ const PAIRS: Record<Theme, Pair[]> = {
   ],
 };
 
-/* The private dashboards (section 6 of _variables.css): every space, both themes. */
-const DASH_TEXT = [
-  '--dash-t1', '--dash-t2', '--dash-t3', '--dash-accent', '--dash-title', '--dash-warn', '--dash-danger', '--dash-ok',
-];
-const DASH_SOLID = [['--dash-bg'], ['--dash-surface'], ['--dash-well'], ['--dash-chip']];
+/* The private dashboards (section 6 of _variables.css): every space, both themes.
+   Where text sits: the page, an opaque surface (inputs, menus), a chip (row hover plate, segmented
+   track), the glass of the bar, panels, hub cards and the calendar frame over the page and each of its
+   three glows, and an event's opaque tint. */
+const SPACES: readonly Space[] = ['personal', 'work-1', 'work-2'];
+const SPACE_INKS = SPACES.map((s) => `--dash-ink-${s}`);
+const DASH_SOLID = [['--dash-bg'], ['--dash-surface'], ['--dash-chip']];
+
+/* The glass (recipes.module.css .glassDash): its translucent fill over what really sits behind it, which
+   is the page's own colour and its three glows (nothing scrolls behind a panel). Each glow is held at its
+   peak strength, on its own (their centres are in three different places of the viewport, so two peaks
+   never coincide). */
+const GLOW = (n: 'a' | 'b' | 'c') => `rgba(var(--dash-glow-${n}-rgb), var(--dash-glow-${n}))`;
+const BACKS: readonly (readonly string[])[] = [['--dash-bg'], [GLOW('a'), '--dash-bg'], [GLOW('b'), '--dash-bg'], [GLOW('c'), '--dash-bg']];
+/** `layer` (and what is above it) painted on the glass, on each of the backings. */
+const onGlass = (layers: readonly string[] = []): (readonly string[])[] => BACKS.map((back) => [...layers, '--dash-glass', ...back]);
+/** The bar: its own, denser glass over the page and the glows. */
+const onBar = (): (readonly string[])[] => BACKS.map((back) => ['--dash-bar-glass', ...back]);
+/** The calendar's weekend columns: the chip at 40% over the glass. */
+const WEEKEND = 'rgba(var(--dash-chip-rgb), 0.4)';
 
 const DASH_PAIRS: Pair[] = [
-  // Text on the page, the cards, the wells and the pills.
-  ...cross(DASH_TEXT, DASH_SOLID, TEXT),
-  // Rows of the priority panel (tinted), and the selected tab or day over the page and a card.
-  ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-accent'], [['--dash-prio-bg', '--dash-surface']], TEXT),
-  ...cross(['--dash-t1', '--dash-title'], [['--dash-sel-bg', '--dash-bg'], ['--dash-sel-bg', '--dash-surface']], TEXT),
-  // Buttons, the language switch, accent badges.
+  // Titles, rows, secondary text and hints on every solid surface (t3: placeholders, zero values, never on events).
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3'], DASH_SOLID, TEXT),
+  // Semantic text (overdue, today and conflicts, CI passing) on the solid surfaces.
+  ...cross(['--dash-danger', '--dash-warn', '--dash-ok'], DASH_SOLID, TEXT),
+  // The same on the glass, over the page and each glow, and on a row's hover plate over the glass.
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-danger', '--dash-warn', '--dash-ok'], onGlass(), TEXT),
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3'], onGlass(['--dash-chip']), TEXT),
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3'], onGlass([WEEKEND]), TEXT),
+  // Text straight on the page, over the glows (the strip, the tabs, the footer line).
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-danger', '--dash-warn'], BACKS, TEXT),
+  // The bar's links and brand.
+  ...cross(['--dash-t1', '--dash-t2'], onBar(), TEXT),
+  // The primary button, the ticked checkbox and the space tile: the ink on the space's fill.
   { fg: '--dash-on-fill', bg: ['--dash-fill'], min: TEXT },
-  // Control borders (the quick-add field, the switches) and the selected indicator.
-  ...cross(['--dash-edge'], [['--dash-bg'], ['--dash-surface'], ['--dash-well']], UI),
-  ...cross(['--dash-sel-edge'], [['--dash-sel-bg', '--dash-surface'], ['--dash-surface']], UI),
+  // A space's ink as the 2px underline of the active tab and link, and its fill beside the text it marks.
+  ...cross(['--dash-accent', '--dash-fill'], [...DASH_SOLID, ...onGlass(), ...BACKS], UI),
+  // Control borders (the quick-add field, the unticked checkbox, the segmented selected edge).
+  ...cross(['--dash-edge'], [...DASH_SOLID, ...onGlass(), ...BACKS], UI),
 ];
 
-/* Calendar events and the entrance's cards (both on the Personal skin, the
-   page with no data-space): each space's ink as text on the surfaces, its
-   fill and the ink on it, and the text over an event's tint. */
-const SPACE_INKS = ['--dash-ink-personal', '--dash-ink-work-1', '--dash-ink-work-2'];
-const SPACES: readonly ['personal' | 'work-1' | 'work-2', string][] = [
-  ['personal', '--dash-ink-personal-rgb'],
-  ['work-1', '--dash-ink-work-1-rgb'],
-  ['work-2', '--dash-ink-work-2-rgb'],
-];
+/* The hub and the calendar show all three spaces at once (they sit on the neutral page): each ink as text
+   on the surfaces (a hub tile's monogram is the on-fill ink), the fill and the ink on it, an event's opaque
+   tint with the text on it (t1 for the title, t2 for the time; t3 never), and the conflict icon on it. */
 const SHARED_PAIRS: Pair[] = [
-  ...cross(SPACE_INKS, DASH_SOLID, TEXT),
-  ...SPACES.map(([space]): Pair => ({ fg: `--dash-on-fill-${space}`, bg: [`--dash-fill-${space}`], min: TEXT })),
-  ...SPACES.flatMap(([, rgb]) =>
-    cross(
-      ['--dash-t1', '--dash-t2'],
-      [
-        [`rgba(var(${rgb}), 0.14)`, '--dash-surface'],
-        // The month view's muted days (neighbouring months) sit on the well.
-        [`rgba(var(${rgb}), 0.14)`, '--dash-well'],
-        [`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg', '--dash-surface'],
-      ],
-      TEXT,
-    ),
-  ),
-];
-
-/* The dashboards' glass (recipes.module.css .glassDash): its translucent fill
-   over what really sits behind it, which is only the page's own colour and
-   its three glows (nothing scrolls behind a card). The glows are held at
-   their peak strength, each on its own (their centres are in three different
-   places of the viewport, so two peaks never coincide).
-   Text on glass is t1, t2, accent or title; t3 is for solid surfaces only. */
-const GLOW = (n: 'a' | 'b' | 'c') => `rgba(var(--dash-glow-${n}-rgb), var(--dash-glow-${n}))`;
-const GLASS_BACKS: readonly (readonly string[])[] = [
-  ['--dash-bg'],
-  [GLOW('a'), '--dash-bg'],
-  [GLOW('b'), '--dash-bg'],
-  [GLOW('c'), '--dash-bg'],
-];
-/** `over` painted on the glass, on each of the backings. */
-const onGlass = (over: readonly string[] = []): (readonly string[])[] =>
-  GLASS_BACKS.map((back) => [...over, '--dash-glass', ...back]);
-
-const GLASS_TEXT_TOKENS = ['--dash-t1', '--dash-t2', '--dash-accent', '--dash-title'];
-
-const GLASS_PAIRS: Pair[] = [
-  // Text straight on the glass (the bar, hero, strip, panels, cards, calendar).
-  ...cross([...GLASS_TEXT_TOKENS, '--dash-ok'], onGlass(), TEXT),
-  // Text on the page itself, over the glows (the lead, the toolbar's legend). The
-  // title ink is only the page's h1 there, which is large text.
-  // (The accent is never page text: it is only on the glass and on tints.)
-  ...cross(['--dash-t1', '--dash-t2'], GLASS_BACKS, TEXT),
-  ...cross(['--dash-title'], GLASS_BACKS, LARGE),
-  // A priority row (tinted) and the selected tab, day or link, on the glass.
-  ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], onGlass(['--dash-prio-bg']), TEXT),
-  ...cross(['--dash-t1', '--dash-title'], onGlass(['--dash-sel-bg']), TEXT),
-  // The accent border of the selected tab, as a state indicator, on the glass.
-  ...cross(['--dash-sel-edge'], onGlass(), UI),
-];
-
-/* The calendar's events (title and note in t1), the entrance cards' tinted Open buttons (t1 on a 14% tint of the
-   space's ink) and today's column, on the glass (the Personal skin). */
-const SHARED_GLASS_PAIRS: Pair[] = [
-  ...SPACES.flatMap(([, rgb]) =>
-    cross(['--dash-t1'], [...onGlass([`rgba(var(${rgb}), 0.14)`]), ...onGlass([`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg'])], TEXT),
-  ),
-  // A space's own ink as text on the glass (the entrance cards' names), over the page and each glow
-  ...cross(SPACE_INKS, onGlass().slice(0, 4), TEXT),
+  ...cross(SPACE_INKS, [...DASH_SOLID, ...onGlass()], TEXT),
+  ...SPACES.map((space): Pair => ({ fg: `--dash-on-fill-${space}`, bg: [`--dash-fill-${space}`], min: TEXT })),
+  ...SPACES.flatMap((space) => [
+    ...cross(['--dash-t1', '--dash-t2'], [[`--dash-tint-${space}`]], TEXT),
+    ...cross(['--dash-warn'], [[`--dash-tint-${space}`]], UI),
+    ...cross([`--dash-ink-${space}`], [[`--dash-tint-${space}`]], UI),
+    ...cross([`--dash-fill-${space}`], [...DASH_SOLID, ...onGlass()], UI),
+  ]),
 ];
 
 describe('dashboard palettes meet WCAG AA', () => {
   for (const theme of ['dark', 'light'] as const) {
-    for (const space of ['personal', 'work-1', 'work-2'] as const) {
-      it(`${theme} theme, ${space} space: every text and UI pair`, () => {
+    for (const space of [undefined, ...SPACES] as const) {
+      it(`${theme} theme, ${space ?? 'neutral (hub and calendar)'}: every text and UI pair`, () => {
         const tokens = tokensFor(theme, space);
-        const pairs = [...DASH_PAIRS, ...GLASS_PAIRS, ...(space === 'personal' ? [...SHARED_PAIRS, ...SHARED_GLASS_PAIRS] : [])];
+        const pairs = [...DASH_PAIRS, ...(space === undefined ? SHARED_PAIRS : [])];
         const failures = pairs
           .map(({ fg, bg, min }) => ({ fg, bg, min, got: ratio(paint(tokens, [fg]), paint(tokens, bg)) }))
           .filter(({ got, min }) => got < min)
@@ -327,13 +294,43 @@ describe('dashboard palettes meet WCAG AA', () => {
 
   it('the spaces really differ (the parser picks up each space block)', () => {
     const accent = (theme: Theme, space: Space) => resolve(tokensFor(theme, space), 'var(--dash-accent)');
-    expect(accent('dark', 'work-1')).toBe('#b88cff');
-    expect(accent('light', 'work-1')).toBe('#7a22d0');
-    expect(accent('dark', 'work-2')).toBe('#ff6a75');
+    expect(accent('dark', 'personal')).toBe('#5fc8e3');
+    expect(accent('light', 'personal')).toBe('#0b6780');
+    expect(accent('dark', 'work-1')).toBe('#b3a4ff');
+    expect(accent('light', 'work-1')).toBe('#5a3fc8');
+    expect(accent('dark', 'work-2')).toBe('#ff7b86');
     expect(accent('light', 'work-2')).toBe('#c4000f');
-    expect(accent('dark', 'personal')).toBe(resolve(tokensFor('dark'), 'var(--cyan-text)'));
-    expect(resolve(tokensFor('light', 'work-1'), 'var(--dash-surface)')).toBe('#ffffff');
-    expect(resolve(tokensFor('dark', 'work-1'), 'var(--dash-surface)')).toBe('#1c1638');
+    // The neutral pages (hub, calendar) spend no space colour.
+    expect(resolve(tokensFor('dark'), 'var(--dash-accent)')).toBe('#eceef2');
+    expect(resolve(tokensFor('light'), 'var(--dash-accent)')).toBe('#12151a');
+  });
+
+  it('the neutral ramp is shared: a space changes the page colour, the ink, the fill and the glow, nothing else', () => {
+    for (const theme of ['dark', 'light'] as const) {
+      const base = tokensFor(theme);
+      for (const space of SPACES) {
+        const own = tokensFor(theme, space);
+        const changed = [...own.keys()].filter((key) => own.get(key) !== base.get(key)).sort();
+        for (const key of changed) {
+          expect(key, `${theme} ${space}`).toMatch(/^--dash-(bg|accent|fill|on-fill|glow-[abc](-rgb)?)$/);
+        }
+      }
+    }
+  });
+
+  it('an event tint is the space ink at 12% (light) or 22% (dark) over the surface, computed, not stacked alpha', () => {
+    const share = { light: 0.12, dark: 0.22 } as const;
+    for (const theme of ['dark', 'light'] as const) {
+      const tokens = tokensFor(theme);
+      const surface = parseColor(resolve(tokens, 'var(--dash-surface)'));
+      for (const space of SPACES) {
+        const ink = parseColor(resolve(tokens, `var(--dash-ink-${space})`));
+        const tint = parseColor(resolve(tokens, `var(--dash-tint-${space})`));
+        for (let i = 0; i < 3; i += 1) {
+          expect(Math.abs(tint[i] - (ink[i] * share[theme] + surface[i] * (1 - share[theme]))), `${theme} ${space} channel ${i}`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
   });
 });
 
