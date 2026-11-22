@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { SAMPLE_SPACES, SAMPLE_WEEK } from './sampleData';
-import { getSpace, getWeek, listSpaces } from './source';
+import { SAMPLE_CALENDAR, SAMPLE_SPACES, expandPatterns } from './sampleData';
+import { weekDates, weekdayIndex } from './calendarDates';
+import { getCalendar, getSpace, listSpaces } from './source';
 import { SPACES, TAB_TONE } from './spaces';
 import { summarize, tabCount } from './summary';
 import { findConflicts, layoutDay, toMinutes } from './weekLayout';
@@ -24,10 +25,10 @@ function localizedIn(value: unknown, found: Localized[] = []): Localized[] {
 const rowsOf = (space: (typeof SAMPLE_SPACES)[keyof typeof SAMPLE_SPACES]): Row[] => space.panels.flatMap((p) => [...p.rows]);
 
 describe('the data source', () => {
-  it('returns the three spaces in order, and one week', () => {
+  it('returns the three spaces in order, and the calendar', () => {
     expect(listSpaces().map(({ id }) => id)).toEqual(['personal', 'work-1', 'work-2']);
     expect(SPACES.map((id) => getSpace(id).id)).toEqual([...SPACES]);
-    expect(getWeek()).toBe(SAMPLE_WEEK);
+    expect(getCalendar()).toBe(SAMPLE_CALENDAR);
   });
 
   it('has the tabs of each space exactly as designed', () => {
@@ -62,40 +63,65 @@ describe('the sample data', () => {
     }
   });
 
-  it('the week has both languages, seven days and events of every space', () => {
-    for (const text of localizedIn(SAMPLE_WEEK)) {
+  it('the calendar has both languages, valid times and events of every space', () => {
+    for (const text of localizedIn(SAMPLE_CALENDAR)) {
       expect(text.ru.trim()).not.toBe('');
       expect(text.en.trim()).not.toBe('');
     }
-    expect(SAMPLE_WEEK.days).toHaveLength(7);
-    expect(new Set(SAMPLE_WEEK.events.map((e) => e.space))).toEqual(new Set(SPACES));
-    for (const event of SAMPLE_WEEK.events) {
-      expect(event.day).toBeGreaterThanOrEqual(0);
-      expect(event.day).toBeLessThan(7);
+    expect(new Set(SAMPLE_CALENDAR.events.map((e) => e.space))).toEqual(new Set(SPACES));
+    const { hours } = SAMPLE_CALENDAR;
+    for (const event of SAMPLE_CALENDAR.events) {
+      expect(event.date, event.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(toMinutes(event.end), event.id).toBeGreaterThan(toMinutes(event.start));
-      expect(toMinutes(event.start), event.id).toBeGreaterThanOrEqual(toMinutes(SAMPLE_WEEK.hours[0]));
-      expect(toMinutes(event.end), event.id).toBeLessThanOrEqual(toMinutes(SAMPLE_WEEK.hours.at(-1)!) + 60);
+      expect(toMinutes(event.start), event.id).toBeGreaterThanOrEqual(toMinutes(hours[0]));
+      expect(toMinutes(event.end), event.id).toBeLessThanOrEqual(toMinutes(hours.at(-1)!) + 60);
     }
-    const ids = SAMPLE_WEEK.events.map((e) => e.id);
+    const ids = SAMPLE_CALENDAR.events.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('the week exercises overlaps: a cross-space conflict, a three-way cluster, a same-space overlap and a short event', () => {
-    const conflicts = findConflicts(SAMPLE_WEEK.events);
+  it('the events are spread over the whole sample range, from patterns and one-offs', () => {
+    const dates = SAMPLE_CALENDAR.events.map((e) => e.date);
+    expect(dates[0] >= '2026-10-01').toBe(true);
+    expect(dates.at(-1)! <= '2027-01-31').toBe(true);
+    for (const month of ['2026-10', '2026-11', '2026-12', '2027-01']) {
+      expect(dates.some((d) => d.startsWith(month)), month).toBe(true);
+    }
+    // A recurring pattern repeats on its weekdays only.
+    const standups = SAMPLE_CALENDAR.events.filter((e) => e.id.startsWith('standup-'));
+    expect(standups.every((e) => weekdayIndex(e.date) < 5)).toBe(true);
+    expect(standups.some((e) => e.date === '2026-11-23')).toBe(true);
+    expect(standups.some((e) => e.date === '2026-11-28')).toBe(false);
+    // Today is a busy day: more events than a month chip row shows.
+    expect(SAMPLE_CALENDAR.events.filter((e) => e.date === SAMPLE_CALENDAR.today).length).toBeGreaterThan(3);
+  });
+
+  it('expands patterns day by day', () => {
+    const events = expandPatterns(
+      [{ id: 'p', weekdays: [0, 2], start: '09:00', end: '10:00', title: { ru: 'а', en: 'a' }, space: 'personal' }],
+      '2026-11-23',
+      '2026-11-29',
+    );
+    expect(events.map((e) => e.id)).toEqual(['p-2026-11-23', 'p-2026-11-25']);
+  });
+
+  it('the sample week exercises overlaps: a cross-space conflict, a three-way cluster, a same-space overlap and a short event', () => {
+    const week = SAMPLE_CALENDAR.events.filter((e) => weekDates(SAMPLE_CALENDAR.today).includes(e.date));
+    const conflicts = findConflicts(week.map((e) => ({ ...e, day: e.date })));
     // Tuesday: one pair; Friday: three events that all overlap, three pairs.
     expect(conflicts.count).toBe(4);
     expect(conflicts.ids.size).toBe(5);
 
-    const day = (n: number) => SAMPLE_WEEK.events.filter((e) => e.day === n);
-    expect(Math.max(...layoutDay(day(4)).map((p) => p.columns))).toBe(3);
+    const day = (date: string) => week.filter((e) => e.date === date);
+    expect(Math.max(...layoutDay(day('2026-11-27')).map((p) => p.columns))).toBe(3);
     // Wednesday: two events of one space side by side, and neither is a conflict.
-    const wednesday = layoutDay(day(2)).filter((p) => p.columns === 2);
+    const wednesday = layoutDay(day('2026-11-25')).filter((p) => p.columns === 2);
     expect(wednesday.map((p) => p.event.space)).toEqual(['work-1', 'work-1']);
     expect(wednesday.every((p) => !conflicts.ids.has(p.event.id))).toBe(true);
     // Thursday: a 15-minute event beside an hour-long one.
-    const short = SAMPLE_WEEK.events.find((e) => e.id === 'parcel-3')!;
+    const short = week.find((e) => e.id === 'parcel-nov-26')!;
     expect(toMinutes(short.end) - toMinutes(short.start)).toBe(15);
-    expect(layoutDay(day(3)).find((p) => p.event.id === 'parcel-3')!.columns).toBe(2);
+    expect(layoutDay(day('2026-11-26')).find((p) => p.event.id === 'parcel-nov-26')!.columns).toBe(2);
   });
 
   it('exercises every kind of row, badge, action, due tone, tile and panel flavour', () => {
@@ -122,7 +148,7 @@ describe('the sample data', () => {
   });
 
   it('keeps the sample generic: no real-looking contact detail or private reference', () => {
-    const json = JSON.stringify([SAMPLE_SPACES, SAMPLE_WEEK]);
+    const json = JSON.stringify([SAMPLE_SPACES, SAMPLE_CALENDAR]);
     expect(json).not.toMatch(/@[a-z0-9-]+\.[a-z]{2,}/i);
     expect(json).not.toMatch(/https?:\/\/(?!github\.com\/example\/)/);
   });

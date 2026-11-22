@@ -256,6 +256,8 @@ const SHARED_PAIRS: Pair[] = [
       ['--dash-t1', '--dash-t2'],
       [
         [`rgba(var(${rgb}), 0.14)`, '--dash-surface'],
+        // The month view's muted days (neighbouring months) sit on the well.
+        [`rgba(var(${rgb}), 0.14)`, '--dash-well'],
         [`rgba(var(${rgb}), 0.14)`, '--dash-sel-bg', '--dash-surface'],
       ],
       TEXT,

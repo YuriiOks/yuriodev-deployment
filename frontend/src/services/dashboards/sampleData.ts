@@ -1,5 +1,8 @@
+import { addDays, weekdayIndex } from './calendarDates';
 import type {
   ActionVerb,
+  CalEvent,
+  CalendarData,
   Due,
   DueTone,
   InfoRow,
@@ -12,8 +15,6 @@ import type {
   SpaceId,
   TabId,
   TaskRow,
-  WeekData,
-  WeekEvent,
 } from './types';
 
 /*
@@ -529,49 +530,105 @@ const WORK_2: SpaceData = {
 
 export const SAMPLE_SPACES: Record<SpaceId, SpaceData> = { personal: PERSONAL, 'work-1': WORK_1, 'work-2': WORK_2 };
 
-const ev = (
-  id: string,
-  days: readonly number[],
-  start: string,
-  end: string,
-  title: Localized,
-  space: SpaceId,
-  note?: Localized,
-): WeekEvent[] => days.map((day) => ({ id: `${id}-${day}`, day, start, end, title, space, note }));
+/** The sample's own "today": a Monday, so the week view opens on a full working week. */
+const TODAY_DATE = '2026-11-23';
 
-export const SAMPLE_WEEK: WeekData = {
-  range: L('23–29 ноября', '23–29 November'),
-  days: [
-    { label: L('Пн 23', 'Mon 23'), today: true },
-    { label: L('Вт 24', 'Tue 24') },
-    { label: L('Ср 25', 'Wed 25') },
-    { label: L('Чт 26', 'Thu 26') },
-    { label: L('Пт 27', 'Fri 27') },
-    { label: L('Сб 28', 'Sat 28') },
-    { label: L('Вс 29', 'Sun 29') },
-  ],
+/** The sample covers these dates (a month either side of the sample month); outside them the calendar is empty. */
+const RANGE_START = '2026-10-01';
+const RANGE_END = '2027-01-31';
+
+const FOCUS = L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time');
+
+/** An event that repeats on some weekdays (0 is Monday). */
+export interface Pattern {
+  readonly id: string;
+  readonly weekdays: readonly number[];
+  readonly start: string;
+  readonly end: string;
+  readonly title: Localized;
+  readonly space: SpaceId;
+}
+
+export const SAMPLE_PATTERNS: readonly Pattern[] = [
+  { id: 'standup', weekdays: [0, 1, 2, 3, 4], start: '10:00', end: '10:30', title: L('Стендап команды', 'Team stand-up'), space: 'work-1' },
+  { id: 'onboarding', weekdays: [0, 2], start: '13:00', end: '14:00', title: L('Онбординг-синк', 'Onboarding sync'), space: 'work-1' },
+  { id: 'project', weekdays: [0, 3], start: '15:30', end: '16:30', title: L('Синк по проекту', 'Project sync'), space: 'work-2' },
+  { id: 'gym', weekdays: [0, 2, 4], start: '18:00', end: '19:00', title: L('Тренировка', 'Gym session'), space: 'personal' },
+  { id: 'lesson', weekdays: [0, 1, 3], start: '19:30', end: '20:30', title: L('Урок языка', 'Language lesson'), space: 'personal' },
+];
+
+/** Every date from `from` to `to`, both included. */
+function datesBetween(from: string, to: string): string[] {
+  const dates: string[] = [];
+  for (let date = from; date <= to; date = addDays(date, 1)) dates.push(date);
+  return dates;
+}
+
+/** The events a set of patterns makes between two dates, one per matching day. */
+export function expandPatterns(patterns: readonly Pattern[], from: string, to: string): CalEvent[] {
+  return datesBetween(from, to).flatMap((date) =>
+    patterns
+      .filter((pattern) => pattern.weekdays.includes(weekdayIndex(date)))
+      .map(({ id, start, end, title, space }) => ({ id: `${id}-${date}`, date, start, end, title, space })),
+  );
+}
+
+const one = (id: string, date: string, start: string, end: string, title: Localized, space: SpaceId, note?: Localized): CalEvent => ({
+  id,
+  date,
+  start,
+  end,
+  title,
+  space,
+  note,
+});
+
+/**
+ * One-off events, spread over the month. The week of the sample's today has
+ * a two-way conflict (Tue), a three-way overlap (Fri), an overlap inside one
+ * space (Wed) and a 15-minute event beside a long one (Thu); the other weeks
+ * have a few more of each, so the month view has something to show.
+ */
+const ONE_OFFS: readonly CalEvent[] = [
+  one('review-oct-08', '2026-10-08', '11:00', '12:30', L('Квартальный обзор', 'Quarterly review'), 'work-2'),
+  one('dentist-oct-20', '2026-10-20', '09:30', '10:00', L('Стоматолог', 'Dentist'), 'personal'),
+  one('review-nov-03', '2026-11-03', '11:00', '12:30', L('Квартальный обзор', 'Quarterly review'), 'work-2'),
+  one('lunch-nov-10', '2026-11-10', '12:00', '13:00', L('Обед с командой', 'Team lunch'), 'work-1'),
+  one('dentist-nov-12', '2026-11-12', '11:00', '12:00', L('Стоматолог', 'Dentist'), 'personal'),
+  one('trip-nov-14', '2026-11-14', '09:00', '12:00', L('Поездка на выходные', 'Weekend trip'), 'personal'),
+  // Two spaces overlap: a conflict.
+  one('planning-nov-17', '2026-11-17', '14:00', '15:00', L('Планирование', 'Planning session'), 'work-1'),
+  one('status-nov-17', '2026-11-17', '14:30', '15:30', L('Статус-созвон', 'Status call'), 'work-2'),
+  one('demo-nov-19', '2026-11-19', '11:00', '12:00', L('Демо поставщика', 'Vendor demo'), 'work-2'),
+  one('haircut-nov-19', '2026-11-19', '11:30', '12:15', L('Стрижка', 'Haircut'), 'personal'),
+  // The sample week. Tuesday: a conflict between two spaces.
+  one('planning-nov-24', '2026-11-24', '14:00', '15:00', L('Планирование', 'Planning session'), 'work-1'),
+  one('status-nov-24', '2026-11-24', '14:30', '15:30', L('Статус-созвон', 'Status call'), 'work-2'),
+  // Wednesday: two events of one space overlap, side by side and not a conflict.
+  one('doctor-nov-25', '2026-11-25', '11:00', '12:00', L('Врач', 'Doctor'), 'personal', FOCUS),
+  one('review-nov-25', '2026-11-25', '16:00', '17:00', L('Ревью кода', 'Code review'), 'work-1'),
+  one('pairing-nov-25', '2026-11-25', '16:30', '17:30', L('Парная работа', 'Pairing'), 'work-1'),
+  // Thursday: a 15-minute event beside an hour-long one (same space).
+  one('lunch-nov-26', '2026-11-26', '12:00', '13:00', L('Обед', 'Lunch'), 'personal'),
+  one('parcel-nov-26', '2026-11-26', '12:15', '12:30', L('Забрать посылку', 'Pick up the parcel'), 'personal'),
+  one('call-nov-26', '2026-11-26', '14:00', '14:30', L('Звонок юристу', 'Call the solicitor'), 'personal', FOCUS),
+  // Friday: three events of three spaces all overlap: three conflicts, three columns.
+  one('workshop-nov-27', '2026-11-27', '15:00', '17:00', L('Воркшоп', 'Workshop'), 'work-1'),
+  one('dentist-nov-27', '2026-11-27', '15:30', '16:30', L('Стоматолог', 'Dentist'), 'personal'),
+  one('vendor-nov-27', '2026-11-27', '16:00', '16:45', L('Звонок поставщику', 'Vendor call'), 'work-2'),
+  one('dinner-nov-28', '2026-11-28', '19:00', '21:00', L('Ужин вне дома', 'Dinner out'), 'personal'),
+  one('planning-dec-01', '2026-12-01', '14:00', '15:00', L('Планирование', 'Planning session'), 'work-1'),
+  one('dinner-dec-03', '2026-12-03', '19:00', '21:00', L('Ужин вне дома', 'Dinner out'), 'personal'),
+  one('release-dec-08', '2026-12-08', '14:00', '15:30', L('Ревью релиза', 'Release review'), 'work-1'),
+  one('checkin-dec-10', '2026-12-10', '16:00', '16:30', L('Чек-ин', 'Check-in'), 'work-2'),
+  one('family-dec-24', '2026-12-24', '18:00', '21:00', L('Семейный ужин', 'Family dinner'), 'personal'),
+  one('kickoff-jan-05', '2027-01-05', '11:00', '12:00', L('Старт проекта', 'Kick-off'), 'work-1'),
+];
+
+export const SAMPLE_CALENDAR: CalendarData = {
+  today: TODAY_DATE,
   hours: Array.from({ length: 12 }, (_, i) => `${String(i + 9).padStart(2, '0')}:00`),
-  events: [
-    ...ev('standup', [0, 1, 2, 3, 4], '10:00', '10:30', L('Стендап команды', 'Team stand-up'), 'work-1'),
-    ...ev('onboarding', [0, 2], '13:00', '14:00', L('Онбординг-синк', 'Onboarding sync'), 'work-1'),
-    ...ev('project', [0, 3], '15:30', '16:30', L('Синк по проекту', 'Project sync'), 'work-2'),
-    ...ev('gym', [0, 2, 4], '18:00', '19:00', L('Тренировка', 'Gym session'), 'personal'),
-    ...ev('lesson', [0, 1, 3], '19:30', '20:30', L('Урок языка', 'Language lesson'), 'personal'),
-    ...ev('doctor', [2], '11:00', '12:00', L('Врач', 'Doctor'), 'personal', L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time')),
-    ...ev('call', [3], '14:00', '14:30', L('Звонок юристу', 'Call the solicitor'), 'personal', L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time')),
-    ...ev('dinner', [5], '19:00', '21:00', L('Ужин вне дома', 'Dinner out'), 'personal'),
-    // Two events of different spaces overlap: a conflict.
-    ...ev('planning', [1], '14:00', '15:00', L('Планирование', 'Planning session'), 'work-1'),
-    ...ev('status', [1], '14:30', '15:30', L('Статус-созвон', 'Status call'), 'work-2'),
-    // Three events of three spaces overlap each other: three conflicts, three columns.
-    ...ev('workshop', [4], '15:00', '17:00', L('Воркшоп', 'Workshop'), 'work-1'),
-    ...ev('dentist', [4], '15:30', '16:30', L('Стоматолог', 'Dentist'), 'personal'),
-    ...ev('vendor', [4], '16:00', '16:45', L('Звонок поставщику', 'Vendor call'), 'work-2'),
-    // Two events of one space overlap: side by side, not a conflict.
-    ...ev('review', [2], '16:00', '17:00', L('Ревью кода', 'Code review'), 'work-1'),
-    ...ev('pairing', [2], '16:30', '17:30', L('Парная работа', 'Pairing'), 'work-1'),
-    // A 15-minute event next to a long one (same space).
-    ...ev('lunch', [3], '12:00', '13:00', L('Обед', 'Lunch'), 'personal'),
-    ...ev('parcel', [3], '12:15', '12:30', L('Забрать посылку', 'Pick up the parcel'), 'personal'),
-  ],
+  events: [...expandPatterns(SAMPLE_PATTERNS, RANGE_START, RANGE_END), ...ONE_OFFS].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start),
+  ),
 };

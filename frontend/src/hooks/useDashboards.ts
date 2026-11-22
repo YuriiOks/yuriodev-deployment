@@ -1,5 +1,5 @@
-import { getSpace, getWeek, listSpaces } from '../services/dashboards/source';
-import type { SpaceData, SpaceId, WeekData } from '../services/dashboards/types';
+import { getCalendar, getSpace, listSpaces } from '../services/dashboards/source';
+import type { CalendarData, SpaceData, SpaceId } from '../services/dashboards/types';
 
 /*
  * What components read the dashboards' data through. Synchronous while the
@@ -15,6 +15,6 @@ export function useSpace(id: SpaceId): SpaceData {
   return getSpace(id);
 }
 
-export function useWeek(): WeekData {
-  return getWeek();
+export function useCalendar(): CalendarData {
+  return getCalendar();
 }

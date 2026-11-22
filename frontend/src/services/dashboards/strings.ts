@@ -46,7 +46,24 @@ export interface Strings {
   readonly viewLabel: string;
   readonly week: string;
   readonly month: string;
-  readonly monthSoon: string;
+  readonly monthCaption: string;
+  readonly periodLabel: string;
+  readonly prevWeek: string;
+  readonly nextWeek: string;
+  readonly prevMonth: string;
+  readonly nextMonth: string;
+  readonly today: string;
+  /** '+{n} more' under a day with more events than chips. */
+  readonly more: string;
+  /** A day button's name: '{date}, events: {n}'. */
+  readonly dayLabel: string;
+  readonly dayConflict: string;
+  /** Monday first. */
+  readonly weekdaysShort: readonly string[];
+  /** January first, as the title of a month. */
+  readonly months: readonly string[];
+  /** January first, as after a day number ('23 November'). */
+  readonly monthsOf: readonly string[];
   readonly tabs: Record<TabId, string>;
   readonly actions: Record<ActionVerb, string>;
 }
@@ -85,7 +102,19 @@ export const STRINGS: Record<Lang, Strings> = {
     viewLabel: 'Вид',
     week: 'Неделя',
     month: 'Месяц',
-    monthSoon: 'Вид «Месяц» появится позже',
+    monthCaption: 'Месяц, события трёх пространств',
+    periodLabel: 'Период',
+    prevWeek: 'Предыдущая неделя',
+    nextWeek: 'Следующая неделя',
+    prevMonth: 'Предыдущий месяц',
+    nextMonth: 'Следующий месяц',
+    today: 'Сегодня',
+    more: '+{n} ещё',
+    dayLabel: '{date}, событий: {n}',
+    dayConflict: 'есть конфликт',
+    weekdaysShort: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+    months: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+    monthsOf: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
     tabs: {
       overview: 'Обзор',
       areas: 'Сферы',
@@ -139,7 +168,19 @@ export const STRINGS: Record<Lang, Strings> = {
     viewLabel: 'View',
     week: 'Week',
     month: 'Month',
-    monthSoon: 'The month view is coming later',
+    monthCaption: 'Month, events of all three spaces',
+    periodLabel: 'Period',
+    prevWeek: 'Previous week',
+    nextWeek: 'Next week',
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
+    today: 'Today',
+    more: '+{n} more',
+    dayLabel: '{date}, events: {n}',
+    dayConflict: 'has a conflict',
+    weekdaysShort: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    monthsOf: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     tabs: {
       overview: 'Overview',
       areas: 'Life areas',

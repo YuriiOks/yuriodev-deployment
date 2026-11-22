@@ -34,6 +34,8 @@ const PATHS: Record<IconName, string> = {
   flag: 'M5 21V4h13l-3 5 3 5H5',
   check: 'M5 12l5 5 9-10',
   alert: 'M12 3l10 18H2z M12 10v5 M12 18v0.5',
+  prev: 'M15 6l-6 6 6 6',
+  next: 'M9 6l6 6-6 6',
 };
 
 export interface DashIconProps {

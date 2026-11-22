@@ -1,6 +1,6 @@
-import { SAMPLE_SPACES, SAMPLE_WEEK } from './sampleData';
+import { SAMPLE_CALENDAR, SAMPLE_SPACES } from './sampleData';
 import { SPACES } from './spaces';
-import type { SpaceData, SpaceId, WeekData } from './types';
+import type { CalendarData, SpaceData, SpaceId } from './types';
 
 /*
  * The one seam between the dashboards and their data. Components never
@@ -17,6 +17,6 @@ export function listSpaces(): readonly SpaceData[] {
   return SPACES.map(getSpace);
 }
 
-export function getWeek(): WeekData {
-  return SAMPLE_WEEK;
+export function getCalendar(): CalendarData {
+  return SAMPLE_CALENDAR;
 }

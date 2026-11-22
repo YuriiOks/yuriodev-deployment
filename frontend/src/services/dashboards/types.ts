@@ -35,7 +35,7 @@ export type TabId =
   | 'teams';
 
 /** Every glyph the dashboards draw: a tab or tool, a space, or a row marker. */
-export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check' | 'alert';
+export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check' | 'alert' | 'prev' | 'next';
 
 /** The colour of a glyph or a dot: a hue token, or the page's own accent / ink. */
 export type DashTone = 'accent' | 'ink' | 'violet' | 'teal' | 'green' | 'blue' | 'orange' | 'pink' | 'red' | 'amber';
@@ -148,29 +148,24 @@ export interface SpaceData {
   readonly panels: readonly Panel[];
 }
 
-export interface WeekDay {
-  readonly label: Localized;
-  /** The day the week is shown from; marked as the current date. */
-  readonly today?: boolean;
-}
-
-/** One entry of the week grid: its day (0 is the first column), start and end time ("HH:MM") and space. */
-export interface WeekEvent {
+/** One calendar event: a date ("YYYY-MM-DD"), a start and an end ("HH:MM") on it, and its space. */
+export interface CalEvent {
   readonly id: string;
-  readonly day: number;
+  readonly date: string;
   readonly start: string;
   readonly end: string;
   readonly title: Localized;
   readonly space: SpaceId;
+  /** A line under the title (the "Focus time" note). */
   readonly note?: Localized;
 }
 
-export interface WeekData {
-  readonly range: Localized;
-  readonly days: readonly WeekDay[];
-  /** The hours shown, first to last, as "HH:00". */
+export interface CalendarData {
+  /** The date shown as today ("YYYY-MM-DD"). */
+  readonly today: string;
+  /** The hours the week grid shows, first to last, as "HH:00". */
   readonly hours: readonly string[];
-  readonly events: readonly WeekEvent[];
+  readonly events: readonly CalEvent[];
 }
 
 /** What the entrance shows for one space. */

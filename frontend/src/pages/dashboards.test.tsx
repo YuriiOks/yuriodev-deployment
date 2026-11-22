@@ -275,11 +275,123 @@ describe('the calendar', () => {
     expect(prop(vendor, '--span')).toBe('0.75');
   });
 
-  it('has a Week / Month switch with Week on and Month not built yet', () => {
+  it('has a Week / Month switch, with Week on to begin with', () => {
     renderAt('/dashboards/calendar');
     const view = within(main()).getByRole('group', { name: 'Вид' });
     expect(within(view).getByRole('button', { name: 'Неделя' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(view).getByRole('button', { name: 'Месяц' })).toBeDisabled();
+    expect(within(view).getByRole('button', { name: 'Месяц' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(view).getByRole('button', { name: 'Месяц' })).toBeEnabled();
+  });
+});
+
+describe('the calendar: month view', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+  });
+
+  async function openMonth() {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(within(within(main()).getByRole('group', { name: 'Вид' })).getByRole('button', { name: 'Месяц' }));
+    return user;
+  }
+
+  const monthTable = () => within(within(main()).getByRole('region', { name: /^(Месяц, события|Month, events)/ }));
+
+  it('toggles to a month grid: weekday headers, six weeks of day buttons, the month in the title', async () => {
+    await openMonth();
+    expect(within(main()).getByRole('button', { name: 'Месяц' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(main()).getByRole('button', { name: 'Неделя' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(main()).getByRole('heading', { level: 1, name: /Ноябрь 2026/ })).toBeInTheDocument();
+    const grid = monthTable();
+    expect(grid.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']);
+    // November 2026 starts on a Sunday: six weeks.
+    expect(grid.getAllByRole('button')).toHaveLength(42);
+  });
+
+  it('a day button is named by its date and its number of events; today is marked', async () => {
+    await openMonth();
+    const today = monthTable().getByRole('button', { name: '23 ноября, событий: 5' });
+    expect(today).toHaveAttribute('aria-current', 'date');
+    // Up to three chips, then how many more.
+    expect(within(today).getAllByText(/^\d{2}:\d{2} /)).toHaveLength(3);
+    expect(within(today).getByText('+2 ещё')).toBeInTheDocument();
+    expect(monthTable().getByRole('button', { name: '24 ноября, событий: 4, есть конфликт' })).toBeInTheDocument();
+  });
+
+  it('shows the days of the neighbouring months muted, and a day with a conflict says so', async () => {
+    await openMonth();
+    const october = monthTable().getByRole('button', { name: /^26 октября/ });
+    expect(october.closest('td')).toHaveAttribute('data-muted', 'true');
+    expect(monthTable().getByRole('button', { name: /^1 декабря/ }).closest('td')).toHaveAttribute('data-muted', 'true');
+    expect(monthTable().getByRole('button', { name: /^30 ноября/ }).closest('td')).not.toHaveAttribute('data-muted');
+    expect(monthTable().getByRole('button', { name: /^27 ноября.*есть конфликт/ })).toBeInTheDocument();
+    expect(monthTable().getByRole('button', { name: /^23 ноября/ })).not.toHaveAttribute('data-conflict');
+  });
+
+  it('counts the conflicts of what is on screen: November and its edge days have six', async () => {
+    await openMonth();
+    expect(within(main()).getByText('Конфликты: 6')).toBeInTheDocument();
+  });
+
+  it('clicking a day goes to the week that contains it', async () => {
+    const user = await openMonth();
+    await user.click(monthTable().getByRole('button', { name: /^3 ноября/ }));
+    expect(within(main()).getByRole('heading', { level: 1, name: /2–8 ноября/ })).toBeInTheDocument();
+    expect(within(main()).getByRole('button', { name: 'Неделя' })).toHaveAttribute('aria-pressed', 'true');
+    const grid = within(main()).getByRole('table');
+    expect(within(grid).getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
+      'Пн 2', 'Вт 3', 'Ср 4', 'Чт 5', 'Пт 6', 'Сб 7', 'Вс 8',
+    ]);
+    // The 3rd had a quarterly review: it is in this week's grid.
+    expect(within(grid).getAllByText(/Квартальный обзор/).length).toBeGreaterThan(0);
+  });
+
+  it('previous, next and Today move the week, then the month', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    const heading = () => within(main()).getByRole('heading', { level: 1 });
+    expect(heading()).toHaveTextContent('23–29 ноября');
+
+    await user.click(within(main()).getByRole('button', { name: 'Следующая неделя' }));
+    expect(heading()).toHaveTextContent('30 ноября – 6 декабря');
+    await user.click(within(main()).getByRole('button', { name: 'Предыдущая неделя' }));
+    await user.click(within(main()).getByRole('button', { name: 'Предыдущая неделя' }));
+    expect(heading()).toHaveTextContent('16–22 ноября');
+    await user.click(within(main()).getByRole('button', { name: 'Сегодня' }));
+    expect(heading()).toHaveTextContent('23–29 ноября');
+
+    await user.click(within(main()).getByRole('button', { name: 'Месяц' }));
+    await user.click(within(main()).getByRole('button', { name: 'Следующий месяц' }));
+    expect(heading()).toHaveTextContent('Декабрь 2026');
+    // December has no overlap between two spaces: no conflict, and five weeks.
+    expect(within(main()).getByText('Конфликтов нет')).toBeInTheDocument();
+    expect(monthTable().getAllByRole('button')).toHaveLength(35);
+    await user.click(within(main()).getByRole('button', { name: 'Предыдущий месяц' }));
+    await user.click(within(main()).getByRole('button', { name: 'Предыдущий месяц' }));
+    expect(heading()).toHaveTextContent('Октябрь 2026');
+    await user.click(within(main()).getByRole('button', { name: 'Сегодня' }));
+    expect(heading()).toHaveTextContent('Ноябрь 2026');
+  });
+
+  it('is in English too', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(within(main()).getByRole('button', { name: 'EN' }));
+    await user.click(within(main()).getByRole('button', { name: 'Month' }));
+    expect(within(main()).getByRole('heading', { level: 1, name: /November 2026/ })).toBeInTheDocument();
+    expect(monthTable().getByRole('button', { name: '23 November, events: 5' })).toBeInTheDocument();
+    expect(within(monthTable().getByRole('button', { name: '23 November, events: 5' })).getByText('+2 more')).toBeInTheDocument();
+  });
+});
+
+describe('the calendar: no tasks', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
   });
 
   it('shows no task: no checkbox anywhere', () => {

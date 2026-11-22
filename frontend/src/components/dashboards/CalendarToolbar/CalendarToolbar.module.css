@@ -67,11 +67,6 @@
   color: var(--dash-on-fill);
 }
 
-.option:disabled {
-  color: var(--dash-t3);
-  cursor: not-allowed;
-}
-
 /* The week's conflicts: a pill, in the danger ink with an icon when there are any. */
 .conflicts {
   display: inline-flex;
@@ -90,4 +85,41 @@
 .conflicts[data-conflicts="some"] {
   border-color: var(--dash-danger);
   color: var(--dash-danger);
+}
+
+/* Previous / today / next: one group, every control 44px high. */
+.steps {
+  display: inline-flex;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+}
+
+.step {
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--dash-t1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  padding: 0;
+}
+
+@media (hover: hover) {
+  .step:hover {
+    background: var(--dash-sel-bg);
+  }
 }

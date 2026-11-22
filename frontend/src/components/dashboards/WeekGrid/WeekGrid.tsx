@@ -1,14 +1,22 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { SPACE_NAME } from '../../../services/dashboards/spaces';
-import type { WeekData } from '../../../services/dashboards/types';
+import { dayOfMonth } from '../../../services/dashboards/calendarDates';
+import type { CalEvent } from '../../../services/dashboards/types';
 import { layoutDay, toMinutes, type Conflicts } from '../../../services/dashboards/weekLayout';
 import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import styles from './WeekGrid.module.css';
 
 export interface WeekGridProps {
-  week: WeekData;
+  /** The seven dates of the week, Monday first. */
+  dates: readonly string[];
+  /** The date shown as today. */
+  today: string;
+  /** The hours shown, as "HH:00". */
+  hours: readonly string[];
+  /** The week's events (any others are ignored). */
+  events: readonly CalEvent[];
   /** Which events overlap an event of another space (services/dashboards/weekLayout.ts). */
   conflicts: Conflicts;
 }
@@ -26,26 +34,26 @@ const SHORT_MINUTES = 30;
  * (layoutDay); an overlap between two spaces is marked with an icon and said
  * in words. On a narrow screen the grid scrolls sideways inside its own box.
  */
-const WeekGrid: React.FC<WeekGridProps> = ({ week, conflicts }) => {
+const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, conflicts }) => {
   const { t, text } = useDashboardLang();
-  const firstMinute = toMinutes(week.hours[0]);
+  const firstMinute = toMinutes(hours[0]);
   /** Inline custom properties: the numbers the stylesheet turns into positions. */
 const vars = (values: Record<string, string | number>) => values as React.CSSProperties;
 
   return (
     <div role="region" aria-label={t.calendarCaption} tabIndex={0} className={styles.scroll}>
-      <table className={styles.table} style={vars({ '--hours': week.hours.length })}>
+      <table className={styles.table} style={vars({ '--hours': hours.length })}>
         <thead>
           <tr>
             <td className={styles.corner} />
-            {week.days.map((day) => (
+            {dates.map((date, index) => (
               <th
-                key={day.label.en}
+                key={date}
                 scope="col"
-                aria-current={day.today ? 'date' : undefined}
-                className={cx(styles.day, day.today && styles.today)}
+                aria-current={date === today ? 'date' : undefined}
+                className={cx(styles.day, date === today && styles.today)}
               >
-                {text(day.label)}
+                {t.weekdaysShort[index]} {dayOfMonth(date)}
               </th>
             ))}
           </tr>
@@ -53,16 +61,16 @@ const vars = (values: Record<string, string | number>) => values as React.CSSPro
         <tbody>
           <tr>
             <td aria-hidden="true" className={styles.gutter}>
-              {week.hours.map((hour, index) => (
+              {hours.map((hour, index) => (
                 <span key={hour} className={styles.hour} style={vars({ '--i': index })}>
                   {hour}
                 </span>
               ))}
             </td>
-            {week.days.map((day, dayIndex) => {
-              const placed = layoutDay(week.events.filter((event) => event.day === dayIndex));
+            {dates.map((date) => {
+              const placed = layoutDay(events.filter((event) => event.date === date));
               return (
-                <td key={day.label.en} className={cx(styles.column, day.today && styles.today)}>
+                <td key={date} className={cx(styles.column, date === today && styles.today)}>
                   <ul className={styles.events}>
                     {placed.map(({ event, startMin, endMin, column, columns }) => {
                       const conflict = conflicts.ids.has(event.id);

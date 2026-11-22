@@ -71,7 +71,8 @@ export function layoutDay<T extends TimeSpan>(events: readonly T[]): Placement<T
 
 export interface DatedEvent extends TimeSpan {
   readonly id: string;
-  readonly day: number;
+  /** The day it is on: its date, or its column number; two events are on the same day when these are equal. */
+  readonly day: string | number;
   readonly space: SpaceId;
 }
 

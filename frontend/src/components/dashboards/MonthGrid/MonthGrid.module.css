@@ -1,0 +1,137 @@
+/* The scroll box is focusable (tabIndex 0 in the markup) so a keyboard user
+   can scroll it on a narrow screen; the global focus ring shows on it. */
+.scroll {
+  padding: var(--space-3);
+  overflow-x: auto;
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+
+.table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.weekday {
+  padding: 0 0 var(--space-2);
+  border-bottom: 1px solid var(--dash-line);
+  color: var(--dash-t2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  text-align: center;
+}
+
+.cell {
+  padding: 0;
+  border: 1px solid var(--dash-line);
+  vertical-align: top;
+}
+
+/* The days of the neighbouring months: a sunken well and a quiet number. */
+.cell[data-muted="true"] {
+  background: var(--dash-well);
+}
+
+/* Today, as in the week view: the selected tint, and the number in the title ink. */
+.today {
+  background-color: var(--dash-sel-bg);
+}
+
+/* The whole day is the button: a target far above 44px. */
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  width: 100%;
+  min-height: 6.75rem;
+  padding: 0.3125rem;
+  background: transparent;
+  border: 0;
+  color: var(--dash-t1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1.25rem;
+}
+
+.number {
+  color: var(--dash-t1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+
+.cell[data-muted="true"] .number {
+  color: var(--dash-t3);
+  font-weight: var(--fw-regular);
+}
+
+.today .number {
+  color: var(--dash-title);
+}
+
+.alert {
+  color: var(--dash-danger);
+}
+
+.chip {
+  --event-rgb: var(--dash-ink-personal-rgb);
+  display: block;
+  padding: 0.125rem 0.3125rem;
+  overflow: hidden;
+  background: rgba(var(--event-rgb), 0.14);
+  border: 1px solid rgba(var(--event-rgb), 0.45);
+  border-radius: var(--radius-sm);
+  color: var(--dash-t1);
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip[data-for="work-1"] {
+  --event-rgb: var(--dash-ink-work-1-rgb);
+}
+
+.chip[data-for="work-2"] {
+  --event-rgb: var(--dash-ink-work-2-rgb);
+}
+
+.more {
+  color: var(--dash-t2);
+  font-weight: var(--fw-semibold);
+}
+
+/* A day with a conflict: the same dashed danger edge as in the week view. */
+.day[data-conflict="true"] {
+  outline: 2px dashed var(--dash-danger);
+  outline-offset: -3px;
+}
+
+/* The keyboard ring wins over the conflict edge. */
+.day:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+@media (hover: hover) {
+  .day:hover {
+    background: var(--dash-chip);
+  }
+}
+
+@media (forced-colors: active) {
+  .cell,
+  .chip {
+    border-color: CanvasText;
+  }
+}
