@@ -71,9 +71,7 @@ def _validated[M: BaseModel](model: type[M], fields: dict[str, Any]) -> M:
         raise ToolError(INVALID_ARGUMENTS) from None
 
 
-def build_mcp_server(
-    get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo
-) -> MCPServer[Any]:
+def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -> MCPServer[Any]:
     """The server with its ten tools, and its streamable-HTTP session manager created (stateless,
     JSON answers). `get_runtime` is read per call: the runtime only exists once the app runs."""
     server: MCPServer[Any] = MCPServer("yuriodev-dashboards", instructions=INSTRUCTIONS)

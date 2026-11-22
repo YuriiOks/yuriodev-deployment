@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     def _known_zone(cls, value: str) -> str:
         try:
             ZoneInfo(value)
-        except (KeyError, ValueError, OSError):  # an unknown name is a ZoneInfoNotFoundError
+        except KeyError, ValueError, OSError:  # an unknown name is a ZoneInfoNotFoundError
             raise ValueError("DASHBOARDS_TIMEZONE must be an IANA time zone name") from None
         return value
 
