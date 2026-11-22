@@ -33,6 +33,7 @@ const PATHS: Record<IconName, string> = {
   building: 'M3 9l9-6 9 6z M5 9v9 M10 9v9 M14 9v9 M19 9v9 M3 21h18',
   flag: 'M5 21V4h13l-3 5 3 5H5',
   check: 'M5 12l5 5 9-10',
+  alert: 'M12 3l10 18H2z M12 10v5 M12 18v0.5',
 };
 
 export interface DashIconProps {

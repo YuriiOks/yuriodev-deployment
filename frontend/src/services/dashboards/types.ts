@@ -35,7 +35,7 @@ export type TabId =
   | 'teams';
 
 /** Every glyph the dashboards draw: a tab or tool, a space, or a row marker. */
-export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check';
+export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check' | 'alert';
 
 /** The colour of a glyph or a dot: a hue token, or the page's own accent / ink. */
 export type DashTone = 'accent' | 'ink' | 'violet' | 'teal' | 'green' | 'blue' | 'orange' | 'pink' | 'red' | 'amber';
@@ -154,11 +154,12 @@ export interface WeekDay {
   readonly today?: boolean;
 }
 
-/** One entry of the week grid: its day (0 is the first column), start time and space. */
+/** One entry of the week grid: its day (0 is the first column), start and end time ("HH:MM") and space. */
 export interface WeekEvent {
   readonly id: string;
   readonly day: number;
-  readonly at: string;
+  readonly start: string;
+  readonly end: string;
   readonly title: Localized;
   readonly space: SpaceId;
   readonly note?: Localized;

@@ -4,6 +4,7 @@ import DashboardHeading from '../components/dashboards/DashboardHeading/Dashboar
 import WeekGrid from '../components/dashboards/WeekGrid/WeekGrid';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useWeek } from '../hooks/useDashboards';
+import { findConflicts } from '../services/dashboards/weekLayout';
 import { pageLabel } from '../data/site';
 import styles from './dashboards-calendar.module.css';
 
@@ -12,13 +13,14 @@ const DashboardsCalendar = () => {
   usePageTitle(pageLabel('dashboards-calendar'));
   const { t, text } = useDashboardLang();
   const week = useWeek();
+  const conflicts = findConflicts(week.events);
 
   return (
     <>
       <DashboardHeading id="calendar-title" title={t.calendarTitle} aside={text(week.range)} lead={t.calendarLead}>
-        <CalendarToolbar />
+        <CalendarToolbar conflicts={conflicts.count} />
       </DashboardHeading>
-      <WeekGrid week={week} />
+      <WeekGrid week={week} conflicts={conflicts} />
       <p className={styles.note}>{t.calendarNote}</p>
     </>
   );

@@ -40,6 +40,9 @@ export interface Strings {
   readonly calendarLead: string;
   readonly calendarNote: string;
   readonly calendarCaption: string;
+  readonly conflicts: string;
+  readonly noConflicts: string;
+  readonly conflictMark: string;
   readonly viewLabel: string;
   readonly week: string;
   readonly month: string;
@@ -76,6 +79,9 @@ export const STRINGS: Record<Lang, Strings> = {
     calendarNote:
       'Личное событие в рабочее время уходит в рабочий календарь блоком «Focus time» без подробностей.',
     calendarCaption: 'Неделя, события трёх пространств',
+    conflicts: 'Конфликты',
+    noConflicts: 'Конфликтов нет',
+    conflictMark: 'Конфликт: пересекается с событием другого пространства',
     viewLabel: 'Вид',
     week: 'Неделя',
     month: 'Месяц',
@@ -127,6 +133,9 @@ export const STRINGS: Record<Lang, Strings> = {
     calendarNote:
       'A personal event during working hours goes to the work calendar as a "Focus time" block with no details.',
     calendarCaption: 'Week, events of all three spaces',
+    conflicts: 'Conflicts',
+    noConflicts: 'No conflicts',
+    conflictMark: 'Conflict: overlaps an event of another space',
     viewLabel: 'View',
     week: 'Week',
     month: 'Month',

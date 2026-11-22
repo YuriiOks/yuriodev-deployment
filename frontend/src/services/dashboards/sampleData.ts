@@ -532,11 +532,12 @@ export const SAMPLE_SPACES: Record<SpaceId, SpaceData> = { personal: PERSONAL, '
 const ev = (
   id: string,
   days: readonly number[],
-  at: string,
+  start: string,
+  end: string,
   title: Localized,
   space: SpaceId,
   note?: Localized,
-): WeekEvent[] => days.map((day) => ({ id: `${id}-${day}`, day, at, title, space, note }));
+): WeekEvent[] => days.map((day) => ({ id: `${id}-${day}`, day, start, end, title, space, note }));
 
 export const SAMPLE_WEEK: WeekData = {
   range: L('23–29 ноября', '23–29 November'),
@@ -551,13 +552,26 @@ export const SAMPLE_WEEK: WeekData = {
   ],
   hours: Array.from({ length: 12 }, (_, i) => `${String(i + 9).padStart(2, '0')}:00`),
   events: [
-    ...ev('standup', [0, 1, 2, 3, 4], '10:00', L('Стендап команды', 'Team stand-up'), 'work-1'),
-    ...ev('onboarding', [0, 2], '13:00', L('Онбординг-синк', 'Onboarding sync'), 'work-1'),
-    ...ev('project', [0, 3], '15:30', L('Синк по проекту', 'Project sync'), 'work-2'),
-    ...ev('gym', [0, 2, 4], '18:00', L('Тренировка', 'Gym session'), 'personal'),
-    ...ev('lesson', [0, 1, 3], '19:30', L('Урок языка', 'Language lesson'), 'personal'),
-    ...ev('doctor', [2], '11:00', L('Врач', 'Doctor'), 'personal', L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time')),
-    ...ev('call', [3], '14:00', L('Звонок юристу', 'Call the solicitor'), 'personal', L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time')),
-    ...ev('dinner', [5], '19:00', L('Ужин вне дома', 'Dinner out'), 'personal'),
+    ...ev('standup', [0, 1, 2, 3, 4], '10:00', '10:30', L('Стендап команды', 'Team stand-up'), 'work-1'),
+    ...ev('onboarding', [0, 2], '13:00', '14:00', L('Онбординг-синк', 'Onboarding sync'), 'work-1'),
+    ...ev('project', [0, 3], '15:30', '16:30', L('Синк по проекту', 'Project sync'), 'work-2'),
+    ...ev('gym', [0, 2, 4], '18:00', '19:00', L('Тренировка', 'Gym session'), 'personal'),
+    ...ev('lesson', [0, 1, 3], '19:30', '20:30', L('Урок языка', 'Language lesson'), 'personal'),
+    ...ev('doctor', [2], '11:00', '12:00', L('Врач', 'Doctor'), 'personal', L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time')),
+    ...ev('call', [3], '14:00', '14:30', L('Звонок юристу', 'Call the solicitor'), 'personal', L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time')),
+    ...ev('dinner', [5], '19:00', '21:00', L('Ужин вне дома', 'Dinner out'), 'personal'),
+    // Two events of different spaces overlap: a conflict.
+    ...ev('planning', [1], '14:00', '15:00', L('Планирование', 'Planning session'), 'work-1'),
+    ...ev('status', [1], '14:30', '15:30', L('Статус-созвон', 'Status call'), 'work-2'),
+    // Three events of three spaces overlap each other: three conflicts, three columns.
+    ...ev('workshop', [4], '15:00', '17:00', L('Воркшоп', 'Workshop'), 'work-1'),
+    ...ev('dentist', [4], '15:30', '16:30', L('Стоматолог', 'Dentist'), 'personal'),
+    ...ev('vendor', [4], '16:00', '16:45', L('Звонок поставщику', 'Vendor call'), 'work-2'),
+    // Two events of one space overlap: side by side, not a conflict.
+    ...ev('review', [2], '16:00', '17:00', L('Ревью кода', 'Code review'), 'work-1'),
+    ...ev('pairing', [2], '16:30', '17:30', L('Парная работа', 'Pairing'), 'work-1'),
+    // A 15-minute event next to a long one (same space).
+    ...ev('lunch', [3], '12:00', '13:00', L('Обед', 'Lunch'), 'personal'),
+    ...ev('parcel', [3], '12:15', '12:30', L('Забрать посылку', 'Pick up the parcel'), 'personal'),
   ],
 };

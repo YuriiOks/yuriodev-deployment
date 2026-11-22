@@ -223,7 +223,8 @@ describe('the calendar', () => {
     renderAt('/dashboards/calendar');
     const grid = within(main()).getByRole('table');
     expect(within(grid).getAllByRole('columnheader')).toHaveLength(7);
-    expect(within(grid).getAllByRole('rowheader')).toHaveLength(12);
+    // Hours run down the page as a scale (read aloud through each event's own times), not as rows.
+    expect(within(grid).queryAllByRole('rowheader')).toHaveLength(0);
     expect(within(grid).getAllByText(/Стендап команды/).length).toBeGreaterThan(0);
     expect(within(grid).getAllByText(/Тренировка/).length).toBeGreaterThan(0);
     expect(within(grid).getAllByText(/Синк по проекту/).length).toBeGreaterThan(0);
@@ -233,6 +234,45 @@ describe('the calendar', () => {
     expect(within(main()).getAllByRole('listitem').map((li) => li.textContent)).toEqual(
       expect.arrayContaining(['Personal', 'Работа 1', 'Работа 2']),
     );
+  });
+
+  it('counts the conflicts between spaces, and marks each conflicting event in words', () => {
+    renderAt('/dashboards/calendar');
+    // Tuesday: one pair; Friday: three events of three spaces that all overlap.
+    expect(within(main()).getByText('Конфликты: 4')).toBeInTheDocument();
+    const grid = within(main()).getByRole('table');
+    expect(within(grid).getAllByText(/Конфликт: пересекается/)).toHaveLength(5);
+    // An overlap inside one space is laid out side by side but not flagged.
+    const pairing = within(grid).getByText(/Парная работа/).closest('li')!;
+    expect(pairing).not.toHaveAttribute('data-conflict');
+    expect(within(grid).getByText(/Воркшоп/).closest('li')).toHaveAttribute('data-conflict', 'true');
+  });
+
+  it('says the conflicts in English too', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(within(main()).getByRole('button', { name: 'EN' }));
+    expect(within(main()).getByText('Conflicts: 4')).toBeInTheDocument();
+    expect(within(main()).getAllByText(/Conflict: overlaps an event of another space/)).toHaveLength(5);
+  });
+
+  it('places an event by its time and sizes it by its length, sharing the width in a cluster', () => {
+    renderAt('/dashboards/calendar');
+    const grid = within(main()).getByRole('table');
+    // The first match is Monday's: columns come in day order.
+    const block = (name: RegExp) => within(grid).getAllByText(name)[0].closest('li')!;
+    const prop = (el: HTMLElement, name: string) => el.style.getPropertyValue(name);
+    // Stand-up on Monday is 10:00-10:30: one hour below the 09:00 start, half an hour tall, the whole width.
+    const standup = block(/Стендап команды/);
+    expect(prop(standup, '--top')).toBe('1');
+    expect(prop(standup, '--span')).toBe('0.5');
+    expect([prop(standup, '--col'), prop(standup, '--cols')]).toEqual(['0', '1']);
+    // Friday's three-way overlap: each takes a third.
+    const vendor = block(/Звонок поставщику/);
+    expect([prop(vendor, '--col'), prop(vendor, '--cols')]).toEqual(['2', '3']);
+    // A 45-minute call starting at 16:00: seven hours below 09:00, three quarters of an hour tall.
+    expect(prop(vendor, '--top')).toBe('7');
+    expect(prop(vendor, '--span')).toBe('0.75');
   });
 
   it('has a Week / Month switch with Week on and Month not built yet', () => {

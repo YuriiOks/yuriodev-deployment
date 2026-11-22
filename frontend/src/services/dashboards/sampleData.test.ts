@@ -3,6 +3,7 @@ import { SAMPLE_SPACES, SAMPLE_WEEK } from './sampleData';
 import { getSpace, getWeek, listSpaces } from './source';
 import { SPACES, TAB_TONE } from './spaces';
 import { summarize, tabCount } from './summary';
+import { findConflicts, layoutDay, toMinutes } from './weekLayout';
 import type { ActionVerb, Localized, Row } from './types';
 
 /** Every Localized in a value, wherever it sits. */
@@ -71,10 +72,30 @@ describe('the sample data', () => {
     for (const event of SAMPLE_WEEK.events) {
       expect(event.day).toBeGreaterThanOrEqual(0);
       expect(event.day).toBeLessThan(7);
-      expect(SAMPLE_WEEK.hours).toContain(`${event.at.slice(0, 2)}:00`);
+      expect(toMinutes(event.end), event.id).toBeGreaterThan(toMinutes(event.start));
+      expect(toMinutes(event.start), event.id).toBeGreaterThanOrEqual(toMinutes(SAMPLE_WEEK.hours[0]));
+      expect(toMinutes(event.end), event.id).toBeLessThanOrEqual(toMinutes(SAMPLE_WEEK.hours.at(-1)!) + 60);
     }
     const ids = SAMPLE_WEEK.events.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('the week exercises overlaps: a cross-space conflict, a three-way cluster, a same-space overlap and a short event', () => {
+    const conflicts = findConflicts(SAMPLE_WEEK.events);
+    // Tuesday: one pair; Friday: three events that all overlap, three pairs.
+    expect(conflicts.count).toBe(4);
+    expect(conflicts.ids.size).toBe(5);
+
+    const day = (n: number) => SAMPLE_WEEK.events.filter((e) => e.day === n);
+    expect(Math.max(...layoutDay(day(4)).map((p) => p.columns))).toBe(3);
+    // Wednesday: two events of one space side by side, and neither is a conflict.
+    const wednesday = layoutDay(day(2)).filter((p) => p.columns === 2);
+    expect(wednesday.map((p) => p.event.space)).toEqual(['work-1', 'work-1']);
+    expect(wednesday.every((p) => !conflicts.ids.has(p.event.id))).toBe(true);
+    // Thursday: a 15-minute event beside an hour-long one.
+    const short = SAMPLE_WEEK.events.find((e) => e.id === 'parcel-3')!;
+    expect(toMinutes(short.end) - toMinutes(short.start)).toBe(15);
+    expect(layoutDay(day(3)).find((p) => p.event.id === 'parcel-3')!.columns).toBe(2);
   });
 
   it('exercises every kind of row, badge, action, due tone, tile and panel flavour', () => {
