@@ -55,3 +55,11 @@
 .rows {
   list-style: none;
 }
+
+/* An empty panel: a quiet line, no marker, not counted. */
+.empty {
+  padding: 0.5rem 0.875rem 0.75rem;
+  color: var(--dash-t2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+}

@@ -80,6 +80,12 @@
   white-space: nowrap;
 }
 
+.unit {
+  color: var(--dash-t2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
 .in {
   color: var(--dash-t2);
   font-size: var(--fs-sm);
@@ -134,7 +140,6 @@
 }
 
 .sync {
-  margin-left: auto;
   color: var(--dash-t2);
   font-size: var(--fs-2xs);
 }
@@ -150,6 +155,11 @@
 
   .aside {
     justify-content: flex-end;
+  }
+
+  /* The source line goes to the right edge from a tablet up; on a phone it keeps the left edge. */
+  .sync {
+    margin-left: auto;
   }
 
   .countdown {

@@ -38,6 +38,8 @@ export interface Strings {
   readonly statPriority: string;
   readonly statOverdue: string;
   readonly join: string;
+  /** The unit of the hero's countdown (mm:ss). */
+  readonly minutesShort: string;
   readonly sourcesLabel: string;
   readonly priorityRow: string;
   readonly ciPass: string;
@@ -100,6 +102,7 @@ export const STRINGS: Record<Lang, Strings> = {
     statPriority: 'приоритет',
     statOverdue: 'просрочено',
     join: 'Подключиться',
+    minutesShort: 'мин',
     sourcesLabel: 'Источники',
     priorityRow: 'Приоритет',
     ciPass: 'CI проходит',
@@ -171,6 +174,7 @@ export const STRINGS: Record<Lang, Strings> = {
     statPriority: 'priority',
     statOverdue: 'overdue',
     join: 'Join',
+    minutesShort: 'min',
     sourcesLabel: 'Sources',
     priorityRow: 'Priority',
     ciPass: 'CI passing',

@@ -213,11 +213,9 @@ const PERSONAL: SpaceData = {
       task('personal-js2', L('Оптимизировать поиск работы', 'Optimise the job search'), { due: due(L('скоро', 'soon')) }),
       task('personal-js3', L('Обновить CV', 'Update the CV')),
     ]),
-    panel('personal-leads', 'work', L('Лиды', 'Leads'), [
-      info('personal-ld1', L('Здесь появятся лиды: компания, ставка, статус, следующий шаг', 'Leads will appear here: company, rate, status, next step'), {
-        meta: L('пока пусто', 'empty for now'),
-      }),
-    ]),
+    panel('personal-leads', 'work', L('Лиды', 'Leads'), [], {
+      empty: L('Здесь появятся лиды: компания, ставка, статус, следующий шаг', 'Leads will appear here: company, rate, status, next step'),
+    }),
     panel('personal-mail-reply', 'mail', L('Нужен твой ответ', 'Needs your reply'), [
       info('personal-m1', L('Клиника: подтвердить запись до среды', 'Clinic: confirm the appointment by Wednesday'), {
         meta: L('Почта 1 · вчера', 'Mail 1 · yesterday'),
@@ -390,7 +388,7 @@ const WORK_1: SpaceData = {
       info('work-1-l2', L('EX-104 Настройки зашиты в код', 'EX-104 Settings fixed in code'), { due: due(L('На ревью', 'In Review')) }),
       info('work-1-l3', L('EX-106 Замеры задержки', 'EX-106 Latency measurements'), { due: due(L('К выполнению', 'Todo')) }),
     ]),
-    panel('work-1-slack-reply', 'slack', L('Ответить', 'Reply'), [
+    panel('work-1-slack-reply', 'slack', L('Ждут ответа', 'Waiting for a reply'), [
       info('work-1-s1', L('Коллега A: тред ревью по #124', 'Colleague A: the #124 review thread'), {
         meta: L('20 мин назад', '20 min ago'),
         action: act('slack'),
@@ -404,7 +402,7 @@ const WORK_1: SpaceData = {
         action: act('slack'),
       }),
     ]),
-    panel('work-1-slack-ask', 'slack', L('Спросить', 'Ask'), [
+    panel('work-1-slack-ask', 'slack', L('Что спросить', 'To ask'), [
       task('work-1-sa1', L('Коллега E: бюджет кэша для страниц (EX-107)', 'Colleague E: budget for the page cache (EX-107)'), {
         action: act('slack', 'ask'),
       }),
@@ -506,13 +504,13 @@ const WORK_2: SpaceData = {
     panel('work-2-jira', 'jira', L('Тикеты', 'Tickets'), [
       task('work-2-j1', L('EX-2115: повторный скан', 'EX-2115: re-scan'), { meta: L('вручную', 'manual') }),
     ]),
-    panel('work-2-teams-reply', 'teams', L('Ответить', 'Reply'), [
+    panel('work-2-teams-reply', 'teams', L('Ждут ответа', 'Waiting for a reply'), [
       task('work-2-t1', L('Отправить план стейкхолдерам', 'Send the plan to the stakeholders'), {
         meta: L('вручную', 'manual'),
         action: act('teams'),
       }),
     ]),
-    panel('work-2-teams-ask', 'teams', L('Спросить', 'Ask'), [
+    panel('work-2-teams-ask', 'teams', L('Что спросить', 'To ask'), [
       task('work-2-t2', L('Доступ к стенду: кто может подтвердить', 'Test environment access: who can confirm it'), {
         meta: L('вручную', 'manual'),
         action: act('teams', 'ask'),

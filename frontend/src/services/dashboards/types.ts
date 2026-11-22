@@ -112,6 +112,8 @@ export interface Panel {
   /** The priority panel: the full row, its rows tinted. */
   readonly priority?: boolean;
   readonly rows: readonly Row[];
+  /** Shown, muted, when the panel has no rows yet (not counted as an item). */
+  readonly empty?: Localized;
   readonly tiles?: readonly Tile[];
 }
 
