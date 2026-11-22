@@ -3,6 +3,13 @@ FROM python:3.11-slim@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b5
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Debian security fixes published after the base image was built (the frontend
+# image does the same with `apk upgrade`). Without this the image scan in
+# images.yml blocks the tag on any fixable HIGH/CRITICAL OS package.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 
 FROM base AS builder
 
