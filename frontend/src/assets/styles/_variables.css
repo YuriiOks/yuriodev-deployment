@@ -275,7 +275,7 @@
     --dash-fill-personal: var(--cyan);      --dash-on-fill-personal: var(--on-cyan);
     --dash-ink-work-1: #b88cff;  --dash-ink-work-1-rgb: 184, 140, 255;
     --dash-fill-work-1: #8a2de3; --dash-on-fill-work-1: #ffffff;
-    --dash-ink-work-2: #ff5a66;   --dash-ink-work-2-rgb: 255, 90, 102;
+    --dash-ink-work-2: #ff6a75;   --dash-ink-work-2-rgb: 255, 106, 117;
     --dash-fill-work-2: #db0011;  --dash-on-fill-work-2: #ffffff;
     /* Strength of the priority row tint, the selected-tab tint and the page glow. */
     --dash-prio-a: 0.12;
