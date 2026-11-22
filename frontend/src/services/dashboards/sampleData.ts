@@ -56,45 +56,26 @@ const pr = (
   ...extra,
 });
 
-/** The panels whose rows carry references, actions or long titles: the grid gives them room (Panel.roomy). */
-const ROOMY_PANELS: ReadonlySet<string> = new Set([
-  'personal-mail-reply',
-  'personal-mail-raised',
-  'personal-mail-junk',
-  'personal-inbox',
-  'work-1-waiting',
-  'work-1-review',
-  'work-1-mine',
-  'work-1-comments',
-  'work-1-linear',
-  'work-1-notion',
-]);
-
 const panel = (
   id: string,
   tab: TabId,
   title: Localized,
   rows: readonly Row[],
   extra: Partial<Omit<Panel, 'id' | 'tab' | 'title' | 'rows'>> = {},
-): Panel => ({ id, tab, title, rows, ...(ROOMY_PANELS.has(id) ? { roomy: true } : {}), ...extra });
+): Panel => ({ id, tab, title, rows, ...extra });
 
 const PERSONAL: SpaceData = {
   id: 'personal',
-  about: L(
-    'Жизнь по сферам: деньги, здоровье, бумаги, отношения, семья, дом.',
-    'Life by area: money, health, paperwork, relationships, family, home.',
-  ),
   quickAddPlaceholder: L('добавить личную задачу…', 'add a personal task…'),
   hero: {
-    label: L('ДАЛЬШЕ СЕГОДНЯ', 'NEXT TODAY'),
     at: '18:00',
     title: L('Тренировка', 'Gym session'),
-    countdown: '8:47',
+    minutesLeft: 527,
     day: [
       { at: '18:00', title: L('Тренировка', 'Gym session') },
       { at: '19:30', title: L('Урок языка', 'Language lesson') },
     ],
-    sync: L('личный календарь · Telegram live', 'personal calendar · Telegram live'),
+    sync: L('личный календарь, Telegram', 'personal calendar, Telegram'),
   },
   tabs: ['overview', 'areas', 'payments', 'court', 'work', 'mail', 'telegram'],
   panels: [
@@ -141,16 +122,16 @@ const PERSONAL: SpaceData = {
     panel('personal-areas', 'areas', L('Сферы', 'Life areas'), [], {
       note: L('открытых задач', 'open tasks'),
       tiles: [
-        { id: 'money', name: L('Деньги', 'Money'), count: 4, tone: 'green' },
-        { id: 'work', name: L('Работа и доход', 'Work and income'), count: 2, tone: 'blue' },
-        { id: 'paperwork', name: L('Бумаги', 'Paperwork'), count: 3, tone: 'violet' },
-        { id: 'health', name: L('Здоровье и спорт', 'Health and sport'), count: 3, tone: 'red' },
-        { id: 'relationships', name: L('Отношения', 'Relationships'), count: 1, tone: 'pink' },
-        { id: 'friends', name: L('Друзья', 'Friends'), count: 0, tone: 'orange' },
-        { id: 'family', name: L('Семья', 'Family'), count: 1, tone: 'amber' },
-        { id: 'travel', name: L('Путешествия', 'Travel'), count: 2, tone: 'teal' },
-        { id: 'home', name: L('Дом', 'Home'), count: 0, tone: 'accent' },
-        { id: 'hobbies', name: L('Хобби и рост', 'Hobbies and growth'), count: 2, tone: 'ink' },
+        { id: 'money', name: L('Деньги', 'Money'), count: 4 },
+        { id: 'work', name: L('Работа и доход', 'Work and income'), count: 2 },
+        { id: 'paperwork', name: L('Бумаги', 'Paperwork'), count: 3 },
+        { id: 'health', name: L('Здоровье и спорт', 'Health and sport'), count: 3 },
+        { id: 'relationships', name: L('Отношения', 'Relationships'), count: 1 },
+        { id: 'friends', name: L('Друзья', 'Friends'), count: 0 },
+        { id: 'family', name: L('Семья', 'Family'), count: 1 },
+        { id: 'travel', name: L('Путешествия', 'Travel'), count: 2 },
+        { id: 'home', name: L('Дом', 'Home'), count: 0 },
+        { id: 'hobbies', name: L('Хобби и рост', 'Hobbies and growth'), count: 2 },
       ],
     }),
     panel(
@@ -295,19 +276,17 @@ const PERSONAL: SpaceData = {
 
 const WORK_1: SpaceData = {
   id: 'work-1',
-  about: L('PR и ревью, тикеты Linear, action items со встреч.', 'PRs and reviews, Linear tickets, action items from meetings.'),
   quickAddPlaceholder: L('добавить задачу в «Работа 1»…', 'add a Work 1 task…'),
   hero: {
-    label: L('СЛЕДУЮЩАЯ ВСТРЕЧА', 'NEXT MEETING'),
     at: '10:00',
     title: L('Стендап команды', 'Team stand-up'),
-    countdown: '47:51',
+    minutesLeft: 47,
     join: true,
     day: [
       { at: '10:00', title: L('Стендап команды', 'Team stand-up') },
       { at: '13:00', title: L('Онбординг-синк', 'Onboarding sync') },
     ],
-    sync: L('GitHub 2 мин · Linear 9 мин · заметки 3 ч', 'GitHub 2 min · Linear 9 min · notes 3 h'),
+    sync: L('GitHub 2 мин назад, Linear 9 мин назад, заметки 3 ч назад', 'GitHub 2 min ago, Linear 9 min ago, notes 3 h ago'),
   },
   tabs: ['overview', 'github', 'linear', 'slack', 'notion', 'posthog', 'grafana', 'meetings'],
   panels: [
@@ -354,21 +333,16 @@ const WORK_1: SpaceData = {
       L('Ждут моего ревью', 'Waiting for my review'),
       [
         pr('work-1-r1', '#123', L('[EX-101] Пример изменения: добавить проверки', '[EX-101] Example change: add the checks'), 'fail', {
-          badge: L('Ждёт ревью', 'Needs review'),
-          badgeTone: 'accent',
-          meta: L('1 мин', '1 min'),
+          meta: L('1 мин назад', '1 min ago'),
         }),
         pr('work-1-r2', '#127', L('[EX-102] Сохранять дату записи', '[EX-102] Keep the date of a record'), 'pass', {
-          badge: L('Ждёт ревью', 'Needs review'),
-          badgeTone: 'accent',
-          meta: L('11 мин', '11 min'),
+          meta: L('11 мин назад', '11 min ago'),
         }),
         pr('work-1-r3', '#128', L('[EX-103] Страница не получает обновления при загрузке', '[EX-103] Page misses live updates while loading'), 'pass', {
-          badge: L('Ждёт ревью', 'Needs review'),
-          badgeTone: 'accent',
-          meta: L('1 ч', '1 h'),
+          meta: L('1 ч назад', '1 h ago'),
         }),
       ],
+      { empty: L('Никто не ждёт', 'Nothing waiting on you') },
     ),
     panel(
       'work-1-mine',
@@ -377,13 +351,13 @@ const WORK_1: SpaceData = {
       [
         pr('work-1-m1', '#124', L('[EX-104] Настройки зашиты в код', '[EX-104] Settings are fixed in code'), 'fail', {
           badge: L('CI красный', 'CI failing'),
-          badgeTone: 'neutral',
-          meta: L('12 ч', '12 h'),
+          badgeTone: 'danger',
+          meta: L('12 ч назад', '12 h ago'),
         }),
         pr('work-1-m2', '#125', L('[EX-105] Оценки: три случая из реальных сбоев', '[EX-105] Evals: three cases from real failures'), 'pass', {
           badge: L('Есть комментарии', 'Has comments'),
           badgeTone: 'neutral',
-          meta: L('32 мин', '32 min'),
+          meta: L('32 мин назад', '32 min ago'),
         }),
       ],
     ),
@@ -467,15 +441,13 @@ const WORK_1: SpaceData = {
 
 const WORK_2: SpaceData = {
   id: 'work-2',
-  about: L('Только то, что вписано вручную. Ничего не синкается.', 'Only what is entered by hand. Nothing is synced here.'),
   quickAddPlaceholder: L('добавить задачу в «Работа 2»…', 'add a Work 2 task…'),
   hero: {
-    label: L('СЛЕДУЮЩАЯ ВСТРЕЧА', 'NEXT MEETING'),
     at: '15:30',
     title: L('Синк по проекту', 'Project sync'),
-    countdown: '6:17',
+    minutesLeft: 377,
     day: [{ at: '15:30', title: L('Синк по проекту', 'Project sync') }],
-    sync: L('только ручной ввод · без синка', 'manual entry only · no sync'),
+    sync: L('вручную', 'manual'),
   },
   tabs: ['overview', 'github', 'jira', 'teams'],
   panels: [
@@ -542,7 +514,7 @@ const TODAY_DATE = '2026-11-23';
 const RANGE_START = '2026-10-01';
 const RANGE_END = '2027-01-31';
 
-const FOCUS = L('в «Работа 1» видно как Focus time', 'shows in Work 1 as Focus time');
+const FOCUS = L('в «Работа 1» видно как «Фокус-время»', 'shows in Work 1 as Focus time');
 
 /** An event that repeats on some weekdays (0 is Monday). */
 export interface Pattern {

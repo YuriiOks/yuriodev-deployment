@@ -34,11 +34,8 @@ export type TabId =
   | 'jira'
   | 'teams';
 
-/** Every glyph the dashboards draw: a tab or tool, a space, or a row marker. */
-export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check' | 'alert' | 'prev' | 'next' | 'sun' | 'moon';
-
-/** The colour of a glyph or a dot: a hue token, or the page's own accent / ink. */
-export type DashTone = 'accent' | 'ink' | 'violet' | 'teal' | 'green' | 'blue' | 'orange' | 'pink' | 'red' | 'amber';
+/** Every glyph the dashboards draw: one stroke set, no tool logos and no space pictograms. */
+export type IconName = 'check' | 'circle-check' | 'circle-x' | 'alert' | 'prev' | 'next' | 'sun' | 'moon' | 'arrow-right' | 'eye-off';
 
 export type DueTone = 'neutral' | 'warn' | 'danger';
 
@@ -67,8 +64,9 @@ export interface RowBase {
   readonly refHref?: string;
   /** The secondary line: the source, an amount, a time. */
   readonly meta?: Localized;
+  /** A status in words at the end of the row ("CI failing", "junk"): plain text, never a capsule. */
   readonly badge?: Localized;
-  readonly badgeTone?: 'neutral' | 'accent';
+  readonly badgeTone?: 'neutral' | 'danger';
   readonly action?: RowAction;
   readonly due?: Due;
 }
@@ -99,7 +97,6 @@ export interface Tile {
   readonly id: string;
   readonly name: Localized;
   readonly count: number;
-  readonly tone: DashTone;
 }
 
 export interface Panel {
@@ -109,14 +106,9 @@ export interface Panel {
   readonly title: Localized;
   /** A short text at the right of the heading ("3 to sort"). */
   readonly note?: Localized;
-  /** The priority panel: the full row, its rows tinted. */
+  /** The priority panel: the first, main list of the overview. */
   readonly priority?: boolean;
   readonly rows: readonly Row[];
-  /**
-   * Its rows carry references, actions or long titles (pull requests, tickets, mail): the panel is laid
-   * out two to a row at desktop widths instead of three, so a title keeps room.
-   */
-  readonly roomy?: boolean;
   /** Shown, muted, when the panel has no rows yet (not counted as an item). */
   readonly empty?: Localized;
   readonly tiles?: readonly Tile[];
@@ -127,25 +119,22 @@ export interface CalendarEvent {
   readonly title: Localized;
 }
 
-/** The "next event" block at the top of a space. */
+/** The next event, as the one-line strip at the top of a space. */
 export interface Hero {
-  /** "NEXT TODAY" or "NEXT MEETING"; the space name is added after it. */
-  readonly label: Localized;
   readonly at: string;
   readonly title: Localized;
-  /** Time left, as text ("47:51"). */
-  readonly countdown: string;
+  /** Whole minutes until it starts (shown as "in 47 min"; never seconds). */
+  readonly minutesLeft: number;
   /** A Join button, for a meeting that has a call. */
   readonly join?: boolean;
-  /** The day's events, as chips. */
+  /** The day's events: the one after the next is shown as "then 13:00 ...". */
   readonly day: readonly CalendarEvent[];
-  /** When each source was last read. */
+  /** When each source was last read: the page footer's "Synced:" line. */
   readonly sync: Localized;
 }
 
 export interface SpaceData {
   readonly id: SpaceId;
-  readonly about: Localized;
   readonly hero: Hero;
   readonly quickAddPlaceholder: Localized;
   /** The source tabs, in order; 'overview' first. */

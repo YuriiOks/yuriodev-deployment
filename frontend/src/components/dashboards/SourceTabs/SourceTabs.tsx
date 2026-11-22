@@ -1,9 +1,7 @@
 import React, { useRef } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { TAB_TONE } from '../../../services/dashboards/spaces';
 import type { TabId } from '../../../services/dashboards/types';
 import { cx } from '../../../utils/cx';
-import DashIcon from '../DashIcon/DashIcon';
 import styles from './SourceTabs.module.css';
 
 export interface SourceTabsProps {
@@ -61,7 +59,6 @@ const SourceTabs: React.FC<SourceTabsProps> = ({ tabs, current, counts, onSelect
               onClick={() => onSelect(tab)}
               onKeyDown={(event) => move(event, index)}
             >
-              <DashIcon name={tab} tone={TAB_TONE[tab]} />
               <span>{t.tabs[tab]}</span>
               {count > 0 && <span className={styles.count}>{count}</span>}
             </button>

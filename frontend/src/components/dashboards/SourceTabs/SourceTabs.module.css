@@ -1,18 +1,18 @@
-/* One row, never wrapped: the strip scrolls sideways when the tabs do not fit, and its
-   right edge fades out (a mask on the inner scroller, not on the glass) so a
-   cut-off tab reads as "more this way". The scroller's end padding keeps the last
-   tab clear of the fade once scrolled to the end. */
+/* The tab row: no box, a 1px baseline on the page; each tab is a 14px 500 label (t2, t1 selected) with a 2px
+   underline in the space's colour on the baseline, no icon, and a plain mono count after the label. The row
+   never wraps: it scrolls sideways when the tabs do not fit and fades out at the right edge (a mask on the
+   scroller), so a cut-off tab reads as "more this way". */
 .tabs {
-  composes: glassDash from '../../../assets/styles/recipes.module.css';
-  padding: 0.25rem;
-  border-radius: var(--dash-r-strip);
+  border-bottom: 1px solid var(--dash-line);
 }
 
 .scroller {
   display: flex;
-  gap: var(--space-2);
-  /* Room for the focus rings (which an overflow box would clip) and for the fade. */
-  padding: 0.25rem 3.5rem 0.25rem 0.25rem;
+  gap: var(--space-4);
+  /* Room for the focus rings, which an overflow box would clip, and for the fade; the tab's
+     own edge is the column's edge. */
+  padding: 0.125rem 3.5rem 0 0.125rem;
+  margin: -0.125rem 0 0 -0.125rem;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 4rem), transparent);
@@ -24,49 +24,53 @@
 }
 
 .tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   flex: none;
-  min-height: 2.75rem;
-  padding: 0 var(--space-4);
+  min-height: var(--dash-h-control);
+  margin-bottom: -1px;
+  padding: 0;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--dash-r-control);
+  border: 0;
   color: var(--dash-t2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  line-height: var(--dash-lh-ui);
   cursor: pointer;
+  transition: color 120ms;
 }
 
 .on {
-  background: var(--dash-sel-bg);
-  border-color: var(--dash-sel-edge);
   color: var(--dash-t1);
+}
+
+.on::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--dash-accent);
 }
 
 .count {
-  min-width: 1.25rem;
-  padding: 0.0625rem 0.375rem;
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--radius-pill);
-  color: var(--dash-t1);
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
-  text-align: center;
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  font-weight: 400;
+  line-height: var(--dash-lh-meta);
 }
 
 @media (hover: hover) {
-  .tab:not(.on):hover {
-    border-color: var(--dash-edge);
+  .tab:hover {
     color: var(--dash-t1);
   }
 }
 
 @media (forced-colors: active) {
-  .on {
-    border-color: Highlight;
+  .on::after {
+    background: Highlight;
   }
 }

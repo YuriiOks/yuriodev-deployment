@@ -16,8 +16,9 @@ interface DashboardSpaceProps {
 
 /**
  * /dashboards/personal, /work-1 and /work-2: one space, never mixed with the
- * others. The hero, the quick-add field, the source tabs and the selected
- * tab's panels. Ticking a task is kept here, in memory, for now.
+ * others. The next-event strip, the source tabs, the quick-add field and the
+ * selected tab's panels (the first is the main list, the rest sit beside it),
+ * then the sources' freshness. Ticking a task is kept here, in memory, for now.
  */
 const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
   const { t, text } = useDashboardLang();
@@ -30,17 +31,7 @@ const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
   const counts: Partial<Record<TabId, number>> = {};
   for (const tab of space.tabs) counts[tab] = tabCount(space, tab);
   const panels = space.panels.filter((panel) => panel.tab === current);
-
-  // The grid's columns follow the panels: a tab with one panel fills the row, two share it, three sit in
-  // three columns, four in two by two; the priority panel always spans the full row on its own.
-  const others = panels.filter((panel) => !panel.priority).length;
-  // Panels with references or long titles get two to a row; the others up to three.
-  const roomy = panels.some((panel) => !panel.priority && panel.roomy);
-  const wide = roomy ? Math.min(Math.max(others, 1), 2) : others === 4 ? 2 : Math.min(Math.max(others, 1), 3);
-  // With two columns and an odd number of panels, the last one takes the whole row.
-  const lastOther = panels.filter((panel) => !panel.priority).at(-1);
-  const fillLast = wide === 2 && others > 1 && others % 2 === 1;
-  const gridStyle = { '--cols-md': Math.min(Math.max(others, 1), 2), '--cols-lg': wide } as CSSProperties;
+  const gridStyle = { '--rows': Math.max(panels.length - 1, 1) } as CSSProperties;
 
   const toggle = (rowId: string) => {
     const row = space.panels.flatMap((panel) => panel.rows).find((r) => r.id === rowId);
@@ -50,20 +41,26 @@ const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
 
   return (
     <>
-      <SpaceHero space={space} />
+      <div className={styles.top}>
+        <SpaceHero space={space} />
+        <SourceTabs tabs={space.tabs} current={current} counts={counts} onSelect={setSelected} idPrefix={id} />
+      </div>
       <QuickAdd placeholder={text(space.quickAddPlaceholder)} />
-      <SourceTabs tabs={space.tabs} current={current} counts={counts} onSelect={setSelected} idPrefix={id} />
       <div
         role="tabpanel"
         id={`${id}-panel`}
         aria-labelledby={`${id}-tab-${current}`}
         className={styles.panels}
+        data-split={panels.length > 1 ? 'true' : undefined}
         style={gridStyle}
       >
         {panels.map((panel) => (
-          <Panel key={panel.id} panel={panel} done={done} onToggle={toggle} fill={fillLast && panel === lastOther} />
+          <Panel key={panel.id} panel={panel} done={done} onToggle={toggle} />
         ))}
       </div>
+      <p className={styles.sync}>
+        {t.syncedLabel} {text(space.hero.sync)}
+      </p>
     </>
   );
 };

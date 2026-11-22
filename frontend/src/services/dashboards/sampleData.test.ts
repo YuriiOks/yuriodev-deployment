@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { SAMPLE_CALENDAR, SAMPLE_SPACES, expandPatterns } from './sampleData';
 import { weekDates, weekdayIndex } from './calendarDates';
 import { getCalendar, getSpace, listSpaces } from './source';
-import { SPACES, TAB_TONE } from './spaces';
+import { SPACES, SPACE_MONOGRAM } from './spaces';
+import { STRINGS } from './strings';
 import { summarize, tabCount } from './summary';
 import { findConflicts, layoutDay, toMinutes } from './weekLayout';
 import type { ActionVerb, Localized, Row } from './types';
@@ -133,7 +134,7 @@ describe('the sample data', () => {
     expect(new Set(rows.flatMap((r) => (r.due ? [r.due.tone ?? 'neutral'] : [])))).toEqual(
       new Set(['neutral', 'warn', 'danger']),
     );
-    expect(rows.some((r) => r.badge && r.badgeTone === 'accent')).toBe(true);
+    expect(rows.some((r) => r.badge && r.badgeTone === 'danger')).toBe(true);
     expect(rows.some((r) => r.ref && r.refHref)).toBe(true);
     expect(rows.some((r) => r.kind === 'task' && r.priority)).toBe(true);
     const panels = SPACES.flatMap((id) => getSpace(id).panels);
@@ -142,8 +143,19 @@ describe('the sample data', () => {
     expect(panels.some((p) => p.note)).toBe(true);
   });
 
-  it('every tab has a tone for its glyph', () => {
-    for (const id of SPACES) for (const tab of getSpace(id).tabs) expect(TAB_TONE[tab]).toBeDefined();
+  it('every space has a monogram and every tab a name in both languages', () => {
+    for (const id of SPACES) {
+      expect(SPACE_MONOGRAM[id].ru).not.toBe('');
+      for (const tab of getSpace(id).tabs) {
+        expect(STRINGS.ru.tabs[tab]).toBeTruthy();
+        expect(STRINGS.en.tabs[tab]).toBeTruthy();
+      }
+    }
+  });
+
+  it('the strip counts whole minutes and no list repeats its own title as a badge', () => {
+    for (const id of SPACES) expect(Number.isInteger(getSpace(id).hero.minutesLeft)).toBe(true);
+    for (const row of SPACES.flatMap((id) => rowsOf(getSpace(id)))) expect(row.badge?.en).not.toBe('Needs review');
   });
 
   it('keeps the sample generic: no real-looking contact detail or private reference', () => {

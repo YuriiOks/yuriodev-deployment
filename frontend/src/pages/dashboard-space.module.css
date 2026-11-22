@@ -1,25 +1,35 @@
-/* The selected tab's panels, in a grid that follows the panels: one column on a
-   phone, up to two from a tablet, up to --cols-lg (set from the markup: 1, 2, 3
-   or 2 for four panels) from a laptop. The priority panel spans the whole row
-   (Panel.module.css), and panels in a row are as tall as each other. */
-.panels {
-  /* Set inline by dashboard-space.tsx; these are the defaults. */
-  --cols-md: 2;
-  --cols-lg: 3;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: stretch;
+/* The strip and the tabs read as one block (8px apart); the rest of the page is spaced 16px. */
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-@media (min-width: 48rem) {
-  .panels {
-    grid-template-columns: repeat(var(--cols-md), minmax(0, 1fr));
-  }
+/* The selected tab's panels: one column on a phone. From a laptop up, with more than one panel, the first
+   is the main list (two thirds) and the others stack beside it (one third), 24px apart; the columns are as
+   tall as their own panels (nothing is stretched). */
+.panels {
+  --rows: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
 }
 
 @media (min-width: 64rem) {
-  .panels {
-    grid-template-columns: repeat(var(--cols-lg), minmax(0, 1fr));
+  .panels[data-split="true"] {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   }
+
+  .panels[data-split="true"] > :first-child {
+    grid-row: 1 / span var(--rows);
+  }
+}
+
+/* The page footer: when each source was last read. */
+.sync {
+  margin: 0;
+  color: var(--dash-t3);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
 }
