@@ -88,7 +88,7 @@ class BrokenSession:
 @pytest.mark.parametrize(
     "error",
     [
-        SQLAlchemyError(f"INSERT INTO task (title) VALUES ('{TITLE}') [parameters: ('{NOTES}',)]"),
+        SQLAlchemyError(f"statement failed [parameters: ('{TITLE}', '{NOTES}')]"),
         ConnectionRefusedError(f"connect to user {OTHER} failed"),
     ],
 )

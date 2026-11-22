@@ -15,8 +15,8 @@ from sqlalchemy import (
     String,
     Text,
     Uuid,
-    func,
     false,
+    func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

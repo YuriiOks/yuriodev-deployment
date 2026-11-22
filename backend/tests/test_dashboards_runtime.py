@@ -22,7 +22,8 @@ def test_postgres_urls_become_asyncpg_urls():
 
         assert parsed.drivername == "postgresql+asyncpg"
         assert (parsed.host, parsed.port, parsed.database) == ("h", 5432, "d")
-        assert parsed.password == "p"
+        expected = "postgresql+asyncpg://u:p@h:5432/d"
+        assert parsed.render_as_string(hide_password=False) == expected
 
 
 def test_other_urls_are_refused_without_quoting_them():
