@@ -1,4 +1,4 @@
-FROM python:3.11-slim@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535 AS base
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -40,14 +40,15 @@ COPY requirements.txt .
 # runtime since every dependency is already an installed wheel.
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
     && (pip uninstall -y wheel setuptools || true) \
+    && SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" \
+    && test -d "$SITE" \
     && rm -rf /wheels requirements.txt \
-        /usr/local/lib/python3.11/site-packages/setuptools* \
-        /usr/local/lib/python3.11/site-packages/wheel* \
-        /usr/local/lib/python3.11/site-packages/pkg_resources* \
-        /usr/local/lib/python3.11/site-packages/_distutils_hack* \
-        /usr/local/lib/python3.11/site-packages/jaraco* \
-        /usr/local/lib/python3.11/site-packages/distutils-precedence.pth
-
+        "$SITE"/setuptools* \
+        "$SITE"/wheel* \
+        "$SITE"/pkg_resources* \
+        "$SITE"/_distutils_hack* \
+        "$SITE"/jaraco* \
+        "$SITE"/distutils-precedence.pth
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app

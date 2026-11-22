@@ -131,7 +131,7 @@ async def get_json_capped(
             return json.loads(body), response.headers
     except UpstreamError:
         raise
-    except (TimeoutError, httpx.TimeoutException):
+    except TimeoutError, httpx.TimeoutException:
         kind, status = "timeout", None
     except httpx.HTTPError:  # transport and protocol errors; the message may quote a header
         kind, status = "connect", None

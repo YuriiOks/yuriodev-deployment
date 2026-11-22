@@ -11,18 +11,15 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger("yuriodev.snapshot")
 
-M = TypeVar("M", bound=BaseModel)
-
 MAX_READ_BYTES = 1_048_576
 
 
-class SnapshotStore(Generic[M]):
+class SnapshotStore[M: BaseModel]:
     """Stores one pydantic model as JSON at `path` (None: memory only).
 
     The model is expected to use extra="forbid" and to carry only data that is already

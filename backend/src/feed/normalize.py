@@ -55,7 +55,7 @@ def parse_time(value: Any) -> datetime | None:
         if parsed.tzinfo is None:
             return None
         return parsed.astimezone(UTC).replace(microsecond=0)
-    except (ValueError, OverflowError):  # OverflowError: a year-1 or year-9999 edge in UTC
+    except ValueError, OverflowError:  # OverflowError: a year-1 or year-9999 edge in UTC
         return None
 
 
