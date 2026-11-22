@@ -602,7 +602,7 @@ baked into any build). The root `Makefile` wraps it: `make dev-up` /
 
 ## Monitoring
 
-`.github/workflows/uptime.yml` runs on a 10-minute cron and, entirely from
+`.github/workflows/uptime.yml` runs on an hourly cron and, entirely from
 outside (through Cloudflare, not from this box), checks that production's
 `/` returns 200, `/api/health` reports `status: healthy` and
 `environment: prod`, and that its `revision` matches the commit behind the
@@ -802,6 +802,42 @@ vhosts and removes the new files; it touches only `nginx-proxy/`),
 `docker exec yuriodev-proxy nginx -t`, `docker exec yuriodev-proxy nginx -s
 reload`, push. Browsers keep the 1-day HSTS policy they already saw, which is
 harmless for an HTTPS-only site.
+
+## Making the repository and the images private
+
+The repository and its two GHCR packages are public today, and the box pulls
+anonymously. Going private is three owner-only steps, in this order, so the
+deploy agent never loses its pulls:
+
+1. **Give the box a read-only registry login** (before the packages go
+   private). On GitHub: Settings -> Developer settings -> Personal access
+   tokens (classic) -> a token with only `read:packages`. On the box, as the
+   user whose crontab runs the deploy agent:
+   ```
+   docker login ghcr.io -u YuriiOks     # paste the token at the prompt
+   ```
+   Docker stores it in `~/.docker/config.json` (mode 600); `docker compose
+   pull` in `deploy/agent/yuriodev-deploy.sh` then uses it with no code
+   change. Check with `docker compose -f deploy/dev/compose.yml pull -q`.
+2. **Make both packages private**: on each of `yuriodev-frontend` and
+   `yuriodev-backend`, Package settings -> Change visibility -> Private, and
+   under "Manage Actions access" keep this repository with Write, so the
+   workflows can still push and retag.
+3. **Make the repository private**: Settings -> General -> Danger Zone ->
+   Change visibility.
+
+After the switch:
+- Actions minutes are no longer free. The monitor runs hourly for that reason
+  (`uptime.yml`); CI with the e2e job is the other large consumer, so watch
+  Settings -> Billing -> Actions in the first month.
+- `docker buildx imagetools inspect` and other registry reads from another
+  machine need the same kind of login.
+- Update the wording that still says the pulls are anonymous or the repo is
+  public: the "anonymous" notes in this file and in
+  `deploy/agent/yuriodev-deploy.sh`, `.claude/commands/deploy-check.md` and
+  `.claude/commands/deploy.md`, and golden rule 8 in `CLAUDE.md`.
+- Rollback is unchanged: the token is read-only, so retags still run through
+  GitHub Actions.
 
 ## Where credentials live (paths only — never print these)
 
