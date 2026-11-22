@@ -69,11 +69,6 @@
   content: none;
 }
 
-.route {
-  color: var(--dash-t2);
-  font-size: var(--fs-xs);
-}
-
 .about {
   color: var(--dash-t2);
   font-size: var(--fs-sm);
@@ -144,9 +139,11 @@
   min-height: 3rem;
   margin-top: auto;
   padding: 0 var(--space-4);
-  background: var(--card-fill);
+  background: rgba(var(--card-rgb), 0.14);
+  border: 1px solid rgba(var(--card-rgb), 0.5);
   border-radius: var(--dash-r-control);
-  color: var(--card-on-fill);
+  box-shadow: 0 0.5rem 1.4rem rgba(var(--card-rgb), 0.25);
+  color: var(--dash-t1);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   text-align: center;
@@ -156,7 +153,8 @@
 
 @media (hover: hover) {
   .open:hover {
-    box-shadow: 0 0.5rem 1.4rem rgba(var(--card-rgb), 0.35);
+    background: rgba(var(--card-rgb), 0.22);
+    box-shadow: 0 0.5rem 1.4rem rgba(var(--card-rgb), 0.4);
   }
 }
 

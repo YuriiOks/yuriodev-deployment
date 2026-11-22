@@ -28,15 +28,17 @@ const SpaceHero: React.FC<SpaceHeroProps> = ({ space }) => {
           <span className={styles.at}>{hero.at}</span> {text(hero.title)}
         </p>
       </div>
-      <p className={styles.countdown}>
-        <span className={styles.in}>{t.inWord} </span>
-        {hero.countdown}
-      </p>
-      {hero.join && (
-        <button type="button" className={styles.join}>
-          {t.join}
-        </button>
-      )}
+      <div className={styles.aside}>
+        <p className={styles.countdown}>
+          <span className={styles.in}>{t.inWord} </span>
+          {hero.countdown}
+        </p>
+        {hero.join && (
+          <button type="button" className={styles.join}>
+            {t.join}
+          </button>
+        )}
+      </div>
       <div className={styles.day}>
         <ul className={styles.events}>
           {hero.day.map((event) => (

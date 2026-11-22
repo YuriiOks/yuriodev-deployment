@@ -35,7 +35,7 @@ export type TabId =
   | 'teams';
 
 /** Every glyph the dashboards draw: a tab or tool, a space, or a row marker. */
-export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check' | 'alert' | 'prev' | 'next';
+export type IconName = TabId | 'person' | 'scales' | 'building' | 'flag' | 'check' | 'alert' | 'prev' | 'next' | 'sun' | 'moon';
 
 /** The colour of a glyph or a dot: a hue token, or the page's own accent / ink. */
 export type DashTone = 'accent' | 'ink' | 'violet' | 'teal' | 'green' | 'blue' | 'orange' | 'pink' | 'red' | 'amber';
@@ -109,8 +109,6 @@ export interface Panel {
   readonly title: Localized;
   /** A short text at the right of the heading ("3 to sort"). */
   readonly note?: Localized;
-  /** Show the number of rows as a pill next to the title. */
-  readonly showCount?: boolean;
   /** The priority panel: the full row, its rows tinted. */
   readonly priority?: boolean;
   readonly rows: readonly Row[];

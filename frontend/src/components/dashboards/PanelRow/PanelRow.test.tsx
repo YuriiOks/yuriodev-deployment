@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DashboardLangProvider } from '../../../context/DashboardLangProvider';
 import type { Row } from '../../../services/dashboards/types';
@@ -57,22 +57,60 @@ describe('PanelRow', () => {
     expect(screen.getByText('мета')).toBeInTheDocument();
   });
 
-  it('shows the badge and the due chip, and an action as a link to its tool', () => {
-    renderRow({
+  it('one trailing element: an action wins, and the badge and the due chip move into the source line', () => {
+    const { container } = renderRow({
       kind: 'info',
       id: 'i1',
       title,
+      meta: { ru: 'мета', en: 'meta' },
       badge: { ru: 'мусор', en: 'junk' },
       due: { label: { ru: 'сегодня', en: 'today' }, tone: 'warn' },
       action: { verb: 'restore', tool: 'mail' },
     });
-    expect(screen.getByText('мусор')).toBeInTheDocument();
-    expect(screen.getByText('сегодня')).toHaveAttribute('data-tone', 'warn');
-    expect(screen.getByRole('link', { name: /Вернуть · Почта/ })).toHaveAttribute('href', 'https://mail.google.com');
+    expect(screen.getByRole('button', { name: /Вернуть · Почта/ })).toHaveAttribute('title', 'Пример: источник не подключён');
+    const source = container.querySelector(`.${styles.source}`)!;
+    expect(within(source).getByText('мета')).toBeInTheDocument();
+    expect(within(source).getByText('мусор')).toBeInTheDocument();
+    expect(within(source).getByText('сегодня')).toHaveAttribute('data-tone', 'warn');
+    expect(container.querySelectorAll(`.${styles.trail}`)).toHaveLength(1);
   });
 
-  it('an action with an explicit href uses it', () => {
+  it('without an action the badge is the trailing element and the due chip joins the source line', () => {
+    const { container } = renderRow({
+      kind: 'info',
+      id: 'i1',
+      title,
+      badge: { ru: 'Ждёт ревью', en: 'Needs review' },
+      due: { label: { ru: 'сегодня', en: 'today' } },
+    });
+    const trail = container.querySelector(`.${styles.trail}`)!;
+    expect(within(trail as HTMLElement).getByText('Ждёт ревью')).toBeInTheDocument();
+    expect(within(container.querySelector(`.${styles.source}`) as HTMLElement).getByText('сегодня')).toBeInTheDocument();
+    expect(container.querySelectorAll(`.${styles.trail}`)).toHaveLength(1);
+  });
+
+  it('with only a due chip, that is the trailing element and there is no source line', () => {
+    const { container } = renderRow({ kind: 'task', id: 't1', title, due: { label: { ru: 'сегодня', en: 'today' }, tone: 'danger' } });
+    expect(within(container.querySelector(`.${styles.trail}`) as HTMLElement).getByText('сегодня')).toHaveAttribute('data-tone', 'danger');
+    expect(container.querySelector(`.${styles.source}`)).toBeNull();
+  });
+
+  it('every kind of row has the same leading column, so titles line up', () => {
+    for (const row of [
+      { kind: 'task', id: 'a', title },
+      { kind: 'pr', id: 'b', title, ci: 'pass' },
+      { kind: 'info', id: 'c', title },
+    ] as const) {
+      const { container, unmount } = renderRow(row);
+      expect(container.querySelectorAll(`.${styles.lead}`)).toHaveLength(1);
+      unmount();
+    }
+  });
+
+  it('an action with its own href is a link that opens in a new tab', () => {
     renderRow({ kind: 'info', id: 'i1', title, action: { verb: 'open', tool: 'notion', href: 'https://example.com/doc' } });
-    expect(screen.getByRole('link', { name: /Открыть · Notion/ })).toHaveAttribute('href', 'https://example.com/doc');
+    const link = screen.getByRole('link', { name: /Открыть · Notion/ });
+    expect(link).toHaveAttribute('href', 'https://example.com/doc');
+    expect(link).toHaveAttribute('target', '_blank');
   });
 });

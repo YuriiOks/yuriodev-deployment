@@ -1,16 +1,32 @@
+/* One row, never wrapped: the strip scrolls sideways when the tabs do not fit, and its
+   right edge fades out (a mask on the inner scroller, not on the glass) so a
+   cut-off tab reads as "more this way". The scroller's end padding keeps the last
+   tab clear of the fade once scrolled to the end. */
 .tabs {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   padding: var(--space-2);
   border-radius: var(--dash-r-strip);
+}
+
+.scroller {
+  display: flex;
+  gap: var(--space-2);
+  padding-right: 2.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+}
+
+.scroller::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex: none;
   min-height: 2.75rem;
   padding: 0 var(--space-4);
   background: transparent;

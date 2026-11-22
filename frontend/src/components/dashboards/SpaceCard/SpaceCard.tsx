@@ -29,7 +29,6 @@ const SpaceCard: React.FC<SpaceCardProps> = ({ space, summary }) => {
           <h2 id={titleId} className={styles.name}>
             {name}
           </h2>
-          <span className={styles.route}>{path}</span>
         </div>
       </div>
       <p className={styles.about}>{text(space.about)}</p>
