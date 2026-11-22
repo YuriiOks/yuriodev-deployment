@@ -19,6 +19,7 @@
   min-height: 2.75rem;
   background: transparent;
   border: 0;
+  border-radius: var(--dash-r-control);
   color: var(--dash-t1);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);

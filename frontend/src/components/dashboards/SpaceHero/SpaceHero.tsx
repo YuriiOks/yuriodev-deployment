@@ -13,6 +13,8 @@ export interface SpaceHeroProps {
 const SpaceHero: React.FC<SpaceHeroProps> = ({ space }) => {
   const { t, text } = useDashboardLang();
   const { hero } = space;
+  // The headline already is the next event; the chips are the rest of the day.
+  const later = hero.day.filter((event) => !(event.at === hero.at && event.title.en === hero.title.en));
 
   return (
     <section aria-labelledby={`${space.id}-title`} className={styles.hero}>
@@ -32,6 +34,7 @@ const SpaceHero: React.FC<SpaceHeroProps> = ({ space }) => {
         <p className={styles.countdown}>
           <span className={styles.in}>{t.inWord} </span>
           {hero.countdown}
+          <span className={styles.unit}>{t.minutesShort}</span>
         </p>
         {hero.join && (
           <button type="button" className={styles.join}>
@@ -41,7 +44,7 @@ const SpaceHero: React.FC<SpaceHeroProps> = ({ space }) => {
       </div>
       <div className={styles.day}>
         <ul className={styles.events}>
-          {hero.day.map((event) => (
+          {later.map((event) => (
             <li key={`${event.at}-${event.title.en}`} className={styles.chip}>
               <span className={styles.chipAt}>{event.at}</span>
               {text(event.title)}

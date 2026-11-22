@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
 import SectionRail from '../SectionRail/SectionRail';
@@ -6,6 +6,7 @@ import CanvasBackground from '../../ui/CanvasBackground/CanvasBackground';
 import CommandPalette from '../../ui/CommandPalette/CommandPalette';
 import HelpPanel from '../../ui/HelpPanel/HelpPanel';
 import ScrollToTop from '../../ui/ScrollToTop/ScrollToTop';
+import { PAGE_CONTENT_ID } from '../../../constants/pageContent';
 import { chromeAllowedAt } from '../../../data/site';
 import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
 import { useGlobalShortcuts } from '../../../hooks/useGlobalShortcuts';
@@ -108,10 +109,19 @@ const BareLayoutContent: React.FC<{ children: React.ReactNode; mainRef: React.Re
   children,
   mainRef,
 }) => {
-  useRouteChangeFocus(mainRef);
+  // After a navigation, and for the skip link, focus goes to the page's content area below its bar.
+  const target = useMemo<React.RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        return document.getElementById(PAGE_CONTENT_ID) ?? mainRef.current;
+      },
+    }),
+    [mainRef],
+  );
+  useRouteChangeFocus(target);
   const skipToMain = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    mainRef.current?.focus();
+    target.current?.focus();
   };
   return (
     <>

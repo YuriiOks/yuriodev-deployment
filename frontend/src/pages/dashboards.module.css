@@ -1,7 +1,13 @@
-/* The entrance's cards: one column on a phone, then as many as fit (three on a laptop). */
+/* The entrance's cards: one column below a laptop (three cards would crowd their counters), three across from there up (never two and one). */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(15.5rem, 100%), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   align-items: stretch;
+}
+
+@media (min-width: 64rem) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }

@@ -418,9 +418,9 @@
     --dash-ink-work-2: #c4000f;   --dash-ink-work-2-rgb: 196, 0, 15;
     --dash-prio-a: 0.07;
     --dash-sel-a: 0.1;
-    --dash-glow-a: 0.16;
-    --dash-glow-b: 0.14;
-    --dash-glow-c: 0.1;
+    --dash-glow-a: 0.18;
+    --dash-glow-b: 0.13;
+    --dash-glow-c: 0.12;
     --dash-glass-a: 0.68;
     --dash-glass-edge: rgba(var(--ink-shadow-rgb), 0.12);
     --dash-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 0.875rem 2.125rem rgba(15, 40, 80, 0.1);
@@ -615,8 +615,8 @@
 
 [data-theme="light"] [data-space="work-1"] {
     --dash-bg: #f9fafc;
-    --dash-glow-a: 0.14;
-    --dash-glow-b: 0.09;
+    --dash-glow-a: 0.16;
+    --dash-glow-b: 0.1;
     --dash-glow-c: 0;
     --dash-glass: rgba(255, 255, 255, 0.74);
     --dash-glass-edge: rgba(26, 22, 51, 0.12);
@@ -666,7 +666,7 @@
 
 [data-theme="light"] [data-space="work-2"] {
     --dash-bg: #f3f3f3;
-    --dash-glow-a: 0.09;
+    --dash-glow-a: 0.12;
     --dash-glow-b: 0;
     --dash-glow-c: 0;
     --dash-glass: rgba(255, 255, 255, 0.84);

@@ -2,18 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DashboardLangProvider } from '../../../context/DashboardLangProvider';
-import type { Row } from '../../../services/dashboards/types';
+import type { Row, TabId } from '../../../services/dashboards/types';
 import { resetStorageFallback } from '../../../utils/safeStorage';
 import PanelRow from './PanelRow';
 import styles from './PanelRow.module.css';
 
 const title = { ru: 'Заголовок', en: 'A title' };
 
-function renderRow(row: Row, props: { done?: boolean; tinted?: boolean; onToggle?: (id: string) => void } = {}) {
+function renderRow(row: Row, props: { done?: boolean; tinted?: boolean; tab?: TabId; onToggle?: (id: string) => void } = {}) {
   return render(
     <DashboardLangProvider>
       <ul>
-        <PanelRow row={row} done={props.done ?? false} onToggle={props.onToggle ?? (() => {})} tinted={props.tinted} />
+        <PanelRow row={row} tab={props.tab ?? 'github'} done={props.done ?? false} onToggle={props.onToggle ?? (() => {})} tinted={props.tinted} />
       </ul>
     </DashboardLangProvider>,
   );
@@ -95,16 +95,42 @@ describe('PanelRow', () => {
     expect(container.querySelector(`.${styles.source}`)).toBeNull();
   });
 
-  it('every kind of row has the same leading column, so titles line up', () => {
+  it('every kind of row has a leading column that is never empty, so titles line up', () => {
     for (const row of [
       { kind: 'task', id: 'a', title },
       { kind: 'pr', id: 'b', title, ci: 'pass' },
       { kind: 'info', id: 'c', title },
     ] as const) {
       const { container, unmount } = renderRow(row);
-      expect(container.querySelectorAll(`.${styles.lead}`)).toHaveLength(1);
+      const lead = container.querySelectorAll(`.${styles.lead}`);
+      expect(lead).toHaveLength(1);
+      expect(lead[0].children.length, row.kind).toBeGreaterThan(0);
       unmount();
     }
+  });
+
+  it('an information row is marked with its source icon, or a bullet on the overview', () => {
+    const icon = renderRow({ kind: 'info', id: 'c', title }, { tab: 'mail' });
+    expect(icon.container.querySelector(`.${styles.lead} svg[data-icon="mail"]`)).not.toBeNull();
+    icon.unmount();
+    const bullet = renderRow({ kind: 'info', id: 'c', title }, { tab: 'overview' });
+    expect(bullet.container.querySelector(`.${styles.lead} .${styles.bullet}`)).not.toBeNull();
+  });
+
+  it('the title is one line with the whole title in its tooltip', () => {
+    renderRow({ kind: 'pr', id: 'p', title, ref: '#9', refHref: 'https://github.com/example/repo/pull/9', ci: 'pass' });
+    expect(screen.getByText('Заголовок').closest('span[id]')).toHaveAttribute('title', '#9 Заголовок');
+  });
+
+  it('a done task drops its tint and its urgency', () => {
+    const row: Row = { kind: 'task', id: 't', title, priority: true, due: { label: { ru: 'сегодня', en: 'today' }, tone: 'danger' } };
+    const open = renderRow(row, { tinted: true });
+    expect(open.container.querySelector('li')).toHaveClass(styles.tinted);
+    expect(screen.getByText('сегодня')).toHaveAttribute('data-tone', 'danger');
+    open.unmount();
+    const done = renderRow(row, { tinted: true, done: true });
+    expect(done.container.querySelector('li')).not.toHaveClass(styles.tinted);
+    expect(screen.getByText('сегодня')).toHaveAttribute('data-tone', 'neutral');
   });
 
   it('an action with its own href is a link that opens in a new tab', () => {
