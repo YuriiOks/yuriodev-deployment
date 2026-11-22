@@ -1,0 +1,10 @@
+/* The dashboards' one use of the monospace: data. Times and ranges (HH:MM), PR and ticket ids, counts,
+   the calendar's hour gutter, the brand mark and the quick-add prompt. Words, dates with words and
+   "in 47 min" stay in the interface face (Fira Sans, --dash-font-ui). Components reach it with
+     composes: dashNum from '<relative path>/assets/styles/dashboard-type.module.css';
+   or import the module and put `className={num.dashNum}` on an element. */
+.dashNum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+}

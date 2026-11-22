@@ -5,6 +5,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { PAGE_CONTENT_ID } from '../../../constants/pageContent';
 import { spaceAt } from '../../../services/dashboards/spaces';
 import DashboardBar from '../DashboardBar/DashboardBar';
+import '../../../assets/styles/dashboard-fonts.css';
 import styles from './DashboardShell.module.css';
 
 const Frame: React.FC = () => {
