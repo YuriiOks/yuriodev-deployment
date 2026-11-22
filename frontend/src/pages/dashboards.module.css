@@ -1,0 +1,7 @@
+/* The entrance's cards: one column on a phone, then as many as fit (three on a laptop). */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(15.5rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+}

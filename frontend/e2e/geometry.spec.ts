@@ -6,7 +6,19 @@ import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SE
  * at each of the reference sizes (one Playwright project per size).
  */
 
-const ROUTES = ['/', '/courses', '/dashboard', '/community', '/privacy', '/no-such-page'];
+const ROUTES = [
+  '/',
+  '/courses',
+  '/dashboard',
+  '/community',
+  '/privacy',
+  '/dashboards',
+  '/dashboards/personal',
+  '/dashboards/work-1',
+  '/dashboards/work-2',
+  '/dashboards/calendar',
+  '/no-such-page',
+];
 
 /** Where the section's heading sits relative to the fixed header, after a jump. */
 async function headingPlacement(page: Page, id: string) {

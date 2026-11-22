@@ -1,0 +1,97 @@
+import React from 'react';
+import { useDashboardLang } from '../../../context/useDashboardLang';
+import { TAB_TONE, TOOL_HREF } from '../../../services/dashboards/spaces';
+import type { Row } from '../../../services/dashboards/types';
+import { cx } from '../../../utils/cx';
+import DashIcon from '../DashIcon/DashIcon';
+import styles from './PanelRow.module.css';
+
+export interface PanelRowProps {
+  row: Row;
+  /** A task's current state (its own `done`, or what the visitor set). */
+  done: boolean;
+  onToggle: (id: string) => void;
+  /** In a priority panel: the row is tinted. */
+  tinted?: boolean;
+}
+
+/**
+ * One row. A task has a checkbox, a pull request a CI dot, information
+ * neither. Then the title (with a linked reference), a secondary line, a
+ * badge, an action button naming its tool, and a due chip.
+ */
+const PanelRow: React.FC<PanelRowProps> = ({ row, done, onToggle, tinted = false }) => {
+  const { t, text } = useDashboardLang();
+  const titleId = `row-${row.id}-title`;
+  const href = row.action ? (row.action.href ?? TOOL_HREF[row.action.tool]) : undefined;
+  const isTask = row.kind === 'task';
+
+  return (
+    <li className={cx(styles.row, tinted && styles.tinted)}>
+      {row.kind === 'task' && (
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            className={styles.input}
+            checked={done}
+            aria-labelledby={titleId}
+            onChange={() => onToggle(row.id)}
+          />
+          <span aria-hidden="true" className={styles.box}>
+            {done && <DashIcon name="check" size={12} strokeWidth={3.5} />}
+          </span>
+        </label>
+      )}
+      {row.kind === 'pr' && (
+        <span className={styles.lead}>
+          <span aria-hidden="true" className={styles.dot} data-ci={row.ci} />
+          <span className="sr-only">{row.ci === 'pass' ? t.ciPass : t.ciFail}</span>
+        </span>
+      )}
+      {row.kind === 'info' && <span aria-hidden="true" className={styles.spacer} />}
+      {row.kind === 'task' && row.priority && (
+        <span className={styles.flag}>
+          <DashIcon name="flag" size={14} strokeWidth={2} filled />
+          <span className="sr-only">{t.priorityRow}</span>
+        </span>
+      )}
+      <div className={styles.body}>
+        <span id={titleId} className={cx(styles.title, isTask && done && styles.done)}>
+          {row.ref && (
+            <>
+              <a href={row.refHref} target="_blank" rel="noopener noreferrer" className={styles.ref}>
+                {row.ref}
+                <span className="sr-only"> ({t.opensInNewTab})</span>
+              </a>{' '}
+            </>
+          )}
+          {text(row.title)}
+        </span>
+        {row.meta && <span className={styles.meta}>{text(row.meta)}</span>}
+      </div>
+      {row.badge && (
+        <span className={styles.badge} data-tone={row.badgeTone ?? 'neutral'}>
+          {text(row.badge)}
+        </span>
+      )}
+      {row.action && href && (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={styles.action}>
+          <DashIcon name={row.action.tool} size={16} tone={TAB_TONE[row.action.tool]} strokeWidth={1.9} />
+          <span>{t.actions[row.action.verb]}</span>
+          <span className="sr-only">
+            {' '}
+            · {t.tabs[row.action.tool]} ({t.opensInNewTab})
+          </span>
+        </a>
+      )}
+      {row.due && (
+        <span className={styles.due} data-tone={row.due.tone ?? 'neutral'}>
+          {text(row.due.label)}
+        </span>
+      )}
+    </li>
+  );
+};
+
+export default PanelRow;
+

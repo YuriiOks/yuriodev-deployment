@@ -5,7 +5,7 @@ type Result = Awaited<ReturnType<AxeBuilder['analyze']>>['violations'][number];
 
 /*
  * axe-core against the WCAG 2.2 AA rule set, on the home page, the privacy
- * notice and the 404 page, in both themes (the site follows the OS theme until
+ * notice, the private dashboards and the 404 page, in both themes (the site follows the OS theme until
  * the visitor picks one). Serious and critical violations fail the test; none
  * is allowed. axe's colour-contrast rule only fails the text it is sure of:
  * text over pseudo-elements, gradients or text shadows comes back
@@ -17,6 +17,11 @@ type Result = Awaited<ReturnType<AxeBuilder['analyze']>>['violations'][number];
 const PAGES = [
   { name: 'home', path: '/' },
   { name: 'privacy', path: '/privacy' },
+  { name: 'dashboards', path: '/dashboards' },
+  { name: 'dashboards personal', path: '/dashboards/personal' },
+  { name: 'dashboards work-1', path: '/dashboards/work-1' },
+  { name: 'dashboards work-2', path: '/dashboards/work-2' },
+  { name: 'dashboards calendar', path: '/dashboards/calendar' },
   { name: '404', path: '/no-such-page' },
 ];
 

@@ -9,6 +9,12 @@ test.describe('routes', () => {
     { path: '/dashboard', heading: /dashboard/i, title: new RegExp(`\\| ${NAME}$`) },
     { path: '/community', heading: /community/i, title: new RegExp(`\\| ${NAME}$`) },
     { path: '/privacy', heading: 'Privacy notice', title: `Privacy | ${NAME}` },
+    // The private dashboards (Russian by default).
+    { path: '/dashboards', heading: /дашборды/i, title: `Dashboards | ${NAME}` },
+    { path: '/dashboards/personal', heading: 'Personal', title: `Personal dashboard | ${NAME}` },
+    { path: '/dashboards/work-1', heading: /работа 1/i, title: `Work 1 dashboard | ${NAME}` },
+    { path: '/dashboards/work-2', heading: /работа 2/i, title: `Work 2 dashboard | ${NAME}` },
+    { path: '/dashboards/calendar', heading: /календарь/i, title: `Dashboards calendar | ${NAME}` },
     { path: '/no-such-page', heading: '404: page not found', title: `Page not found | ${NAME}` },
   ];
 

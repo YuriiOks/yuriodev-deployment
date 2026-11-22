@@ -1,0 +1,32 @@
+/* The dashboards' page: the space's own background and ink (data-space
+   remaps the --dash-* tokens, _variables.css section 6). The glow is a
+   background image over a solid colour, so text contrast is measured on
+   the solid. */
+.root {
+  min-height: calc(100vh - var(--header-h));
+  padding: var(--space-4) var(--space-4) var(--space-7);
+  background-color: var(--dash-bg);
+  background-image:
+    radial-gradient(44rem 30rem at 14% 4%, rgba(var(--dash-glow-a-rgb), var(--dash-glow-a)), transparent 62%),
+    radial-gradient(40rem 29rem at 90% 16%, rgba(var(--dash-glow-b-rgb), calc(var(--dash-glow-a) * 0.65)), transparent 64%);
+  background-repeat: no-repeat;
+  color: var(--dash-t2);
+  font-family: var(--font-mono);
+}
+
+/* Up to 80rem; with the section rail (88rem and up) in the left gutter, the
+   site's content column, so the rail never lands on a card. */
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 88rem) {
+  .inner {
+    max-width: var(--content-max-width);
+  }
+}

@@ -15,6 +15,11 @@ import { test, expect, open } from './fixtures';
 const PAGES = [
   { name: 'home', path: '/' },
   { name: 'privacy', path: '/privacy' },
+  { name: 'dashboards', path: '/dashboards' },
+  { name: 'dashboards personal', path: '/dashboards/personal' },
+  { name: 'dashboards work-1', path: '/dashboards/work-1' },
+  { name: 'dashboards work-2', path: '/dashboards/work-2' },
+  { name: 'dashboards calendar', path: '/dashboards/calendar' },
   { name: '404', path: '/no-such-page' },
 ];
 

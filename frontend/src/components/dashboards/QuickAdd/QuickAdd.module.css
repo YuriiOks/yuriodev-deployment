@@ -1,0 +1,40 @@
+.form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.25rem var(--space-4);
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-lg);
+}
+
+.prompt {
+  color: var(--dash-ok);
+  font-weight: var(--fw-bold);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.75rem;
+  background: transparent;
+  border: 0;
+  color: var(--dash-t1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+/* The field's own border and the global focus ring on the input say where focus is. */
+.input:focus {
+  outline: none;
+}
+
+.form:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.input::placeholder {
+  color: var(--dash-t3);
+  opacity: 1;
+}

@@ -9,6 +9,10 @@ import Courses from './pages/courses';
 import Dashboard from './pages/dashboard';
 import Privacy from './pages/privacy';
 import NotFound from './pages/not-found';
+import DashboardShell from './components/dashboards/DashboardShell/DashboardShell';
+import Dashboards from './pages/dashboards';
+import DashboardSpace from './pages/dashboard-space';
+import DashboardsCalendar from './pages/dashboards-calendar';
 import { readStorage, writeStorage } from './utils/safeStorage';
 import { prefersReducedMotion } from './utils/motion';
 import { pagePath } from './data/site';
@@ -52,6 +56,14 @@ function AppContent() {
             <Route path={pagePath('courses')} element={<Courses />} />
             <Route path={pagePath('dashboard')} element={<Dashboard />} />
             <Route path={pagePath('privacy')} element={<Privacy />} />
+            {/* Private: not in the header, palette, footer or terminal. The layout route holds the bar and the language; its children use full paths. */}
+            <Route path={pagePath('dashboards')} element={<DashboardShell />}>
+              <Route index element={<Dashboards />} />
+              <Route path={pagePath('dashboards-personal')} element={<DashboardSpace key="personal" space="personal" />} />
+              <Route path={pagePath('dashboards-work-1')} element={<DashboardSpace key="work-1" space="work-1" />} />
+              <Route path={pagePath('dashboards-work-2')} element={<DashboardSpace key="work-2" space="work-2" />} />
+              <Route path={pagePath('dashboards-calendar')} element={<DashboardsCalendar />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ErrorBoundary>

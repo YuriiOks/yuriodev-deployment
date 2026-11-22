@@ -1,0 +1,7 @@
+/* The selected tab's panels: as many columns as fit; a priority panel spans the whole row. */
+.panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}

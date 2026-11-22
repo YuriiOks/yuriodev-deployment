@@ -1,0 +1,169 @@
+/* Each card wears its own space's ink and fill (data-card), whatever skin the
+   page has: the entrance itself is Personal. */
+.card {
+  --card-ink: var(--dash-ink-personal);
+  --card-rgb: var(--dash-ink-personal-rgb);
+  --card-fill: var(--dash-fill-personal);
+  --card-on-fill: var(--dash-on-fill-personal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--dash-surface);
+  border: 1px solid rgba(var(--card-rgb), 0.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+
+.card[data-card="work-1"] {
+  --card-ink: var(--dash-ink-work-1);
+  --card-rgb: var(--dash-ink-work-1-rgb);
+  --card-fill: var(--dash-fill-work-1);
+  --card-on-fill: var(--dash-on-fill-work-1);
+}
+
+.card[data-card="work-2"] {
+  --card-ink: var(--dash-ink-work-2);
+  --card-rgb: var(--dash-ink-work-2-rgb);
+  --card-fill: var(--dash-fill-work-2);
+  --card-on-fill: var(--dash-on-fill-work-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.badge {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  background: rgba(var(--card-rgb), 0.12);
+  border: 1px solid rgba(var(--card-rgb), 0.4);
+  border-radius: var(--radius-lg);
+  color: var(--card-ink);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* global.css gives every h2 a '# ', an underline and spacing; a card's name has none of them. */
+.card .name {
+  margin: 0;
+  padding: 0;
+  color: var(--card-ink);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.card .name::before,
+.card .name::after {
+  content: none;
+}
+
+.route {
+  color: var(--dash-t3);
+  font-size: var(--fs-xs);
+}
+
+.about {
+  color: var(--dash-t2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-1);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.number {
+  color: var(--dash-t1);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+.number[data-kind="priority"] {
+  color: var(--dash-title);
+}
+
+.number[data-kind="overdue"] {
+  color: var(--dash-danger);
+}
+
+.number[data-kind="none"] {
+  color: var(--dash-t3);
+}
+
+.label {
+  color: var(--dash-t2);
+  font-size: var(--fs-2xs);
+}
+
+.next {
+  color: var(--dash-t2);
+  font-size: var(--fs-xs);
+}
+
+.nextLabel {
+  color: var(--dash-t3);
+}
+
+.nextText {
+  color: var(--dash-t1);
+}
+
+.open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  margin-top: auto;
+  padding: 0 var(--space-4);
+  background: var(--card-fill);
+  border-radius: var(--radius-md);
+  color: var(--card-on-fill);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  text-decoration: none;
+  transition: box-shadow var(--dur-2) var(--ease-std);
+}
+
+@media (hover: hover) {
+  .open:hover {
+    box-shadow: 0 0.5rem 1.4rem rgba(var(--card-rgb), 0.35);
+  }
+}
+
+@media (forced-colors: active) {
+  .card,
+  .open {
+    border: 1px solid CanvasText;
+  }
+}
