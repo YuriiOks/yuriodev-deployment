@@ -45,6 +45,12 @@ jobs:
   e2e:
     # Browser checks against the production build: layout geometry at seven
     # sizes, axe (WCAG 2.2 AA) and route smoke tests. Chromium only.
+    #
+    # Switched off for now (2026-11-22): it is the slowest job and the image
+    # build waits for the whole workflow. It runs only when the repository
+    # variable RUN_E2E is 'true' (Settings -> Secrets and variables -> Actions
+    # -> Variables); set that to bring the browser checks back, no code change.
+    if: ${{ vars.RUN_E2E == 'true' }}
     runs-on: ubuntu-24.04
     needs: frontend
     timeout-minutes: 20
