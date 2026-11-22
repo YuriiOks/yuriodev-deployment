@@ -6,19 +6,19 @@ import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SE
  * at each of the reference sizes (one Playwright project per size).
  */
 
-const ROUTES = [
-  '/',
-  '/courses',
-  '/dashboard',
-  '/community',
-  '/privacy',
+/** The private dashboards: no section rail at any width (data/site.ts `rail: false`); the header's menu is their navigation. */
+const DASHBOARD_ROUTES = [
   '/dashboards',
   '/dashboards/personal',
   '/dashboards/work-1',
   '/dashboards/work-2',
   '/dashboards/calendar',
-  '/no-such-page',
 ];
+
+/** Every page that has a section rail where it has room (all but the dashboards). */
+const RAIL_ROUTES = ['/', '/courses', '/dashboard', '/community', '/privacy', '/no-such-page'];
+
+const ROUTES = [...RAIL_ROUTES, ...DASHBOARD_ROUTES];
 
 /** Where the section's heading sits relative to the fixed header, after a jump. */
 async function headingPlacement(page: Page, id: string) {
@@ -294,7 +294,7 @@ test.describe('section rail clearance', () => {
   // (so its clearance against that route's own content is actually
   // checked) and one too short for it (so the hide-instead-of-overlap path
   // is checked too).
-  for (const path of ROUTES) {
+  for (const path of RAIL_ROUTES) {
     test(`clears the header, the bottom and the content on ${path}, at the tightest widths and heights`, async ({
       page,
     }, testInfo) => {
@@ -310,6 +310,46 @@ test.describe('section rail clearance', () => {
       }
     });
   }
+});
+
+// The dashboards use the full width, so they have no rail to keep clear of
+// their content: at every width the header's menu button is the one
+// navigation surface ("never both, never neither" still holds).
+test.describe('dashboards: no section rail', () => {
+  for (const path of DASHBOARD_ROUTES) {
+    test(`${path} has no rail at any width, and the header menu instead`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+      for (const { width, height } of [
+        { width: 1024, height: 900 },
+        { width: 1408, height: 1000 },
+        { width: 1920, height: 1000 },
+        { width: 2560, height: 1200 },
+      ]) {
+        await page.setViewportSize({ width, height });
+        await open(page, path);
+        const { sidebar, menuButton } = await navSurfaces(page);
+        expect(sidebar, `${path} ${width}x${height}: no rail`).toBe(false);
+        await expect(page.locator('#sectionRail'), `${path} ${width}x${height}: no rail in the DOM`).toHaveCount(0);
+        expect(menuButton, `${path} ${width}x${height}: the header menu is the surface`).toBe(true);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(overflow, `${path} ${width}x${height}: no horizontal overflow`).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+
+  test('the content uses the wide screen: wider than the site column at 1920px', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await open(page, '/dashboards/calendar');
+    const width = await page.evaluate(() => {
+      const main = document.querySelector('main');
+      const content = main?.querySelector('[lang] > div');
+      return content ? Math.round(content.getBoundingClientRect().width) : 0;
+    });
+    // The site's column caps at 72rem (1152px); the dashboards cap at 96rem (1536px).
+    expect(width).toBeGreaterThan(1152);
+    expect(width).toBeLessThanOrEqual(1536);
+  });
 });
 
 test.describe('section rail resize across the sidebar breakpoint', () => {

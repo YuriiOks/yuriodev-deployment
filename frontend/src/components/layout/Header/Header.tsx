@@ -20,10 +20,11 @@ const Header: React.FC<HeaderProps> = ({ currentPath = '/' }) => {
   // panel closes it, and opening it closes them.
   const { active, open, close, toggle } = useOverlay();
   const { sections, activeId } = useSectionNav();
-  // Wherever the section rail has room to show (useRailViable: wide enough
-  // AND tall enough), the pages sit in the header instead (the main one
+  // Wherever the section rail has room to show (useRailViable: the page
+  // allows it, wide enough AND tall enough), the pages sit in the header instead (the main one
   // inline, the rest in the More menu), so there is no menu button; below
-  // either threshold the menu is the one place to reach both.
+  // either threshold, or on a page with no rail (the dashboards), the menu is
+  // the one place to reach both.
   const wide = useRailViable();
   const navControlsRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);

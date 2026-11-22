@@ -9,9 +9,9 @@ import SectionLink from '../SectionLink/SectionLink';
 /**
  * Section navigation pinned in the left gutter, from the sidebar breakpoint
  * (88rem) up and tall enough to clear the fixed header and the bottom of
- * the window (useRailViable); below either threshold the header's menu
- * lists the same sections instead, so exactly one of the two is ever on
- * screen.
+ * the window (useRailViable); below either threshold, and on the pages
+ * that define `rail: false` (the dashboards), the header's menu lists the
+ * same sections instead, so exactly one of the two is ever on screen.
  *
  * Visible from the very first paint, hero included, on a light glass
  * backing: a thin track with one diamond tick and label per section, the

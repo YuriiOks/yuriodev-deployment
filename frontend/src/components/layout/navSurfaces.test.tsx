@@ -82,6 +82,54 @@ describe('section navigation surfaces', () => {
     expect(screen.getByRole('link', { name: '--courses', hidden: true }).closest('header')).not.toBeNull();
   });
 
+  it.each(['/dashboards', '/dashboards/personal', '/dashboards/work-1', '/dashboards/work-2', '/dashboards/calendar'])(
+    'on %s, wide and tall: no rail, and the header menu is the one navigation surface',
+    (path) => {
+      wide = true;
+      renderPage(path);
+      expect(sidebar()).toBeNull();
+      expect(document.getElementById('sectionRail')).toBeNull();
+      expect(menuButton()).not.toBeNull();
+    },
+  );
+
+  it('on a dashboards route the header menu lists the home page sections and the pages', () => {
+    wide = true;
+    renderPage('/dashboards/calendar');
+    act(() => menuButton()!.click());
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+    // Off the home page the sections link back to it.
+    expect([...headerSectionLinks()].map((a) => a.getAttribute('href'))).toEqual(
+      SECTIONS.filter(({ optional }) => !optional).map(({ id }) => `/#${id}`),
+    );
+    expect(screen.getByRole('link', { name: '--courses', hidden: true })).toBeInTheDocument();
+    expect(sidebar()).toBeNull();
+  });
+
+  it('the other pages keep the rail when wide and tall (privacy, the old dashboard placeholder, a 404)', () => {
+    wide = true;
+    for (const path of ['/privacy', '/dashboard', '/courses', '/no-such-page']) {
+      const { unmount } = renderPage(path);
+      expect(sidebar(), path).not.toBeNull();
+      expect(menuButton(), path).toBeNull();
+      unmount();
+    }
+  });
+
+  it('moving from a page with a rail to a dashboards page swaps the surfaces, and back', () => {
+    wide = true;
+    const first = renderPage('/privacy');
+    expect(sidebar()).not.toBeNull();
+    first.unmount();
+    const second = renderPage('/dashboards');
+    expect(sidebar()).toBeNull();
+    expect(menuButton()).not.toBeNull();
+    second.unmount();
+    renderPage('/privacy');
+    expect(sidebar()).not.toBeNull();
+    expect(menuButton()).toBeNull();
+  });
+
   it('switches surfaces live as the window crosses 88rem', () => {
     renderPage();
     setWide(true);

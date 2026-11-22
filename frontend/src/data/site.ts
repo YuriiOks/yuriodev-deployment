@@ -87,6 +87,12 @@ export interface PageDef {
   readonly navLabel: string;
   /** Where the header lists it; unset: not in the header (still in the palette). */
   readonly nav?: PageNav;
+  /**
+   * `false`: the page has no section rail at any width (the dashboards, which
+   * use the full width), so the header's own menu is its navigation instead.
+   * Unset: the rail shows wherever it has room (hooks/useRailViable.ts).
+   */
+  readonly rail?: false;
 }
 
 export const PAGES: readonly PageDef[] = [
@@ -97,11 +103,11 @@ export const PAGES: readonly PageDef[] = [
   { id: 'privacy', path: '/privacy', label: 'Privacy notice', navLabel: '--privacy' },
   // The private dashboards: routed pages with no `nav`, so the header, the
   // palette and the footer never list them (the terminal reads none of PAGES).
-  { id: 'dashboards', path: '/dashboards', label: 'Dashboards', navLabel: '--dashboards' },
-  { id: 'dashboards-personal', path: '/dashboards/personal', label: 'Personal dashboard', navLabel: '--dashboards-personal' },
-  { id: 'dashboards-work-1', path: '/dashboards/work-1', label: 'Work 1 dashboard', navLabel: '--dashboards-work-1' },
-  { id: 'dashboards-work-2', path: '/dashboards/work-2', label: 'Work 2 dashboard', navLabel: '--dashboards-work-2' },
-  { id: 'dashboards-calendar', path: '/dashboards/calendar', label: 'Dashboards calendar', navLabel: '--dashboards-calendar' },
+  { id: 'dashboards', path: '/dashboards', label: 'Dashboards', navLabel: '--dashboards', rail: false },
+  { id: 'dashboards-personal', path: '/dashboards/personal', label: 'Personal dashboard', navLabel: '--dashboards-personal', rail: false },
+  { id: 'dashboards-work-1', path: '/dashboards/work-1', label: 'Work 1 dashboard', navLabel: '--dashboards-work-1', rail: false },
+  { id: 'dashboards-work-2', path: '/dashboards/work-2', label: 'Work 2 dashboard', navLabel: '--dashboards-work-2', rail: false },
+  { id: 'dashboards-calendar', path: '/dashboards/calendar', label: 'Dashboards calendar', navLabel: '--dashboards-calendar', rail: false },
 ];
 
 /** Every page the header lists, primary first: the one list the narrow-screen menu shows. */
@@ -119,6 +125,14 @@ export function pagePath(id: PageId): string {
 /** The command-palette name of a page, also used for its document title. */
 export function pageLabel(id: PageId): string {
   return PAGES.find((page) => page.id === id)!.label;
+}
+
+/**
+ * Whether the section rail may show on the page at `pathname`: every page,
+ * the unknown ones (the 404) included, except those defined with `rail: false`.
+ */
+export function railAllowedAt(pathname: string): boolean {
+  return pageAt(pathname)?.rail !== false;
 }
 
 /** The page at `pathname` (trailing slash ignored), if it is one of PAGES. */

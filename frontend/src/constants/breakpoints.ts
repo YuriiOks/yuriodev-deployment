@@ -12,7 +12,7 @@ export const BREAKPOINTS = {
   lg: 64,
   /** 1280px: desktop; the footer lays out in one row. */
   xl: 80,
-  /** 1408px: the section rail replaces the header's menu, width permitting (see useRailViable). */
+  /** 1408px: the section rail replaces the header's menu, width permitting, on the pages that have a rail (see useRailViable). */
   sidebar: 88,
   /** 1440px: was the reference screen where the root font started to grow with it; the root no longer scales. */
   fluid: 90,

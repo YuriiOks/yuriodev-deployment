@@ -14,19 +14,21 @@
   font-family: var(--font-mono);
 }
 
-/* Up to 80rem; with the section rail (88rem and up) in the left gutter, the
-   site's content column, so the rail never lands on a card. */
+/* Centred, up to 96rem: the dashboards have no section rail (data/site.ts
+   `rail: false`), so they are not held to the site's narrow content column
+   and the calendar gets room for overlapping events. */
 .inner {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   width: 100%;
-  max-width: 80rem;
+  max-width: 96rem;
   margin-inline: auto;
 }
 
-@media (min-width: 88rem) {
-  .inner {
-    max-width: var(--content-max-width);
+/* A little more air at the sides from a tablet up. */
+@media (min-width: 48rem) {
+  .root {
+    padding-inline: var(--space-6);
   }
 }
