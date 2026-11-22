@@ -22,6 +22,9 @@ export const BREAKPOINTS = {
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
 
+/** Media query that matches below `bp`, e.g. '(max-width: 47.99rem)' for md. */
+export const maxWidth = (bp: Breakpoint): string => `(max-width: ${(BREAKPOINTS[bp] - 0.01).toFixed(2)}rem)`;
+
 /** Media query that matches from `bp` up, e.g. '(min-width: 88rem)'. */
 export const minWidth = (bp: Breakpoint): string => `(min-width: ${BREAKPOINTS[bp]}rem)`;
 

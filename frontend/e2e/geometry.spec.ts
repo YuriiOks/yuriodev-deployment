@@ -6,7 +6,19 @@ import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SE
  * at each of the reference sizes (one Playwright project per size).
  */
 
-const ROUTES = ['/', '/courses', '/dashboard', '/community', '/privacy', '/no-such-page'];
+/** The private dashboards: no site chrome at all (data/site.ts `chrome: false`); their own bar is the navigation. */
+const DASHBOARD_ROUTES = [
+  '/dashboards',
+  '/dashboards/personal',
+  '/dashboards/work-1',
+  '/dashboards/work-2',
+  '/dashboards/calendar',
+];
+
+/** Every page that has a section rail where it has room (all but the dashboards). */
+const RAIL_ROUTES = ['/', '/courses', '/dashboard', '/community', '/privacy', '/no-such-page'];
+
+const ROUTES = [...RAIL_ROUTES, ...DASHBOARD_ROUTES];
 
 /** Where the section's heading sits relative to the fixed header, after a jump. */
 async function headingPlacement(page: Page, id: string) {
@@ -282,7 +294,7 @@ test.describe('section rail clearance', () => {
   // (so its clearance against that route's own content is actually
   // checked) and one too short for it (so the hide-instead-of-overlap path
   // is checked too).
-  for (const path of ROUTES) {
+  for (const path of RAIL_ROUTES) {
     test(`clears the header, the bottom and the content on ${path}, at the tightest widths and heights`, async ({
       page,
     }, testInfo) => {
@@ -298,6 +310,78 @@ test.describe('section rail clearance', () => {
       }
     });
   }
+});
+
+// The dashboards are a self-contained surface (data/site.ts `chrome: false`):
+// none of the site's header, footer, rail, canvas or scroll-to-top button, at
+// any width; their own bar is the only navigation.
+test.describe('dashboards: no site chrome', () => {
+  for (const path of DASHBOARD_ROUTES) {
+    test(`${path} has no site header, footer, rail, canvas or scroll-to-top, at any width`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+      for (const { width, height } of [
+        { width: 390, height: 800 },
+        { width: 1024, height: 900 },
+        { width: 1408, height: 1000 },
+        { width: 1920, height: 1000 },
+        { width: 2560, height: 1200 },
+      ]) {
+        await page.setViewportSize({ width, height });
+        await open(page, path);
+        const label = `${path} ${width}x${height}`;
+        await expect(page.locator('body > header, #root > header, header[class*="header"]'), `${label}: no site header`).toHaveCount(0);
+        await expect(page.getByRole('contentinfo'), `${label}: no site footer`).toHaveCount(0);
+        await expect(page.locator('#sectionRail'), `${label}: no rail`).toHaveCount(0);
+        await expect(page.locator('canvas'), `${label}: no dot canvas`).toHaveCount(0);
+        await expect(page.locator('[data-opens="menu"]'), `${label}: no site menu button`).toHaveCount(0);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(overflow, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+
+  test('the calendar uses the wide screen (96rem), the list pages hold a 72rem column, and the bar keeps to it', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    const column = () =>
+      page.evaluate(() => {
+        const content = document.querySelector('main [lang] > div[class*="inner"]');
+        const brand = document.querySelector('main [lang] a[href="/"]');
+        const first = document.querySelector('main [lang] [tabindex="-1"]');
+        if (!content || !brand || !first) return null;
+        const box = content.getBoundingClientRect();
+        return {
+          width: Math.round(box.width),
+          left: Math.round(box.left),
+          brand: Math.round(brand.getBoundingClientRect().left),
+          first: Math.round(first.getBoundingClientRect().left),
+        };
+      });
+    await open(page, '/dashboards/calendar');
+    const wide = (await column())!;
+    // The site's column caps at 72rem (1152px); the calendar caps at 96rem (1536px).
+    expect(wide.width).toBeGreaterThan(1152);
+    expect(wide.width).toBeLessThanOrEqual(1536);
+
+    await open(page, '/dashboards/personal');
+    const list = (await column())!;
+    expect(list.width).toBeLessThanOrEqual(1152);
+    // The bar keeps the wide cap on every page (the brand is where the calendar's is: 24px in from the 96rem column),
+    // while the list page's own content starts at its narrower column's edge.
+    expect(Math.abs(list.brand - (Math.round((1920 - 1536) / 2) + 24)), 'the brand sits at the wide cap').toBeLessThanOrEqual(1);
+    expect(Math.abs(list.first - (list.left + 24)), 'the page content starts at its own column edge').toBeLessThanOrEqual(1);
+  });
+
+  test('the bar is sticky: it stays at the top while the page scrolls', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
+    await page.setViewportSize({ width: 1440, height: 500 });
+    await open(page, '/dashboards/calendar');
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(200);
+    const top = await page.evaluate(() => document.querySelector('main [lang] a[href="/"]')!.getBoundingClientRect().top);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(top).toBeLessThan(48);
+  });
 });
 
 test.describe('section rail resize across the sidebar breakpoint', () => {

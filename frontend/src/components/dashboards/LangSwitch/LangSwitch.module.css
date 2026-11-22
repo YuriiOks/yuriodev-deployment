@@ -1,0 +1,12 @@
+/* The segmented-control system (assets/styles/dashboard-controls.module.css). */
+.group {
+  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.option {
+  composes: option from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.on {
+  composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
+}

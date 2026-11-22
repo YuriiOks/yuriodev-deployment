@@ -1,0 +1,174 @@
+/* One row on a laptop: the range (the h1, 20px), previous / Today / next, then at the right the legend, the
+   conflict count (only above zero), the working-days switch and Week / Month. Everything is 32px high. Below
+   64rem it wraps into two rows; a phone's two rows are the range with the steps, then the rest. The controls are
+   the shared system in assets/styles/dashboard-controls.module.css. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  min-height: var(--dash-h-strip);
+}
+
+/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+.toolbar .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
+}
+
+.toolbar .title::before,
+.toolbar .title::after {
+  content: none;
+}
+
+.right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-left: auto;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+/* A round 8px dot in the space's ink, the same colour as the bar of its events. */
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
+  background: var(--dash-accent);
+}
+
+.dot[data-for="personal"] {
+  background: var(--dash-ink-personal);
+}
+
+.dot[data-for="work-1"] {
+  background: var(--dash-ink-work-1);
+}
+
+.dot[data-for="work-2"] {
+  background: var(--dash-ink-work-2);
+}
+
+/* A block with no details: hatched (the same hatch as a Focus-time block). */
+.hatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--dash-r-tag);
+  background-image: repeating-linear-gradient(45deg, transparent 0 3px, var(--dash-t2) 3px 4px);
+  box-shadow: inset 0 0 0 1px var(--dash-edge);
+}
+
+/* The conflicts: plain warn text with an icon, shown only when there are some. */
+.conflicts {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--dash-warn);
+  font-size: var(--dash-fs-meta);
+  font-weight: 500;
+  line-height: var(--dash-lh-meta);
+}
+
+.steps,
+.view {
+  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.step,
+.option {
+  composes: option from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.square {
+  composes: optionSquare from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.on {
+  composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+/* The working-days switch: a label with a small track and a thumb, no box. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--dash-h-control);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--dash-t1);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.track {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: 1.75rem;
+  height: 1rem;
+  padding: 0.125rem;
+  box-sizing: border-box;
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+  transition: background-color 120ms;
+}
+
+.thumb {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: var(--radius-round);
+  background: var(--dash-t2);
+  transition: transform 120ms;
+}
+
+.switch[aria-checked="true"] .track {
+  background: var(--dash-fill);
+  border-color: var(--dash-fill);
+}
+
+.switch[aria-checked="true"] .thumb {
+  background: var(--dash-on-fill);
+  transform: translateX(0.75rem);
+}
+
+@media (max-width: 63.99rem) {
+  .right {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .track {
+    border-color: ButtonText;
+  }
+}

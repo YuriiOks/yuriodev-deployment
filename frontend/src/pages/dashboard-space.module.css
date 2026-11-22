@@ -1,0 +1,35 @@
+/* The strip and the tabs read as one block (8px apart); the rest of the page is spaced 16px. */
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The selected tab's panels: one column on a phone. From a laptop up, with more than one panel, the first
+   is the main list (two thirds) and the others stack beside it (one third), 24px apart; the columns are as
+   tall as their own panels (nothing is stretched). */
+.panels {
+  --rows: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .panels[data-split="true"] {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .panels[data-split="true"] > :first-child {
+    grid-row: 1 / span var(--rows);
+  }
+}
+
+/* The page footer: when each source was last read. */
+.sync {
+  margin: 0;
+  color: var(--dash-t3);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}

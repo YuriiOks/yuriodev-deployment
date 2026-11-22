@@ -1,0 +1,63 @@
+/* A panel: the content surface, glass (recipes.module.css .glassDash) with a hairline edge and a 12px
+   radius. Its head is the title (16px 600 t1) with a plain count; the rows inside are flat, with no border,
+   fill or radius of their own. */
+.panel {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+  /* Its rows lay themselves out by the panel's width (PanelRow.module.css @container). */
+  container-type: inline-size;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+}
+
+/* global.css gives every h2 a '# ', an underline and spacing: all three are cleared. */
+.panel .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 600;
+  line-height: var(--dash-lh-title);
+}
+
+.panel .title::before,
+.panel .title::after {
+  content: none;
+}
+
+.count {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.note {
+  margin-left: auto;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.rows {
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+/* An empty list: one quiet line. */
+.empty {
+  margin: 0;
+  padding: var(--space-1) var(--space-4) var(--space-3);
+  color: var(--dash-t2);
+}

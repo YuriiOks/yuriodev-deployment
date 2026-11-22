@@ -1,0 +1,31 @@
+/* The life areas: plain rows (name, open-task count) in the panel's own row rhythm: 40px, a hairline between. */
+.tiles {
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--dash-h-row);
+  padding: 0 var(--space-2);
+  color: var(--dash-t1);
+}
+
+.tile + .tile {
+  border-top: 1px solid var(--dash-line);
+}
+
+.count {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+/* Nothing open in an area: a zero in the quietest ink. */
+.count[data-zero="true"] {
+  color: var(--dash-t3);
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import Header from '../Header/Header';
 import Footer from '../Footer/Footer';
 import SectionRail from '../SectionRail/SectionRail';
@@ -6,6 +6,8 @@ import CanvasBackground from '../../ui/CanvasBackground/CanvasBackground';
 import CommandPalette from '../../ui/CommandPalette/CommandPalette';
 import HelpPanel from '../../ui/HelpPanel/HelpPanel';
 import ScrollToTop from '../../ui/ScrollToTop/ScrollToTop';
+import { PAGE_CONTENT_ID } from '../../../constants/pageContent';
+import { chromeAllowedAt } from '../../../data/site';
 import { useRouteChangeFocus } from '../../../hooks/useRouteChangeFocus';
 import { useGlobalShortcuts } from '../../../hooks/useGlobalShortcuts';
 import { SectionNavProvider } from '../../../context/SectionNavProvider';
@@ -20,15 +22,26 @@ interface PageLayoutProps {
   currentPath?: string;
 }
 
+/**
+ * The page frame. A page defined with `chrome: false` (data/site.ts: the
+ * private dashboards) gets none of the site's chrome: no header, footer,
+ * section rail, dot canvas, scroll-to-top button, command palette or help
+ * panel - only the skip link and the <main> landmark; the page brings its own
+ * bar. Every other page gets the full frame.
+ */
 const PageLayout: React.FC<PageLayoutProps> = ({ children, currentPath = '/' }) => {
   const mainRef = useRef<HTMLElement>(null);
   return (
     <SectionNavProvider mainRef={mainRef}>
       <OverlayProvider routeKey={currentPath}>
         <ToastProvider>
-          <PageLayoutContent mainRef={mainRef} currentPath={currentPath}>
-            {children}
-          </PageLayoutContent>
+          {chromeAllowedAt(currentPath) ? (
+            <PageLayoutContent mainRef={mainRef} currentPath={currentPath}>
+              {children}
+            </PageLayoutContent>
+          ) : (
+            <BareLayoutContent mainRef={mainRef}>{children}</BareLayoutContent>
+          )}
         </ToastProvider>
       </OverlayProvider>
     </SectionNavProvider>
@@ -87,6 +100,37 @@ const PageLayoutContent: React.FC<PageLayoutContentProps> = ({ children, current
         {children}
       </main>
       <Footer />
+    </>
+  );
+};
+
+/** The frame of a page with no site chrome: the skip link and main. */
+const BareLayoutContent: React.FC<{ children: React.ReactNode; mainRef: React.RefObject<HTMLElement | null> }> = ({
+  children,
+  mainRef,
+}) => {
+  // After a navigation, and for the skip link, focus goes to the page's content area below its bar.
+  const target = useMemo<React.RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        return document.getElementById(PAGE_CONTENT_ID) ?? mainRef.current;
+      },
+    }),
+    [mainRef],
+  );
+  useRouteChangeFocus(target);
+  const skipToMain = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    target.current?.focus();
+  };
+  return (
+    <>
+      <a href="#main-content" className={styles.skipLink} onClick={skipToMain}>
+        Skip to main content
+      </a>
+      <main id="main-content" ref={mainRef} tabIndex={-1} className={styles.bareContent}>
+        {children}
+      </main>
     </>
   );
 };

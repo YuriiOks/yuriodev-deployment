@@ -1,0 +1,155 @@
+/* The dashboards' controls, one system. Components reach them with
+     composes: segment from '<relative path>/assets/styles/dashboard-controls.module.css';
+   (and option, optionOn, optionSquare, button, buttonPrimary, buttonSecondary, buttonGhost, iconButton).
+   A segmented control (the RU/EN switch, Week / Month, previous / Today / next): a chip track with an 8px
+   radius, 2px of padding and 32px of height; the selected segment is the surface with a 1px edge and t1,
+   the others t2. It is neutral in every space. A button is 32px high, 8px radius, 14px 500, in one of three
+   variants: primary (the space's fill; one per view), secondary (a chip fill, no border) and ghost (no
+   fill). Every control has a 120ms colour transition, a one-step-darker :active, a disabled state and the
+   global focus ring. On a coarse pointer the controls are 44px. */
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  box-sizing: border-box;
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-control);
+}
+
+.option,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--dash-h-control);
+  min-width: 2rem;
+  padding: 0 var(--space-3);
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: calc(var(--dash-r-control) - 0.125rem);
+  background: transparent;
+  color: var(--dash-t2);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+
+/* The track is 2px of padding around a 28px segment on a fine pointer, so the whole control is 32px. */
+.segment .option {
+  height: calc(var(--dash-h-control) - 0.25rem);
+}
+
+.optionSquare {
+  width: calc(var(--dash-h-control) - 0.25rem);
+  min-width: 0;
+  padding: 0;
+}
+
+.optionOn {
+  background: var(--dash-surface);
+  border-color: var(--dash-edge);
+  color: var(--dash-t1);
+}
+
+.option:disabled,
+.button:disabled,
+.iconButton:disabled {
+  color: var(--dash-t3);
+  background: var(--dash-chip);
+  cursor: not-allowed;
+}
+
+.button {
+  border-radius: var(--dash-r-control);
+}
+
+.buttonPrimary {
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
+}
+
+.buttonSecondary {
+  background: var(--dash-chip);
+  color: var(--dash-t1);
+}
+
+.buttonGhost {
+  color: var(--dash-t1);
+}
+
+/* A square ghost button holding one icon (the theme toggle). */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dash-h-control);
+  height: var(--dash-h-control);
+  padding: 0;
+  border: 0;
+  border-radius: var(--dash-r-control);
+  background: transparent;
+  color: var(--dash-t1);
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+
+@media (hover: hover) {
+  .option:not(.optionOn):hover {
+    color: var(--dash-t1);
+  }
+
+  .buttonSecondary:hover,
+  .buttonGhost:hover,
+  .iconButton:hover {
+    background: var(--dash-chip);
+  }
+
+  .buttonPrimary:hover {
+    filter: brightness(1.06);
+  }
+}
+
+.option:active:not(:disabled),
+.buttonSecondary:active:not(:disabled),
+.buttonGhost:active:not(:disabled),
+.iconButton:active:not(:disabled) {
+  background: var(--dash-line);
+}
+
+.buttonPrimary:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+/* Fingers: 44px targets, a 40px-high control inside a 44px track-less hit area. */
+@media (pointer: coarse) {
+  .segment .option {
+    height: calc(var(--dash-h-control) - 0.25rem);
+    min-width: 2.75rem;
+  }
+
+  .iconButton {
+    min-width: 2.75rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .optionOn {
+    outline: 2px solid Highlight;
+  }
+
+  .buttonPrimary,
+  .buttonSecondary {
+    border-color: ButtonText;
+  }
+}

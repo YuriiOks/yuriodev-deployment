@@ -1,0 +1,4 @@
+/* A glyph takes the colour of the text around it. */
+.icon {
+  flex: none;
+}

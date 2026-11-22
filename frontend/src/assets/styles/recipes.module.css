@@ -2,19 +2,30 @@
      composes: glass from '<relative path>/assets/styles/recipes.module.css';
    as the first declaration of a rule.
 
-   GLASS IS FOR CHROME ONLY. This file is the only place in the codebase
-   where backdrop-filter appears (design-budget.test.ts holds that):
+   GLASS IS FOR CHROME, AND FOR THE PRIVATE DASHBOARDS (the owner's decision:
+   they carry the prototype's glass look). This file is the only place in the
+   codebase where backdrop-filter appears (design-budget.test.ts holds that):
      .glass        header, command palette dialog, the section rail
      .glassAccent  hero code block: glass in the dark theme with a fine
                    pointer from 48rem up, solid elsewhere
-   Cards, terminals, drawers, post cards, the footer's social pill (its bar
-   is near-opaque, so there is nothing to blur) and prose stay solid: dense text
-   reads better on a solid fill, and a blur behind a near-opaque fill costs
-   paint time for nothing.
+     .glassDash    the dashboards' content surfaces: panels, entrance cards
+                   and the calendar frame. A stronger blur over the page's
+                   own quiet glows; its fill, a neutral hairline edge and at
+                   most one soft grey shadow come from the --dash-* tokens
+                   (_variables.css section 6), never a coloured edge or shadow
+     .glassBar     the dashboards' sticky bar: the page colour as a veil with
+                   a hairline under it, because the content scrolls beneath
+   Everywhere else cards, terminals, drawers, post cards, the footer's social
+   pill (its bar is near-opaque, so there is nothing to blur) and prose stay
+   solid: dense text reads better on a solid fill, and a blur behind a
+   near-opaque fill costs paint time for nothing.
 
    Rules for glass:
    - Text on it: --text-1, --text-2, --cyan-text, --amber-text (and their
-     legacy names). Never --text-3 / --text-muted or a category hue.
+     legacy names). Never --text-3 / --text-muted or a category hue. On
+     .glassDash and .glassBar: --dash-t1, --dash-t2, --dash-t3 (hints, zero
+     values), --dash-danger / --dash-warn / --dash-ok (with a word or an icon);
+     contrast.test.ts holds them over the glass, the bar and each glow.
    - Never nest glass, and never give an ancestor of glass opacity < 1,
      filter, mask, clip-path, mix-blend-mode or backdrop-filter, even while
      it animates: that ancestor becomes the backdrop root and the glass
@@ -59,12 +70,39 @@
     }
 }
 
+/* The dashboards' glass: the neutral surface at 72% over the page's quiet glows, a hairline edge, a stronger
+   blur (24px; the glows behind it are what it blurs). Rows, chips, tiles and event blocks inside it are flat,
+   never glass, and glass is never nested. */
+:where(.glassDash) {
+    background: var(--dash-glass);
+    border: 1px solid var(--dash-glass-edge);
+    box-shadow: var(--dash-glass-shadow);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+}
+
+/* The dashboards' bar: sticky, so content scrolls under it. */
+:where(.glassBar) {
+    background: var(--dash-bar-glass);
+    border-bottom: 1px solid var(--dash-line);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
 /* Fallbacks: no backdrop-filter support, reduced transparency, more
    contrast (Safari has no prefers-reduced-transparency, so there only
    prefers-contrast removes the glass), forced colours. */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     :where(.glass, :root:not([data-theme="light"]) .glassAccent) {
         background: var(--surface-2);
+    }
+
+    :where(.glassDash) {
+        background: var(--dash-surface);
+    }
+
+    :where(.glassBar) {
+        background: var(--dash-bg);
     }
 }
 
@@ -74,10 +112,22 @@
         -webkit-backdrop-filter: none;
         backdrop-filter: none;
     }
+
+    :where(.glassDash) {
+        background: var(--dash-surface);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
+    :where(.glassBar) {
+        background: var(--dash-bg);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
 }
 
 @media (forced-colors: active) {
-    :where(.glass, .glassAccent) {
+    :where(.glass, .glassAccent, .glassDash, .glassBar) {
         border-color: CanvasText;
     }
 }

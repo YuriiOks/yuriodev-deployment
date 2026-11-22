@@ -1,0 +1,232 @@
+/* One row: 40px, one line, a hairline between rows, no border, fill or radius of its own; the pointer
+   brings up a chip plate with the control radius. Grid: an optional 24px lead column, the title, the meta
+   group, the action. A narrow panel (under 32rem wide) puts the meta group under the title. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: 'title meta action';
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--dash-h-row);
+  padding: 0 var(--space-2);
+  border-radius: var(--dash-r-control);
+  list-style: none;
+}
+
+.row[data-lead="true"] {
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto auto;
+  grid-template-areas: 'lead title meta action';
+}
+
+/* The hairline between rows lives on the top edge of every row but the first. */
+.row + .row {
+  position: relative;
+}
+
+.row + .row::before {
+  content: '';
+  position: absolute;
+  inset: 0 var(--space-2) auto;
+  height: 1px;
+  background: var(--dash-line);
+}
+
+@media (hover: hover) {
+  .row:hover {
+    background: var(--dash-chip);
+  }
+
+  .row:hover::before,
+  .row:hover + .row::before {
+    visibility: hidden;
+  }
+
+  .task:hover {
+    cursor: pointer;
+  }
+}
+
+.lead {
+  grid-area: lead;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* The native input fills a 44px hit area around the 16px box and is invisible. */
+.input {
+  position: absolute;
+  inset: -0.625rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  box-sizing: border-box;
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-tag);
+  color: var(--dash-on-fill);
+}
+
+.input:checked + .box {
+  background: var(--dash-fill);
+  border-color: var(--dash-fill);
+}
+
+.input:focus-visible + .box {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The CI state: an icon in the lead column, in the semantic colour, with the words for screen readers. */
+.ci {
+  display: flex;
+}
+
+.ci[data-ci="pass"] {
+  color: var(--dash-ok);
+}
+
+.ci[data-ci="fail"] {
+  color: var(--dash-danger);
+}
+
+/* One line; a longer title ends in an ellipsis (the whole title is in the tooltip). */
+.title {
+  grid-area: title;
+  overflow: hidden;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A done task: struck through and dimmed to the secondary ink. */
+.done {
+  color: var(--dash-t2);
+  text-decoration: line-through;
+}
+
+/* A reference is data (mono) and a link: t1 and underlined, never coloured. */
+.ref {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
+.meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+  white-space: nowrap;
+}
+
+/* A status in words: 500 weight, t2, or danger with the CI icon in front of the row. */
+.status {
+  font-weight: 500;
+}
+
+.status[data-tone="danger"] {
+  color: var(--dash-danger);
+}
+
+.due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.due[data-tone="warn"] {
+  color: var(--dash-warn);
+  font-weight: 500;
+}
+
+.due[data-tone="danger"] {
+  color: var(--dash-danger);
+  font-weight: 500;
+}
+
+/* A secondary button, text only, as wide as its word. */
+.action {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  grid-area: action;
+}
+
+/* A narrow panel (a phone, or the side column of a laptop): the title may take two lines, the meta group goes
+   under it, the button stays at the right. The panel is the container (Panel.module.css), not the viewport. */
+@container (max-width: 31.99rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title action'
+      'meta action';
+    row-gap: 0;
+    min-height: 3.5rem;
+    padding-block: var(--space-2);
+  }
+
+  .row[data-lead="true"] {
+    grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      'lead title action'
+      'lead meta action';
+  }
+
+  .lead {
+    align-self: start;
+    margin-top: 0.125rem;
+  }
+
+  .title {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .meta {
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  .meta > * + *::before {
+    content: '\00b7';
+    margin-inline: var(--space-2);
+    color: var(--dash-t3);
+    font-weight: 400;
+  }
+}
+
+@media (forced-colors: active) {
+  .box {
+    border-color: ButtonText;
+  }
+}

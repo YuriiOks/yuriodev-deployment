@@ -5,6 +5,7 @@
      3. light theme
      4. preference overrides
      5. legacy names, kept as aliases until their last consumer moves over
+     6. the private dashboards' palettes (--dash-*), one per space
 
    Colour roles: cyan marks brand and interactive things (links, buttons,
    hover borders); amber marks what is current or focused (the active nav
@@ -265,6 +266,7 @@
     --canvas-dot-alpha: 0.85;
     --canvas-glow-alpha: 0.5;
     --canvas-line-alpha: 0.2;
+
 }
 
 /* 3. Light theme --------------------------------------------------------- */
@@ -389,6 +391,7 @@
     --canvas-dot-alpha: 0.7;
     --canvas-glow-alpha: 0.3;
     --canvas-line-alpha: 0.16;
+
 }
 
 /* 4. Preference overrides (after the theme blocks, so they win) ---------- */
@@ -476,4 +479,169 @@
     --cta-button-hover-text: var(--cyan-text);
     --cta-button-hover-border: var(--cyan-edge);
     --cta-button-hover-shadow: rgba(var(--cyan-rgb), 0.45);
+}
+
+/* 6. Dashboards ---------------------------------------------------------- */
+/* The private dashboards: a calm work tool. One neutral ramp shared by the three spaces and both
+   themes' own values; a space only changes four things (page colour, ink, fill, ink on the fill)
+   plus the colour of its glow. The space colour is spent in a few named places only: the 2px
+   underline of the active nav link and tab, the space tile, the one primary button, a ticked
+   checkbox, and the calendar's event bars and tints; never on headings, numbers, times, links,
+   borders or shadows. Red text always means danger (a red fill, underline or bar means Work 2);
+   amber is "today" and calendar conflicts; green is CI passing; every one of them comes with a
+   word or an icon. The page has soft glows (atmosphere, kept quiet) and the bar, panels, hub cards
+   and the calendar frame are glass over them (recipes.module.css .glassDash, a neutral hairline
+   edge, no coloured edge, no coloured shadow); everything inside a panel is flat. Glass is never
+   nested. Roles:
+     bg / surface / chip     the page, opaque surfaces (inputs, menus), hover plates and tracks
+     glass                   the translucent surface of panels, from surface at --dash-glass-a
+     line / edge             hairlines and panel borders / control borders (>= 3:1)
+     t1 / t2 / t3            text: titles and rows / secondary / hints (all >= 4.5:1, on glass too)
+     danger / warn / ok      overdue and CI failing / today and conflicts / CI passing
+     accent / fill / on-fill the space's ink (text and underline) / its fill and the ink on it
+     ink-*, tint-*, fill-*   the three spaces side by side (the calendar and the hub show all three)
+   contrast.test.ts holds every text and UI pair, per space and theme, on the page, the glass and
+   each glow. */
+:root,
+[data-theme="dark"] {
+    --dash-bg: #0d0f12;
+    --dash-surface: #15181d;   --dash-surface-rgb: 21, 24, 29;
+    --dash-chip: #1d2128;      --dash-chip-rgb: 29, 33, 40;
+    --dash-line: #272c35;
+    --dash-edge: #727b88;
+    --dash-t1: #eceef2;
+    --dash-t2: #b4bac5;
+    --dash-t3: #8d95a3;
+    --dash-danger: #ff8a7a;
+    --dash-warn: #f5b83d;
+    --dash-ok: #5fd1a0;
+
+    /* Glass: the surface at this alpha over the page and its glows; one neutral edge and one soft shadow. */
+    --dash-glass-a: 0.72;
+    --dash-glass: rgba(var(--dash-surface-rgb), var(--dash-glass-a));
+    --dash-glass-edge: var(--dash-line);
+    --dash-glass-shadow: none;
+    --dash-bar-glass: rgba(13, 15, 18, 0.8);
+
+    /* Glows: three radial triplets and their strengths (neutral for the hub and the calendar). */
+    --dash-glow-a-rgb: 120, 135, 160;   --dash-glow-a: 0.2;
+    --dash-glow-b-rgb: 120, 135, 160;   --dash-glow-b: 0.12;
+    --dash-glow-c-rgb: 120, 135, 160;   --dash-glow-c: 0.12;
+
+    /* No space: the hub and the calendar. */
+    --dash-accent: var(--dash-t1);
+    --dash-fill: var(--dash-t1);
+    --dash-on-fill: var(--dash-surface);
+
+    /* The three spaces side by side: ink (text, underline), fill (button, tile, tick) with its ink,
+       and the opaque tint of an event (the ink at 22% over the surface). */
+    --dash-ink-personal: #5fc8e3;  --dash-fill-personal: #5fc8e3;  --dash-on-fill-personal: #06141a;  --dash-tint-personal: #253f49;
+    --dash-ink-work-1: #b3a4ff;    --dash-fill-work-1: #6c52e0;    --dash-on-fill-work-1: #ffffff;    --dash-tint-work-1: #38374f;
+    --dash-ink-work-2: #ff7b86;    --dash-fill-work-2: #d0283a;    --dash-on-fill-work-2: #ffffff;    --dash-tint-work-2: #482e34;
+
+    /* Shape: three radii. */
+    --dash-r-surface: 0.75rem;
+    --dash-r-control: 0.5rem;
+    --dash-r-tag: 0.25rem;
+
+    /* Type: Fira Sans for the interface, Fira Code (--font-mono) for data only (.dashNum). Five
+       fixed steps, each with its line height; weights 400, 500 and 600. */
+    --dash-font-ui: 'Fira Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --dash-fs-meta: 0.75rem;   --dash-lh-meta: 1rem;
+    --dash-fs-ui: 0.875rem;    --dash-lh-ui: 1.25rem;
+    --dash-fs-title: 1rem;     --dash-lh-title: 1.5rem;
+    --dash-fs-page: 1.25rem;   --dash-lh-page: 1.75rem;
+    --dash-fs-stat: 1.75rem;   --dash-lh-stat: 2rem;
+
+    /* Sizes: a fine pointer gets compact controls, a coarse one 44px targets. */
+    --dash-h-control: 2rem;
+    --dash-h-input: 2.25rem;
+    --dash-h-row: 2.5rem;
+    --dash-h-bar: 3rem;
+    --dash-h-strip: 3.5rem;
+}
+
+[data-theme="light"] {
+    --dash-bg: #f5f6f7;
+    --dash-surface: #ffffff;   --dash-surface-rgb: 255, 255, 255;
+    --dash-chip: #eef0f3;      --dash-chip-rgb: 238, 240, 243;
+    --dash-line: #e3e6eb;
+    --dash-edge: #6e7683;
+    --dash-t1: #12151a;
+    --dash-t2: #3d444f;
+    --dash-t3: #565e6b;
+    --dash-danger: #b3261e;
+    --dash-warn: #8a5300;
+    --dash-ok: #0a6b48;
+
+    --dash-glass-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    --dash-bar-glass: rgba(245, 246, 247, 0.8);
+
+    --dash-glow-a: 0.18;
+    --dash-glow-b: 0.12;
+    --dash-glow-c: 0.12;
+
+    --dash-ink-personal: #0b6780;  --dash-fill-personal: #0b6780;  --dash-on-fill-personal: #ffffff;  --dash-tint-personal: #e2edf0;
+    --dash-ink-work-1: #5a3fc8;    --dash-fill-work-1: #5a3fc8;    --dash-on-fill-work-1: #ffffff;    --dash-tint-work-1: #ebe8f8;
+    --dash-ink-work-2: #c4000f;    --dash-fill-work-2: #db0011;    --dash-on-fill-work-2: #ffffff;    --dash-tint-work-2: #f8e0e2;
+}
+
+@media (pointer: coarse) {
+    :root {
+        --dash-h-control: 2.75rem;
+        --dash-h-input: 2.75rem;
+        --dash-h-row: 3.5rem;
+    }
+}
+
+/* A space page: a dashboard root with data-space re-colours these four things and its glow. */
+[data-space="personal"] {
+    --dash-bg: #0c1113;
+    --dash-glow-a-rgb: 8, 145, 178;   --dash-glow-a: 0.22;
+    --dash-glow-b-rgb: 245, 158, 11;  --dash-glow-b: 0.12;
+    --dash-glow-c-rgb: 45, 212, 191;  --dash-glow-c: 0.12;
+    --dash-accent: var(--dash-ink-personal);
+    --dash-fill: var(--dash-fill-personal);
+    --dash-on-fill: var(--dash-on-fill-personal);
+}
+
+[data-theme="light"] [data-space="personal"] {
+    --dash-bg: #f4f6f7;
+    --dash-glow-a: 0.18;
+    --dash-glow-b: 0.12;
+    --dash-glow-c: 0.12;
+}
+
+[data-space="work-1"] {
+    --dash-bg: #0f0e14;
+    --dash-glow-a-rgb: 138, 45, 227;  --dash-glow-a: 0.22;
+    --dash-glow-b-rgb: 90, 60, 220;   --dash-glow-b: 0.18;
+    --dash-glow-c-rgb: 184, 140, 255; --dash-glow-c: 0.1;
+    --dash-accent: var(--dash-ink-work-1);
+    --dash-fill: var(--dash-fill-work-1);
+    --dash-on-fill: var(--dash-on-fill-work-1);
+}
+
+[data-theme="light"] [data-space="work-1"] {
+    --dash-bg: #f6f5f9;
+    --dash-glow-a: 0.16;
+    --dash-glow-b: 0.1;
+    --dash-glow-c: 0;
+}
+
+[data-space="work-2"] {
+    --dash-bg: #0e0e0f;
+    --dash-glow-a-rgb: 219, 0, 17;    --dash-glow-a: 0.24;
+    --dash-glow-b-rgb: 255, 255, 255; --dash-glow-b: 0.05;
+    --dash-glow-c-rgb: 255, 255, 255; --dash-glow-c: 0;
+    --dash-accent: var(--dash-ink-work-2);
+    --dash-fill: var(--dash-fill-work-2);
+    --dash-on-fill: var(--dash-on-fill-work-2);
+}
+
+[data-theme="light"] [data-space="work-2"] {
+    --dash-bg: #f5f5f5;
+    --dash-glow-a: 0.12;
+    --dash-glow-b: 0;
+    --dash-glow-c: 0;
 }

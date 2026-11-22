@@ -72,7 +72,9 @@ export function isSectionId(id: string): id is SectionId {
 // Pages
 // ---------------------------------------------------------------------------
 
-export type PageId = 'portfolio' | 'courses' | 'dashboard' | 'community' | 'privacy';
+export type PageId =
+  | 'portfolio' | 'courses' | 'dashboard' | 'community' | 'privacy'
+  | 'dashboards' | 'dashboards-personal' | 'dashboards-work-1' | 'dashboards-work-2' | 'dashboards-calendar';
 
 /** Where the header lists a page: inline, or in its More menu. */
 export type PageNav = 'primary' | 'more';
@@ -85,6 +87,12 @@ export interface PageDef {
   readonly navLabel: string;
   /** Where the header lists it; unset: not in the header (still in the palette). */
   readonly nav?: PageNav;
+  /**
+   * `false`: the page has none of the site's chrome (header, footer, section
+   * rail, dot canvas, scroll-to-top button, command palette, help panel) and
+   * brings its own bar: the private dashboards. Unset: the full frame.
+   */
+  readonly chrome?: false;
 }
 
 export const PAGES: readonly PageDef[] = [
@@ -93,6 +101,13 @@ export const PAGES: readonly PageDef[] = [
   { id: 'dashboard', path: '/dashboard', label: 'Dashboard', navLabel: '--dashboard', nav: 'more' },
   { id: 'community', path: '/community', label: 'Community', navLabel: '--community', nav: 'more' },
   { id: 'privacy', path: '/privacy', label: 'Privacy notice', navLabel: '--privacy' },
+  // The private dashboards: routed pages with no `nav`, so the header, the
+  // palette and the footer never list them (the terminal reads none of PAGES).
+  { id: 'dashboards', path: '/dashboards', label: 'Dashboards', navLabel: '--dashboards', chrome: false },
+  { id: 'dashboards-personal', path: '/dashboards/personal', label: 'Personal dashboard', navLabel: '--dashboards-personal', chrome: false },
+  { id: 'dashboards-work-1', path: '/dashboards/work-1', label: 'Work 1 dashboard', navLabel: '--dashboards-work-1', chrome: false },
+  { id: 'dashboards-work-2', path: '/dashboards/work-2', label: 'Work 2 dashboard', navLabel: '--dashboards-work-2', chrome: false },
+  { id: 'dashboards-calendar', path: '/dashboards/calendar', label: 'Dashboards calendar', navLabel: '--dashboards-calendar', chrome: false },
 ];
 
 /** Every page the header lists, primary first: the one list the narrow-screen menu shows. */
@@ -105,6 +120,16 @@ export function navPages(nav: PageNav): readonly PageDef[] {
 
 export function pagePath(id: PageId): string {
   return PAGES.find((page) => page.id === id)!.path;
+}
+
+/** The command-palette name of a page, also used for its document title. */
+export function pageLabel(id: PageId): string {
+  return PAGES.find((page) => page.id === id)!.label;
+}
+
+/** Whether the site's chrome (header, footer, rail, canvas ...) frames the page at `pathname`: all but the pages with `chrome: false`. */
+export function chromeAllowedAt(pathname: string): boolean {
+  return pageAt(pathname)?.chrome !== false;
 }
 
 /** The page at `pathname` (trailing slash ignored), if it is one of PAGES. */

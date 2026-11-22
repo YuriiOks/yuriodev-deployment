@@ -1,0 +1,23 @@
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--dash-h-strip);
+}
+
+/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+.heading .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
+}
+
+.heading .title::before,
+.heading .title::after {
+  content: none;
+}

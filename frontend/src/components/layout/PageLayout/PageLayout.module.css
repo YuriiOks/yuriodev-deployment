@@ -23,6 +23,20 @@
     margin-right: auto;
 }
 
+/* A page with no site chrome (PageDef chrome: false): no header to clear, and
+   none of the site's rules for sections - the page lays its own out. */
+/* App.css pads every main by 2rem at the bottom; here the page's own background runs to the end. */
+.bareContent {
+    min-height: 100vh;
+    padding-bottom: 0;
+    position: relative;
+    isolation: isolate;
+}
+
+.bareContent:focus {
+    outline: none;
+}
+
 /* Skip link: off screen until it receives keyboard focus. */
 .skipLink {
     position: absolute;

@@ -1,0 +1,329 @@
+/* The calendar frame: glass (recipes.module.css .glassDash) like the panels. The scrolling happens inside it
+   (a mask on the glass itself would remove its blur). The inner box is focusable (tabIndex 0 in the markup) so a
+   keyboard user can scroll it. Below 64rem, where the week no longer fits, its right edge fades out and keeps end
+   padding, so a cut-off day reads as "more this way". */
+.scroll {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-radius: var(--dash-r-surface);
+}
+
+.scroller {
+  padding-bottom: var(--space-3);
+  overflow-x: auto;
+}
+
+.scroller:focus-visible {
+  outline-offset: -2px;
+}
+
+@media (max-width: 63.99rem) {
+  .scroller {
+    padding-right: var(--space-6);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+  }
+
+  /* One day fits: nothing to scroll, so no fade. */
+  .scroller.singleScroller {
+    padding-right: 0;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* One hour is --hour-h tall: an event's top and height are worked out from it (--top and --span, in hours,
+   come from the markup). The week keeps a minimum width so a crowded day stays readable and scrolls sideways
+   inside the box on a narrow screen; a single day (a phone) fills the box. */
+.table {
+  /* Layout inputs, set inline per element by WeekGrid.tsx. These are the defaults, so every var() below
+     resolves even without the markup. */
+  --hours: 12;
+  --i: 0;
+  --top: 0;
+  --span: 1;
+  --level: 0;
+  --slot: 0;
+  --slots: 1;
+  --now: 0;
+  --hour-h: 4.5rem;
+  width: 100%;
+  min-width: 56rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.single {
+  min-width: 0;
+}
+
+/* Five working days need less width to stay readable. */
+.five {
+  min-width: 42rem;
+}
+
+/* One day (a phone): a fixed gutter for the hour labels, the day takes the rest. */
+.single .gutterCol {
+  width: 3rem;
+}
+
+.gutterCol {
+  width: 5%;
+}
+
+/* The day header: the weekday (12px 500 t2) above the day number (16px 500 t1). Today's number sits in a
+   28px circle filled with t1, its numeral in the surface colour: neutral, because all three space colours
+   are data on this grid. */
+.day {
+  padding: 0 0 var(--space-2);
+  border-bottom: 1px solid var(--dash-line);
+  font-weight: 500;
+  text-align: center;
+}
+
+.day + .day {
+  border-left: 1px solid var(--dash-line);
+}
+
+.weekday {
+  display: block;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-round);
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  line-height: 1;
+}
+
+.today .number {
+  background: var(--dash-t1);
+  color: var(--dash-surface);
+}
+
+/* The hour labels (data: mono), each on its hour line; the last one labels the end of the grid. */
+.gutter {
+  position: relative;
+  height: calc(var(--hour-h) * var(--hours));
+  vertical-align: top;
+}
+
+.hour {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  position: absolute;
+  top: calc(var(--hour-h) * var(--i));
+  right: var(--space-2);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: 1;
+  transform: translateY(-0.5em);
+}
+
+/* A day: a line at every hour as a background, a dotted line at every half hour (a masked layer behind the
+   events), a hairline between days. */
+.column {
+  position: relative;
+  height: calc(var(--hour-h) * var(--hours));
+  padding: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--hour-h) - 1px),
+    var(--dash-line) calc(var(--hour-h) - 1px),
+    var(--dash-line) var(--hour-h)
+  );
+}
+
+.column + .column {
+  border-left: 1px solid var(--dash-line);
+}
+
+.column::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--hour-h) / 2 - 1px),
+    color-mix(in srgb, var(--dash-line) 60%, transparent) calc(var(--hour-h) / 2 - 1px),
+    color-mix(in srgb, var(--dash-line) 60%, transparent) calc(var(--hour-h) / 2)
+  );
+  -webkit-mask-image: repeating-linear-gradient(to right, black 0 2px, transparent 2px 4px);
+  mask-image: repeating-linear-gradient(to right, black 0 2px, transparent 2px 4px);
+}
+
+/* Saturday and Sunday: the chip colour at 40%. */
+.weekend {
+  background-color: rgba(var(--dash-chip-rgb), 0.4);
+}
+
+.events {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* An event: placed by start time (top), as tall as it lasts (height), at its indent (--level steps of 1rem)
+   and in its slot of the remaining width. An opaque tint of the space's ink, a 3px bar of the ink at the left,
+   no border, a 1px surface-coloured outline that parts neighbours. The title comes first (12px 500 t1, two
+   lines, three from 90 minutes), the time under it (mono 12px t2). A block under 45 minutes is one line: the
+   title, then its start. Its note (a Focus-time line) is in the tooltip and the screen-reader text. */
+.event {
+  --ink: var(--dash-ink-personal);
+  position: absolute;
+  top: calc(var(--hour-h) * var(--top));
+  left: calc(var(--level) * 1rem + (100% - var(--level) * 1rem) * var(--slot) / var(--slots));
+  width: calc((100% - var(--level) * 1rem) / var(--slots) - 0.125rem);
+  height: calc(var(--hour-h) * var(--span));
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-height: 1.5rem;
+  padding: var(--space-1) var(--space-2) var(--space-1) 0.625rem;
+  overflow: hidden;
+  box-sizing: border-box;
+  background-color: var(--dash-tint-personal);
+  border-radius: var(--dash-r-tag);
+  box-shadow:
+    inset 3px 0 0 var(--ink),
+    var(--ring, 0 0 0 0 transparent),
+    0 0 0 1px var(--dash-surface);
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.event[data-for="work-1"] {
+  --ink: var(--dash-ink-work-1);
+  background-color: var(--dash-tint-work-1);
+}
+
+.event[data-for="work-2"] {
+  --ink: var(--dash-ink-work-2);
+  background-color: var(--dash-tint-work-2);
+}
+
+/* A block with no details (a Focus-time one): hatched with the ink at 28%. */
+.event[data-note="true"] {
+  background-image: repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in srgb, var(--ink) 28%, transparent) 5px 6px);
+}
+
+/* A conflict is not told by colour alone: a warn ring, an icon in the corner (the text keeps clear of it), and
+   the words for screen readers. */
+.event[data-conflict="true"] {
+  --ring: inset 0 0 0 1px var(--dash-warn);
+  padding-right: var(--space-5);
+}
+
+.name {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  overflow-wrap: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: normal;
+}
+
+.event[data-tall="true"] .name {
+  -webkit-line-clamp: 3;
+}
+
+.time {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* A short block is one line: the title with an ellipsis, then the start time. */
+.event[data-short="true"] {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.event[data-short="true"] .name {
+  display: block;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event[data-short="true"] .time {
+  flex: none;
+}
+
+.alert {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  color: var(--dash-warn);
+}
+
+/* The "+N" chip that folds the events a crowded start minute cannot show. */
+.event[data-stack="true"] {
+  align-items: center;
+  justify-content: center;
+  background-color: var(--dash-chip);
+  box-shadow: inset 0 0 0 1px var(--dash-edge);
+  padding-inline: var(--space-1);
+}
+
+.event[data-stack="true"] .name {
+  display: block;
+  color: var(--dash-t2);
+  text-align: center;
+}
+
+/* The now line: 2px t1 across today's column with an 8px dot at its left edge; WeekGrid moves it each minute. */
+.now {
+  position: absolute;
+  top: calc(var(--hour-h) * var(--now));
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--dash-t1);
+  pointer-events: none;
+}
+
+.now::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -0.25rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
+  background: var(--dash-t1);
+  transform: translateY(-50%);
+}
+
+/* One day (a phone): the text steps up to 14px for the title, the time stays 12px. */
+.single .name {
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+}
+
+@media (forced-colors: active) {
+  .event {
+    outline: 1px solid CanvasText;
+  }
+
+  .now {
+    background: Highlight;
+  }
+}

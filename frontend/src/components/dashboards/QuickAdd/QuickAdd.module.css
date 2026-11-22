@@ -1,0 +1,45 @@
+/* A plain input: 36px, 8px radius, the surface, a 1px control edge, 14px sans. The `>` is data (mono) in t3. */
+.form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--dash-h-input);
+  padding: 0 var(--space-3);
+  box-sizing: border-box;
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+}
+
+.prompt {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t3);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--dash-t1);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+}
+
+/* The field's own edge and one focus ring around it say where focus is. */
+.input:focus {
+  outline: none;
+}
+
+.form:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.input::placeholder {
+  color: var(--dash-t3);
+  opacity: 1;
+}

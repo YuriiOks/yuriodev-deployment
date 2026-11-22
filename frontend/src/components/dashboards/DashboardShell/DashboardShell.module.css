@@ -1,0 +1,81 @@
+/* The dashboards' page. The colours are the space's (data-space remaps the --dash-* tokens,
+   _variables.css section 6). The background is its own full-viewport layer, fixed behind the content
+   and sized to the viewport rather than to the page: the page colour and three soft radial glows
+   (--dash-glow-a/b/c, a triplet and a strength per space and theme, kept quiet), so a short page is as
+   coloured as a long one and the glass picks the colour up as the page scrolls. The root itself is
+   transparent. contrast.test.ts holds the text over the page and over each glow's peak.
+   The column is 72rem for the list pages and 96rem for the calendar (data-wide); the bar uses the
+   page's content only; the bar always uses the wide cap (96rem), so it stays put from page to page. */
+.root {
+  --dash-column: 72rem;
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: var(--space-6);
+  color: var(--dash-t2);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+}
+
+.root[data-wide="true"] {
+  --dash-column: 96rem;
+}
+
+.root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-below);
+  pointer-events: none;
+  background-color: var(--dash-bg);
+  background-image:
+    radial-gradient(ellipse 55vw 62vh at 12% 0%, rgba(var(--dash-glow-a-rgb), var(--dash-glow-a)), transparent 70%),
+    radial-gradient(ellipse 48vw 56vh at 92% 14%, rgba(var(--dash-glow-b-rgb), var(--dash-glow-b)), transparent 70%),
+    radial-gradient(ellipse 58vw 56vh at 55% 100%, rgba(var(--dash-glow-c-rgb), var(--dash-glow-c)), transparent 70%);
+}
+
+/* The site's App.css gives every `main section` auto side margins, which shrink-wraps
+   and centres a section that is a flex or grid item. The dashboards' sections
+   always fill their cell. */
+.root section {
+  max-width: none;
+  margin: 0;
+}
+
+/* The content column, centred: the dashboards have no site chrome (data/site.ts `chrome: false`). */
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: var(--dash-column);
+  margin-inline: auto;
+  padding: 0 var(--space-4);
+  box-sizing: border-box;
+}
+
+@media (min-width: 48rem) {
+  .inner {
+    padding-inline: var(--space-5);
+  }
+}
+
+/* The page's content area: the bar's sibling, a column, and a focus target. */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.content:focus {
+  outline: none;
+}
+
+/* A phone: the language and theme switches, at the end of the page. */
+.switches {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

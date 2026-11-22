@@ -1,0 +1,103 @@
+/* The next-event strip: one 56px row, no box, no border, no icon square. Desktop: tile, name, the event as
+   the page's one 20px line, the countdown, "then ...", Join at the right. A phone: two lines, the tile with
+   the name and Join, then the event and the countdown. */
+.strip {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, max-content) auto minmax(0, 1fr) auto;
+  grid-template-areas: 'tile name event left then join';
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--dash-h-strip);
+}
+
+.tile {
+  grid-area: tile;
+  display: flex;
+}
+
+/* global.css gives h1 a '# ' and spacing; the name is a quiet label, the event is the line that matters. */
+.strip .name {
+  grid-area: name;
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  line-height: var(--dash-lh-ui);
+}
+
+.strip .name::before,
+.strip .name::after {
+  content: none;
+}
+
+.event {
+  grid-area: event;
+  margin: 0 var(--space-2) 0 var(--space-2);
+  overflow: hidden;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.at {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  font-weight: 500;
+}
+
+.left {
+  grid-area: left;
+  margin: 0;
+  color: var(--dash-t2);
+  white-space: nowrap;
+}
+
+.then {
+  grid-area: then;
+  display: none;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thenAt {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+}
+
+.join {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+  grid-area: join;
+}
+
+@media (min-width: 64rem) {
+  .then {
+    display: block;
+    padding-left: var(--space-2);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .strip {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'tile name join'
+      'event event left';
+    row-gap: var(--space-1);
+    padding-block: var(--space-2);
+  }
+
+  .event {
+    margin: 0;
+    font-size: var(--dash-fs-title);
+    font-weight: 600;
+    line-height: var(--dash-lh-title);
+  }
+}
