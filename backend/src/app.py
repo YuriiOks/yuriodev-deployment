@@ -11,13 +11,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse
+from starlette.routing import Route
 
+from src.core.clock import Clock, utc_now
 from src.core.config import Settings, get_settings
 from src.core.errors import install_exception_handlers
 from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
+from src.dashboards.gate import MCP_PATH, DashboardsGate
+from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
+from src.dashboards.runtime import DashboardsRuntime
 from src.feed.service import FeedService
-from src.routes import health, posts
+from src.routes import dashboards, health, posts
 
 logger = logging.getLogger("yuriodev.app")
 
@@ -50,9 +55,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.exception("feed fixture failed to load", extra={"event": "feed.crash"})
         app.state.feed = feed
 
-        task: asyncio.Task[None] | None = None
+        tasks: list[asyncio.Task[None]] = []
         if feed.polls:
-            task = asyncio.create_task(feed.run_forever(), name="feed-refresh")
+            tasks.append(asyncio.create_task(feed.run_forever(), name="feed-refresh"))
+        tasks.extend(await _start_dashboards(app, settings, stack))
+        for task in tasks:
             task.add_done_callback(_log_task_exit)
         logger.info(
             "app started",
@@ -67,11 +74,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
-            if task is not None:
+            for task in tasks:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await task  # a task that died was already logged by _log_task_exit
             logger.info("app stopped", extra={"event": "app.stop"})
+
+
+async def _start_dashboards(
+    app: FastAPI, settings: Settings, stack: contextlib.AsyncExitStack
+) -> list[asyncio.Task[None]]:
+    """Set up the dashboards database seam when DATABASE_URL is set: the engine, the MCP session
+    manager and a background task that migrates the schema. Never waits on the database.
+
+    A URL the driver rejects is logged once (the class only: a message could hold the password)
+    and leaves the API answering 503 `dashboards_unavailable`."""
+    app.state.dashboards = None
+    if settings.database_url is None:
+        return []
+    try:
+        runtime = DashboardsRuntime(settings.database_url.get_secret_value())
+    except Exception as exc:
+        extra = {"event": "dashboards.misconfigured", "error": type(exc).__name__}
+        logger.error("dashboards database url rejected", extra=extra)
+        return []
+    stack.push_async_callback(runtime.close)
+    app.state.dashboards = runtime
+    # The SDK's session manager must run for the app's whole life; its tasks end with the stack.
+    await stack.enter_async_context(app.state.mcp.session_manager.run())
+    return [asyncio.create_task(runtime.migrate_until_ready(), name="dashboards-migrate")]
 
 
 def _log_task_exit(task: asyncio.Task[None]) -> None:
@@ -83,7 +114,7 @@ def _log_task_exit(task: asyncio.Task[None]) -> None:
         )
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, clock: Clock | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings)
 
@@ -98,7 +129,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.clock = clock or utc_now
+    app.state.dashboards = None  # the database seam, set by the lifespan
+    app.state.mcp = None
 
+    # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503
+    # still get a request id and an access line from RequestContextMiddleware.
+    app.add_middleware(DashboardsGate, settings=settings)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -113,9 +150,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(posts.router)
+    app.include_router(dashboards.router)
+    if settings.dashboards_enabled:
+        _add_mcp(app)
     if docs:
         _add_docs_route(app, settings.api_title)
     return app
+
+
+def _add_mcp(app: FastAPI) -> None:
+    """POST /api/mcp (only when the API is on; the gate answers 503 for it otherwise)."""
+
+    def runtime() -> DashboardsRuntime | None:
+        return cast(DashboardsRuntime | None, app.state.dashboards)
+
+    server = build_mcp_server(runtime, app.state.clock)
+    app.state.mcp = server
+    endpoint = McpEndpoint(server.session_manager, runtime)
+    app.router.routes.append(Route(MCP_PATH, endpoint, methods=["POST"]))
 
 
 def _add_docs_route(app: FastAPI, title: str) -> None:

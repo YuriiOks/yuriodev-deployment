@@ -4,6 +4,7 @@ from typing import cast
 
 from fastapi import Request
 
+from src.core.clock import Clock
 from src.core.config import Settings
 from src.feed.service import FeedService
 
@@ -16,3 +17,8 @@ def get_settings_dep(request: Request) -> Settings:
 def get_feed_service(request: Request) -> FeedService:
     """The feed built in the app lifespan. Route tests override this dependency."""
     return cast(FeedService, request.app.state.feed)
+
+
+def get_clock(request: Request) -> Clock:
+    """The app's clock (`create_app(clock=...)`), so tests can fix the time."""
+    return cast(Clock, request.app.state.clock)

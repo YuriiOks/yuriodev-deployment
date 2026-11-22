@@ -19,6 +19,20 @@ _CODES = {
 }
 
 
+class AppError(Exception):
+    """An error a feature raises on purpose: answered as {error, message, request_id}.
+
+    `code` is the stable machine code and `message` a short fixed sentence. Neither may carry
+    request input (titles, notes, tokens): they reach the client and the logs as written.
+    """
+
+    def __init__(self, status: int, code: str, message: str) -> None:
+        super().__init__(code)
+        self.status = status
+        self.code = code
+        self.message = message
+
+
 def error_response(
     status: int,
     code: str,
@@ -46,6 +60,11 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
     return error_response(http_exc.status_code, code, message, headers=http_exc.headers)
 
 
+async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    app_exc = cast(AppError, exc)  # registered for this type only
+    return error_response(app_exc.status, app_exc.code, app_exc.message)
+
+
 async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     # FastAPI's default body echoes the offending input back; this one never does.
     return error_response(422, "validation_error", "Invalid request")
@@ -54,3 +73,4 @@ async def validation_exception_handler(request: Request, exc: Exception) -> JSON
 def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(AppError, app_error_handler)

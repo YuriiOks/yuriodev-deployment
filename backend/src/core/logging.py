@@ -23,8 +23,10 @@ _RECORD_ATTRS = frozenset(vars(logging.makeLogRecord({}))) | {
     "color_message",
 }
 
-# Loggers that must stay quiet whatever LOG_LEVEL says (they log full URLs at DEBUG/INFO).
-_QUIET_LOGGERS = ("httpx", "httpcore")
+# Loggers that must stay quiet whatever LOG_LEVEL says: the HTTP clients log full URLs at
+# DEBUG/INFO, SQLAlchemy logs every statement with its parameters (task titles and notes), and
+# the MCP SDK narrates each request.
+_QUIET_LOGGERS = ("httpx", "httpcore", "sqlalchemy", "mcp")
 
 
 def get_request_id() -> str | None:
