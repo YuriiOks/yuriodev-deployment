@@ -5,6 +5,9 @@ import {
   dayOfMonth,
   daysInMonth,
   groupByDate,
+  isWeekend,
+  nearestWorkday,
+  stepDay,
   monthMatrix,
   monthOf,
   weekDates,
@@ -114,5 +117,62 @@ describe('groupByDate', () => {
     expect(groups.get('2026-11-23')?.map((x) => x.id)).toEqual(['a', 'c']);
     expect(groups.get('2026-11-24')?.map((x) => x.id)).toEqual(['b']);
     expect(groups.get('2026-11-25')).toBeUndefined();
+  });
+});
+
+describe('working days only', () => {
+  it('knows the weekend, and the Monday ahead of a weekend day', () => {
+    expect(isWeekend('2026-11-27')).toBe(false);
+    expect(isWeekend('2026-11-28')).toBe(true);
+    expect(isWeekend('2026-11-29')).toBe(true);
+    expect(nearestWorkday('2026-11-28')).toBe('2026-11-30');
+    expect(nearestWorkday('2026-11-29')).toBe('2026-11-30');
+    expect(nearestWorkday('2026-11-25')).toBe('2026-11-25');
+    expect(nearestWorkday('2026-12-26')).toBe('2026-12-28');
+  });
+
+  it('a week is five days, Monday to Friday', () => {
+    expect(weekDates('2026-11-29', true)).toEqual(['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27']);
+    expect(weekDates('2026-11-25')).toHaveLength(7);
+  });
+
+  it('the one-day view steps over the weekend, both ways, and by plain days otherwise', () => {
+    expect(stepDay('2026-11-27', 1, true)).toBe('2026-11-30');
+    expect(stepDay('2026-11-30', -1, true)).toBe('2026-11-27');
+    expect(stepDay('2026-11-25', 1, true)).toBe('2026-11-26');
+    expect(stepDay('2026-11-27', 1)).toBe('2026-11-28');
+    expect(stepDay('2026-11-30', -1)).toBe('2026-11-29');
+    expect(stepDay('2026-12-31', 1, true)).toBe('2027-01-01');
+  });
+
+  it('a month matrix has five columns, every week Monday to Friday', () => {
+    const matrix = monthMatrix(2026, 6, true);
+    expect(matrix.every((week) => week.length === 5)).toBe(true);
+    expect(matrix[0][0]).toEqual({ date: '2026-06-01', inMonth: true });
+    expect(matrix[4][1]).toEqual({ date: '2026-06-30', inMonth: true });
+    expect(matrix[4].map((day) => day.inMonth)).toEqual([true, true, false, false, false]);
+  });
+
+  it('a month starting on a Sunday loses the week that holds only its first day (November 2026)', () => {
+    const matrix = monthMatrix(2026, 11, true);
+    expect(matrix).toHaveLength(5);
+    expect(matrix[0][0]).toEqual({ date: '2026-11-02', inMonth: true });
+    expect(matrix[4].map((day) => day.date)).toEqual(['2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04']);
+    // Seven columns keep that week.
+    expect(monthMatrix(2026, 11)).toHaveLength(6);
+  });
+
+  it('a month starting on a Saturday (August 2026) starts with its first working week, and ends on the last', () => {
+    const matrix = monthMatrix(2026, 8, true);
+    expect(matrix[0][0]).toEqual({ date: '2026-08-03', inMonth: true });
+    expect(matrix.at(-1)![0]).toEqual({ date: '2026-08-31', inMonth: true });
+    expect(monthMatrix(2026, 8)).toHaveLength(6);
+    expect(matrix).toHaveLength(5);
+  });
+
+  it('a month that ends on a Sunday loses its trailing weekend week (May 2026 ends on a Sunday: the 31st)', () => {
+    const matrix = monthMatrix(2026, 5, true);
+    expect(matrix.at(-1)![0]).toEqual({ date: '2026-05-25', inMonth: true });
+    expect(matrix.flat().every((day) => day.date <= '2026-05-31')).toBe(true);
   });
 });

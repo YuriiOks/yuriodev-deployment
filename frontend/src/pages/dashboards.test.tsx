@@ -5,6 +5,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
 import { NAV_PAGES, PAGES, pagePath } from '../data/site';
 import { maxWidth } from '../constants/breakpoints';
+import { WORKDAYS_STORAGE_KEY } from '../services/dashboards/preferences';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
 
@@ -576,5 +577,116 @@ describe('the calendar on a phone', () => {
     await user.click(within(main()).getByRole('button', { name: 'Месяц' }));
     await user.click(within(main()).getByRole('button', { name: /^3 ноября/ }));
     expect(within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Вт 3']);
+  });
+});
+
+describe('the calendar: working days only', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+  });
+
+  const toggle = () => within(main()).getByRole('switch', { name: 'Показывать только рабочие дни' });
+  const headers = () => within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent);
+
+  it('is off to begin with: seven days, no note', () => {
+    renderAt('/dashboards/calendar');
+    expect(toggle()).toHaveAttribute('aria-checked', 'false');
+    expect(headers()).toHaveLength(7);
+    expect(within(main()).queryByRole('status')).toBeNull();
+  });
+
+  it('on: the week is Monday to Friday, and a note says how many weekend events are hidden', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(toggle());
+    expect(toggle()).toHaveAttribute('aria-checked', 'true');
+    expect(headers()).toEqual(['Пн 23', 'Вт 24', 'Ср 25', 'Чт 26', 'Пт 27']);
+    expect(within(main()).getByRole('status')).toHaveTextContent('Скрыто событий в выходные: 1.');
+    // The count of conflicts is of what is shown: the same five blocks (all on weekdays).
+    expect(within(main()).getByText('Конфликты: 5')).toBeInTheDocument();
+    expect(localStorage.getItem(WORKDAYS_STORAGE_KEY)).toBe('true');
+  });
+
+  it("the note's button turns the option off and brings the weekend back", async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(toggle());
+    await user.click(within(main()).getByRole('button', { name: 'Показать выходные' }));
+    expect(toggle()).toHaveAttribute('aria-checked', 'false');
+    expect(headers()).toHaveLength(7);
+    expect(within(main()).queryByRole('status')).toBeNull();
+    expect(localStorage.getItem(WORKDAYS_STORAGE_KEY)).toBe('false');
+  });
+
+  it('the choice survives a remount (a reload or a navigation)', async () => {
+    const user = userEvent.setup();
+    const first = renderAt('/dashboards/calendar');
+    await user.click(toggle());
+    first.unmount();
+    renderAt('/dashboards/calendar');
+    expect(toggle()).toHaveAttribute('aria-checked', 'true');
+    expect(headers()).toHaveLength(5);
+  });
+
+  it('the month has five columns, Monday to Friday, and counts the hidden weekend events of the month', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(toggle());
+    await user.click(within(main()).getByRole('button', { name: 'Месяц' }));
+    const region = within(within(main()).getByRole('region', { name: /^(Месяц, события|Month, events)/ }));
+    expect(region.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Пн', 'Вт', 'Ср', 'Чт', 'Пт']);
+    // November 2026 starts on a Sunday: five working weeks, five days each.
+    expect(region.getAllByRole('button')).toHaveLength(25);
+    // The Nov 14 trip and the Nov 28 dinner are on weekends.
+    expect(within(main()).getByRole('status')).toHaveTextContent('Скрыто событий в выходные: 2.');
+  });
+
+  it('in English the switch and the note speak English', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(within(main()).getByRole('button', { name: 'EN' }));
+    await user.click(within(main()).getByRole('switch', { name: 'Show working days only' }));
+    expect(within(main()).getByRole('status')).toHaveTextContent('Weekend events hidden: 1.');
+    expect(within(main()).getByRole('button', { name: 'Show weekends' })).toBeInTheDocument();
+  });
+});
+
+describe('the calendar on a phone: working days only', () => {
+  const original = window.matchMedia;
+
+  beforeEach(() => {
+    sessionStorage.setItem('appLoaded', 'true');
+    localStorage.clear();
+    resetStorageFallback();
+    window.matchMedia = vi.fn((query: string) => ({
+      matches: query === maxWidth('md'),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+
+  it('stepping over the weekend: Friday goes to Monday and Monday back to Friday', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards/calendar');
+    await user.click(within(main()).getByRole('switch', { name: 'Показывать только рабочие дни' }));
+    const header = () => within(within(main()).getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent);
+    expect(header()).toEqual(['Пн 23']);
+    for (let i = 0; i < 4; i++) await user.click(within(main()).getByRole('button', { name: 'Следующий день' }));
+    expect(header()).toEqual(['Пт 27']);
+    await user.click(within(main()).getByRole('button', { name: 'Следующий день' }));
+    expect(header()).toEqual(['Пн 30']);
+    await user.click(within(main()).getByRole('button', { name: 'Предыдущий день' }));
+    expect(header()).toEqual(['Пт 27']);
   });
 });

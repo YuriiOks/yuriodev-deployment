@@ -157,3 +157,16 @@ export function collapseColumns<T extends TimeSpan>(placed: readonly Placement<T
   flush();
   return { placements, stacks };
 }
+
+export interface HiddenSummary {
+  /** How many events are on the hidden days. */
+  readonly count: number;
+  /** Whether two of them, of different spaces, overlap. */
+  readonly conflict: boolean;
+}
+
+/** What a filtered-out set of days holds: how many events, and whether any of them conflict. */
+export function summarizeHidden(events: readonly (DatedEvent & { readonly date: string })[], hiddenDates: ReadonlySet<string>): HiddenSummary {
+  const hidden = events.filter((event) => hiddenDates.has(event.date));
+  return { count: hidden.length, conflict: findConflicts(hidden).count > 0 };
+}
