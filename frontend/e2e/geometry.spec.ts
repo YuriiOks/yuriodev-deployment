@@ -6,7 +6,7 @@ import { test, expect, open, settle, navSurfaces, railWidth, scrollToSection, SE
  * at each of the reference sizes (one Playwright project per size).
  */
 
-/** The private dashboards: no section rail at any width (data/site.ts `rail: false`); the header's menu is their navigation. */
+/** The private dashboards: no site chrome at all (data/site.ts `chrome: false`); their own bar is the navigation. */
 const DASHBOARD_ROUTES = [
   '/dashboards',
   '/dashboards/personal',
@@ -312,14 +312,15 @@ test.describe('section rail clearance', () => {
   }
 });
 
-// The dashboards use the full width, so they have no rail to keep clear of
-// their content: at every width the header's menu button is the one
-// navigation surface ("never both, never neither" still holds).
-test.describe('dashboards: no section rail', () => {
+// The dashboards are a self-contained surface (data/site.ts `chrome: false`):
+// none of the site's header, footer, rail, canvas or scroll-to-top button, at
+// any width; their own bar is the only navigation.
+test.describe('dashboards: no site chrome', () => {
   for (const path of DASHBOARD_ROUTES) {
-    test(`${path} has no rail at any width, and the header menu instead`, async ({ page }, testInfo) => {
+    test(`${path} has no site header, footer, rail, canvas or scroll-to-top, at any width`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
       for (const { width, height } of [
+        { width: 390, height: 800 },
         { width: 1024, height: 900 },
         { width: 1408, height: 1000 },
         { width: 1920, height: 1000 },
@@ -327,12 +328,14 @@ test.describe('dashboards: no section rail', () => {
       ]) {
         await page.setViewportSize({ width, height });
         await open(page, path);
-        const { sidebar, menuButton } = await navSurfaces(page);
-        expect(sidebar, `${path} ${width}x${height}: no rail`).toBe(false);
-        await expect(page.locator('#sectionRail'), `${path} ${width}x${height}: no rail in the DOM`).toHaveCount(0);
-        expect(menuButton, `${path} ${width}x${height}: the header menu is the surface`).toBe(true);
+        const label = `${path} ${width}x${height}`;
+        await expect(page.locator('body > header, #root > header, header[class*="header"]'), `${label}: no site header`).toHaveCount(0);
+        await expect(page.getByRole('contentinfo'), `${label}: no site footer`).toHaveCount(0);
+        await expect(page.locator('#sectionRail'), `${label}: no rail`).toHaveCount(0);
+        await expect(page.locator('canvas'), `${label}: no dot canvas`).toHaveCount(0);
+        await expect(page.locator('[data-opens="menu"]'), `${label}: no site menu button`).toHaveCount(0);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-        expect(overflow, `${path} ${width}x${height}: no horizontal overflow`).toBeLessThanOrEqual(0);
+        expect(overflow, `${label}: no horizontal overflow`).toBeLessThanOrEqual(0);
       }
     });
   }
@@ -342,8 +345,7 @@ test.describe('dashboards: no section rail', () => {
     await page.setViewportSize({ width: 1920, height: 1000 });
     await open(page, '/dashboards/calendar');
     const width = await page.evaluate(() => {
-      const main = document.querySelector('main');
-      const content = main?.querySelector('[lang] > div');
+      const content = document.querySelector('main [lang] > div');
       return content ? Math.round(content.getBoundingClientRect().width) : 0;
     });
     // The site's column caps at 72rem (1152px); the dashboards cap at 96rem (1536px).

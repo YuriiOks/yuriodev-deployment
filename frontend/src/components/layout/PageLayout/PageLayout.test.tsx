@@ -228,7 +228,7 @@ describe('PageLayout keyboard shortcuts', () => {
   });
 });
 
-describe('PageLayout canvas', () => {
+describe('PageLayout on a page with no site chrome (the dashboards)', () => {
   const renderAt = (path: string) =>
     render(
       <ThemeProvider>
@@ -240,13 +240,44 @@ describe('PageLayout canvas', () => {
       </ThemeProvider>,
     );
 
-  it('draws the animated dot canvas behind the site pages', () => {
+  it('a site page has the full frame: header, footer, canvas, main', () => {
     renderAt('/privacy');
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     expect(document.querySelector('canvas')).not.toBeNull();
+    expect(screen.getByRole('main')).toBeInTheDocument();
   });
 
-  it.each(['/dashboards', '/dashboards/work-1', '/dashboards/calendar'])('draws none behind %s, which has its own glows', (path) => {
-    renderAt(path);
-    expect(document.querySelector('canvas')).toBeNull();
+  it.each(['/dashboards', '/dashboards/personal', '/dashboards/work-1', '/dashboards/work-2', '/dashboards/calendar'])(
+    '%s has only the skip link and main: no header, footer, canvas, rail, scroll-to-top or overlays',
+    (path) => {
+      renderAt(path);
+      expect(screen.queryByRole('banner')).toBeNull();
+      expect(screen.queryByRole('contentinfo')).toBeNull();
+      expect(document.querySelector('canvas')).toBeNull();
+      expect(document.querySelector('header')).toBeNull();
+      expect(document.getElementById('sectionRail')).toBeNull();
+      expect(screen.queryByLabelText('Scroll to top')).toBeNull();
+      expect(document.querySelector('dialog')).toBeNull();
+      expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
+      const skip = screen.getByRole('link', { name: 'Skip to main content' });
+      expect(skip).toHaveAttribute('href', '#main-content');
+    },
+  );
+
+  it('the skip link on a chrome-less page moves focus to main', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards');
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('the site shortcuts do nothing there: Ctrl+K opens no palette', async () => {
+    const user = userEvent.setup();
+    renderAt('/dashboards');
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('combobox', { name: 'Search commands' })).toBeNull();
   });
 });

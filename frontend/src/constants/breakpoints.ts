@@ -12,7 +12,7 @@ export const BREAKPOINTS = {
   lg: 64,
   /** 1280px: desktop; the footer lays out in one row. */
   xl: 80,
-  /** 1408px: the section rail replaces the header's menu, width permitting, on the pages that have a rail (see useRailViable). */
+  /** 1408px: the section rail replaces the header's menu, width permitting (see useRailViable). */
   sidebar: 88,
   /** 1440px: was the reference screen where the root font started to grow with it; the root no longer scales. */
   fluid: 90,
@@ -21,6 +21,9 @@ export const BREAKPOINTS = {
 } as const;
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
+
+/** Media query that matches below `bp`, e.g. '(max-width: 47.99rem)' for md. */
+export const maxWidth = (bp: Breakpoint): string => `(max-width: ${(BREAKPOINTS[bp] - 0.01).toFixed(2)}rem)`;
 
 /** Media query that matches from `bp` up, e.g. '(min-width: 88rem)'. */
 export const minWidth = (bp: Breakpoint): string => `(min-width: ${BREAKPOINTS[bp]}rem)`;

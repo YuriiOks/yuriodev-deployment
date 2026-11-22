@@ -1,43 +1,49 @@
-/* The bar: dashboards glass (recipes.module.css). Every link is at least 44px high. */
+/* The bar: dashboards glass (recipes.module.css). One row on a tablet and up:
+   brand, the pages, the switches. Below 64rem the brand and the switches share
+   the first row and the pages are one scrollable row under them, so the bar
+   never wraps into ragged lines. */
 .bar {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-areas: 'brand tools' 'nav nav';
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   border-radius: var(--dash-r-panel);
 }
 
-.where {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-}
-
-.home {
+.brand {
+  grid-area: brand;
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
   color: var(--dash-accent);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
   text-decoration: none;
 }
 
-.segment {
-  color: var(--dash-title);
+.nav {
+  grid-area: nav;
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-bottom: 0.125rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
-.nav {
+.tools {
+  grid-area: tools;
   display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
 }
 
 .link {
   display: inline-flex;
+  flex: none;
   align-items: center;
   min-height: 2.75rem;
   padding: 0 var(--space-4);
@@ -47,6 +53,7 @@
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   text-decoration: none;
+  white-space: nowrap;
   transition:
     background-color var(--dur-2) var(--ease-std),
     border-color var(--dur-2) var(--ease-std);
@@ -63,6 +70,17 @@
   .link:hover {
     border-color: var(--dash-edge);
     color: var(--dash-t1);
+  }
+}
+
+@media (min-width: 64rem) {
+  .bar {
+    grid-template-areas: 'brand nav tools';
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .nav {
+    padding-bottom: 0;
   }
 }
 

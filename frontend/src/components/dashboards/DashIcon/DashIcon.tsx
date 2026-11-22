@@ -36,6 +36,8 @@ const PATHS: Record<IconName, string> = {
   alert: 'M12 3l10 18H2z M12 10v5 M12 18v0.5',
   prev: 'M15 6l-6 6 6 6',
   next: 'M9 6l6 6-6 6',
+  sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
 };
 
 export interface DashIconProps {

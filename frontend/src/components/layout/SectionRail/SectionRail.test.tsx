@@ -111,12 +111,6 @@ describe('SectionRail', () => {
     expect(rail()).toBeNull();
   });
 
-  it('is not rendered on a dashboards page, however wide and tall the window', () => {
-    renderRail('/dashboards/calendar');
-    expect(rail()).toBeNull();
-    expect(document.getElementById('sectionRail')).toBeNull();
-  });
-
   it('lists every section as a link with a name, in page order', () => {
     renderRail();
     const links = within(rail()!).getAllByRole('link', { hidden: true });

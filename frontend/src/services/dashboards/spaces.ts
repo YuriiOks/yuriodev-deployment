@@ -6,7 +6,7 @@ export const SPACES: readonly SpaceId[] = ['personal', 'work-1', 'work-2'];
 
 /** The visible name of each space, in both languages (read through the language context's `text()`). */
 export const SPACE_NAME: Record<SpaceId, Localized> = {
-  personal: { ru: 'Personal', en: 'Personal' },
+  personal: { ru: 'Личное', en: 'Personal' },
   'work-1': { ru: 'Работа 1', en: 'Work 1' },
   'work-2': { ru: 'Работа 2', en: 'Work 2' },
 };
@@ -48,18 +48,4 @@ export const TAB_TONE: Record<TabId, DashTone> = {
   meetings: 'accent',
   jira: 'blue',
   teams: 'violet',
-};
-
-/** Where a tool's own page is; tabs that are not an outside tool have none. */
-export const TOOL_HREF: Partial<Record<TabId, string>> = {
-  github: 'https://github.com',
-  linear: 'https://linear.app',
-  slack: 'https://slack.com',
-  notion: 'https://www.notion.so',
-  posthog: 'https://posthog.com',
-  grafana: 'https://grafana.com',
-  jira: 'https://www.atlassian.com/software/jira',
-  teams: 'https://www.microsoft.com/microsoft-teams',
-  telegram: 'https://telegram.org',
-  mail: 'https://mail.google.com',
 };

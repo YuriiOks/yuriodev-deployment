@@ -9,12 +9,6 @@ test.describe('routes', () => {
     { path: '/dashboard', heading: /dashboard/i, title: new RegExp(`\\| ${NAME}$`) },
     { path: '/community', heading: /community/i, title: new RegExp(`\\| ${NAME}$`) },
     { path: '/privacy', heading: 'Privacy notice', title: `Privacy | ${NAME}` },
-    // The private dashboards (Russian by default).
-    { path: '/dashboards', heading: /дашборды/i, title: `Dashboards | ${NAME}` },
-    { path: '/dashboards/personal', heading: 'Personal', title: `Personal dashboard | ${NAME}` },
-    { path: '/dashboards/work-1', heading: /работа 1/i, title: `Work 1 dashboard | ${NAME}` },
-    { path: '/dashboards/work-2', heading: /работа 2/i, title: `Work 2 dashboard | ${NAME}` },
-    { path: '/dashboards/calendar', heading: /календарь/i, title: `Dashboards calendar | ${NAME}` },
     { path: '/no-such-page', heading: '404: page not found', title: `Page not found | ${NAME}` },
   ];
 
@@ -39,6 +33,42 @@ test.describe('routes', () => {
     await page.getByRole('link', { name: /back to the home page/ }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
+  });
+});
+
+// The private dashboards (Russian by default): a self-contained surface with
+// their own bar, so none of the site's header or footer.
+test.describe('dashboards routes', () => {
+  const routes = [
+    { path: '/dashboards', heading: /дашборды/i, title: `Дашборды | ${NAME}` },
+    { path: '/dashboards/personal', heading: 'Личное', title: `Личное | ${NAME}` },
+    { path: '/dashboards/work-1', heading: /работа 1/i, title: `Работа 1 | ${NAME}` },
+    { path: '/dashboards/work-2', heading: /работа 2/i, title: `Работа 2 | ${NAME}` },
+    { path: '/dashboards/calendar', heading: /календарь/i, title: `Календарь | ${NAME}` },
+  ];
+
+  for (const { path, heading, title } of routes) {
+    test(`${path} renders its page with its own bar`, async ({ page }) => {
+      await open(page, path);
+      await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+      await expect(page).toHaveTitle(title);
+      await expect(page.getByRole('navigation', { name: 'Дашборды' })).toBeVisible();
+      await expect(page.getByRole('banner')).toHaveCount(0);
+      await expect(page.getByRole('contentinfo')).toHaveCount(0);
+    });
+  }
+
+  test("the bar's theme toggle drives the site's theme and keeps it across a reload", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await open(page, '/dashboards');
+    const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+    await page.getByRole('button', { name: 'Включить светлую тему' }).click();
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    expect(await page.evaluate(() => localStorage.getItem('theme-choice'))).toBe('light');
+    await page.reload();
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    await expect(page.getByRole('button', { name: 'Включить тёмную тему' })).toBeVisible();
   });
 });
 

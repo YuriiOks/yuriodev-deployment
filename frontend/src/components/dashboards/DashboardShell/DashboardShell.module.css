@@ -6,7 +6,7 @@
    a solid colour, so text contrast is measured on the solid, and
    contrast.test.ts also holds the text over the glow peaks. */
 .root {
-  min-height: calc(100vh - var(--header-h));
+  min-height: 100vh;
   padding: var(--space-4) var(--space-4) var(--space-7);
   background-color: var(--dash-bg);
   background-image:
@@ -18,8 +18,16 @@
   font-family: var(--font-mono);
 }
 
-/* Centred, up to 96rem: the dashboards have no section rail (data/site.ts
-   `rail: false`), so they are not held to the site's narrow content column
+/* The site's App.css gives every `main section` auto side margins, which shrink-wraps
+   and centres a section that is a flex or grid item. The dashboards' sections
+   (hero, panels, cards) always fill their cell. */
+.root section {
+  max-width: none;
+  margin: 0;
+}
+
+/* Centred, up to 96rem: the dashboards have no site chrome (data/site.ts
+   `chrome: false`), so they are not held to the site's narrow content column
    and the calendar gets room for overlapping events. */
 .inner {
   display: flex;

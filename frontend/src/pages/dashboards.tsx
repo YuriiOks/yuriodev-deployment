@@ -3,14 +3,13 @@ import DashboardHeading from '../components/dashboards/DashboardHeading/Dashboar
 import SpaceCard from '../components/dashboards/SpaceCard/SpaceCard';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSpaces } from '../hooks/useDashboards';
-import { pageLabel } from '../data/site';
 import { summarize } from '../services/dashboards/summary';
 import styles from './dashboards.module.css';
 
 /** /dashboards: the entrance. Three cards with counters and what is next; no task is ever shown here. */
 const Dashboards = () => {
-  usePageTitle(pageLabel('dashboards'));
   const { t } = useDashboardLang();
+  usePageTitle(t.titles.hub);
   const spaces = useSpaces();
 
   return (
