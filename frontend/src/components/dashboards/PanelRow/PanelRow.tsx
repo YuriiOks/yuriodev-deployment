@@ -77,9 +77,8 @@ const PanelRow: React.FC<PanelRowProps> = ({ row, done, onToggle, tinted = false
       {row.action && href && (
         <a href={href} target="_blank" rel="noopener noreferrer" className={styles.action}>
           <DashIcon name={row.action.tool} size={16} tone={TAB_TONE[row.action.tool]} strokeWidth={1.9} />
-          <span>{t.actions[row.action.verb]}</span>
+          <span>{t.actions[row.action.verb]}</span>{' '}
           <span className="sr-only">
-            {' '}
             · {t.tabs[row.action.tool]} ({t.opensInNewTab})
           </span>
         </a>
