@@ -1,0 +1,28 @@
+/* The same surface as a panel, with chip-coloured bars where the title and the rows will be. */
+.block {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+}
+
+.head,
+.row {
+  display: block;
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-tag);
+}
+
+.head {
+  width: 8rem;
+  height: 1rem;
+  margin-bottom: var(--space-2);
+}
+
+.row {
+  height: 1.5rem;
+  margin-block: var(--space-1);
+}

@@ -1,0 +1,25 @@
+/* The row is PanelRow's (its classes are used as they are); this adds the button's grid slot and the full-width
+   lines under it (the error and the editor). A row being edited has no hover plate: the editor is its own surface. */
+.row {
+  align-items: center;
+}
+
+.edit {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  grid-area: action;
+}
+
+.full {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-bottom: var(--space-2);
+}
+
+li[data-editing="true"]:hover {
+  background: transparent;
+}
+
+li[data-editing="true"]:hover::before,
+li[data-editing="true"]:hover + li::before {
+  visibility: visible;
+}

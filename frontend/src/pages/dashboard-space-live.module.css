@@ -1,0 +1,88 @@
+/* What the live space page adds to the sample one (dashboard-space.module.css): the state blocks, the area filter
+   and the Done disclosure. */
+.state {
+  composes: glassDash from '../assets/styles/recipes.module.css';
+  padding: var(--space-4);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+}
+
+/* The area filter: a panel of plain rows, each a button (name, open count); the chosen one is pressed. */
+.filter {
+  composes: glassDash from '../assets/styles/recipes.module.css';
+  padding: 0 0 var(--space-2);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+}
+
+/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
+.filter .filterHead {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 600;
+  line-height: var(--dash-lh-title);
+}
+
+.filter .filterHead::before,
+.filter .filterHead::after {
+  content: none;
+}
+
+.areas {
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+.area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--dash-h-row);
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.area[aria-pressed="true"] {
+  background: var(--dash-chip);
+  font-weight: 500;
+}
+
+@media (hover: hover) {
+  .area:hover {
+    background: var(--dash-chip);
+  }
+}
+
+.areaCount {
+  composes: dashNum from '../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.areaCount[data-zero="true"] {
+  color: var(--dash-t3);
+}
+
+/* The Done disclosure: a ghost button that opens one more panel under the lists. */
+.doneToggle {
+  composes: button buttonGhost from '../assets/styles/dashboard-controls.module.css';
+  align-self: flex-start;
+}
+
+.done {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

@@ -1,0 +1,71 @@
+/* The editor sits inside its row, under it, on the same surface: no second container level, no border. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) 0 var(--space-3);
+  cursor: default;
+}
+
+.field {
+  composes: field from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.label {
+  composes: label from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.input {
+  composes: input from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.textarea {
+  composes: textarea from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.select {
+  composes: select from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.check {
+  composes: check from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.actions {
+  composes: actions from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.dueRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clear {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  flex: none;
+}
+
+.save {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.cancel {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+/* Delete is a ghost button at the end; it turns to danger text once it asks to be confirmed. */
+.remove {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  margin-left: auto;
+}
+
+.remove[data-confirming="true"] {
+  color: var(--dash-danger);
+}

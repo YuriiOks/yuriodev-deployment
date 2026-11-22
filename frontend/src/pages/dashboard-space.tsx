@@ -1,5 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
+import { useDashboardMode } from '../hooks/useDashboardMode';
+import LiveSpace from './dashboard-space-live';
 import Panel from '../components/dashboards/Panel/Panel';
 import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
 import SourceTabs from '../components/dashboards/SourceTabs/SourceTabs';
@@ -20,9 +22,8 @@ interface DashboardSpaceProps {
  * selected tab's panels (the first is the main list, the rest sit beside it),
  * then the sources' freshness. Ticking a task is kept here, in memory, for now.
  */
-const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
+const SampleSpace = ({ space: id }: DashboardSpaceProps) => {
   const { t, text } = useDashboardLang();
-  usePageTitle(t.titles[id]);
   const space = useSpace(id);
   const [selected, setSelected] = useState<TabId>('overview');
   const [done, setDone] = useState<Readonly<Record<string, boolean>>>({});
@@ -42,7 +43,7 @@ const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
   return (
     <>
       <div className={styles.top}>
-        <SpaceHero space={space} />
+        <SpaceHero space={space.id} hero={space.hero} />
         <SourceTabs tabs={space.tabs} current={current} counts={counts} onSelect={setSelected} idPrefix={id} />
       </div>
       <QuickAdd placeholder={text(space.quickAddPlaceholder)} />
@@ -63,6 +64,14 @@ const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
       </p>
     </>
   );
+};
+
+/** A space page: on the API's data when the bootstrap says so, otherwise on the bundled sample data. */
+const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
+  const { t } = useDashboardLang();
+  usePageTitle(t.titles[id]);
+  const { mode, areas } = useDashboardMode();
+  return mode === 'live' ? <LiveSpace key={id} space={id} areas={areas} /> : <SampleSpace key={id} space={id} />;
 };
 
 export default DashboardSpace;
