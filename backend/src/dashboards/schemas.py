@@ -101,6 +101,7 @@ class TaskOut(BaseModel):
     status: TaskStatus
     done_at: datetime | None
     source: Source
+    url: str | None
     created_at: datetime
     updated_at: datetime
 

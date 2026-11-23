@@ -14,13 +14,20 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 
 from sqlalchemy import case, false, func, or_, select
-from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
-from src.dashboards.catalog import MAX_RANGE_DAYS, SPACE_IDS, TaskStatus, TaskStatusFilter
-from src.dashboards.models import Area, Event, Space, Task
+from src.dashboards.catalog import (
+    COLLECTED_SOURCES,
+    MAX_RANGE_DAYS,
+    SPACE_IDS,
+    TaskStatus,
+    TaskStatusFilter,
+)
+from src.dashboards.collectors.base import fingerprint
+from src.dashboards.models import Area, CollectedTombstone, Event, Space, Task
 from src.dashboards.runtime import unavailable
 from src.dashboards.schemas import (
     EventCreate,
@@ -180,6 +187,7 @@ async def create_task(
         done_at=None,
         source=source,
         source_ref=None,
+        url=None,
         created_at=now,
         updated_at=now,
     )
@@ -229,6 +237,19 @@ async def delete_task(session: AsyncSession, task_id: str) -> None:
     task = await session.get(Task, _parse_id(task_id, "Task"))
     if task is None:
         raise _not_found("Task")
+    if task.source in COLLECTED_SOURCES and task.source_ref is not None:
+        # A collector owns this row: remember the deletion, so the next sync does not recreate
+        # it while the external item is unchanged (collectors/sync.py compares fingerprints).
+        stone = insert(CollectedTombstone).values(
+            source=task.source,
+            source_ref=task.source_ref,
+            fingerprint=fingerprint(task.title, task.url),
+        )
+        upsert = stone.on_conflict_do_update(
+            index_elements=["source", "source_ref"],
+            set_={"fingerprint": stone.excluded.fingerprint, "deleted_at": func.now()},
+        )
+        await session.execute(upsert)
     await session.delete(task)
     await session.commit()
 

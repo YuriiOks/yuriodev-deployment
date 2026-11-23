@@ -94,12 +94,51 @@ async def get_json_capped(
     deadline: float = TOTAL_DEADLINE_SECONDS,
 ) -> tuple[Any, httpx.Headers]:
     """GET `url` and parse a JSON body of at most `max_bytes`; raise UpstreamError otherwise."""
+    return await request_json_capped(
+        client, "GET", url, headers=headers, params=params, max_bytes=max_bytes, deadline=deadline
+    )
+
+
+async def post_json_capped(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    headers: Mapping[str, str],
+    json_body: Any,
+    max_bytes: int = MAX_BODY_BYTES,
+    deadline: float = TOTAL_DEADLINE_SECONDS,
+) -> tuple[Any, httpx.Headers]:
+    """POST a JSON body to `url`; the answer is read exactly as `get_json_capped` reads it."""
+    return await request_json_capped(
+        client,
+        "POST",
+        url,
+        headers=headers,
+        json_body=json_body,
+        max_bytes=max_bytes,
+        deadline=deadline,
+    )
+
+
+async def request_json_capped(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    *,
+    headers: Mapping[str, str],
+    params: Mapping[str, str | int] | None = None,
+    json_body: Any = None,
+    max_bytes: int = MAX_BODY_BYTES,
+    deadline: float = TOTAL_DEADLINE_SECONDS,
+) -> tuple[Any, httpx.Headers]:
+    """Send the request and parse a 200 JSON body of at most `max_bytes`; raise UpstreamError
+    otherwise."""
     kind: str
     status: int | None
     try:
         async with (
             asyncio.timeout(deadline),
-            client.stream("GET", url, headers=headers, params=params) as response,
+            client.stream(method, url, headers=headers, params=params, json=json_body) as response,
         ):
             if response.status_code != 200:
                 raise UpstreamError(

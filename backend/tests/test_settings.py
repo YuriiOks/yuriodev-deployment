@@ -221,3 +221,63 @@ def test_the_dashboards_time_zone_must_be_an_iana_name(clean_env):
         clean_env.setenv("DASHBOARDS_TIMEZONE", bad)
         with pytest.raises(ValidationError):
             fresh()
+
+
+def test_collectors_are_off_by_default(clean_env):
+    settings = fresh()
+
+    assert settings.github_token is None
+    assert settings.linear_api_key is None
+    assert settings.github_space == "work-1"
+    assert settings.linear_space == "work-1"
+    assert settings.github_search_scope == ""
+    assert settings.dashboards_collect_interval_seconds == 300
+    assert settings.collectors_enabled is False
+
+
+def test_collectors_need_the_database_and_a_credential(clean_env):
+    clean_env.setenv("GITHUB_TOKEN", "gh-value")
+    assert fresh().collectors_enabled is False  # no DATABASE_URL
+
+    clean_env.setenv("DATABASE_URL", "postgresql://u:p@h/d")
+    assert fresh().collectors_enabled is True
+
+    clean_env.delenv("GITHUB_TOKEN")
+    assert fresh().collectors_enabled is False
+    clean_env.setenv("LINEAR_API_KEY", " lin-value \n")
+    settings = fresh()
+    assert settings.collectors_enabled is True
+    assert settings.linear_api_key.get_secret_value() == "lin-value"
+    assert "lin-value" not in repr(settings)
+
+
+def test_collector_spaces_never_include_work_2(clean_env):
+    for name in ("GITHUB_SPACE", "LINEAR_SPACE"):
+        for bad in ("work-2", "elsewhere"):
+            clean_env.setenv(name, bad)
+            with pytest.raises(ValidationError):
+                fresh()
+        clean_env.setenv(name, " Personal ")
+        settings = fresh()
+        assert getattr(settings, name.lower()) == "personal"
+        clean_env.delenv(name)
+
+
+def test_the_collect_interval_is_bounded(clean_env):
+    clean_env.setenv("DASHBOARDS_COLLECT_INTERVAL_SECONDS", "30")
+    assert fresh().dashboards_collect_interval_seconds == 30
+
+    for bad in ("29", "86401", "soon"):
+        clean_env.setenv("DASHBOARDS_COLLECT_INTERVAL_SECONDS", bad)
+        with pytest.raises(ValidationError):
+            fresh()
+
+
+def test_the_github_scope_is_a_short_printable_qualifier(clean_env):
+    clean_env.setenv("GITHUB_SEARCH_SCOPE", "  org:example-org   repo:example-org/x ")
+    assert fresh().github_search_scope == "org:example-org repo:example-org/x"
+
+    for bad in ("x" * 201, "bell\x07"):
+        clean_env.setenv("GITHUB_SEARCH_SCOPE", bad)
+        with pytest.raises(ValidationError):
+            fresh()

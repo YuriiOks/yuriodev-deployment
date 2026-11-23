@@ -19,6 +19,10 @@ from tests.dashboards_support import (
 pytestmark = pytest.mark.anyio
 
 TABLES = ("space", "area", "task", "event")
+WITH_SOURCE = (
+    "INSERT INTO task (id, space_id, title, source) "
+    "VALUES (gen_random_uuid(), 'personal', 'x', 'SOURCE')"
+)
 NEW_TASK = "INSERT INTO task (id, space_id, title) VALUES (gen_random_uuid(), 'personal', 'x')"
 
 
@@ -51,7 +55,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0001"
+    assert version == "dashboards_0002"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -100,3 +104,37 @@ async def test_the_app_migrates_an_empty_database_by_itself(empty_db_url, make_d
 
     assert response.status_code == 200
     assert len(response.json()["areas"]) == 10
+
+
+async def test_the_collected_task_columns_and_tombstone_table_exist(empty_db_url):
+    await migrate(empty_db_url)
+
+    tombstones = await scalar(
+        empty_db_url,
+        "SELECT count(*) FROM information_schema.columns "
+        "WHERE table_name = 'task_tombstone' AND column_name IN "
+        "('source', 'source_ref', 'fingerprint', 'deleted_at')",
+    )
+    link = await scalar(
+        empty_db_url,
+        "SELECT count(*) FROM information_schema.columns "
+        "WHERE table_name = 'task' AND column_name = 'url'",
+    )
+    unique = await scalar(
+        empty_db_url,
+        "SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_task_source_source_ref'",
+    )
+
+    assert tombstones == 4
+    assert link == 1
+    assert "UNIQUE" in unique
+    assert "source_ref IS NOT NULL" in unique
+
+
+async def test_collectors_may_write_their_own_sources_and_nobody_else_is_invented(empty_db_url):
+    await migrate(empty_db_url)
+
+    for source in ("github", "linear", "web"):
+        await execute(empty_db_url, WITH_SOURCE.replace("SOURCE", source))
+    with pytest.raises(IntegrityError):
+        await execute(empty_db_url, WITH_SOURCE.replace("SOURCE", "slack"))
