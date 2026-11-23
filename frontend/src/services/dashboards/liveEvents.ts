@@ -8,12 +8,25 @@ export const FOCUS_NOTE: Localized = { ru: 'Фокус-время', en: 'Focus t
 
 const hhmm = (minutes: number): string => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
+const CANCELLED = /^cancel{1,2}ed:/i;
+
+/**
+ * Leaves out what would only be noise on the grid: a meeting its organiser cancelled (the work calendar keeps it,
+ * titled "Canceled: ..."), and a personal event that is a copy of a work meeting, which is one that starts and
+ * ends at exactly the same moments as an event of a work space. The work event is the one that stays.
+ */
+export function withoutCopies(events: readonly LiveEvent[]): LiveEvent[] {
+  const kept = events.filter((event) => !CANCELLED.test(event.title));
+  const work = new Set(kept.filter((event) => event.space !== 'personal').map((event) => `${Date.parse(event.startsAt)}|${Date.parse(event.endsAt)}`));
+  return kept.filter((event) => event.space !== 'personal' || !work.has(`${Date.parse(event.startsAt)}|${Date.parse(event.endsAt)}`));
+}
+
 /**
  * The calendar's events from the API's: one block per event, on the local day it starts, ending at the end time
  * of that day (an event that runs past midnight ends at 23:59). An event whose times cannot be read is dropped.
  */
 export function toCalEvents(events: readonly LiveEvent[]): CalEvent[] {
-  return events.flatMap((event) => {
+  return withoutCopies(events).flatMap((event) => {
     const start = splitIso(event.startsAt);
     const end = splitIso(event.endsAt);
     if (!start || !end) return [];
