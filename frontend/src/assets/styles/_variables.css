@@ -544,12 +544,12 @@
        The three spaces use their own inks. Projects have one scheme, Anthropic's brand: clay (#d97757) with a warm
        ivory surface in the light theme and a warm near-black in the dark one (--hub-project-*; the project page is
        the same, as [data-space="project"] below). */
-    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #0f3047;  --hub-personal-h: #0e3950;  --hub-personal-p: #0d415a;
-    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #252847;  --hub-work-1-h: #2d2d50;  --hub-work-1-p: #34325a;
-    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #2e2336;  --hub-work-2-h: #38273a;  --hub-work-2-p: #432a3d;
-    --hub-amber-ink: #ffc107;             --hub-amber-a: #2e2e29;  --hub-amber-h: #383628;  --hub-amber-p: #433d26;
-    --hub-project-ink: #ec9a7c;           --hub-project-a: #2b2937;  --hub-project-h: #352f3b;  --hub-project-p: #3f353e;
-    --hub-project-clay: #d97757;  --hub-project-on: #141413;
+    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #0f3047;  --hub-personal-h: #0e3950;  --hub-personal-p: #0d415a;  --hub-personal-c: #0f3249;  --hub-personal-ch: #0e3d56;
+    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #252847;  --hub-work-1-h: #2d2d50;  --hub-work-1-p: #34325a;  --hub-work-1-c: #272949;  --hub-work-1-ch: #313056;
+    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #2e2336;  --hub-work-2-h: #38273a;  --hub-work-2-p: #432a3d;  --hub-work-2-c: #302437;  --hub-work-2-ch: #3e293b;
+    --hub-amber-ink: #ffc107;             --hub-amber-a: #2e2e29;  --hub-amber-h: #383628;  --hub-amber-p: #433d26;  --hub-amber-c: #303029;  --hub-amber-ch: #3e3a27;
+    --hub-project-ink: #ec9a7c;           --hub-project-a: #2b2937;  --hub-project-h: #352f3b;  --hub-project-p: #3f353e;  --hub-project-c: #2d2b38;  --hub-project-ch: #3b323d;
+    --hub-project-clay: #b5522f;  --hub-project-on: #ffffff;
     --hub-head-a: var(--hub-personal-a);
 
     /* Shape: three radii and the pill. */
@@ -609,12 +609,12 @@
     --dash-ink-work-1: #7a22d0;         --dash-fill-work-1: #8a2de3;  --dash-on-fill-work-1: #ffffff;  --dash-tint-work-1: #efe4f9;
     --dash-ink-work-2: #c4000f;         --dash-fill-work-2: #db0011;  --dash-on-fill-work-2: #ffffff;  --dash-tint-work-2: #f8e0e2;
 
-    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #ebf3f5;  --hub-personal-h: #e2edf0;  --hub-personal-p: #d9e7eb;
-    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #f4edfb;  --hub-work-1-h: #efe4f9;  --hub-work-1-p: #eaddf8;
-    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #faebec;  --hub-work-2-h: #f8e0e2;  --hub-work-2-p: #f6d7da;
-    --hub-amber-ink: #8a5300;             --hub-amber-a: #f6f1eb;  --hub-amber-h: #f1eae0;  --hub-amber-p: #ede4d7;
-    --hub-project-ink: #9a3f24;           --hub-project-a: #f7f0ed;  --hub-project-h: #f3e8e5;  --hub-project-p: #efe1dd;
-    --hub-project-clay: #d97757;  --hub-project-on: #141413;
+    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #ebf3f5;  --hub-personal-h: #e2edf0;  --hub-personal-p: #d9e7eb;  --hub-personal-c: #e9f1f4;  --hub-personal-ch: #dfebee;
+    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #f4edfb;  --hub-work-1-h: #efe4f9;  --hub-work-1-p: #eaddf8;  --hub-work-1-c: #f3ebfb;  --hub-work-1-ch: #eee2f9;
+    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #faebec;  --hub-work-2-h: #f8e0e2;  --hub-work-2-p: #f6d7da;  --hub-work-2-c: #fae8e9;  --hub-work-2-ch: #f7dee0;
+    --hub-amber-ink: #8a5300;             --hub-amber-a: #f6f1eb;  --hub-amber-h: #f1eae0;  --hub-amber-p: #ede4d7;  --hub-amber-c: #f4f0e8;  --hub-amber-ch: #f0e9de;
+    --hub-project-ink: #9a3f24;           --hub-project-a: #f7f0ed;  --hub-project-h: #f3e8e5;  --hub-project-p: #efe1dd;  --hub-project-c: #f6eeeb;  --hub-project-ch: #f2e6e3;
+    --hub-project-clay: #b5522f;  --hub-project-on: #ffffff;
     --hub-head-a: var(--hub-personal-a);
 }
 
