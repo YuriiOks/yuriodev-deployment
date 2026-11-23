@@ -1,4 +1,5 @@
 import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
+import type { ProjectIconKey } from './projectIcons';
 
 /** The page a document title is for. */
 export type TitleKey = SpaceId | 'hub' | 'calendar';
@@ -27,6 +28,16 @@ export interface Strings {
   readonly hubTotalOpen: string;
   readonly projectsTitle: string;
   readonly newProject: string;
+  /** The icon button next to Rename, the picker's label, its "none" choice, and the failure line. */
+  readonly iconLabel: string;
+  readonly iconPicker: string;
+  readonly iconNone: string;
+  readonly iconFailed: string;
+  /** The bar's projects menu button and its label when the row has more projects than room. */
+  readonly navProjects: string;
+  readonly navProjectsMore: string;
+  /** The name of each project icon, by key (the picker's radio labels). */
+  readonly projectIcons: Readonly<Record<ProjectIconKey, string>>;
   readonly projectName: string;
   readonly createProject: string;
   readonly projectExists: string;
@@ -192,6 +203,32 @@ export const STRINGS: Record<Lang, Strings> = {
     hubTotalOpen: 'Открыто задач: {n}',
     projectsTitle: 'Проекты',
     newProject: 'Новый проект',
+    iconLabel: 'Значок',
+    iconPicker: 'Значок проекта',
+    iconNone: 'Без значка',
+    iconFailed: 'Не удалось сохранить значок',
+    navProjects: 'Проекты',
+    navProjectsMore: 'Ещё проекты',
+    projectIcons: {
+      scales: 'Весы',
+      gavel: 'Молоток судьи',
+      bulb: 'Лампочка',
+      spark: 'Искра',
+      rocket: 'Ракета',
+      home: 'Дом',
+      heart: 'Сердце',
+      book: 'Книга',
+      briefcase: 'Портфель',
+      globe: 'Глобус',
+      camera: 'Камера',
+      code: 'Код',
+      wallet: 'Кошелёк',
+      plane: 'Самолёт',
+      leaf: 'Лист',
+      flag: 'Флаг',
+      star: 'Звезда',
+      shield: 'Щит',
+    },
     projectName: 'Название проекта',
     createProject: 'Создать',
     projectExists: 'Проект с таким названием уже есть.',
@@ -354,6 +391,32 @@ export const STRINGS: Record<Lang, Strings> = {
     hubTotalOpen: 'Open tasks: {n}',
     projectsTitle: 'Projects',
     newProject: 'New project',
+    iconLabel: 'Icon',
+    iconPicker: 'Project icon',
+    iconNone: 'No icon',
+    iconFailed: 'Could not save the icon',
+    navProjects: 'Projects',
+    navProjectsMore: 'More projects',
+    projectIcons: {
+      scales: 'Scales',
+      gavel: 'Gavel',
+      bulb: 'Light bulb',
+      spark: 'Spark',
+      rocket: 'Rocket',
+      home: 'Home',
+      heart: 'Heart',
+      book: 'Book',
+      briefcase: 'Briefcase',
+      globe: 'Globe',
+      camera: 'Camera',
+      code: 'Code',
+      wallet: 'Wallet',
+      plane: 'Plane',
+      leaf: 'Leaf',
+      flag: 'Flag',
+      star: 'Star',
+      shield: 'Shield',
+    },
     projectName: 'Project name',
     createProject: 'Create',
     projectExists: 'A project with this name already exists.',

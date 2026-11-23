@@ -110,3 +110,8 @@
   composes: button buttonSecondary from '../assets/styles/dashboard-controls.module.css';
   margin-top: var(--space-2);
 }
+
+/* The icon picker, opened from the Icon button, under the head. */
+.picker {
+  padding: var(--space-3) 0;
+}

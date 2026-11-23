@@ -52,7 +52,7 @@ describe('dashboards design rules', () => {
   });
 
   it('sets type from the five --dash-fs-* steps, never clamp() or a site size token', () => {
-    expect(declarations('font-size', (value) => /^(var\(--dash-fs-(meta|ui|title|page|stat)\)|inherit)$/.test(value))).toEqual([]);
+    expect(declarations('font-size', (value) => /^(var\(--dash-fs-(meta|ui|title|page|stat)\)|var\(--tile-font, var\(--dash-fs-ui\)\)|inherit)$/.test(value))).toEqual([]);
     expect(find(/clamp\(/)).toEqual([]);
     expect(find(/var\(--fs-/)).toEqual([]);
   });
@@ -87,7 +87,7 @@ describe('dashboards design rules', () => {
   it('uses only the three radii and the pill (or a circle, or a fixed fraction of one)', () => {
     expect(
       declarations('border-radius', (value) =>
-        /^(var\(--dash-r-(surface|control|tag)\)|var\(--radius-(round|pill)\)|inherit|0)$/.test(value),
+        /^(var\(--dash-r-(surface|control|tag)\)|var\(--tile-radius, var\(--dash-r-control\)\)|var\(--radius-(round|pill)\)|inherit|0)$/.test(value),
       ),
     ).toEqual([]);
   });
@@ -102,13 +102,17 @@ describe('dashboards design rules', () => {
     expect(find(/radial-gradient/, (file) => file.includes('DashboardShell.module.css'))).toEqual([]);
   });
 
+  it('keeps every card and panel flat: one tint, no gradient wash between two colours (only repeating hatches, masks and the page glows)', () => {
+    expect(find(/(?<!repeating-)(?<!radial-)linear-gradient\(/, (_file, line) => /mask-image/.test(line))).toEqual([]);
+  });
+
   it('makes glass only through the recipe: no backdrop-filter outside recipes.module.css (design-budget.test.ts) and no own glass fill', () => {
     expect(find(/backdrop-filter/)).toEqual([]);
     expect(find(/background(-color)?\s*:\s*var\(--dash-glass\)/)).toEqual([]);
   });
 
-  it('reads the hub\'s per-card wash tokens (--hub-*) only in the hub\'s header and cards', () => {
-    const hub = ['/HubHeader/', '/SpaceCard/', '/ProjectCards/'];
+  it('reads the hub\'s per-card tint tokens (--hub-*) only in the hub\'s header and cards', () => {
+    const hub = ['/HubHeader/', '/SpaceCard/', '/ProjectCards/', '/ProjectTile/'];
     expect(find(/var\(--hub-/, (file) => hub.some((part) => file.includes(part)))).toEqual([]);
   });
 });

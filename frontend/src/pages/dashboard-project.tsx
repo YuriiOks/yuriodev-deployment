@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
+import IconPicker from '../components/dashboards/IconPicker/IconPicker';
 import ProjectTile from '../components/dashboards/ProjectTile/ProjectTile';
 import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
 import TaskPanel from '../components/dashboards/TaskPanel/TaskPanel';
@@ -46,10 +47,11 @@ interface BoardProps {
   project: LiveProject;
   rename: (name: string) => Promise<boolean>;
   archive: () => Promise<boolean>;
+  setIcon: (icon: string | null) => Promise<boolean>;
 }
 
 /** A project's page on real data: its name with Rename and Archive, quick-add, the task groups and Done. */
-const ProjectBoard = ({ project, rename, archive }: BoardProps) => {
+const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
   const { t } = useDashboardLang();
   usePageTitle(project.name);
   const tasks = useLiveTasks({ project: project.id });
@@ -58,6 +60,7 @@ const ProjectBoard = ({ project, rename, archive }: BoardProps) => {
   const nameRef = useRef<HTMLInputElement>(null);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(project.name);
+  const [picking, setPicking] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,6 +90,16 @@ const ProjectBoard = ({ project, rename, archive }: BoardProps) => {
     setBusy(false);
     if (ok) setRenaming(false);
     else setError(t.renameFailed);
+  };
+
+  const chooseIcon = async (icon: string | null) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const ok = await setIcon(icon);
+    setBusy(false);
+    if (ok) setPicking(false);
+    else setError(t.iconFailed);
   };
 
   const archiveClick = async () => {
@@ -148,7 +161,7 @@ const ProjectBoard = ({ project, rename, archive }: BoardProps) => {
   return (
     <>
       <div className={styles.head}>
-        <ProjectTile name={project.name} />
+        <ProjectTile name={project.name} icon={project.icon} />
         {renaming ? (
           <form
             className={styles.rename}
@@ -180,6 +193,9 @@ const ProjectBoard = ({ project, rename, archive }: BoardProps) => {
               <button type="button" className={styles.action} onClick={() => setRenaming(true)}>
                 {t.renameProject}
               </button>
+              <button type="button" className={styles.action} aria-expanded={picking} onClick={() => setPicking((open) => !open)}>
+                {t.iconLabel}
+              </button>
               <button
                 type="button"
                 className={`${styles.action} ${confirming ? styles.confirm : ''}`}
@@ -198,6 +214,11 @@ const ProjectBoard = ({ project, rename, archive }: BoardProps) => {
           </div>
         )}
       </div>
+      {picking && (
+        <div className={styles.picker}>
+          <IconPicker value={project.icon} onChange={chooseIcon} disabled={busy} />
+        </div>
+      )}
       <QuickAdd
         placeholder={t.addTask}
         onSubmit={async (title) => ((await tasks.create({ title })) ? t.addTaskFailed : null)}
@@ -244,6 +265,7 @@ const LiveProject = ({ id }: { id: string }) => {
       key={project.id}
       project={project}
       rename={async (name) => (await projects.update(project.id, { name })) === null}
+      setIcon={async (icon) => (await projects.update(project.id, { icon })) === null}
       archive={async () => {
         const failure = await projects.update(project.id, { archived: true });
         if (failure === null) navigate(pagePath('dashboards'));

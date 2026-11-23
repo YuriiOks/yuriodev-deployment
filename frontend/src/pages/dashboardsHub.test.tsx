@@ -6,7 +6,6 @@ import { resetBootstrap } from '../services/dashboards/bootstrapStore';
 import { weekdayIndex } from '../services/dashboards/calendarDates';
 import { dateLabel } from '../services/dashboards/calendarLabels';
 import { localDate } from '../services/dashboards/liveTime';
-import { projectScheme } from '../services/dashboards/projectSchemes';
 import { SPACES } from '../services/dashboards/spaces';
 import { getSpace } from '../services/dashboards/source';
 import { STRINGS } from '../services/dashboards/strings';
@@ -100,16 +99,15 @@ describe('the hub cards carry their colour scheme', () => {
     }
   });
 
-  it('each space card names its scheme on real data too, and a project card one of the four warm accents, by its id', async () => {
+  it('each space card names its scheme on real data too, and every project card the one project scheme', async () => {
     liveSetup({ projects: [{ id: 'garden', name: 'Garden' }, { id: 'side-project', name: 'Side project' }], tasks: [projectTask('garden', 'Seeds')] });
     renderHub();
     for (const [name, scheme] of [['Личное', 'personal'], ['Работа 1', 'work-1'], ['Работа 2', 'work-2']]) {
       expect(await within(main()).findByRole('region', { name })).toHaveAttribute('data-scheme', scheme);
     }
     const garden = await within(main()).findByRole('region', { name: 'Garden' });
-    expect(garden).toHaveAttribute('data-scheme', projectScheme('garden'));
-    expect(within(main()).getByRole('region', { name: 'Side project' })).toHaveAttribute('data-scheme', projectScheme('side-project'));
-    expect(['clay', 'ember', 'saffron', 'gold']).toContain(garden.getAttribute('data-scheme'));
+    expect(garden).toHaveAttribute('data-scheme', 'project');
+    expect(within(main()).getByRole('region', { name: 'Side project' })).toHaveAttribute('data-scheme', 'project');
   });
 
   it('the new-project tile and its form carry no scheme', async () => {

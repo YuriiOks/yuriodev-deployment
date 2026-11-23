@@ -1,43 +1,46 @@
-/* An entrance card: glass washed in its scheme's colour (--hub-<scheme>-ink / -a / -s in _variables.css, every pair
-   held by contrast.test.ts) with a border of the scheme's ink, a soft drop and the name in that ink. The whole card is
-   the link: the title's anchor is stretched over it; hovering, focusing or pressing it tints it and brightens the edge in the same colour. */
+/* An entrance card: glass with ONE flat tint of its scheme's colour (--hub-<scheme>-ink / -a / -h / -p in
+   _variables.css, every pair held by contrast.test.ts; no gradient), a flat border of the scheme's ink, a soft drop and
+   the name in that ink. The whole card is the link: the title's anchor is stretched over it; hovering, focusing or
+   pressing it steps the flat tint (-h, then -p) and brightens the edge in the same colour. */
 .card {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
   --scheme-ink: var(--dash-accent);
   --scheme-a: var(--dash-surface);
-  --scheme-s: var(--dash-surface);
   --scheme-h: var(--dash-chip);
+  --scheme-p: var(--dash-chip);
+  --scheme-t1: var(--dash-t1);
+  --scheme-t2: var(--dash-t2);
+  --scheme-chip: var(--dash-chip);
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-5);
   box-sizing: border-box;
-  background: linear-gradient(155deg, var(--scheme-a), var(--scheme-s));
+  background: var(--scheme-a);
   border-color: color-mix(in srgb, var(--scheme-ink) 40%, transparent);
   border-radius: var(--dash-r-surface);
   transition: border-color 120ms;
 }
 
-/* Hover, focus and pressed are the card's own colour, never a shared neutral: a tinted overlay (--scheme-h, the ink
-   over the surface, held by contrast.test.ts) fading to the wash, and the edge in the full ink; pressed is the solid
-   overlay. */
+/* Hover, focus and pressed are the card's own colour, never a shared neutral: flat steps (--scheme-h, then --scheme-p,
+   the ink over the surface, held by contrast.test.ts) and the edge in the full ink. */
 @media (hover: hover) {
   .card:hover {
-    background: linear-gradient(155deg, var(--scheme-h), var(--scheme-a));
+    background: var(--scheme-h);
     border-color: var(--scheme-ink);
   }
 }
 
 .card:focus-within {
-  background: linear-gradient(155deg, var(--scheme-h), var(--scheme-a));
+  background: var(--scheme-h);
   border-color: var(--scheme-ink);
   outline: 2px solid var(--scheme-ink);
   outline-offset: 2px;
 }
 
 .card:active {
-  background: var(--scheme-h);
+  background: var(--scheme-p);
   border-color: var(--scheme-ink);
 }
 
@@ -96,7 +99,7 @@
   gap: var(--space-1);
   min-width: 0;
   padding: var(--space-3) var(--space-1);
-  background: var(--dash-chip);
+  background: var(--scheme-chip);
   border: 1px solid var(--dash-line);
   border-radius: var(--dash-r-control);
   text-align: center;
@@ -111,7 +114,7 @@
 }
 
 .zero {
-  color: var(--dash-t2);
+  color: var(--scheme-t2);
 }
 
 .alarm {
@@ -119,14 +122,14 @@
 }
 
 .label {
-  color: var(--dash-t2);
+  color: var(--scheme-t2);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
 }
 
 .next {
   margin: 0;
-  color: var(--dash-t1);
+  color: var(--scheme-t1);
 }
 
 .at {
@@ -139,54 +142,37 @@
   }
 }
 
-/* The scheme maps to the hub tokens (the first three are the spaces', the rest are for projects). */
+/* The scheme maps to the hub tokens: the three spaces' own, and the one project scheme (Anthropic's: clay on warm ivory or
+   warm near-black, with its own text and chip colours). */
 .card[data-scheme="personal"] {
   --scheme-ink: var(--hub-personal-ink);
   --scheme-a: var(--hub-personal-a);
-  --scheme-s: var(--hub-personal-s);
   --scheme-h: var(--hub-personal-h);
+  --scheme-p: var(--hub-personal-p);
 }
 
 .card[data-scheme="work-1"] {
   --scheme-ink: var(--hub-work-1-ink);
   --scheme-a: var(--hub-work-1-a);
-  --scheme-s: var(--hub-work-1-s);
   --scheme-h: var(--hub-work-1-h);
+  --scheme-p: var(--hub-work-1-p);
 }
 
 .card[data-scheme="work-2"] {
   --scheme-ink: var(--hub-work-2-ink);
   --scheme-a: var(--hub-work-2-a);
-  --scheme-s: var(--hub-work-2-s);
   --scheme-h: var(--hub-work-2-h);
+  --scheme-p: var(--hub-work-2-p);
 }
 
-.card[data-scheme="clay"] {
-  --scheme-ink: var(--hub-clay-ink);
-  --scheme-a: var(--hub-clay-a);
-  --scheme-s: var(--hub-clay-s);
-  --scheme-h: var(--hub-clay-h);
-}
-
-.card[data-scheme="ember"] {
-  --scheme-ink: var(--hub-ember-ink);
-  --scheme-a: var(--hub-ember-a);
-  --scheme-s: var(--hub-ember-s);
-  --scheme-h: var(--hub-ember-h);
-}
-
-.card[data-scheme="saffron"] {
-  --scheme-ink: var(--hub-saffron-ink);
-  --scheme-a: var(--hub-saffron-a);
-  --scheme-s: var(--hub-saffron-s);
-  --scheme-h: var(--hub-saffron-h);
-}
-
-.card[data-scheme="gold"] {
-  --scheme-ink: var(--hub-gold-ink);
-  --scheme-a: var(--hub-gold-a);
-  --scheme-s: var(--hub-gold-s);
-  --scheme-h: var(--hub-gold-h);
+.card[data-scheme="project"] {
+  --scheme-ink: var(--hub-project-ink);
+  --scheme-a: var(--hub-project-a);
+  --scheme-h: var(--hub-project-h);
+  --scheme-p: var(--hub-project-p);
+  --scheme-t1: var(--hub-project-t1);
+  --scheme-t2: var(--hub-project-t2);
+  --scheme-chip: var(--hub-project-chip);
 }
 
 .nextLabel {

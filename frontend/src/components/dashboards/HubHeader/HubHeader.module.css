@@ -1,5 +1,5 @@
-/* The hub header: a glass card of its own with the site's cyan border, washed from the personal cyan into amber
-   (--hub-head-a to --hub-head-b, contrast.test.ts holds both ends). */
+/* The hub header: a glass card of its own with the site's cyan border, one flat personal-cyan tint
+   (--hub-head-a, contrast.test.ts holds it). */
 .header {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
@@ -10,7 +10,7 @@
   min-height: var(--dash-h-strip);
   padding: var(--space-4) var(--space-5);
   box-sizing: border-box;
-  background: linear-gradient(100deg, var(--hub-head-a), var(--hub-head-b));
+  background: var(--hub-head-a);
   border-color: color-mix(in srgb, var(--hub-personal-ink) 45%, transparent);
   border-radius: var(--dash-r-surface);
 }

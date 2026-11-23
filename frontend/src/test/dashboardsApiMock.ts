@@ -21,7 +21,7 @@ export interface FakeApi {
   readonly tasks: Record<string, unknown>[];
   readonly events: Record<string, unknown>[];
   /** The projects; their tasks are in `tasks`, with a `project_id` and no `space_id`. */
-  readonly projects: { id: string; name: string; archived: boolean }[];
+  readonly projects: { id: string; name: string; archived: boolean; icon: string | null }[];
   readonly fail: Set<FailKey>;
   /** While set, a PATCH waits for it: resolve it to let the request through (to look at the optimistic state first). */
   gate: Promise<void> | null;
@@ -105,7 +105,7 @@ export interface FakeApiOptions {
   readonly enabled?: boolean;
   readonly tasks?: Record<string, unknown>[];
   readonly events?: Record<string, unknown>[];
-  readonly projects?: { id: string; name: string; archived?: boolean }[];
+  readonly projects?: { id: string; name: string; archived?: boolean; icon?: string | null }[];
   readonly fail?: FailKey[];
   /** Names the server gives spaces (by id); the others get the English default. */
   readonly spaceNames?: Record<string, string>;
@@ -118,13 +118,13 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     calls: [],
     tasks,
     events,
-    projects: projects.map((p) => ({ archived: false, ...p })),
+    projects: projects.map((p) => ({ archived: false, icon: null, ...p })),
     fail: new Set(fail),
     gate: null,
     callsTo: (method, pathPart) => api.calls.filter((call) => call.method === method && call.path.includes(pathPart)),
   };
 
-  const projectCounts = (p: { id: string; name: string; archived: boolean }) => {
+  const projectCounts = (p: { id: string; name: string; archived: boolean; icon: string | null }) => {
     const open = api.tasks.filter((t) => t.project_id === p.id && t.status === 'open');
     return {
       ...p,
@@ -139,7 +139,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     const url = new URL(call.url, 'http://localhost');
     if (path === '/bootstrap') {
       if (api.fail.has('bootstrap')) return failure();
-      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal', icon: spaceIcons.personal ?? null }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1', icon: spaceIcons['work-1'] ?? null }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2', icon: spaceIcons['work-2'] ?? null }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name }) => ({ id, name })), server_time: new Date().toISOString() } : { enabled: false });
+      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal', icon: spaceIcons.personal ?? null }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1', icon: spaceIcons['work-1'] ?? null }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2', icon: spaceIcons['work-2'] ?? null }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name, icon }) => ({ id, name, icon })), server_time: new Date().toISOString() } : { enabled: false });
     }
     if (path === '/summary') {
       if (api.fail.has('summary')) return failure();
@@ -163,7 +163,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       if (api.fail.has('createProject')) return failure();
       const name = String(body?.name ?? '').trim();
       if (api.projects.some((p) => p.name.toLowerCase() === name.toLowerCase())) return json({ error: 'conflict', message: 'x', request_id: 'test' }, 409);
-      const created = { id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `p${++counter}`, name, archived: false };
+      const created = { id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `p${++counter}`, name, archived: false, icon: typeof body?.icon === 'string' ? String(body.icon) : null };
       api.projects.push(created);
       return json(projectCounts(created), 201);
     }

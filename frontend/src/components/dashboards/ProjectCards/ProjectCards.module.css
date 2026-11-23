@@ -121,7 +121,6 @@
 /* The new-project form stays neutral (no scheme): the plain surface, whatever the card class says. */
 .newForm {
   --scheme-a: var(--dash-surface);
-  --scheme-s: var(--dash-surface);
 }
 
 .label {

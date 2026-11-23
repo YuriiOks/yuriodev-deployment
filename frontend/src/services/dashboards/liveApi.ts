@@ -1,3 +1,4 @@
+import { parseIconKey } from './projectIcons';
 import { SPACE_NAME } from './spaces';
 import type { SpaceId } from './types';
 
@@ -61,6 +62,8 @@ export interface LiveProject {
   readonly open: number;
   readonly priority: number;
   readonly overdue: number;
+  /** The icon key the user picked (a-z, 0-9, "-"), or null: the tile then shows the name's letter. */
+  readonly icon: string | null;
 }
 
 /** What a list of tasks belongs to: a space (by id), or a project. */
@@ -69,6 +72,7 @@ export type TaskScope = SpaceId | { readonly project: string };
 export interface LiveProjectRef {
   readonly id: string;
   readonly name: string;
+  readonly icon: string | null;
 }
 
 export type TaskStatus = 'open' | 'done';
@@ -227,7 +231,7 @@ export function parseBootstrap(body: unknown): Bootstrap | null {
   const projects: LiveProjectRef[] = [];
   if (Array.isArray(body.projects)) {
     for (const raw of body.projects) {
-      if (isObject(raw) && typeof raw.id === 'string' && typeof raw.name === 'string') projects.push({ id: raw.id, name: raw.name });
+      if (isObject(raw) && typeof raw.id === 'string' && typeof raw.name === 'string') projects.push({ id: raw.id, name: raw.name, icon: parseIconKey(raw.icon) });
     }
   }
   return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces), spaceIcons: parseSpaceIcons(body.spaces), projects };
@@ -375,7 +379,7 @@ async function request(path: string, { method = 'GET', body, signal, timeoutMs =
 
 export function parseProject(raw: unknown): LiveProject | null {
   if (!isObject(raw) || typeof raw.id !== 'string' || typeof raw.name !== 'string') return null;
-  return { id: raw.id, name: raw.name, archived: raw.archived === true, open: asCount(raw.open), priority: asCount(raw.priority), overdue: asCount(raw.overdue) };
+  return { id: raw.id, name: raw.name, archived: raw.archived === true, open: asCount(raw.open), priority: asCount(raw.priority), overdue: asCount(raw.overdue), icon: parseIconKey(raw.icon) };
 }
 
 export function parseProjects(body: unknown): LiveProject[] | null {
@@ -465,10 +469,11 @@ export async function fetchProjects(signal?: AbortSignal): Promise<LiveProject[]
 }
 
 /** Creates a project; the server makes its id. Rejects with status 409 when the name clashes. */
-export async function createProject(name: string, signal?: AbortSignal): Promise<LiveProject> {
-  return must(parseProject(await request('/projects', { method: 'POST', body: { name }, signal })));
+export async function createProject(name: string, icon?: string | null, signal?: AbortSignal): Promise<LiveProject> {
+  const body = icon ? { name, icon } : { name };
+  return must(parseProject(await request('/projects', { method: 'POST', body, signal })));
 }
 
-export async function patchProject(id: string, patch: Partial<{ name: string; archived: boolean }>, signal?: AbortSignal): Promise<LiveProject> {
+export async function patchProject(id: string, patch: Partial<{ name: string; archived: boolean; icon: string | null }>, signal?: AbortSignal): Promise<LiveProject> {
   return must(parseProject(await request(`/projects/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch, signal })));
 }

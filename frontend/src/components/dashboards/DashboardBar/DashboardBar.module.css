@@ -69,3 +69,37 @@
     display: none;
   }
 }
+
+/* Every pill carries a mark in a 24px box: a space's or a project's tile (36px tiles scaled down by their custom
+   properties: a 6px radius, a 12px letter, a 16px drawing), or a line icon centred in it, so the labels start at one
+   x whatever the mark. The pills are the site's, with the mark and the label side by side. */
+.nav a {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.mark {
+  --tile-size: 1.5rem;
+  --tile-radius: var(--dash-r-tag);
+  --tile-font: var(--dash-fs-meta);
+  --tile-glyph: 1rem;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* The thin line between the fixed pages and the user's projects. */
+.divider {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 1.5rem;
+  margin-inline: var(--space-1);
+  background: var(--header-border-bottom-color);
+}

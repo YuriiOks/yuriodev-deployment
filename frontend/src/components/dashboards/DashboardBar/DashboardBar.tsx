@@ -1,16 +1,26 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { pagePath, type PageId } from '../../../data/site';
-import { useDashboardMode } from '../../../hooks/useDashboardMode';
+import { pagePath, projectPath, type PageId } from '../../../data/site';
+import { useProjects } from '../../../hooks/useProjects';
 import { useSpaceNames } from '../../../hooks/useSpaceNames';
 import { promptPlace } from '../../../services/dashboards/promptPlace';
 import { SPACES, SPACE_PAGE } from '../../../services/dashboards/spaces';
 import { cx } from '../../../utils/cx';
 import header from '../../layout/Header/Header.module.css';
+import ProjectIcon from '../ProjectIcon/ProjectIcon';
+import ProjectTile from '../ProjectTile/ProjectTile';
+import SpaceTile from '../SpaceTile/SpaceTile';
 import LangSwitch from '../LangSwitch/LangSwitch';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import styles from './DashboardBar.module.css';
+
+/** A pill's mark: a 24px box holding the tile, or a drawn line icon centred in it (decorative: the name beside it says it). */
+const Mark: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span aria-hidden="true" className={styles.mark}>
+    {children}
+  </span>
+);
 
 const navClass = ({ isActive }: { isActive: boolean }) => cx(header.navLink, isActive && header.current);
 
@@ -30,17 +40,25 @@ export interface DashboardBarProps {
 const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t } = useDashboardLang();
   const { nameOf, serverNameOf } = useSpaceNames();
-  const { projects } = useDashboardMode();
+  const { projects, active } = useProjects();
+  const currentRef = useRef<HTMLAnchorElement>(null);
   const { pathname } = useLocation();
   const place = promptPlace(pathname, {
     spaceName: serverNameOf,
     projectName: (id) => projects.find((project) => project.id === id)?.name,
   });
-  const items: ReadonlyArray<readonly [PageId, string]> = [
-    ['dashboards', t.navAll],
-    ...SPACES.map((id) => [SPACE_PAGE[id], nameOf(id)] as const),
-    ['dashboards-calendar', t.navCalendar],
-  ];
+  // The current pill stays in view when the row scrolls sideways (many projects, a phone).
+  useEffect(() => {
+    currentRef.current?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
+  }, [pathname, active.length]);
+  const marks: Record<string, React.ReactNode> = {
+    dashboards: <ProjectIcon name="grid" size={18} />,
+    'dashboards-calendar': <ProjectIcon name="calendar" size={18} />,
+  };
+  const before: ReadonlyArray<readonly [PageId, string, React.ReactNode]> = [['dashboards', t.navAll, marks.dashboards]];
+  const spaces = SPACES.map((id) => [SPACE_PAGE[id], nameOf(id), <SpaceTile space={id} />] as const);
+  const after: ReadonlyArray<readonly [PageId, string, React.ReactNode]> = [['dashboards-calendar', t.navCalendar, marks['dashboards-calendar']]];
+  const items = [...before, ...spaces, ...after];
 
   return (
     <div className={styles.bar}>
@@ -53,9 +71,19 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
           </span>
         </div>
         <nav aria-label={t.navLabel} className={styles.nav}>
-          {items.map(([id, label]) => (
+          {items.map(([id, label, mark]) => (
             <NavLink key={id} to={pagePath(id)} end className={navClass}>
+              <Mark>{mark}</Mark>
               {label}
+            </NavLink>
+          ))}
+          {active.length > 0 && <span role="separator" aria-orientation="vertical" aria-label={t.navProjects} className={styles.divider} />}
+          {active.map((project) => (
+            <NavLink key={project.id} to={projectPath(project.id)} end className={navClass} ref={pathname === projectPath(project.id) ? currentRef : undefined}>
+              <Mark>
+                <ProjectTile name={project.name} icon={project.icon} />
+              </Mark>
+              {project.name}
             </NavLink>
           ))}
         </nav>

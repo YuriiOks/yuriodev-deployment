@@ -7,17 +7,18 @@ import { ApiError } from '../../../services/dashboards/liveApi';
 import { cx } from '../../../utils/cx';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
-import { projectScheme } from '../../../services/dashboards/projectSchemes';
+import IconPicker from '../IconPicker/IconPicker';
 import ProjectTile from '../ProjectTile/ProjectTile';
 import styles from './ProjectCards.module.css';
 
 /** The "new project" tile: a button that opens a one-field form in place, and creates the project on Enter or Create. */
-const NewProject: React.FC<{ onCreate: (name: string) => Promise<string | null> }> = ({ onCreate }) => {
+const NewProject: React.FC<{ onCreate: (name: string, icon: string | null) => Promise<string | null> }> = ({ onCreate }) => {
   const { t } = useDashboardLang();
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [icon, setIcon] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +29,7 @@ const NewProject: React.FC<{ onCreate: (name: string) => Promise<string | null> 
   const close = () => {
     setOpen(false);
     setName('');
+    setIcon(null);
     setError(null);
   };
 
@@ -37,7 +39,7 @@ const NewProject: React.FC<{ onCreate: (name: string) => Promise<string | null> 
     if (busy || trimmed === '') return;
     setBusy(true);
     setError(null);
-    const failure = await onCreate(trimmed);
+    const failure = await onCreate(trimmed, icon);
     setBusy(false);
     if (failure === null) close();
     else {
@@ -86,6 +88,7 @@ const NewProject: React.FC<{ onCreate: (name: string) => Promise<string | null> 
           if (error) setError(null);
         }}
       />
+      <IconPicker value={icon} onChange={setIcon} disabled={busy} />
       {error && <InlineError message={error} />}
       <div className={styles.actions}>
         <button type="submit" className={styles.create} disabled={busy}>
@@ -106,11 +109,10 @@ const NewProject: React.FC<{ onCreate: (name: string) => Promise<string | null> 
  */
 const ProjectCards: React.FC = () => {
   const { t } = useDashboardLang();
-  const { status, projects, reload, create } = useProjects();
-  const visible = projects.filter((project) => !project.archived);
+  const { status, active: visible, reload, create } = useProjects({ fresh: true });
 
-  const createNamed = async (name: string): Promise<string | null> => {
-    const result = await create(name);
+  const createNamed = async (name: string, icon: string | null): Promise<string | null> => {
+    const result = await create(name, icon);
     if (!(result instanceof ApiError)) return null;
     return result.status === 409 ? t.projectExists : t.projectCreateFailed;
   };
@@ -136,9 +138,9 @@ const ProjectCards: React.FC = () => {
             ];
             const titleId = `project-${project.id}-title`;
             return (
-              <section key={project.id} aria-labelledby={titleId} className={styles.card} data-scheme={projectScheme(project.id)}>
+              <section key={project.id} aria-labelledby={titleId} className={styles.card} data-scheme="project">
                 <div className={styles.head}>
-                  <ProjectTile name={project.name} />
+                  <ProjectTile name={project.name} icon={project.icon} />
                   <h3 id={titleId} className={styles.name}>
                     <Link to={projectPath(project.id)} className={styles.link}>
                       {project.name}

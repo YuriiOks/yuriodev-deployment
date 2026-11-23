@@ -494,7 +494,7 @@
      accent / fill / on-fill  the page's cyan or its space's ink (text, line work) / its fill and the ink on it
      danger / warn / ok       overdue, CI failing / today and conflicts / CI passing (always with a word or an icon)
      ink-*, fill-*, tint-*    the three spaces side by side (the calendar and the hub show all three)
-     --hub-*                  the hub's per-card washes: -ink text and edge, -a and -s the two ends of the wash, -h the hover overlay
+     --hub-*                  the hub's per-card washes: -ink text and edge, -a the flat tint, -h and -p the hover and pressed steps
    contrast.test.ts holds every text and UI pair, per skin and theme, on the page, the glass and each glow. */
 :root,
 [data-theme="dark"] {
@@ -540,18 +540,17 @@
     --dash-ink-work-1: #b88cff;         --dash-fill-work-1: #a866ff;  --dash-on-fill-work-1: #120e24;  --dash-tint-work-1: #36335c;
     --dash-ink-work-2: #ff6874;         --dash-fill-work-2: #e5192b;  --dash-on-fill-work-2: #ffffff;  --dash-tint-work-2: #452b3d;
 
-    /* The hub: each card washes its own colour, from its ink over the surface (-a strong corner, -s faded end).
-       The three spaces use their own inks; the four warm accents (clay, ember, saffron, gold: a terracotta-to-golden
-       family) are for projects, picked by their id. -h is the hover and pressed overlay in the card's own colour. */
-    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #0e384f;  --hub-personal-s: #10253b;  --hub-personal-h: #0d415a;
-    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #2c2c4f;  --hub-work-1-s: #1b213b;  --hub-work-1-h: #34325a;
-    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #372639;  --hub-work-2-s: #1f1f32;  --hub-work-2-h: #432a3d;
-    --hub-amber-ink: #ffc107;             --hub-amber-a: #373528;  --hub-amber-s: #1f242c;  --hub-amber-h: #433d26;
-    --hub-clay-ink: #ec8d6e;              --hub-clay-a: #342c38;  --hub-clay-s: #1e2132;  --hub-clay-h: #3f323b;
-    --hub-ember-ink: #f29a55;             --hub-ember-a: #352e34;  --hub-ember-s: #1f2230;  --hub-ember-h: #403536;
-    --hub-saffron-ink: #f6b24c;           --hub-saffron-a: #363233;  --hub-saffron-s: #1f2330;  --hub-saffron-h: #413a34;
-    --hub-gold-ink: #f3c352;              --hub-gold-a: #353534;  --hub-gold-s: #1f2430;  --hub-gold-h: #403d36;
-    --hub-head-a: var(--hub-personal-a);  --hub-head-b: var(--hub-amber-a);
+    /* The hub: each card is one flat tint of its own colour (its ink over the surface; -a at rest, -h on hover, -p pressed).
+       The three spaces use their own inks. Projects have one scheme, Anthropic's brand: clay (#d97757) with a warm
+       ivory surface in the light theme and a warm near-black in the dark one (--hub-project-*; the project page is
+       the same, as [data-space="project"] below). */
+    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #0f3047;  --hub-personal-h: #0e3950;  --hub-personal-p: #0d415a;
+    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #252847;  --hub-work-1-h: #2d2d50;  --hub-work-1-p: #34325a;
+    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #2e2336;  --hub-work-2-h: #38273a;  --hub-work-2-p: #432a3d;
+    --hub-amber-ink: #ffc107;             --hub-amber-a: #2e2e29;  --hub-amber-h: #383628;  --hub-amber-p: #433d26;
+    --hub-project-ink: #ec9a7c;  --hub-project-a: #1f1e1d;  --hub-project-h: #3d2c26;  --hub-project-p: #53372d;
+    --hub-project-t1: #faf9f5;  --hub-project-t2: #cfccc0;  --hub-project-chip: #2b2a28;  --hub-project-clay: #d97757;  --hub-project-on: #141413;
+    --hub-head-a: var(--hub-personal-a);
 
     /* Shape: three radii and the pill. */
     --dash-r-surface: 1.25rem;
@@ -610,15 +609,13 @@
     --dash-ink-work-1: #7a22d0;         --dash-fill-work-1: #8a2de3;  --dash-on-fill-work-1: #ffffff;  --dash-tint-work-1: #efe4f9;
     --dash-ink-work-2: #c4000f;         --dash-fill-work-2: #db0011;  --dash-on-fill-work-2: #ffffff;  --dash-tint-work-2: #f8e0e2;
 
-    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #e7f0f2;  --hub-personal-s: #f5f9fa;  --hub-personal-h: #dae8ec;
-    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #f2e9fa;  --hub-work-1-s: #faf6fd;  --hub-work-1-h: #ebdef8;
-    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #f9e6e7;  --hub-work-2-s: #fdf5f5;  --hub-work-2-h: #f6d9db;
-    --hub-amber-ink: #8a5300;             --hub-amber-a: #f3eee6;  --hub-amber-s: #faf8f5;  --hub-amber-h: #ede5d9;
-    --hub-clay-ink: #a8462a;              --hub-clay-a: #f6edea;  --hub-clay-s: #fcf8f6;  --hub-clay-h: #f2e3df;
-    --hub-ember-ink: #a1500f;             --hub-ember-a: #f6eee7;  --hub-ember-s: #fbf8f5;  --hub-ember-h: #f1e5db;
-    --hub-saffron-ink: #8f5d09;           --hub-saffron-a: #f4efe6;  --hub-saffron-s: #fbf9f5;  --hub-saffron-h: #eee7da;
-    --hub-gold-ink: #7a5f00;              --hub-gold-a: #f2efe6;  --hub-gold-s: #faf9f5;  --hub-gold-h: #ebe7d9;
-    --hub-head-a: var(--hub-personal-a);  --hub-head-b: var(--hub-amber-a);
+    --hub-personal-ink: var(--dash-ink-personal);--hub-personal-a: #ebf3f5;  --hub-personal-h: #e2edf0;  --hub-personal-p: #d9e7eb;
+    --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #f4edfb;  --hub-work-1-h: #efe4f9;  --hub-work-1-p: #eaddf8;
+    --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #faebec;  --hub-work-2-h: #f8e0e2;  --hub-work-2-p: #f6d7da;
+    --hub-amber-ink: #8a5300;             --hub-amber-a: #f6f1eb;  --hub-amber-h: #f1eae0;  --hub-amber-p: #ede4d7;
+    --hub-project-ink: #9a3f24;  --hub-project-a: #f0eee6;  --hub-project-h: #edddd2;  --hub-project-p: #ead1c4;
+    --hub-project-t1: #141413;  --hub-project-t2: #4a4842;  --hub-project-chip: #e6e3d8;  --hub-project-clay: #d97757;  --hub-project-on: #141413;
+    --hub-head-a: var(--hub-personal-a);
 }
 
 @media (pointer: coarse) {
@@ -763,3 +760,70 @@
     --dash-glow-shadow: 0 6px 18px rgba(219, 0, 17, 0.28);
 }
 
+
+/* A project page (and its hub card): Anthropic's brand, one scheme for every project: clay (#d97757) on warm ivory in the
+   light theme and warm near-black in the dark one, instead of the site's navy. */
+[data-space="project"] {
+    --dash-bg: #141413;
+    --dash-surface: #1f1e1d;
+    --dash-surface-rgb: 31, 30, 29;
+    --dash-glass-a: 0.62;
+    --dash-chip: #2b2a28;
+    --dash-chip-rgb: 43, 42, 40;
+    --dash-well: #141413;
+    --dash-border: rgba(250, 249, 245, 0.12);
+    --dash-line: rgba(250, 249, 245, 0.08);
+    --dash-edge: #8f8c82;
+    --dash-t1: #faf9f5;
+    --dash-t2: #cfccc0;
+    --dash-t3: #a3a096;
+    --dash-heading: #ec9a7c;
+    --dash-heading-tint: rgba(217, 119, 87, 0.14);
+    --dash-heading-edge: rgba(217, 119, 87, 0.50);
+    --dash-prio-bg: rgba(217, 119, 87, 0.14);
+    --dash-prio-edge: rgba(217, 119, 87, 0.35);
+    --dash-glass-shadow: inset 0 1px 0 rgba(250, 249, 245, 0.08), 0 16px 40px rgba(0, 0, 0, 0.45);
+    --dash-glow-a-rgb: 217, 119, 87;
+    --dash-glow-a: 0.22;
+    --dash-glow-b-rgb: 232, 176, 110;
+    --dash-glow-b: 0.10;
+    --dash-glow-c-rgb: 217, 119, 87;
+    --dash-glow-c: 0;
+    --dash-accent: #ec9a7c;
+    --dash-fill: #d97757;
+    --dash-on-fill: #141413;
+    --dash-glow-shadow: 0 8px 22px rgba(217, 119, 87, 0.35);
+}
+
+[data-theme="light"] [data-space="project"] {
+    --dash-bg: #faf9f5;
+    --dash-surface: #f0eee6;
+    --dash-surface-rgb: 240, 238, 230;
+    --dash-glass-a: 0.78;
+    --dash-chip: #e6e3d8;
+    --dash-chip-rgb: 230, 227, 216;
+    --dash-well: #fdfcf9;
+    --dash-border: rgba(20, 20, 19, 0.12);
+    --dash-line: rgba(20, 20, 19, 0.08);
+    --dash-edge: #76736a;
+    --dash-t1: #141413;
+    --dash-t2: #4a4842;
+    --dash-t3: #66635a;
+    --dash-heading: #9a3f24;
+    --dash-heading-tint: rgba(217, 119, 87, 0.14);
+    --dash-heading-edge: rgba(154, 63, 36, 0.45);
+    --dash-prio-bg: rgba(217, 119, 87, 0.12);
+    --dash-prio-edge: rgba(154, 63, 36, 0.35);
+    --dash-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 14px 34px rgba(60, 40, 20, 0.10);
+    --dash-glow-a-rgb: 217, 119, 87;
+    --dash-glow-a: 0.16;
+    --dash-glow-b-rgb: 232, 176, 110;
+    --dash-glow-b: 0.10;
+    --dash-glow-c-rgb: 217, 119, 87;
+    --dash-glow-c: 0;
+    --dash-accent: #9a3f24;
+    --dash-fill: #b5522f;
+    --dash-on-fill: #ffffff;
+    --dash-ok: #046b4c;
+    --dash-glow-shadow: 0 6px 18px rgba(217, 119, 87, 0.32);
+}

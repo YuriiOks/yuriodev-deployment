@@ -213,8 +213,8 @@ describe('the data calls', () => {
 
 describe('projects', () => {
   it('reads the not-archived projects out of the bootstrap', () => {
-    const parsed = parseBootstrap({ enabled: true, projects: [{ id: 'garden', name: 'Garden' }, { id: 5 }, { name: 'x' }] });
-    expect(parsed?.projects).toEqual([{ id: 'garden', name: 'Garden' }]);
+    const parsed = parseBootstrap({ enabled: true, projects: [{ id: 'garden', name: 'Garden', icon: 'leaf' }, { id: 'old', name: 'Old', icon: 'Bad Key!' }, { id: 5 }, { name: 'x' }] });
+    expect(parsed?.projects).toEqual([{ id: 'garden', name: 'Garden', icon: 'leaf' }, { id: 'old', name: 'Old', icon: null }]);
     expect(parseBootstrap({ enabled: true })?.projects).toEqual([]);
   });
 
@@ -226,8 +226,12 @@ describe('projects', () => {
       open: 4,
       priority: 1,
       overdue: 2,
+      icon: null,
     });
-    expect(parseProject({ id: 'a', name: 'A' })).toEqual({ id: 'a', name: 'A', archived: false, open: 0, priority: 0, overdue: 0 });
+    expect(parseProject({ id: 'a', name: 'A' })).toEqual({ id: 'a', name: 'A', archived: false, open: 0, priority: 0, overdue: 0, icon: null });
+    // The icon is a key (a-z, 0-9, -; 1 to 24 characters) or nothing: anything else reads as none.
+    expect(parseProject({ id: 'a', name: 'A', icon: 'scales' })?.icon).toBe('scales');
+    for (const bad of ['', 'Scales', 'has space', 'x'.repeat(25), 5, {}, null]) expect(parseProject({ id: 'a', name: 'A', icon: bad })?.icon).toBeNull();
     expect(parseProject({ id: 'a' })).toBeNull();
     expect(parseProjects({ projects: [{ id: 'a', name: 'A' }, { junk: 1 }] })).toHaveLength(1);
     expect(parseProjects([{ id: 'a', name: 'A' }])).toHaveLength(1);
@@ -279,5 +283,20 @@ describe('projects', () => {
     await patchProject('garden', { name: 'Allotment', archived: true });
     expect(api.calls[2]).toMatchObject({ method: 'PATCH', path: '/projects/garden', body: { name: 'Allotment', archived: true } });
     await expect(createProject('allotment')).rejects.toMatchObject({ status: 409, code: 'conflict' });
+  });
+
+  it('sends an icon with a new project only when there is one, and changes or clears it with a patch', async () => {
+    const api = installFakeApi({ projects: [{ id: 'garden', name: 'Garden' }] });
+    const made = await createProject('Court', 'scales');
+    expect(made.icon).toBe('scales');
+    expect(api.calls[0]).toMatchObject({ method: 'POST', body: { name: 'Court', icon: 'scales' } });
+    await createProject('Plain', null);
+    expect(api.calls[1].body).toEqual({ name: 'Plain' });
+    const set = await patchProject('garden', { icon: 'leaf' });
+    expect(set.icon).toBe('leaf');
+    expect(api.calls[2]).toMatchObject({ method: 'PATCH', body: { icon: 'leaf' } });
+    const cleared = await patchProject('garden', { icon: null });
+    expect(cleared.icon).toBeNull();
+    expect(api.calls[3].body).toEqual({ icon: null });
   });
 });

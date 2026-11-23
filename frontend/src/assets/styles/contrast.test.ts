@@ -40,7 +40,7 @@ function blocks(css: string): Array<{ selector: string; body: string }> {
   return out;
 }
 
-type Space = 'personal' | 'work-1' | 'work-2';
+type Space = 'personal' | 'work-1' | 'work-2' | 'project';
 
 /**
  * The tokens as the cascade resolves them on <html> (no `space`), or inside a
@@ -225,6 +225,8 @@ const PAIRS: Record<Theme, Pair[]> = {
    track), the glass of the bar, panels, hub cards and the calendar frame over the page and each of its
    three glows, and an event's opaque tint. */
 const SPACES: readonly Space[] = ['personal', 'work-1', 'work-2'];
+/** The skins: the three spaces and the project pages (Anthropic's clay on warm ivory or warm near-black). */
+const SKINS: readonly Space[] = [...SPACES, 'project'];
 const SPACE_INKS = SPACES.map((s) => `--dash-ink-${s}`);
 const DASH_SOLID = [['--dash-bg'], ['--dash-surface'], ['--dash-chip'], ['--dash-well']];
 
@@ -277,26 +279,32 @@ const SHARED_PAIRS: Pair[] = [
   ]),
 ];
 
-/* The hub: each card washes its scheme's colour (a gradient from
-   -a to -s, both held), with the scheme's ink for its numbers and its "Next:" label, t1 for the name, t2 for the
-   rest (never t3: it does not hold on a dark tint) and the danger colour for an overdue count. The ink is also the
-   hover edge, so it must show against the page and its glows. The header card runs from the personal wash to the
-   amber one. */
-const HUB_SCHEMES = ['personal', 'work-1', 'work-2', 'clay', 'ember', 'saffron', 'gold', 'amber'];
+/* The hub: each card is one flat tint of its scheme's colour (-a at rest, -h on hover and focus, -p pressed), with the
+   scheme's ink for its numbers, name and "Next:" label, t1 for the rest of the text and t2 for the labels (never t3: it
+   does not hold on a dark tint); the stat cells are the neutral chip. The ink is also the hover edge, so it must show
+   against the page and its glows. The header card is the personal tint flat, its text t1 and t2 with the personal cyan and
+   the amber as line work and labels. Projects have one scheme, Anthropic's: clay on warm ivory (light) or warm near-black
+   (dark), with their own text and chip colours (--hub-project-*). */
+const HUB_SCHEMES = ['personal', 'work-1', 'work-2'];
 const HUB_PAIRS: Pair[] = [
   ...HUB_SCHEMES.flatMap((scheme) => [
-    ...cross(['--dash-t1', '--dash-t2', '--dash-danger', `--hub-${scheme}-ink`], [[`--hub-${scheme}-a`], [`--hub-${scheme}-s`]], TEXT),
+    ...cross(['--dash-t1', '--dash-t2', '--dash-danger', `--hub-${scheme}-ink`], [[`--hub-${scheme}-a`]], TEXT),
     ...cross([`--hub-${scheme}-ink`], [...BACKS, ...DASH_SOLID], UI),
-    // Hover, focus and pressed: the card's own overlay colour, with the name and the Next line on it; and the ink on the stat chips.
-    ...cross(['--dash-t1', '--dash-t2', `--hub-${scheme}-ink`], [[`--hub-${scheme}-h`]], TEXT),
+    // Hover, focus and pressed: the card's own flat steps, with the name and the Next line on them; and the ink on the stat chips.
+    ...cross(['--dash-t1', '--dash-t2', `--hub-${scheme}-ink`], [[`--hub-${scheme}-h`], [`--hub-${scheme}-p`]], TEXT),
     ...cross([`--hub-${scheme}-ink`], [['--dash-chip']], TEXT),
   ]),
-  ...cross(['--dash-t1', '--dash-t2', '--hub-personal-ink', '--hub-amber-ink'], [['--hub-head-a'], ['--hub-head-b']], TEXT),
+  ...cross(['--hub-project-t1', '--hub-project-t2', '--hub-project-ink'], [['--hub-project-a'], ['--hub-project-h'], ['--hub-project-p']], TEXT),
+  ...cross(['--hub-project-t1', '--hub-project-t2', '--hub-project-ink', '--dash-danger'], [['--hub-project-chip']], TEXT),
+  ...cross(['--hub-project-ink'], [...BACKS, ...DASH_SOLID], UI),
+  // The tile: the brand clay with the warm black on it.
+  { fg: '--hub-project-on', bg: ['--hub-project-clay'], min: TEXT },
+  ...cross(['--dash-t1', '--dash-t2', '--hub-personal-ink', '--hub-amber-ink'], [['--hub-head-a']], TEXT),
 ];
 
 describe('dashboard palettes meet WCAG AA', () => {
   for (const theme of ['dark', 'light'] as const) {
-    for (const space of [undefined, ...SPACES] as const) {
+    for (const space of [undefined, ...SKINS] as const) {
       it(`${theme} theme, ${space ?? 'neutral (hub and calendar)'}: every text and UI pair`, () => {
         const tokens = tokensFor(theme, space);
         const pairs = [...DASH_PAIRS, ...(space === undefined ? [...SHARED_PAIRS, ...HUB_PAIRS] : [])];
@@ -327,13 +335,18 @@ describe('dashboard palettes meet WCAG AA', () => {
     expect(heading('dark', 'work-1')).toBe('#d3b8ff');
     expect(heading('dark', 'work-2')).toBe('#ffffff');
     expect(resolve(tokensFor('dark', 'work-1'), 'var(--dash-bg)')).toBe('#120e24');
+    // Projects: Anthropic's clay on warm ivory (light) or warm near-black (dark).
+    expect(resolve(tokensFor('dark', 'project'), 'var(--dash-bg)')).toBe('#141413');
+    expect(resolve(tokensFor('light', 'project'), 'var(--dash-bg)')).toBe('#faf9f5');
+    expect(resolve(tokensFor('dark', 'project'), 'var(--dash-fill)')).toBe('#d97757');
+    expect(resolve(tokensFor('light', 'project'), 'var(--dash-heading)')).toBe('#9a3f24');
     expect(resolve(tokensFor('light', 'work-2'), 'var(--dash-bg)')).toBe('#f3f3f3');
   });
 
   it('a skin changes only its colour tokens: no size, shape or type token differs between spaces', () => {
     for (const theme of ['dark', 'light'] as const) {
       const base = tokensFor(theme);
-      for (const space of SPACES) {
+      for (const space of SKINS) {
         const own = tokensFor(theme, space);
         const changed = [...own.keys()].filter((key) => own.get(key) !== base.get(key)).sort();
         for (const key of changed) {

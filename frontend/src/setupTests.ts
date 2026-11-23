@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { primeBootstrap } from './services/dashboards/bootstrapStore';
+import { resetProjects } from './services/dashboards/projectsStore';
 
 // Unmount React trees mounted by tests between each test.
 afterEach(() => {
@@ -12,6 +13,7 @@ afterEach(() => {
 // data (as if the bootstrap answered "disabled"), and the live tests prime their own answer.
 beforeEach(() => {
   primeBootstrap(null);
+  resetProjects();
 });
 
 // jsdom does not implement matchMedia; ThemeContext reads it on first render

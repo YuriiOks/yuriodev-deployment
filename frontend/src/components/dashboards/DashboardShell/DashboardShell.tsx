@@ -4,7 +4,7 @@ import { DashboardLangProvider } from '../../../context/DashboardLangProvider';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { PAGE_CONTENT_ID } from '../../../constants/pageContent';
 import { maxWidth } from '../../../constants/breakpoints';
-import { pageAt } from '../../../data/site';
+import { isProjectPath, pageAt } from '../../../data/site';
 import { useDashboardMode } from '../../../hooks/useDashboardMode';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { spaceAt } from '../../../services/dashboards/spaces';
@@ -17,7 +17,8 @@ import styles from './DashboardShell.module.css';
 const Frame: React.FC = () => {
   const { lang } = useDashboardLang();
   const { pathname } = useLocation();
-  const space = spaceAt(pathname);
+  // A project page has one skin for every project (Anthropic's clay on warm ivory or near-black), the spaces one each.
+  const space = spaceAt(pathname) ?? (isProjectPath(pathname) ? 'project' : undefined);
   const phone = useMediaQuery(maxWidth('md'));
   // Which data the dashboards run on is asked once; until the answer is in, a quiet placeholder holds the place
   // (the page never flashes sample data and then swaps to real data).

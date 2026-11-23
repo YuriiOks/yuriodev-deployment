@@ -6,12 +6,12 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--tile-size, 2.25rem);
+  height: var(--tile-size, 2.25rem);
   background: var(--tile-bg, var(--dash-fill));
-  border-radius: var(--dash-r-control);
+  border-radius: var(--tile-radius, var(--dash-r-control));
   color: var(--tile-ink, var(--dash-on-fill));
-  font-size: var(--dash-fs-ui);
+  font-size: var(--tile-font, var(--dash-fs-ui));
   font-weight: 700;
   line-height: 1;
 }
@@ -31,4 +31,10 @@
   height: 100%;
   object-fit: contain;
   border-radius: inherit;
+}
+
+/* A drawn icon (a project's): sized by --tile-glyph, 20px on a full tile. */
+.tile svg {
+  width: var(--tile-glyph, 1.25rem);
+  height: var(--tile-glyph, 1.25rem);
 }
