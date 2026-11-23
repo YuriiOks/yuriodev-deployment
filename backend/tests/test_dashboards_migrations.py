@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0004"
+    assert version == "dashboards_0005"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -173,3 +173,16 @@ async def test_the_task_stage_column_is_short_nullable_text(empty_db_url):
 
     assert column == "character varying:16:YES"
     assert await scalar(empty_db_url, "SELECT stage IS NULL FROM task") is True
+
+
+async def test_the_project_registry_exists_and_starts_empty(empty_db_url):
+    await migrate(empty_db_url)
+
+    columns = await scalar(
+        empty_db_url,
+        "SELECT string_agg(column_name, ',' ORDER BY column_name) FROM information_schema.columns "
+        "WHERE table_name = 'project' AND table_schema = 'public'",
+    )
+
+    assert columns == "archived,created_at,id,name,schema_version"
+    assert await scalar(empty_db_url, "SELECT count(*) FROM project") == 0

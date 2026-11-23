@@ -22,9 +22,10 @@ from src.core.middleware import RequestContextMiddleware
 from src.dashboards.collectors.manager import CollectorManager, build_collectors
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
+from src.dashboards.projects import upgrade_projects
 from src.dashboards.runtime import DashboardsRuntime
 from src.feed.service import FeedService
-from src.routes import dashboards, health, posts
+from src.routes import dashboards, health, posts, projects
 
 logger = logging.getLogger("yuriodev.app")
 
@@ -96,7 +97,8 @@ async def _start_dashboards(
     if settings.database_url is None:
         return []
     try:
-        runtime = DashboardsRuntime(settings.database_url.get_secret_value())
+        url = settings.database_url.get_secret_value()
+        runtime = DashboardsRuntime(url, after_migrate=upgrade_projects)
     except Exception as exc:
         extra = {"event": "dashboards.misconfigured", "error": type(exc).__name__}
         logger.error("dashboards database url rejected", extra=extra)
@@ -169,6 +171,7 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.include_router(health.router)
     app.include_router(posts.router)
     app.include_router(dashboards.router)
+    app.include_router(projects.router)
     if settings.dashboards_enabled:
         _add_mcp(app)
     if docs:

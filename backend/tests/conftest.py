@@ -27,6 +27,13 @@ from tests.dashboards_support import (
     url_for,
 )
 
+# Projects keep their tasks in schemas of their own, which the app never drops; the tests do.
+DROP_PROJECT_SCHEMAS = (
+    "DO $$ DECLARE name text; BEGIN "
+    "FOR name IN SELECT schema_name FROM information_schema.schemata "
+    "WHERE schema_name LIKE 'project\\_%' LOOP "
+    "EXECUTE format('DROP SCHEMA %I CASCADE', name); END LOOP; END $$"
+)
 SETTINGS_ENV_VARS = tuple(name.upper() for name in Settings.model_fields)
 _LOGGERS = (
     "",
@@ -132,7 +139,13 @@ def migrated_db_url(pg_server_url: str) -> Iterator[str]:
 @pytest.fixture
 def db_url(migrated_db_url: str) -> str:
     # DELETE, not TRUNCATE: it does not wait for readers, so a leaked transaction cannot hang it.
-    statements = ("DELETE FROM task", "DELETE FROM task_tombstone", "DELETE FROM event")
+    statements = (
+        "DELETE FROM task",
+        "DELETE FROM task_tombstone",
+        "DELETE FROM event",
+        DROP_PROJECT_SCHEMAS,
+        "DELETE FROM project",
+    )
     asyncio.run(execute(migrated_db_url, *statements))
     return migrated_db_url
 

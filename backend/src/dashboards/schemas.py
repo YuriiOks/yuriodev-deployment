@@ -18,6 +18,8 @@ AreaRef = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, 
 
 DateValue = date  # for a field that is itself called `date`
 
+ProjectName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
 _REQUEST = ConfigDict(extra="forbid")
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
 
@@ -51,6 +53,28 @@ class TaskPatch(BaseModel):
             raise ValueError("no fields to change")
         for name in ("title", "priority", "status"):
             if name in self.model_fields_set and getattr(self, name) is None:
+                raise ValueError(f"{name} cannot be null")
+        return self
+
+
+class ProjectCreate(BaseModel):
+    model_config = _REQUEST
+
+    name: ProjectName
+
+
+class ProjectPatch(BaseModel):
+    model_config = _REQUEST
+
+    name: ProjectName | None = None
+    archived: bool | None = None
+
+    @model_validator(mode="after")
+    def _something_to_change_and_no_nulls(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("no fields to change")
+        for name in self.model_fields_set:
+            if getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")
         return self
 
@@ -137,11 +161,66 @@ class SpaceRef(BaseModel):
     icon: str | None
 
 
+class ProjectRef(BaseModel):
+    model_config = _RESPONSE
+
+    id: str
+    name: str
+
+
+class ProjectOut(BaseModel):
+    """A project as the list and the writes show it, with the counts of its open tasks."""
+
+    model_config = _RESPONSE
+
+    id: str
+    name: str
+    archived: bool
+    open: int
+    priority: int
+    overdue: int
+
+
+class ProjectsOut(BaseModel):
+    model_config = _RESPONSE
+
+    projects: list[ProjectOut]
+
+
+class ProjectTaskOut(BaseModel):
+    """A project's task: the space task's shape with `project_id` for `space_id`. Projects have no
+    areas, links or collectors, so those fields are always null."""
+
+    model_config = _RESPONSE
+
+    id: UUID
+    project_id: str
+    title: str
+    notes: str | None
+    area_id: None = None
+    priority: bool
+    due_date: date | None
+    status: TaskStatus
+    done_at: datetime | None
+    source: Source
+    url: None = None
+    stage: None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProjectTasksOut(BaseModel):
+    model_config = _RESPONSE
+
+    tasks: list[ProjectTaskOut]
+
+
 class BootstrapOut(BaseModel):
     model_config = _RESPONSE
 
     enabled: bool
     spaces: list[SpaceRef]
+    projects: list[ProjectRef]
     areas: list[AreaOut]
     server_time: datetime
 

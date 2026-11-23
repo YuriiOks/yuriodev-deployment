@@ -650,6 +650,20 @@ personal space's tile shows the site's own mark on the live dashboards even with
 (bundled in the frontend, not fetched). The site's CSP allows `img-src 'self' data:`, which is why
 only data URIs are accepted. Sample-data mode keeps the letter tiles.
 
+### Projects (a schema each)
+
+Besides the three spaces the dashboards can hold projects (the first ones: a court case and a side
+project). Each project is a row in `project` and gets a Postgres schema of its own,
+`project_<id>` (for example `project_garden`), holding its own `task` table: the data of one
+project is physically apart from the others and from the spaces' tables, in the same database and
+the same backup (`pg_dump` below covers every schema). Projects are created from the page or over
+MCP (`add_project`); the id is made from the name (a taken one is refused). There is no delete:
+a project is archived (still readable, no longer writable) and can be unarchived, and nothing in
+the application ever drops a schema. To change the tables of the project schemas later a release
+bumps the per-project schema version; at startup the backend brings every project up to it, one
+transaction each, so a deploy needs no manual step. If a project ever has to be removed for real
+it is a manual `DROP SCHEMA` by the owner after a dump, never something the backend does.
+
 ### One-time setup of dev
 
 Run on the box, in `~/yuriodev-deployment`, once the commit with these files is
