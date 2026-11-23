@@ -185,3 +185,26 @@ def test_the_provider_limits_are_the_documented_ones_with_margin():
     assert provider.min_call_gap.total_seconds() > 60
     assert provider.max_window.total_seconds() <= 2_682_000
     assert provider.page_limit == 500
+
+
+def test_jars_are_accounts_of_type_jar():
+    body = {
+        "accounts": [mono_account()],
+        "jars": [{"id": "jar-1", "title": "Holiday fund", "currencyCode": 840, "balance": 25_000}],
+    }
+
+    black, jar = parse_accounts(body)
+
+    assert black.type == "black"
+    assert (jar.external_id, jar.name, jar.type, jar.currency) == (
+        "jar-1",
+        "Holiday fund",
+        "jar",
+        "USD",
+    )
+    assert (jar.balance, jar.credit_limit, jar.mask_last4) == (25_000, 0, None)
+    assert parse_accounts({"accounts": []}) == []
+    with pytest.raises(UpstreamError):
+        parse_accounts({"accounts": [], "jars": "no"})
+    with pytest.raises(UpstreamError):
+        parse_accounts({"accounts": [], "jars": [{"id": "a/b", "balance": 1}]})

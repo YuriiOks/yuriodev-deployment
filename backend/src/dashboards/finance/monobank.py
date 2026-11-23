@@ -16,7 +16,8 @@ What the provider's documentation says, and what this module relies on:
 - The docs describe `currencyCode` of an item as the account's currency, which would leave the
   currency of `operationAmount` unnamed. Both readings are handled: an original-currency amount
   is stored only when the item's code differs from the account's.
-- The webhook is not used.
+- Jars (`jars[]`: id, title, currencyCode, balance) are kept as accounts of type `jar`; managed
+  clients and the webhook are not used.
 
 Every limit is applied with margin: windows are 31 days, requests are 61 seconds apart. Only the
 last four digits of a card (or, without a card, of the IBAN) are ever kept. A malformed answer is
@@ -163,21 +164,43 @@ def last4(value: object) -> str | None:
 
 def parse_accounts(body: Any) -> list[AccountData]:
     rows = body.get("accounts") if isinstance(body, dict) else None
-    if not isinstance(rows, list):
+    jars = body.get("jars", []) if isinstance(body, dict) else None
+    if not isinstance(rows, list) or not isinstance(jars, list):
         raise bad()
-    return [parse_account(row) for row in rows]
+    return [parse_account(row) for row in rows] + [parse_jar(row) for row in jars]
+
+
+def account_id(row: dict[str, Any]) -> str:
+    value = row.get("id")
+    if (
+        not isinstance(value, str)
+        or not 0 < len(value) <= MAX_ID
+        or not set(value) <= ID_PATTERN_CHARS  # it goes into a URL path
+    ):
+        raise bad()
+    return value
+
+
+def parse_jar(row: Any) -> AccountData:
+    """A jar (a savings pot) is an account of type `jar`, asked for like any other."""
+    if not isinstance(row, dict):
+        raise bad()
+    currency = currency_code(row.get("currencyCode"))
+    return AccountData(
+        external_id=account_id(row),
+        name=text(row.get("title"), 100) or f"Jar {currency}",
+        type="jar",
+        currency=currency,
+        mask_last4=None,
+        balance=whole(row.get("balance")),
+        credit_limit=0,
+    )
 
 
 def parse_account(row: Any) -> AccountData:
     if not isinstance(row, dict):
         raise bad()
-    external_id = row.get("id")
-    if (
-        not isinstance(external_id, str)
-        or not 0 < len(external_id) <= MAX_ID
-        or not set(external_id) <= ID_PATTERN_CHARS  # it goes into a URL path
-    ):
-        raise bad()
+    external_id = account_id(row)
     currency = currency_code(row.get("currencyCode"))
     kind = text(row.get("type"), 32)
     pans = row.get("maskedPan")

@@ -883,8 +883,8 @@ configured depth, or until three empty windows in a row. A statement answer of 5
 observed in use; the documentation names none) is taken to have more behind it and the window
 is asked again for the rest. A window is fetched whole in memory and written in one transaction
 with its cursor, so a failed or partial fetch changes nothing and the window is asked again. A
-429 pauses the collector for the time the source asked (at least a minute). Not used in this
-version: the webhook, jars (savings pots) and the client's other products.
+429 pauses the collector for the time the source asked (at least a minute). Jars (savings pots) are kept as accounts
+of type `jar`. Not used in this version: the webhook and managed clients.
 
 Keeping privacy: the logs carry only the collector name, counts and an error kind, never an
 amount, description, counterparty, account number or the token. Only the last four digits of a
