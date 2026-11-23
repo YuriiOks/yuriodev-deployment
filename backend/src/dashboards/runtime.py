@@ -7,9 +7,12 @@ is not reachable yet) and sets `ready`; until then every request answers 503
 """
 
 import asyncio
+import contextlib
 import logging
+import threading
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import (
@@ -26,6 +29,36 @@ logger = logging.getLogger("yuriodev.dashboards")
 
 MIGRATE_FIRST_DELAY = 1.0
 MIGRATE_MAX_DELAY = 30.0
+
+
+async def run_in_thread[T](function: Callable[[str], T], argument: str) -> T:
+    """Run a blocking call in its own daemon thread and await it.
+
+    Not `asyncio.to_thread`: that uses the loop's default executor, and a loop cannot close
+    (nor the interpreter exit) until every executor thread has returned, so one stuck migration
+    would hold up everything after it. Cancelling the await leaves the thread to finish alone.
+    """
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[T] = loop.create_future()
+
+    def settle(setter: Callable[[Any], None], value: Any) -> None:
+        if not future.done():  # the awaiting task may have been cancelled meanwhile
+            setter(value)
+
+    def work() -> None:
+        call: Callable[[Any], None]
+        value: Any
+        try:
+            value = function(argument)
+            call = future.set_result
+        except Exception as exc:
+            value = exc
+            call = future.set_exception
+        with contextlib.suppress(RuntimeError):  # the loop is closed: nobody is waiting
+            loop.call_soon_threadsafe(settle, call, value)
+
+    threading.Thread(target=work, name="dashboards-migrate", daemon=True).start()
+    return await future
 
 
 class DashboardsRuntime:
@@ -48,7 +81,11 @@ class DashboardsRuntime:
             max_overflow=2,
             pool_pre_ping=True,
             pool_recycle=1800,
-            connect_args={"timeout": 10, "command_timeout": 15},
+            connect_args={
+                "timeout": 10,
+                "command_timeout": 15,
+                "server_settings": {"statement_timeout": "15000"},
+            },
         )
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
         self.ready = asyncio.Event()
@@ -63,7 +100,7 @@ class DashboardsRuntime:
         while True:
             attempt += 1
             try:
-                await asyncio.to_thread(self._migrate, self._url)
+                await run_in_thread(self._migrate, self._url)
             except Exception as exc:
                 logger.warning(
                     "dashboards migration failed, retrying",

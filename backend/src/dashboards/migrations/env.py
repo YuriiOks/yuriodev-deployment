@@ -41,8 +41,13 @@ def _migrate(connection: Connection) -> None:
 
 
 async def _run(url: str) -> None:
+    # A run stuck on a lock or a statement fails (and the app retries) instead of waiting forever.
+    connect_args = {
+        "timeout": 10,
+        "server_settings": {"lock_timeout": "20000", "statement_timeout": "60000"},
+    }
     engine = create_async_engine(
-        to_async_url(url), poolclass=pool.NullPool, connect_args={"timeout": 10}
+        to_async_url(url), poolclass=pool.NullPool, connect_args=connect_args
     )
     try:
         async with engine.connect() as connection:

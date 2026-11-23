@@ -131,13 +131,8 @@ def migrated_db_url(pg_server_url: str) -> Iterator[str]:
 
 @pytest.fixture
 def db_url(migrated_db_url: str) -> str:
-    # Cut off any connection a failed earlier test left open, then empty the tables with DELETE:
-    # unlike TRUNCATE it does not wait for readers, so one leaked transaction cannot hang the run.
-    kill_leftovers = (
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-        "WHERE datname = current_database() AND pid <> pg_backend_pid()"
-    )
-    asyncio.run(execute(migrated_db_url, kill_leftovers, "DELETE FROM task", "DELETE FROM event"))
+    # DELETE, not TRUNCATE: it does not wait for readers, so a leaked transaction cannot hang it.
+    asyncio.run(execute(migrated_db_url, "DELETE FROM task", "DELETE FROM event"))
     return migrated_db_url
 
 

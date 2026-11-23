@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.dashboards.db import run_migrations
+from src.dashboards.runtime import run_in_thread
 from tests.dashboards_support import (
     AUTH,
     execute,
@@ -32,7 +33,7 @@ def empty_db_url(pg_server_url):
 
 
 async def migrate(url):
-    await asyncio.to_thread(run_migrations, url)
+    await run_in_thread(run_migrations, url)
 
 
 async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):

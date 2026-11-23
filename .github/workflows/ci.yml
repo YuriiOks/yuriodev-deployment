@@ -123,7 +123,7 @@ jobs:
         env:
           # Without it the database tests skip and the coverage gate would fail.
           DASHBOARDS_TEST_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
-        run: python -m pytest -q --maxfail=5 --cov --cov-report=term-missing
+        run: python -m pytest -v --maxfail=5 --cov --cov-report=term-missing
       # Same gate as images.yml, but at PR time. Trivy reads only the direct pins in
       # requirements.txt (no lockfile); transitive packages are covered after merge by the
       # image scan in images.yml.
