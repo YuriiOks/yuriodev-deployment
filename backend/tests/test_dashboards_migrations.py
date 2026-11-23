@@ -213,9 +213,9 @@ BAD_FINANCE_ROWS = (
     NEW_TRANSACTION.replace("currency)", "currency, original_amount)")
     .replace("'tx-1'", "'tx-3'")
     .replace("'GBP')", "'GBP', 100)"),
-    # a full card number where four digits belong
+    # four characters that are not four digits
     NEW_ACCOUNT.replace("balance_at)", "balance_at, mask_last4)")
-    .replace("now())", "now(), '1234567890123456')")
+    .replace("now())", "now(), '12ab')")
     .replace("'acc-1'", "'acc-2'")
     .replace(ACCOUNT_ID, ACCOUNT_ID[:-1] + "2"),
     NEW_LINK.replace("ref)", "ref, status)").replace("'one')", "'two', 'broken')"),

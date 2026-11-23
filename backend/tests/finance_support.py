@@ -230,6 +230,7 @@ async def seed(app: Any) -> None:
     link = Connection(id=LINK, provider="sample", ref="main", status="ok", last_ok_at=NOW)
     async with app.state.dashboards.sessions() as session, session.begin():
         session.add(link)
+        await session.flush()  # the models declare no relationships: parents go in first
         session.add_all(accounts)
         await session.flush()
         session.add_all(rows)
