@@ -1,4 +1,4 @@
-"""The MCP endpoint of the dashboards API: ten tools over POST /api/mcp (streamable HTTP).
+"""The MCP endpoint of the dashboards API: twelve tools over POST /api/mcp (streamable HTTP).
 
 Built on the official SDK's `MCPServer`, run stateless with plain JSON answers: every POST is
 one self-contained request, there is no session to lose on a restart, and nothing holds a stream
@@ -30,10 +30,19 @@ from starlette.types import Receive, Scope, Send
 
 from src.core.clock import Clock
 from src.core.errors import AppError, error_response
+from src.dashboards import projects as project_service
 from src.dashboards import service
-from src.dashboards.catalog import TaskStatus, TaskStatusFilter
+from src.dashboards.catalog import SPACE_IDS, TaskStatus, TaskStatusFilter
 from src.dashboards.runtime import DashboardsRuntime, session_scope, unavailable
-from src.dashboards.schemas import EventCreate, EventOut, TaskCreate, TaskOut, TaskPatch
+from src.dashboards.schemas import (
+    EventCreate,
+    EventOut,
+    ProjectCreate,
+    ProjectTaskOut,
+    TaskCreate,
+    TaskOut,
+    TaskPatch,
+)
 
 logger = logging.getLogger("yuriodev.dashboards")
 
@@ -60,6 +69,10 @@ def _task(task: object) -> dict[str, Any]:
     return TaskOut.model_validate(task).model_dump(mode="json")
 
 
+def _ptask(task: ProjectTaskOut) -> dict[str, Any]:
+    return task.model_dump(mode="json")
+
+
 def _event(event: object) -> dict[str, Any]:
     return EventOut.model_validate(event).model_dump(mode="json")
 
@@ -72,9 +85,17 @@ def _validated[M: BaseModel](model: type[M], fields: dict[str, Any]) -> M:
 
 
 def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -> MCPServer[Any]:
-    """The server with its ten tools, and its streamable-HTTP session manager created (stateless,
+    """The server with its twelve tools, and its streamable-HTTP session manager created (stateless,
     JSON answers). `get_runtime` is read per call: the runtime only exists once the app runs."""
     server: MCPServer[Any] = MCPServer("yuriodev-dashboards", instructions=INSTRUCTIONS)
+
+    async def _change(
+        session: AsyncSession, project: str | None, task_id: str, patch: TaskPatch, now: datetime
+    ) -> str:
+        if project is not None:
+            update = project_service.update_project_task
+            return _json(_ptask(await update(session, project, task_id, patch, now)))
+        return _json(_task(await service.update_task(session, task_id, patch, now)))
 
     @asynccontextmanager
     async def scope(tool: str) -> AsyncIterator[tuple[AsyncSession, datetime]]:
@@ -93,9 +114,13 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
 
     @server.tool(structured_output=False)
     async def list_tasks(space: str, status: TaskStatusFilter = "open") -> str:
-        """List the tasks of one space (personal, work-1 or work-2). status is open (default),
-        done or all. Open tasks come first: priority, then due date, then oldest."""
+        """List the tasks of one space (personal, work-1 or work-2) or of a project (pass its id
+        as space). status is open (default), done or all. Open tasks come first: priority, then
+        due date, then oldest."""
         async with scope("list_tasks") as (session, _):
+            if space not in SPACE_IDS:
+                found = await project_service.list_project_tasks(session, space, status)
+                return _json({"project": space, "tasks": [_ptask(t) for t in found]})
             tasks = await service.list_tasks(session, space, status)
             return _json({"space": space, "tasks": [_task(t) for t in tasks]})
 
@@ -108,8 +133,8 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         priority: bool = False,
         due_date: str | None = None,
     ) -> str:
-        """Add an open task to a space. area is a life-area slug (personal space only);
-        due_date is YYYY-MM-DD."""
+        """Add an open task to a space, or to a project (pass its id as space; projects have no
+        areas). area is a life-area slug (personal space only); due_date is YYYY-MM-DD."""
         fields = {
             "title": title,
             "notes": notes,
@@ -119,6 +144,9 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         }
         data = _validated(TaskCreate, fields)
         async with scope("add_task") as (session, now):
+            if space not in SPACE_IDS:
+                made = await project_service.create_project_task(session, space, data, "mcp", now)
+                return _json(_ptask(made))
             task = await service.create_task(session, space, data, "mcp", now)
             return _json(_task(task))
 
@@ -131,9 +159,11 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         priority: bool | None = None,
         due_date: str | None = None,
         status: TaskStatus | None = None,
+        project: str | None = None,
     ) -> str:
         """Change a task. Only the arguments you pass change; an empty string clears notes,
-        area or due_date. status is open or done."""
+        area or due_date. status is open or done. For a task of a project pass project (its id):
+        a task id alone does not say which project it is in."""
         passed: dict[str, Any] = {}
         if title is not None:
             passed["title"] = title
@@ -149,38 +179,60 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
             passed["status"] = status
         patch = _validated(TaskPatch, passed)
         async with scope("update_task") as (session, now):
-            task = await service.update_task(session, id, patch, now)
-            return _json(_task(task))
+            return await _change(session, project, id, patch, now)
 
     @server.tool(structured_output=False)
-    async def complete_task(id: str) -> str:
-        """Mark a task done (sets done_at)."""
+    async def complete_task(id: str, project: str | None = None) -> str:
+        """Mark a task done (sets done_at). Pass project (its id) for a task of a project."""
         async with scope("complete_task") as (session, now):
-            task = await service.update_task(session, id, TaskPatch(status="done"), now)
-            return _json(_task(task))
+            return await _change(session, project, id, TaskPatch(status="done"), now)
 
     @server.tool(structured_output=False)
-    async def reopen_task(id: str) -> str:
-        """Mark a done task open again (clears done_at)."""
+    async def reopen_task(id: str, project: str | None = None) -> str:
+        """Mark a done task open again (clears done_at). Pass project (its id) for a project's."""
         async with scope("reopen_task") as (session, now):
-            task = await service.update_task(session, id, TaskPatch(status="open"), now)
-            return _json(_task(task))
+            return await _change(session, project, id, TaskPatch(status="open"), now)
 
     @server.tool(structured_output=False)
-    async def delete_task(id: str) -> str:
-        """Delete a task for good."""
+    async def delete_task(id: str, project: str | None = None) -> str:
+        """Delete a task for good. Pass project (its id) for a task of a project."""
         async with scope("delete_task") as (session, _):
-            await service.delete_task(session, id)
+            if project is not None:
+                await project_service.delete_project_task(session, project, id)
+            else:
+                await service.delete_task(session, id)
             return _json({"deleted": id})
 
     @server.tool(structured_output=False)
     async def today(space: str | None = None) -> str:
         """What needs attention now: open priority tasks plus open tasks due today or overdue,
         and today's events (day in the configured time zone). One space, or all three, each
-        listed separately."""
+        listed separately. A project's id as space gives that project's tasks (no events)."""
         async with scope("today") as (session, now):
+            if space is not None and space not in SPACE_IDS:
+                day = now.astimezone(zone).date()
+                due = await project_service.due_project_tasks(session, space, day)
+                group = {"space": space, "tasks": [_ptask(t) for t in due], "events": []}
+                return _json({"date": day.isoformat(), "spaces": [group]})
             view = await service.today(session, space, now, zone)
             return _json(view.model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def list_projects() -> str:
+        """List the projects (user-created dashboards beside the three spaces), archived ones
+        flagged, with the counts of their open tasks."""
+        async with scope("list_projects") as (session, now):
+            found = await project_service.list_projects(session, now.astimezone(zone).date())
+            return _json({"projects": [p.model_dump(mode="json") for p in found]})
+
+    @server.tool(structured_output=False)
+    async def add_project(name: str) -> str:
+        """Create a project (1 to 40 characters). Its id is made from the name; use it as the
+        space argument of the task tools. Fails when a project with that id exists."""
+        data = _validated(ProjectCreate, {"name": name})
+        async with scope("add_project") as (session, now):
+            made = await project_service.create_project(session, data.name, now)
+            return _json(made.model_dump(mode="json"))
 
     @server.tool(structured_output=False)
     async def list_events(from_date: date, to_date: date) -> str:

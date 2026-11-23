@@ -70,9 +70,11 @@ class DashboardsRuntime:
         *,
         migrate: Callable[[str], None] = run_migrations,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        after_migrate: Callable[[async_sessionmaker[AsyncSession]], Awaitable[None]] | None = None,
     ) -> None:
         self._url = url
         self._migrate = migrate
+        self._after_migrate = after_migrate
         self._sleep = sleep
         self.engine: AsyncEngine = create_async_engine(
             to_async_url(url),
@@ -101,6 +103,8 @@ class DashboardsRuntime:
             attempt += 1
             try:
                 await run_in_thread(self._migrate, self._url)
+                if self._after_migrate is not None:
+                    await self._after_migrate(self.sessions)  # e.g. the projects' schemas
             except Exception as exc:
                 logger.warning(
                     "dashboards migration failed, retrying",

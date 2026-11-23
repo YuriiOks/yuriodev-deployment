@@ -23,6 +23,8 @@ TOOLS = {
     "list_events",
     "add_event",
     "delete_event",
+    "list_projects",
+    "add_project",
 }
 
 

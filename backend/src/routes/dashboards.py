@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.clock import Clock
 from src.core.config import Settings
+from src.dashboards import projects as project_service
 from src.dashboards import service
 from src.dashboards.catalog import DEFAULT_SPACE_NAMES, TaskStatusFilter
 from src.dashboards.runtime import get_runtime, session_scope
@@ -56,13 +57,15 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
     `enabled: false` (no authentication needed) when there is no database."""
     now = clock()
     if not settings.dashboards_enabled:
-        return BootstrapOut(enabled=False, spaces=[], areas=[], server_time=now)
+        return BootstrapOut(enabled=False, spaces=[], projects=[], areas=[], server_time=now)
     async with session_scope(get_runtime(request)) as session:
         spaces = await service.list_spaces(session)
         areas = await service.list_areas(session)
+        projects = await project_service.active_projects(session)
     names = {**DEFAULT_SPACE_NAMES, **settings.space_names}
     return BootstrapOut(
         enabled=True,
+        projects=projects,
         spaces=[SpaceRef(id=space_id, name=names.get(space_id, space_id)) for space_id in spaces],
         areas=[AreaOut.model_validate(area) for area in areas],
         server_time=now,
