@@ -1,25 +1,25 @@
-fastapi==0.162.0
+fastapi==0.165.0
 starlette==1.10.0
 uvicorn[standard]==0.54.0
-pydantic==2.14.3
+pydantic==2.14.4
 python-dotenv==1.2.4
-pydantic-settings==2.16.2
+pydantic-settings==2.16.3
 httpx==0.28.1
 # Dashboards data API (src/dashboards/): SQLAlchemy async over asyncpg, Alembic migrations and the
 # official MCP SDK. Every release is at least two weeks old (cutoff 2026-11-08) and has a CPython
 # 3.15 wheel (the image has no compiler): SQLAlchemy 2.1.8 (2026-11-04), asyncpg 0.32.0
 # (2026-10-06), alembic 1.20.1 (2026-10-22), mcp 2.3.0 (2026-10-02), greenlet 3.5.6 (2026-09-14;
 # SQLAlchemy's asyncio extra needs it).
-SQLAlchemy[asyncio]==2.1.8
+SQLAlchemy[asyncio]==2.1.9
 greenlet==3.5.6
 asyncpg==0.32.0
 alembic==1.20.1
 mcp==2.3.0
 # Transitive pins of mcp: left floating they would resolve to releases from 2026-11-16, inside
 # the two-week window.
-httpx2==2.16.0
-httpcore2==2.16.0
-python-multipart==0.0.33
+httpx2==2.16.2
+httpcore2==2.16.2
+python-multipart==0.0.34
 # Time zone database for DASHBOARDS_TIMEZONE (zoneinfo), so the slim image needs no system tzdata
 # (2026.6, 2026-10-28; pure Python).
 tzdata==2026.6
