@@ -108,7 +108,7 @@ describe('dashboards design rules', () => {
 
   it('keeps a hub card neutral at rest (no background of its own) and tinted only on hover, focus and press; its heading stays static so the link covers the card', () => {
     const css = files.find(([file]) => file.endsWith('/SpaceCard/SpaceCard.module.css'))?.[1] ?? '';
-    const block = (selector: string) => new RegExp(`${selector.replace(/[.[\]()]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    const block = (selector: string) => new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
     expect(block('.card')).not.toMatch(/background\s*:/);
     expect(block('.card')).not.toMatch(/border-color\s*:/);
     expect(block('.card:hover')).toMatch(/background\s*:\s*var\(--scheme-h\)/);
