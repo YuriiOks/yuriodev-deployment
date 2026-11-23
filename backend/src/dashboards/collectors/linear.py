@@ -1,4 +1,4 @@
-"""Linear: issues assigned to the API key's user whose state is not completed, canceled or duplicate.
+"""Linear: open issues assigned to the API key's user (not completed, canceled or duplicate).
 
 One GraphQL query over the viewer's assigned issues, paged by cursor.
 
