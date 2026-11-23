@@ -448,9 +448,10 @@ describe('the dashboards bar is the only chrome', () => {
     ]);
     expect(within(main()).getByRole('link', { name: 'yuriodev: на сайт' })).toHaveAttribute('href', '/');
     expect(within(main()).getByRole('group', { name: 'Язык' })).toBeInTheDocument();
-    // No raw path or slug as a label.
-    expect(main()).not.toHaveTextContent('/dashboards/');
-    expect(main()).not.toHaveTextContent('work-1');
+    // No raw path or slug as a label of a page link (the prompt, which runs the current place, is the one place a path is shown).
+    expect(bar).not.toHaveTextContent('/dashboards/');
+    expect(bar).not.toHaveTextContent('work-1');
+    expect(main().querySelector('[class*="terminalPrompt"]')).toHaveTextContent('yurii@yuriodev:~$ ./dashboards/personal');
   });
 
   it('the theme toggle drives the site theme and says what it will switch to', async () => {
@@ -617,9 +618,9 @@ describe('the calendar on a phone', () => {
     expect(within(strip).getByRole('button', { name: /^23 ноября/ })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('the bar is only the pages: no brand, and the language and theme switches sit at the end of the page', () => {
+  it('the bar is the prompt, the pages and the portfolio link: the language and theme switches sit at the end of the page', () => {
     renderAt('/dashboards/personal');
-    expect(within(main()).queryByRole('link', { name: 'yuriodev: на сайт' })).toBeNull();
+    expect(within(main()).getByRole('link', { name: 'yuriodev: на сайт' })).toHaveAttribute('href', '/');
     expect(within(main()).getAllByRole('group', { name: 'Язык' })).toHaveLength(1);
     const switches = within(main()).getByRole('group', { name: 'Язык' }).parentElement!;
     expect(switches).toBe(main().querySelector('[class*="switches"]'));

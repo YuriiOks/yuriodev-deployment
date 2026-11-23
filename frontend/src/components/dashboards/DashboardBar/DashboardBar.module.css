@@ -1,53 +1,38 @@
-/* The bar: sticky at the top, one glass card in the page's column (the mockup's header: a rounded glass pill-box with
-   a hairline border and a soft drop), so the content scrolls under it. Inside: the brand (cyan, with the amber
-   segment), the pages as bordered pills (the current one in the heading colour, bold, on its tint and edge), the
-   language switch and the theme button. */
+/* The bar is the site's header (components/layout/Header: the prompt, the 40px bordered controls, the underlined
+   current page, all from its own stylesheet and tokens) made sticky and given the dashboards' pages. The same glass
+   recipe as the site's header, the same height and bottom border, the same side padding. One row from a laptop up;
+   below 48rem the prompt is the short one and the pages scroll sideways. */
 .bar {
+  composes: glass from '../../../assets/styles/recipes.module.css';
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  padding: var(--space-3) var(--space-4) 0;
-  pointer-events: none;
-}
-
-@media (min-width: 48rem) {
-  .bar {
-    padding-inline: var(--space-5);
-  }
+  height: var(--header-h);
+  box-sizing: border-box;
+  padding: 0 var(--space-4);
+  font-family: var(--font-mono);
+  border-width: 0 0 2px;
+  border-bottom: 2px solid var(--header-border-bottom-color);
 }
 
 .inner {
-  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  min-height: var(--dash-h-bar);
-  max-width: 96rem;
-  margin-inline: auto;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-  box-sizing: border-box;
-  border-radius: var(--dash-r-surface);
-  pointer-events: auto;
+  gap: var(--space-4);
+  height: 100%;
 }
 
-.brand {
-  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  display: inline-flex;
-  align-items: center;
-  color: var(--dash-accent);
-  font-size: var(--dash-fs-ui);
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
+@media (min-width: 64rem) {
+  .bar {
+    padding: 0 var(--space-6);
+  }
 }
 
-.segment {
-  color: var(--dash-heading);
-}
-
+/* The pages: the site's pills in a row that scrolls sideways when it must. */
 .nav {
   display: flex;
   flex: 1 1 auto;
+  align-items: center;
   gap: var(--space-2);
   min-width: 0;
   padding: var(--space-1) 0;
@@ -59,52 +44,28 @@
   display: none;
 }
 
-.link {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  min-height: var(--dash-h-control);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--dash-border);
-  border-radius: var(--radius-pill);
-  color: var(--dash-t2);
-  font-size: var(--dash-fs-ui);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    background-color 120ms,
-    border-color 120ms,
-    color 120ms;
-}
-
-.link.active {
-  background: var(--dash-heading-tint);
-  border-color: var(--dash-heading-edge);
-  color: var(--dash-heading);
-  font-weight: 700;
-}
-
-@media (hover: hover) {
-  .link:hover {
-    border-color: var(--dash-edge);
-    color: var(--dash-t1);
-  }
-
-  .link.active:hover {
-    color: var(--dash-heading);
-  }
-}
-
+/* The portfolio link, the language switch and the theme button, together at the right. */
 .tools {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;
 }
 
-@media (forced-colors: active) {
-  .link.active {
-    border-color: Highlight;
+/* The prompt keeps its width (the short one on a phone, the site's own rule) and the pages give way to it. */
+.inner > .prompt {
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+
+/* A phone: the portfolio link is an arrow (its label is aria-label), so the prompt and the pages have the room. */
+@media (max-width: 29.99rem) {
+  .inner {
+    gap: var(--space-2);
+  }
+
+  .portfolioText {
+    display: none;
   }
 }

@@ -2,9 +2,10 @@ import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { LANGS } from '../../../services/dashboards/strings';
 import { cx } from '../../../utils/cx';
+import header from '../../layout/Header/Header.module.css';
 import styles from './LangSwitch.module.css';
 
-/** RU / EN, two real buttons in a group; the pressed one is the language in use. */
+/** RU / EN, two real buttons in a group in the site header's control style; the pressed one is the language in use. */
 const LangSwitch: React.FC = () => {
   const { lang, setLang, t } = useDashboardLang();
   return (
@@ -15,7 +16,7 @@ const LangSwitch: React.FC = () => {
           type="button"
           lang={code}
           aria-pressed={code === lang}
-          className={cx(styles.option, code === lang && styles.on)}
+          className={cx(header.navControl, code === lang && header.current)}
           onClick={() => setLang(code)}
         >
           {code.toUpperCase()}

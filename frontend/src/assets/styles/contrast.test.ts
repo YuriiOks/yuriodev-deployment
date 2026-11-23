@@ -282,11 +282,14 @@ const SHARED_PAIRS: Pair[] = [
    rest (never t3: it does not hold on a dark tint) and the danger colour for an overdue count. The ink is also the
    hover edge, so it must show against the page and its glows. The header card runs from the personal wash to the
    amber one. */
-const HUB_SCHEMES = ['personal', 'work-1', 'work-2', 'green', 'amber', 'pink', 'blue', 'slate'];
+const HUB_SCHEMES = ['personal', 'work-1', 'work-2', 'clay', 'ember', 'saffron', 'gold', 'amber'];
 const HUB_PAIRS: Pair[] = [
   ...HUB_SCHEMES.flatMap((scheme) => [
     ...cross(['--dash-t1', '--dash-t2', '--dash-danger', `--hub-${scheme}-ink`], [[`--hub-${scheme}-a`], [`--hub-${scheme}-s`]], TEXT),
     ...cross([`--hub-${scheme}-ink`], [...BACKS, ...DASH_SOLID], UI),
+    // Hover, focus and pressed: the card's own overlay colour, with the name and the Next line on it; and the ink on the stat chips.
+    ...cross(['--dash-t1', '--dash-t2', `--hub-${scheme}-ink`], [[`--hub-${scheme}-h`]], TEXT),
+    ...cross([`--hub-${scheme}-ink`], [['--dash-chip']], TEXT),
   ]),
   ...cross(['--dash-t1', '--dash-t2', '--hub-personal-ink', '--hub-amber-ink'], [['--hub-head-a'], ['--hub-head-b']], TEXT),
 ];

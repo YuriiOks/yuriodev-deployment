@@ -100,7 +100,7 @@ describe('the hub cards carry their colour scheme', () => {
     }
   });
 
-  it('each space card names its scheme on real data too, and a project card one of the five accents, by its id', async () => {
+  it('each space card names its scheme on real data too, and a project card one of the four warm accents, by its id', async () => {
     liveSetup({ projects: [{ id: 'garden', name: 'Garden' }, { id: 'side-project', name: 'Side project' }], tasks: [projectTask('garden', 'Seeds')] });
     renderHub();
     for (const [name, scheme] of [['Личное', 'personal'], ['Работа 1', 'work-1'], ['Работа 2', 'work-2']]) {
@@ -109,7 +109,7 @@ describe('the hub cards carry their colour scheme', () => {
     const garden = await within(main()).findByRole('region', { name: 'Garden' });
     expect(garden).toHaveAttribute('data-scheme', projectScheme('garden'));
     expect(within(main()).getByRole('region', { name: 'Side project' })).toHaveAttribute('data-scheme', projectScheme('side-project'));
-    expect(['green', 'amber', 'pink', 'blue', 'slate']).toContain(garden.getAttribute('data-scheme'));
+    expect(['clay', 'ember', 'saffron', 'gold']).toContain(garden.getAttribute('data-scheme'));
   });
 
   it('the new-project tile and its form carry no scheme', async () => {

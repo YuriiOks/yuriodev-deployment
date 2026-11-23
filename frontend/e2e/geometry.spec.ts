@@ -340,13 +340,13 @@ test.describe('dashboards: no site chrome', () => {
     });
   }
 
-  test('the calendar uses the wide screen (96rem), the list pages hold a 72rem column, and the bar keeps to it', async ({ page }, testInfo) => {
+  test('the calendar uses the wide screen (96rem), the list pages hold a 72rem column, and the bar is the full-width site header', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== '1920x1080', 'runs once, in the 1920x1080 project');
     await page.setViewportSize({ width: 1920, height: 1000 });
     const column = () =>
       page.evaluate(() => {
         const content = document.querySelector('main [lang] > div[class*="inner"]');
-        const brand = document.querySelector('main [lang] a[href="/"]');
+        const brand = document.querySelector('main [lang] [class*="terminalPrompt"]');
         const first = document.querySelector('main [lang] [tabindex="-1"]');
         if (!content || !brand || !first) return null;
         const box = content.getBoundingClientRect();
@@ -366,9 +366,9 @@ test.describe('dashboards: no site chrome', () => {
     await open(page, '/dashboards/personal');
     const list = (await column())!;
     expect(list.width).toBeLessThanOrEqual(1152);
-    // The bar keeps the wide cap on every page (a glass card 96rem wide, centred: its brand sits 17px inside the card's
-    // edge, border and padding), while the list page's own content starts at its narrower column's edge.
-    expect(Math.abs(list.brand - (Math.round((1920 - 1536) / 2) + 17)), 'the brand sits at the wide cap').toBeLessThanOrEqual(1);
+    // The bar is the site's header, full width, whatever the page (its prompt sits 32px in from the window's edge), while
+    // the list page's own content starts at its narrower column's edge.
+    expect(list.brand, 'the prompt sits at the header\'s padding').toBe(32);
     expect(Math.abs(list.first - (list.left + 24)), 'the page content starts at its own column edge').toBeLessThanOrEqual(1);
   });
 

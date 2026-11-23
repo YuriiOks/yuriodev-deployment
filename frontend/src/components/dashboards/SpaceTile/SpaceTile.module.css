@@ -8,9 +8,9 @@
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  background: var(--dash-fill);
+  background: var(--tile-bg, var(--dash-fill));
   border-radius: var(--dash-r-control);
-  color: var(--dash-on-fill);
+  color: var(--tile-ink, var(--dash-on-fill));
   font-size: var(--dash-fs-ui);
   font-weight: 700;
   line-height: 1;

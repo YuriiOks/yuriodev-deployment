@@ -1,5 +1,9 @@
-/** The colour schemes the hub gives projects (tokens `--hub-<name>-*` in _variables.css section 6); the three spaces have their own. */
-export const PROJECT_SCHEMES = ['green', 'amber', 'pink', 'blue', 'slate'] as const;
+/**
+ * The colour schemes the hub gives projects (tokens `--hub-<name>-*` in _variables.css section 6; the three spaces have
+ * their own): a warm family from terracotta through ember and saffron to gold, close enough that neighbours differ
+ * only slightly and every project looks like it belongs to the same set.
+ */
+export const PROJECT_SCHEMES = ['clay', 'ember', 'saffron', 'gold'] as const;
 
 export type ProjectScheme = (typeof PROJECT_SCHEMES)[number];
 
