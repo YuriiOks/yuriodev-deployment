@@ -1,8 +1,9 @@
-/* The frame: glass like the week's (recipes.module.css .glassDash). The scroll box is focusable (tabIndex 0 in
-   the markup) so a keyboard user can scroll it on a narrow screen; the global focus ring shows on it. */
+/* The frame: the week's (WeekGrid.module.css .scroll): glass (recipes.module.css .glassDash), the same padding and
+   radius. The scroll box is focusable (tabIndex 0 in the markup) so a keyboard user can scroll it on a narrow screen;
+   the global focus ring shows on it. */
 .scroll {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-2);
   overflow-x: auto;
   border-radius: var(--dash-r-surface);
 }
@@ -88,39 +89,67 @@
   font-weight: 400;
 }
 
-/* Today: the neutral filled circle, as in the week's header. */
+/* Today: the week's filled t1 circle with the surface colour numeral. */
 .today .number {
-  background: var(--dash-fill);
-  color: var(--dash-on-fill);
+  background: var(--dash-t1);
+  color: var(--dash-surface);
 }
 
 .alert {
   color: var(--dash-warn);
 }
 
-/* Events as rows: 20px high, a 6px dot, the title, the time at the right. */
+/* Events: the week's blocks at chip size. 20px high, an opaque tint of the space's ink, a 3px ink bar at the left, a 1px
+   surface-coloured outline that parts neighbours, the title (12px 500 t1) with an ellipsis and the start time (mono 12px
+   t2) at the right. A conflict has the warn ring; a busy-only block (a Focus-time note) is hatched with the ink at 28%. */
 .rows {
   display: flex;
   flex-direction: column;
+  gap: 0.125rem;
 }
 
-.row {
+.event {
   --ink: var(--dash-ink-personal);
   display: flex;
   align-items: center;
   gap: var(--space-2);
   height: 1.25rem;
   min-width: 0;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  box-sizing: border-box;
+  background-color: var(--dash-tint-personal);
+  border-radius: var(--dash-r-tag);
+  box-shadow:
+    inset 3px 0 0 var(--ink),
+    var(--ring, 0 0 0 0 transparent),
+    0 0 0 1px var(--dash-surface);
+  font-weight: 500;
 }
 
-.row[data-for="work-1"],
+.event[data-for="work-1"],
 .dotMark[data-for="work-1"] {
   --ink: var(--dash-ink-work-1);
 }
 
-.row[data-for="work-2"],
+.event[data-for="work-1"] {
+  background-color: var(--dash-tint-work-1);
+}
+
+.event[data-for="work-2"],
 .dotMark[data-for="work-2"] {
   --ink: var(--dash-ink-work-2);
+}
+
+.event[data-for="work-2"] {
+  background-color: var(--dash-tint-work-2);
+}
+
+.event[data-note="true"] {
+  background-image: repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in srgb, var(--ink) 28%, transparent) 5px 6px);
+}
+
+.event[data-conflict="true"] {
+  --ring: inset 0 0 0 1px var(--dash-warn);
 }
 
 .dotMark {
@@ -130,10 +159,6 @@
   height: 0.375rem;
   border-radius: var(--radius-round);
   background: var(--ink);
-}
-
-.row .dotMark {
-  --ink: inherit;
 }
 
 .title {
@@ -150,6 +175,7 @@
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
   flex: none;
   color: var(--dash-t2);
+  font-weight: 400;
 }
 
 /* "+N": quiet text. */

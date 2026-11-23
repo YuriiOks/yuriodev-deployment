@@ -339,10 +339,18 @@ describe('the calendar: month view', () => {
     await openMonth();
     const today = monthTable().getByRole('button', { name: '23 ноября, событий: 5' });
     expect(today).toHaveAttribute('aria-current', 'date');
-    // Up to three rows (a dot, the title, the start time), then how many more.
+    // Up to three event chips (the week's blocks at chip size: the title and the start time), then how many more.
     expect(within(today).getAllByText(/^\d{2}:\d{2}$/)).toHaveLength(3);
     expect(within(today).getByText('+2 ещё')).toBeInTheDocument();
     expect(monthTable().getByRole('button', { name: '24 ноября, событий: 4, есть конфликт' })).toBeInTheDocument();
+  });
+
+  it('draws a day\'s events like the week\'s blocks: a chip per event in its space, a warn ring on the conflicting ones', async () => {
+    await openMonth();
+    const chips = (name: string | RegExp) => Array.from(monthTable().getByRole('button', { name }).querySelectorAll('[data-for]'));
+    const busy = chips('24 ноября, событий: 4, есть конфликт');
+    expect(busy).toHaveLength(3);
+    for (const chip of busy) expect(['personal', 'work-1', 'work-2']).toContain(chip.getAttribute('data-for'));
   });
 
   it('shows the days of the neighbouring months muted, and a day with a conflict says so', async () => {

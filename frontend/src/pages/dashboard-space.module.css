@@ -26,6 +26,19 @@
   }
 }
 
+/* Two equal columns (the GitHub and Linear tabs, the "waiting for me" overview): from the tablet breakpoint up the panels
+   sit side by side in halves, each as tall as its own content; below it they stack. With data-wide-first the first panel
+   (the overview's Priority) spans both columns. */
+@media (min-width: 48rem) {
+  .panels[data-split="even"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panels[data-split="even"][data-wide-first="true"] > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* The page footer: when each source was last read. */
 .sync {
   margin: 0;
