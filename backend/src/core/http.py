@@ -120,6 +120,28 @@ async def post_json_capped(
     )
 
 
+async def post_form_capped(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    headers: Mapping[str, str],
+    form: Mapping[str, str],
+    max_bytes: int = MAX_BODY_BYTES,
+    deadline: float = TOTAL_DEADLINE_SECONDS,
+) -> tuple[Any, httpx.Headers]:
+    """POST a form-encoded body (OAuth token requests); the answer is read like `get_json_capped`.
+    The form may hold a secret: it is never part of an error or a log line."""
+    return await request_json_capped(
+        client,
+        "POST",
+        url,
+        headers=headers,
+        form=form,
+        max_bytes=max_bytes,
+        deadline=deadline,
+    )
+
+
 def is_json(media_type: str) -> bool:
     return media_type.endswith("json")
 
@@ -139,6 +161,7 @@ async def request_json_capped(
     headers: Mapping[str, str],
     params: Mapping[str, str | int] | None = None,
     json_body: Any = None,
+    form: Mapping[str, str] | None = None,
     max_bytes: int = MAX_BODY_BYTES,
     deadline: float = TOTAL_DEADLINE_SECONDS,
 ) -> tuple[Any, httpx.Headers]:
@@ -151,6 +174,7 @@ async def request_json_capped(
         headers=headers,
         params=params,
         json_body=json_body,
+        form=form,
         max_bytes=max_bytes,
         deadline=deadline,
         accepts=is_json,
@@ -169,6 +193,7 @@ async def request_capped(
     headers: Mapping[str, str],
     params: Mapping[str, str | int] | None = None,
     json_body: Any = None,
+    form: Mapping[str, str] | None = None,
     max_bytes: int = MAX_BODY_BYTES,
     deadline: float = TOTAL_DEADLINE_SECONDS,
     accepts: Callable[[str], bool] = is_json,
@@ -184,7 +209,9 @@ async def request_capped(
     try:
         async with (
             asyncio.timeout(deadline),
-            client.stream(method, url, headers=headers, params=params, json=json_body) as response,
+            client.stream(
+                method, url, headers=headers, params=params, json=json_body, data=form
+            ) as response,
         ):
             if response.status_code == 304 and not_modified_ok:
                 return 304, b"", response.headers

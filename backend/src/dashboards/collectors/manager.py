@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from pydantic import SecretStr
 from sqlalchemy import BigInteger, bindparam, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.sql.elements import TextClause
 
 from src.core.clock import Clock
@@ -34,6 +35,7 @@ from src.dashboards.collectors.ical import CalendarCollector, split_feeds
 from src.dashboards.collectors.linear import LinearCollector
 from src.dashboards.finance.base import FinanceCollector
 from src.dashboards.finance.monobank import MonobankProvider
+from src.dashboards.finance.monzo import MonzoProvider
 from src.dashboards.runtime import DashboardsRuntime
 
 logger = logging.getLogger("yuriodev.collectors")
@@ -196,12 +198,23 @@ def build_collectors(settings: Settings, zone: ZoneInfo | None = None) -> list[C
     return collectors
 
 
-def build_finance_collectors(settings: Settings) -> list[Collector]:
-    """The finance collectors whose credential is set (none without a token)."""
+def build_finance_collectors(
+    settings: Settings,
+    sessions: async_sessionmaker[AsyncSession] | None = None,
+    clock: Clock | None = None,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+) -> list[Collector]:
+    """The finance collectors whose credential is set (none without one). Monzo reads its tokens
+    from the database, so it needs the sessions and the clock."""
     collectors: list[Collector] = []
+    months = settings.finance_backfill_months
     if settings.monobank_token is not None:
         provider = MonobankProvider(settings.monobank_token)
-        collectors.append(FinanceCollector(provider, settings.finance_backfill_months))
+        collectors.append(FinanceCollector(provider, months, sleep))
+    client_id, secret = settings.monzo_client_id, settings.monzo_client_secret
+    if settings.monzo_enabled and sessions and clock and client_id and secret:
+        monzo = MonzoProvider(client_id, secret, sessions, clock, sleep)
+        collectors.append(FinanceCollector(monzo, months, sleep))
     return collectors
 
 

@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0008"
+    assert version == "dashboards_0009"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -233,7 +233,7 @@ async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty
     outside = await scalar(
         empty_db_url,
         "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' "
-        "AND table_name IN ('connection', 'account', 'transaction')",
+        "AND table_name IN ('connection', 'account', 'transaction', 'monzo_token')",
     )
     money = await scalar(
         empty_db_url,
@@ -242,7 +242,7 @@ async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty
         "('amount', 'balance', 'credit_limit', 'original_amount', 'balance_after')",
     )
 
-    assert inside == "account,connection,transaction"
+    assert inside == "account,connection,monzo_oauth_state,monzo_token,transaction"
     assert outside == 0
     assert money == "bigint"
 
@@ -258,3 +258,32 @@ async def test_the_finance_tables_enforce_their_rules(empty_db_url):
     for statement in BAD_FINANCE_ROWS:
         with pytest.raises(IntegrityError):
             await execute(empty_db_url, statement)
+
+
+async def test_monzo_keeps_its_auth_state_in_tables_of_its_own(empty_db_url):
+    await migrate(empty_db_url)
+
+    columns = await scalar(
+        empty_db_url,
+        "SELECT string_agg(column_name, ',' ORDER BY column_name) FROM information_schema.columns "
+        "WHERE table_schema = 'finance' AND table_name = 'monzo_token'",
+    )
+    shared = await scalar(
+        empty_db_url,
+        "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'finance' "
+        "AND table_name IN ('connection', 'account', 'transaction') "
+        "AND (column_name LIKE '%token%' OR column_name LIKE '%secret%')",
+    )
+    extras = await scalar(
+        empty_db_url,
+        "SELECT string_agg(table_name || '.' || column_name, ',' ORDER BY table_name, column_name) "
+        "FROM information_schema.columns WHERE table_schema = 'finance' AND column_name IN "
+        "('opened_at', 'declined', 'settled_at')",
+    )
+
+    assert columns == (
+        "access_token,approval_deadline,approved_at,connection_id,expires_at,refresh_token,"
+        "revoked_at,updated_at,user_id"
+    )
+    assert shared == 0  # no token of any provider in a shared table
+    assert extras == "account.opened_at,transaction.declined,transaction.settled_at"

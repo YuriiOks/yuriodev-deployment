@@ -907,6 +907,70 @@ expiring consents): add a provider that returns the neutral account and transact
 and never in the shared ones, and `finance.connection.status` (`ok`, `needs_reconsent`,
 `paused`) is where the page can show "this link needs you".
 
+### Monzo (OAuth, your own account)
+
+A second provider, through Monzo's developer API (https://docs.monzo.com/), for your own accounts
+only. It needs an OAuth client of yours and a one-time consent in a browser; nothing runs without
+both. Accounts (current, joint if you have one) and each pot (an account of type `pot`, with its
+own balance and no statement) are kept like Monobank's; transactions carry the merchant name as
+counterparty, the category, the amount and, when it differs, the amount in the currency it was
+spent in, `pending` (not settled yet), `declined` (refused: stored and flagged, never counted in
+spent and received) and `settled_at`. Moves to and from a pot are flagged `internal_transfer`.
+Kept out on purpose: addresses, coordinates, notes, counterparty account numbers, and the holder's
+name (accounts are named "Current account GBP"). `GET /finance/accounts` shows `history_from` (the
+oldest transaction held) so the page can say "history from <date>".
+
+| Setting | Where | Meaning |
+|---|---|---|
+| `MONZO_CLIENT_ID`, `MONZO_CLIENT_SECRET` | secrets file | The OAuth client from the developer portal. Unset: no Monzo. |
+| `DASHBOARDS_PUBLIC_BASE_URL` | `env/<env>.env` (tracked, not secret; `https://dev.yuriodev.co.uk` on dev) | An https origin (http only for localhost), no path. The redirect address is this plus `/api/dashboards/v1/finance/monzo/callback`. A malformed value only leaves Monzo off. |
+
+Your steps (the secrets are typed by you into the secrets file, never into chat or a command):
+
+1. At https://developers.monzo.com sign in, "Clients", "New OAuth Client": name it, set the
+   redirect URL to `<DASHBOARDS_PUBLIC_BASE_URL>/api/dashboards/v1/finance/monzo/callback`
+   (on dev: `https://dev.yuriodev.co.uk/api/dashboards/v1/finance/monzo/callback`) and choose
+   **Confidential** (a non-confidential client gets no refresh token and must consent again every
+   six hours).
+2. On the box add `MONZO_CLIENT_ID=` and `MONZO_CLIENT_SECRET=` to `env/dev.secrets.env`, then
+   recreate the backend (the same pause/recreate steps as for the Monobank token above).
+3. In a browser that is signed in to dev (basic auth), open
+   `https://dev.yuriodev.co.uk/api/dashboards/v1/finance/monzo/connect`. It sends you to Monzo:
+   log in with your email.
+4. **Approve in the Monzo app within 15 minutes** (a push notification asks for your PIN,
+   fingerprint or face). The browser then lands on `/dashboards?monzo=connected` (or `denied`,
+   `invalid_state`, `failed`).
+
+Strong customer authentication decides what can be read: right after you approve, the whole
+history; after five minutes only the last 90 days. So the collector asks the API every few
+seconds until your approval lands (for up to 15 minutes; it then gives up and the connection
+becomes `needs_reconsent`), and from that moment fetches every account's history as fast as it
+can, newest to oldest, one 90-day window at a time, one request a second (the documentation names
+no limit; a 429 pauses the collector). A window is written whole or not at all, so an interrupted
+walk simply continues. Once the five minutes are over it never asks for anything older than 90
+days and keeps the last 90 days fresh with a 3-day overlap, as for Monobank. If the five minutes
+were missed (the server was down), open the connect address again: a new consent resets the walk
+and opens a new full-history window. `collector.synced` for `monzo` logs counts only.
+
+Tokens. The access token (about six hours) and the refresh token live in
+`finance.monzo_token`, a table of this provider (never a shared one), stored as Monzo issued
+them: **not encrypted at rest**. They are protected by where they are: the database is reachable
+only on the compose network by the backend's own role, no API or MCP tool ever returns them,
+nothing logs them, and a state, a code or a token is never put in a URL we generate (the state in
+the redirect to Monzo is a random single-use value, kept only as a hash, valid ten minutes). A
+database dump contains them: keep dumps mode 600 (see "Backup and restore") and treat one as a
+credential. Encrypting them with a key from the environment would need a cryptography library
+that the backend does not ship; ask before adding one. Each refresh is one-time and invalidates
+the previous pair, so it runs under a row lock (`SELECT ... FOR UPDATE`): two processes cannot
+both spend it. If Monzo refuses a refresh (or a non-confidential token expires) the token is
+revoked, the connection becomes `needs_reconsent` and nothing more is sent until you open the
+connect address again. A refresh whose answer is lost (a timeout after Monzo accepted it) looks
+the same and needs a new consent.
+
+Not in the documentation, used when present: `local_amount`/`local_currency`, `account_balance`,
+and the markers of a pot transfer (`metadata.pot_id`, a `uk_retail_pot` scheme, or a description
+that is the pot's id). Check them against your real data before relying on the flags.
+
 ## Local development
 
 Mac only — **never run this on the VPS.** `compose.local.yml` (project

@@ -23,13 +23,17 @@ class AccountOut(BaseModel):
     credit_limit: int
     own_balance_minor: int  # balance minus credit_limit: the owner's own money
     balance_at: datetime
+    opened_at: datetime | None  # when the provider says it was opened
+    history_from: datetime | None  # the oldest transaction kept: "history from <date>"
     archived: bool
 
     @classmethod
-    def from_row(cls, row: Any) -> Self:
-        names = [name for name in cls.model_fields if name != "own_balance_minor"]
-        values = {name: getattr(row, name) for name in names}
-        return cls.model_validate({**values, "own_balance_minor": row.balance - row.credit_limit})
+    def from_row(cls, row: Any, history_from: datetime | None = None) -> Self:
+        derived = ("own_balance_minor", "history_from")
+        values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
+        values["own_balance_minor"] = row.balance - row.credit_limit
+        values["history_from"] = history_from
+        return cls.model_validate(values)
 
 
 class ConnectionOut(BaseModel):
@@ -67,6 +71,8 @@ class TransactionOut(BaseModel):
     balance_after: int | None
     pending: bool
     internal_transfer: bool  # the counterparty is another account of the same owner
+    declined: bool  # refused by the bank: not money that moved, never counted as spent
+    settled_at: datetime | None
 
 
 class TransactionsOut(BaseModel):

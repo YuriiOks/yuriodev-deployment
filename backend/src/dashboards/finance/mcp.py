@@ -39,10 +39,13 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
         """List the bank accounts with their balance (minor units), currency, last four digits,
         and the status of each bank link (ok, needs_reconsent or paused)."""
         async with scope("finance_accounts") as (session, _):
-            accounts, links = await service.list_accounts(session)
+            accounts, links, oldest = await service.list_accounts(session)
             return _json(
                 {
-                    "accounts": [AccountOut.from_row(a).model_dump(mode="json") for a in accounts],
+                    "accounts": [
+                        AccountOut.from_row(a, oldest.get(a.id)).model_dump(mode="json")
+                        for a in accounts
+                    ],
                     "connections": [
                         ConnectionOut.model_validate(c).model_dump(mode="json") for c in links
                     ],
