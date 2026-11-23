@@ -1,0 +1,17 @@
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--dash-danger);
+  font-size: var(--dash-fs-meta);
+  font-weight: 500;
+  line-height: var(--dash-lh-meta);
+}
+
+.retry {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  padding-inline: var(--space-2);
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}

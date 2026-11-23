@@ -2,15 +2,22 @@ import { useState } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
 import CalendarToolbar, { type CalendarView } from '../components/dashboards/CalendarToolbar/CalendarToolbar';
 import DayStrip from '../components/dashboards/DayStrip/DayStrip';
+import EventForm, { type NewEvent } from '../components/dashboards/EventForm/EventForm';
+import InlineError from '../components/dashboards/InlineError/InlineError';
 import MonthGrid from '../components/dashboards/MonthGrid/MonthGrid';
 import WeekGrid from '../components/dashboards/WeekGrid/WeekGrid';
 import { maxWidth } from '../constants/breakpoints';
+import { useDashboardMode } from '../hooks/useDashboardMode';
+import { useLiveEvents } from '../hooks/useLiveEvents';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useNow } from '../hooks/useNow';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useCalendar } from '../hooks/useDashboards';
 import { addDays, addMonths, isWeekend, monthMatrix, monthOf, nearestWorkday, stepDay, weekDates } from '../services/dashboards/calendarDates';
 import { dateLabel, fill, monthTitle, weekRangeLabel } from '../services/dashboards/calendarLabels';
+import { createEvent } from '../services/dashboards/liveApi';
+import { clampToHours, rangeOf, toCalEvents } from '../services/dashboards/liveEvents';
+import { localDate, toOffsetIso } from '../services/dashboards/liveTime';
 import { readWorkdaysOnly, writeWorkdaysOnly } from '../services/dashboards/preferences';
 import { findConflicts, summarizeHidden } from '../services/dashboards/weekLayout';
 import styles from './dashboards-calendar.module.css';
@@ -25,11 +32,15 @@ import styles from './dashboards-calendar.module.css';
 const DashboardsCalendar = () => {
   const { t } = useDashboardLang();
   usePageTitle(t.titles.calendar);
-  const calendar = useCalendar();
+  const sample = useCalendar();
   const now = useNow();
+  // On the API's data "today" is the browser's, and the events are fetched for what is on screen.
+  const { mode } = useDashboardMode();
+  const live = mode === 'live';
+  const todayDate = live ? localDate(now) : sample.today;
   const [view, setView] = useState<CalendarView>('week');
   const [workdaysOnly, setWorkdaysOnly] = useState(readWorkdaysOnly);
-  const [anchor, setAnchor] = useState(() => (workdaysOnly ? nearestWorkday(calendar.today) : calendar.today));
+  const [anchor, setAnchor] = useState(() => (workdaysOnly ? nearestWorkday(todayDate) : todayDate));
   // Seven columns do not fit a phone: from the tablet breakpoint up the week, below it one day.
   const phone = useMediaQuery(maxWidth('md'));
 
@@ -39,8 +50,14 @@ const DashboardsCalendar = () => {
   // On a phone with the weekend hidden, the one day on screen is never a Saturday or a Sunday.
   const dayOnScreen = workdaysOnly ? nearestWorkday(anchor) : anchor;
   const dates = singleDay ? [dayOnScreen] : weekDates(anchor, workdaysOnly);
+  const [formOpen, setFormOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const shown = new Set(week ? dates : monthMatrix(year, month, workdaysOnly).flat().map((day) => day.date));
-  const events = calendar.events.filter((event) => shown.has(event.date));
+  // What is on screen decides what is fetched: the week (even when a phone shows one day) or the month's weeks.
+  const range = week ? weekDates(anchor) : monthMatrix(year, month).flat().map((day) => day.date);
+  const fetched = useLiveEvents(rangeOf(range).from, rangeOf(range).to, live);
+  const allEvents = live ? toCalEvents(fetched.events) : sample.events;
+  const events = allEvents.filter((event) => shown.has(event.date));
   const conflicts = findConflicts(events.map((event) => ({ ...event, day: event.date })));
   // The count is of what is marked on screen: blocks in a week, days in a month.
   const marked = week
@@ -48,15 +65,14 @@ const DashboardsCalendar = () => {
     : new Set(events.filter((event) => conflicts.ids.has(event.id)).map((event) => event.date)).size;
 
   // What the option hides in this range: the weekend days of the week (or of every week of the month).
-  const range = week ? weekDates(anchor) : monthMatrix(year, month).flat().map((day) => day.date);
   const hiddenDates = new Set(workdaysOnly ? range.filter(isWeekend) : []);
   const hidden = summarizeHidden(
-    calendar.events.map((event) => ({ ...event, day: event.date })),
+    allEvents.map((event) => ({ ...event, day: event.date })),
     hiddenDates,
   );
 
   // The phone's day strip shows the whole week, whatever single day is on screen.
-  const weekEvents = calendar.events.filter((event) => range.includes(event.date));
+  const weekEvents = allEvents.filter((event) => range.includes(event.date));
   const weekConflicts = findConflicts(weekEvents.map((event) => ({ ...event, day: event.date })));
 
   const chooseWorkdaysOnly = (on: boolean) => {
@@ -65,7 +81,24 @@ const DashboardsCalendar = () => {
     // A weekend day cannot stay on screen on a phone once the weekend is hidden.
     if (on && singleDay) setAnchor(nearestWorkday(anchor));
   };
-  const today = () => setAnchor(workdaysOnly ? nearestWorkday(calendar.today) : calendar.today);
+  const today = () => setAnchor(workdaysOnly ? nearestWorkday(todayDate) : todayDate);
+  const addEvent = async (event: NewEvent): Promise<string | null> => {
+    try {
+      await createEvent(event.space, {
+        title: event.title,
+        startsAt: toOffsetIso(event.date, event.start),
+        endsAt: toOffsetIso(event.date, event.end),
+        busyOnly: event.busyOnly,
+      });
+    } catch {
+      return t.evFailed;
+    }
+    setNotice(t.evAdded);
+    setFormOpen(false);
+    setAnchor(event.date);
+    fetched.reload();
+    return null;
+  };
   const step = (direction: 1 | -1) =>
     setAnchor(singleDay ? stepDay(dayOnScreen, direction, workdaysOnly) : week ? addDays(anchor, 7 * direction) : addMonths(anchor, direction));
   const pickDay = (date: string) => {
@@ -87,21 +120,30 @@ const DashboardsCalendar = () => {
         onToday={today}
         workdaysOnly={workdaysOnly}
         onWorkdaysOnly={chooseWorkdaysOnly}
+        onNewEvent={live ? () => setFormOpen((open) => !open) : undefined}
+        newEventOpen={formOpen}
       />
+      {live && formOpen && <EventForm today={todayDate} onSubmit={addEvent} onClose={() => setFormOpen(false)} />}
+      {live && notice && !formOpen && (
+        <p className={styles.notice} role="status">
+          {notice}
+        </p>
+      )}
+      {live && fetched.status === 'error' && <InlineError message={t.eventsFailed} onRetry={fetched.reload} />}
       {singleDay && (
         <DayStrip
           dates={weekDates(anchor, workdaysOnly)}
           selected={dayOnScreen}
-          today={calendar.today}
+          today={todayDate}
           events={weekEvents}
           conflicts={weekConflicts}
           onPick={setAnchor}
         />
       )}
       {week ? (
-        <WeekGrid dates={dates} today={calendar.today} hours={calendar.hours} events={events} conflicts={conflicts} now={now} />
+        <WeekGrid dates={dates} today={todayDate} hours={sample.hours} events={live ? clampToHours(events, sample.hours) : events} conflicts={conflicts} now={now} />
       ) : (
-        <MonthGrid year={year} month={month} today={calendar.today} events={events} conflicts={conflicts} onPickDay={pickDay} workdaysOnly={workdaysOnly} />
+        <MonthGrid year={year} month={month} today={todayDate} events={events} conflicts={conflicts} onPickDay={pickDay} workdaysOnly={workdaysOnly} />
       )}
       {hidden.count > 0 && (
         <p className={styles.hidden} role="status">

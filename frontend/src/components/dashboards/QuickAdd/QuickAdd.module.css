@@ -1,3 +1,10 @@
+/* The field and, when a create fails, its one error line under it. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* A plain input: 36px, 8px radius, the surface, a 1px control edge, 14px sans. The `>` is data (mono) in t3. */
 .form {
   display: flex;

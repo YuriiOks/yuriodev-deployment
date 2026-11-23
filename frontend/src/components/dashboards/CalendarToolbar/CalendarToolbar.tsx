@@ -22,6 +22,9 @@ export interface CalendarToolbarProps {
   /** Show Monday to Friday only. */
   workdaysOnly: boolean;
   onWorkdaysOnly: (on: boolean) => void;
+  /** Real data only: shows a "New event" button that opens the form. */
+  onNewEvent?: () => void;
+  newEventOpen?: boolean;
 }
 
 /**
@@ -40,6 +43,8 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
   onToday,
   workdaysOnly,
   onWorkdaysOnly,
+  onNewEvent,
+  newEventOpen = false,
 }) => {
   const { t, text } = useDashboardLang();
   const week = view === 'week';
@@ -95,6 +100,11 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           </span>
           {t.workdaysOnly}
         </button>
+        {onNewEvent && (
+          <button type="button" className={styles.newEvent} aria-expanded={newEventOpen} onClick={onNewEvent}>
+            {t.newEvent}
+          </button>
+        )}
         <div role="group" aria-label={t.viewLabel} className={styles.view}>
           <button type="button" aria-pressed={week} className={cx(styles.option, week && styles.on)} onClick={() => onView('week')}>
             {t.week}

@@ -16,3 +16,11 @@
   text-decoration: underline;
   text-underline-offset: 0.25rem;
 }
+
+/* The one-line confirmation after an event is added. */
+.notice {
+  margin: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
