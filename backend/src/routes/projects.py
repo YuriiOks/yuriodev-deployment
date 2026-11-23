@@ -34,7 +34,7 @@ async def list_projects(session: SessionDep, clock: ClockDep, zone: ZoneDep) -> 
 
 @router.post("/projects", status_code=201)
 async def create_project(body: ProjectCreate, session: SessionDep, clock: ClockDep) -> ProjectOut:
-    return await project_service.create_project(session, body.name, clock())
+    return await project_service.create_project(session, body.name, clock(), body.icon)
 
 
 @router.patch("/projects/{project_id}")

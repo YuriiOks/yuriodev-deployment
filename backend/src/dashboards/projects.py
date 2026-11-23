@@ -180,6 +180,7 @@ async def _out(session: AsyncSession, project: Project, today: date) -> ProjectO
     return ProjectOut(
         id=project.id,
         name=project.name,
+        icon=project.icon,
         archived=project.archived,
         open=total,
         priority=urgent,
@@ -198,11 +199,13 @@ async def list_projects(session: AsyncSession, today: date) -> list[ProjectOut]:
 async def active_projects(session: AsyncSession) -> list[ProjectRef]:
     query = select(Project).where(Project.archived.is_(False)).order_by(Project.created_at)
     rows = (await session.scalars(query)).all()
-    return [ProjectRef(id=row.id, name=row.name) for row in rows]
+    return [ProjectRef(id=row.id, name=row.name, icon=row.icon) for row in rows]
 
 
 @guarded
-async def create_project(session: AsyncSession, name: str, now: datetime) -> ProjectOut:
+async def create_project(
+    session: AsyncSession, name: str, now: datetime, icon: str | None = None
+) -> ProjectOut:
     """The registry row, the schema and its tables, in one transaction. 409 when the id the name
     makes is taken (or reserved)."""
     project_id = slugify(name)
@@ -213,6 +216,7 @@ async def create_project(session: AsyncSession, name: str, now: datetime) -> Pro
     entry = Project(
         id=project_id,
         name=name,
+        icon=icon,
         archived=False,
         schema_version=SCHEMA_VERSION,
         created_at=now,
@@ -227,7 +231,9 @@ async def create_project(session: AsyncSession, name: str, now: datetime) -> Pro
     for version in range(1, SCHEMA_VERSION + 1):
         await PROJECT_STEPS[version](connection, project_id)
     await session.commit()
-    return ProjectOut(id=project_id, name=name, archived=False, open=0, priority=0, overdue=0)
+    return ProjectOut(
+        id=project_id, name=name, icon=icon, archived=False, open=0, priority=0, overdue=0
+    )
 
 
 @guarded
@@ -239,6 +245,8 @@ async def update_project(
         project.name = patch.name
     if patch.archived is not None:
         project.archived = patch.archived
+    if "icon" in patch.model_fields_set:
+        project.icon = patch.icon
     await session.commit()
     return await _out(session, project, today)
 
