@@ -1,0 +1,12 @@
+[
+  {"id": "money", "name_ru": "Деньги", "name_en": "Money"},
+  {"id": "work-income", "name_ru": "Работа и доход", "name_en": "Work and income"},
+  {"id": "court-paperwork", "name_ru": "Суд и бумаги", "name_en": "Court and paperwork"},
+  {"id": "health-sport", "name_ru": "Здоровье и спорт", "name_en": "Health and sport"},
+  {"id": "romantic", "name_ru": "Личная жизнь", "name_en": "Romantic life"},
+  {"id": "friends", "name_ru": "Друзья", "name_en": "Friends"},
+  {"id": "family", "name_ru": "Семья", "name_en": "Family"},
+  {"id": "travel", "name_ru": "Путешествия", "name_en": "Travel"},
+  {"id": "home", "name_ru": "Дом", "name_en": "Home"},
+  {"id": "hobbies-growth", "name_ru": "Хобби и развитие", "name_en": "Hobbies and growth"}
+]

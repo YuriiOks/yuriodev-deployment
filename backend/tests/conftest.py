@@ -5,7 +5,9 @@ variables of the surrounding environment removed, so the suite gives the same re
 no env file and inside a container started from any env/<env>.env.
 """
 
+import asyncio
 import logging
+import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -14,9 +16,28 @@ from fastapi.testclient import TestClient
 
 from src.app import create_app
 from src.core.config import Settings, get_settings
+from src.dashboards.db import run_migrations
+from tests.dashboards_support import (
+    CRED,
+    TEST_DB_ENV,
+    FakeClock,
+    execute,
+    fixed_clock,
+    new_database_name,
+    url_for,
+)
 
 SETTINGS_ENV_VARS = tuple(name.upper() for name in Settings.model_fields)
-_LOGGERS = ("", "uvicorn", "uvicorn.error", "uvicorn.access", "httpx", "httpcore")
+_LOGGERS = (
+    "",
+    "uvicorn",
+    "uvicorn.error",
+    "uvicorn.access",
+    "httpx",
+    "httpcore",
+    "sqlalchemy",
+    "mcp",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -81,3 +102,53 @@ def client(make_client: Callable[..., TestClient]) -> TestClient:
 def anyio_backend() -> str:
     """Async tests run on asyncio only (anyio's pytest plugin ships with starlette)."""
     return "asyncio"
+
+
+# Dashboards: a real Postgres, named by DASHBOARDS_TEST_DATABASE_URL (CI starts one as a service
+# container). Without it these tests skip. Each test run gets its own database, migrated once
+# with the app's own migration runner; every test starts with empty task and event tables.
+
+
+@pytest.fixture(scope="session")
+def pg_server_url() -> str:
+    url = os.environ.get(TEST_DB_ENV, "").strip()
+    if not url:
+        pytest.skip(f"{TEST_DB_ENV} is not set: no Postgres for the dashboards tests")
+    return url
+
+
+@pytest.fixture(scope="session")
+def migrated_db_url(pg_server_url: str) -> Iterator[str]:
+    name = new_database_name()
+    asyncio.run(execute(pg_server_url, f'CREATE DATABASE "{name}"'))
+    url = url_for(pg_server_url, name)
+    try:
+        run_migrations(url)
+        yield url
+    finally:
+        asyncio.run(execute(pg_server_url, f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+
+
+@pytest.fixture
+def db_url(migrated_db_url: str) -> str:
+    # DELETE, not TRUNCATE: it does not wait for readers, so a leaked transaction cannot hang it.
+    asyncio.run(execute(migrated_db_url, "DELETE FROM task", "DELETE FROM event"))
+    return migrated_db_url
+
+
+@pytest.fixture
+def clock() -> FakeClock:
+    return fixed_clock()
+
+
+@pytest.fixture
+def make_dashboards_app(
+    make_settings: Callable[..., Settings], clock: FakeClock
+) -> Callable[..., Any]:
+    """create_app() with the dashboards API on, a token configured and a fixed clock."""
+
+    def _make(database_url: str, **overrides: Any) -> Any:
+        values = {"database_url": database_url, "dashboards_api_token": CRED, **overrides}
+        return create_app(make_settings(**values), clock=clock)
+
+    return _make

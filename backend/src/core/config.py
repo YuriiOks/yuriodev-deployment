@@ -6,6 +6,7 @@ both files as container environment variables; nothing reads a dotenv file from 
 
 from functools import lru_cache
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -66,6 +67,23 @@ class Settings(BaseSettings):
     # Able to publish as the account owner: treat as a full credential. Never logged.
     typefully_api_key: SecretStr | None = None
 
+    # dashboards data API (/api/dashboards/**, /api/mcp). Off unless DATABASE_URL is set: the API
+    # then answers "disabled" and nothing else changes. Both secrets live in env/<env>.secrets.env.
+    # DATABASE_URL is a postgresql:// (or postgresql+asyncpg://) URL, password included.
+    database_url: SecretStr | None = None
+    # Shared secret for the X-Dashboards-Token header (a full credential for the data). With no
+    # token and no trusted proxy every dashboards request is refused (closed by default).
+    dashboards_api_token: SecretStr | None = None
+    # dev and stage only: nginx basic auth has already authenticated the caller, so the API
+    # accepts requests without the token header. Never set it in prod.
+    dashboards_trust_proxy_auth: bool = False
+    # IANA zone that decides what "today" is (overdue, `today`, day ranges). Not secret.
+    dashboards_timezone: str = "Europe/London"
+
+    @property
+    def dashboards_enabled(self) -> bool:
+        return self.database_url is not None
+
     @field_validator("log_level", "log_format", "social_feed_provider", mode="before")
     @classmethod
     def _normalise_case(cls, value: Any, info: ValidationInfo) -> Any:
@@ -74,11 +92,22 @@ class Settings(BaseSettings):
         value = value.strip()
         return value.upper() if info.field_name == "log_level" else value.lower()
 
-    @field_validator("typefully_api_key", mode="before")
+    @field_validator("dashboards_timezone")
+    @classmethod
+    def _known_zone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except KeyError, ValueError, OSError:  # an unknown name is a ZoneInfoNotFoundError
+            raise ValueError("DASHBOARDS_TIMEZONE must be an IANA time zone name") from None
+        return value
+
+    @field_validator("typefully_api_key", "database_url", "dashboards_api_token", mode="before")
     @classmethod
     def _strip_key(cls, value: Any) -> Any:
         # A pasted key often carries a trailing space or newline; blank means unset. Any other
-        # odd character is left in place for the feed to report as misconfigured.
+        # odd character is left in place for the feed to report as misconfigured. Nothing here
+        # validates a secret's content: a pydantic error would echo the rejected value into the
+        # crash log.
         if isinstance(value, str):
             value = value.strip()
             return value or None

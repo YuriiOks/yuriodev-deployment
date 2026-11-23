@@ -174,3 +174,50 @@ def test_invalid_feed_values_are_rejected(clean_env, name, value):
 
     with pytest.raises(ValidationError):
         fresh()
+
+
+def test_dashboards_are_off_and_closed_by_default(clean_env):
+    settings = fresh()
+
+    assert settings.database_url is None
+    assert settings.dashboards_api_token is None
+    assert settings.dashboards_trust_proxy_auth is False
+    assert settings.dashboards_enabled is False
+    assert settings.dashboards_timezone == "Europe/London"
+
+
+def test_dashboards_settings_are_read_from_the_environment(clean_env):
+    clean_env.setenv("DATABASE_URL", "  postgresql://u:pw-in-url@h/d\n")
+    clean_env.setenv("DASHBOARDS_API_TOKEN", " tok-123 ")
+    clean_env.setenv("DASHBOARDS_TRUST_PROXY_AUTH", "true")
+
+    settings = fresh()
+
+    assert settings.dashboards_enabled is True
+    assert settings.database_url.get_secret_value() == "postgresql://u:pw-in-url@h/d"
+    assert settings.dashboards_api_token.get_secret_value() == "tok-123"
+    assert settings.dashboards_trust_proxy_auth is True
+    assert "pw-in-url" not in repr(settings)
+    assert "tok-123" not in repr(settings)
+
+
+def test_blank_dashboards_secrets_mean_unset(clean_env):
+    for name in ("DATABASE_URL", "DASHBOARDS_API_TOKEN"):
+        clean_env.setenv(name, "")
+    settings = fresh()
+
+    assert settings.database_url is None
+    assert settings.dashboards_api_token is None
+
+    clean_env.setenv("DATABASE_URL", "   ")
+    assert fresh().database_url is None
+
+
+def test_the_dashboards_time_zone_must_be_an_iana_name(clean_env):
+    clean_env.setenv("DASHBOARDS_TIMEZONE", "Pacific/Auckland")
+    assert fresh().dashboards_timezone == "Pacific/Auckland"
+
+    for bad in ("Mars/Olympus", "../etc/passwd", "BST"):
+        clean_env.setenv("DASHBOARDS_TIMEZONE", bad)
+        with pytest.raises(ValidationError):
+            fresh()

@@ -50,13 +50,16 @@ updates:
   # instead. Dependabot names compose images WITHOUT the registry host, hence
   # "yuriioks/yuriodev-*" rather than "ghcr.io/yuriioks/...".
   - package-ecosystem: docker-compose
-    directory: /
+    directories: [/, /deploy/dev, /deploy/stage]
     schedule:
       interval: weekly
       day: monday
     ignore:
       - dependency-name: "yuriioks/yuriodev-frontend"
       - dependency-name: "yuriioks/yuriodev-backend"
+      # A new postgres major needs a dump/restore (the data directory is versioned): by hand.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
 
   # Actions are pinned to full commit SHAs (repo policy); Dependabot bumps the SHA and the version comment.
   - package-ecosystem: github-actions

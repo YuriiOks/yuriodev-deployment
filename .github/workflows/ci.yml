@@ -86,6 +86,22 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # A real Postgres for the dashboards tests (migrations, queries, MCP). Same image and
+    # digest as the compose files' databases; throwaway credentials, reachable only from this job.
+    services:
+      postgres:
+        image: postgres:18.6-alpine3.24@sha256:9ba53c7d41ea093baf5c1ba635ba5434c4f979880527d49bb7d9237d3193085b
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,7 +119,11 @@ jobs:
       - name: Types (mypy strict)
         run: mypy
       - name: Tests (90% branch-coverage gate from pyproject.toml)
-        run: python -m pytest -q --cov --cov-report=term-missing
+        timeout-minutes: 10
+        env:
+          # Without it the database tests skip and the coverage gate would fail.
+          DASHBOARDS_TEST_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+        run: python -m pytest -v --maxfail=5 --cov --cov-report=term-missing
       # Same gate as images.yml, but at PR time. Trivy reads only the direct pins in
       # requirements.txt (no lockfile); transitive packages are covered after merge by the
       # image scan in images.yml.

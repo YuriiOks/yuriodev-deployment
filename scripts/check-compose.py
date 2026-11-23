@@ -13,6 +13,10 @@ Checks (reads YAML only; never runs `docker compose config`, which would load en
     limits, the proxy has a healthcheck and never a memory limit;
   * no deployed service sets network_mode (host networking would expose every
     listening port without a `ports:` key);
+  * each environment has exactly one dashboards database service (postgres, postgres-dev,
+    postgres-stage): official postgres or pgvector image pinned by digest, a healthcheck, and
+    only named volumes that the file declares (never a bind mount); it is exempt from the
+    ghcr.io image-tag rule and invisible to the deploy agent (not a ghcr.io image);
   * only the prod proxy publishes ports; its image is pinned by digest
     (name:tag@sha256:<64 hex>) and every volume it mounts, ./nginx-proxy
     included, is read-only;
@@ -38,8 +42,15 @@ EXPECTED_AGENT_VIEW = {
     "dev": {("frontend-dev", "yuriodev-dev-frontend", "80"), ("backend-dev", "yuriodev-dev-backend", "8000")},
     "stage": {("frontend-stage", "yuriodev-stage-frontend", "80"), ("backend-stage", "yuriodev-stage-backend", "8000")},
 }
-PROD_SERVICE_NAMES = {"frontend", "backend", "proxy"}
+PROD_SERVICE_NAMES = {"frontend", "backend", "proxy", "postgres"}
+# (service, container) of each environment's dashboards database.
+EXPECTED_DATABASE = {
+    "prod": ("postgres", "yuriodev-postgres"),
+    "dev": ("postgres-dev", "yuriodev-dev-postgres"),
+    "stage": ("postgres-stage", "yuriodev-stage-postgres"),
+}
 DIGEST_PINNED = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
+DATABASE_IMAGE = re.compile(r"^(postgres|pgvector/pgvector):[^@\s]+@sha256:[0-9a-f]{64}$")
 PROXY_CONF = ("./nginx-proxy", "/etc/nginx/conf.d")
 
 errors: list[str] = []
@@ -88,6 +99,22 @@ def check_proxy(rel, svc: dict) -> None:
     for src, dst, read_only in vols:
         if not read_only:
             fail(f"{rel}: proxy volume '{src}:{dst}' must be mounted read-only (:ro)")
+
+
+def check_database(rel, svc: dict, declared: set) -> None:
+    image = str(svc.get("image", ""))
+    if not DATABASE_IMAGE.match(image):
+        fail(f"{rel}: the database image '{image}' must be postgres or pgvector/pgvector pinned by digest "
+             "(name:tag@sha256:<64 hex>)")
+    if "healthcheck" not in svc:
+        fail(f"{rel}: the database needs a compose healthcheck")
+    if svc.get("build") is not None:
+        fail(f"{rel}: the database must not be built here")
+    for entry in svc.get("volumes") or []:
+        src = volume(entry)[0]
+        if src.startswith((".", "/", "~")) or src not in declared:
+            fail(f"{rel}: database volume '{src}' must be a named volume declared under top-level volumes: "
+                 "(no bind mounts)")
 
 
 def block(svc: dict, *keys):
@@ -148,9 +175,16 @@ for env, (path, tag) in DEPLOYED.items():
         image = svc.get("image", "")
         if name == "proxy":
             continue
+        if name == EXPECTED_DATABASE[env][0]:
+            check_database(rel, svc, set((doc.get("volumes") or {}).keys()))
+            if cname != EXPECTED_DATABASE[env][1]:
+                fail(f"{rel}: the database container must be named '{EXPECTED_DATABASE[env][1]}'")
+            continue
         want = f"ghcr.io/yuriioks/yuriodev-{'backend' if 'backend' in name else 'frontend'}:{tag}"
         if image != want:
             fail(f"{rel}: service '{name}' image is '{image}', expected '{want}'")
+    if doc and EXPECTED_DATABASE[env][0] not in services:
+        fail(f"{rel}: no '{EXPECTED_DATABASE[env][0]}' database service")
     if env == "prod" and doc and "proxy" not in services:
         fail(f"{rel}: no 'proxy' service (the only service allowed to publish ports)")
     got = agent_view(doc)
