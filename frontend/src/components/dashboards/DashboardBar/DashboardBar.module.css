@@ -102,22 +102,32 @@
   background: var(--header-border-bottom-color);
 }
 
-/* With projects in the row there is no room at laptop widths for everything: below 100rem the prompt is the short one
-   (as on a phone) and the portfolio link is its arrow (at any width), so the pages and a few projects fit; the rest scroll sideways. */
+/* The prompt's form depends on the width alone, never on what arrives later (the projects, the names), so a reload cannot
+   change it: below 100rem it is the short one (as on a phone), and the portfolio link is its arrow at every width (its label
+   is the aria-label), so the pages and a few projects fit; the rest scroll sideways. */
 @media (max-width: 99.99rem) {
-  .bar[data-projects] .full {
+  .full {
     display: none;
   }
 
-  .bar[data-projects] .short {
+  .short {
     display: inline;
   }
-
 }
 
-/* With projects in the row the portfolio link is its arrow at any width (its label is the aria-label). */
-.bar[data-projects] .portfolioText {
+.portfolioText {
   display: none;
+}
+
+/* Until the answer: a fixed-size quiet block where each pill will be (never the bundled names or number tiles). */
+.skeleton {
+  flex: none;
+  width: 6.5rem;
+  height: 2.5rem;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-control);
+  opacity: 0.6;
 }
 
 /* The row's right end fades out while there is more to scroll to. */
