@@ -134,6 +134,7 @@ class SpaceRef(BaseModel):
 
     id: str
     name: str
+    icon: str | None
 
 
 class BootstrapOut(BaseModel):

@@ -51,7 +51,7 @@ describe('the bootstrap call', () => {
       areas: [{ id: 'money', space_id: 'personal', name_ru: 'Деньги', name_en: 'Money', sort: 0 }, { nope: 1 }],
       server_time: '2026-11-22T10:00:00+00:00',
     });
-    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {} });
+    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {}, spaceIcons: {}, projects: [] });
   });
 
   it('keeps the names the server gives spaces, and only real renames', () => {
@@ -67,6 +67,23 @@ describe('the bootstrap call', () => {
     expect(parsed?.spaceNames).toEqual({ 'work-1': 'Acme', 'work-2': 'Globex' });
   });
 
+  it('keeps the icons the server gives spaces, only as small image data URIs', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const svg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
+    const icons = (spaces: unknown) => parseBootstrap({ enabled: true, spaces })?.spaceIcons;
+    expect(icons([{ id: 'personal', icon: null }, { id: 'work-1', icon: png }, { id: 'work-2', icon: svg }])).toEqual({ 'work-1': png, 'work-2': svg });
+    expect(icons([{ id: 'work-1', icon: 'https://example.test/logo.png' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: 'data:image/gif;base64,AAAA' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: 'data:text/html;base64,AAAA' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: 'javascript:alert(1)' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: 'data:image/png;base64,' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: 'data:image/png;base64,not base64!' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: 'data:image/png;base64,AAA' }])).toEqual({});
+    expect(icons([{ id: 'work-1', icon: `data:image/png;base64,${'A'.repeat(48 * 1024)}` }])).toEqual({});
+    expect(icons([{ id: 'work-3', icon: png }, { id: 'work-1', icon: 5 }, { id: 'work-2' }, null])).toEqual({});
+    expect(icons(undefined)).toEqual({});
+  });
+
   it('ignores a space name that is blank, too long, not text, or the bundled English default', () => {
     const names = (spaces: unknown) => parseBootstrap({ enabled: true, spaces })?.spaceNames;
     expect(names([{ id: 'work-1', name: 'Work 1' }, { id: 'work-2', name: 'Work 2' }])).toEqual({});
@@ -79,7 +96,7 @@ describe('the bootstrap call', () => {
 
   it('says disabled as it is', async () => {
     installFakeApi({ enabled: false });
-    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {} });
+    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {}, spaceIcons: {}, projects: [] });
   });
 
   it('is null (the sample data) on a network error, a non-2xx answer, a non-JSON body or the wrong shape', async () => {

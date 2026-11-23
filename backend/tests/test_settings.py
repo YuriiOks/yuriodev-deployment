@@ -1,5 +1,7 @@
 """Settings parsing. Each test builds a fresh Settings(_env_file=None) in a clean environment."""
 
+import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -346,3 +348,79 @@ def test_a_bad_space_name_is_ignored_and_never_stops_startup(clean_env, raw, exp
     clean_env.setenv("DASHBOARDS_SPACE_NAMES", raw)
 
     assert fresh().space_names == expected
+
+
+PNG_DATA = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4"
+    "2mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+PNG = "data:image/png;base64," + PNG_DATA
+SVG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4="
+
+
+def icons_from(clean_env, data):
+    clean_env.setenv("DASHBOARDS_SPACE_ICONS", data if isinstance(data, str) else json.dumps(data))
+    return fresh().space_icons
+
+
+def test_space_icons_default_to_nothing(clean_env):
+    assert fresh().dashboards_space_icons is None
+    assert fresh().space_icons == {}
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "data:image/png;base64,",
+        "data:image/svg+xml;base64,",
+        "data:image/x-icon;base64,",
+        "data:image/vnd.microsoft.icon;base64,",
+        "data:image/webp;base64,",
+    ],
+)
+def test_every_allowed_image_type_is_accepted(clean_env, prefix):
+    uri = prefix + "AAAA"
+
+    assert icons_from(clean_env, {"work-1": uri}) == {"work-1": uri}
+
+
+def test_icons_are_kept_per_known_space_and_the_bad_ones_dropped_one_by_one(clean_env):
+    data = {"personal": PNG, "work-1": SVG, "work-2": "https://example.test/logo.png", "other": PNG}
+
+    assert icons_from(clean_env, data) == {"personal": PNG, "work-1": SVG}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "https://example.test/logo.png",
+        "data:image/gif;base64,AAAA",
+        "data:image/png,AAAA",
+        "data:image/png;base64,",
+        "data:image/png;base64,not base64!",
+        "data:image/png;base64,AAA",
+        "data:image/png;base64,AA AA",
+        "data:text/html;base64,AAAA",
+        "javascript:alert(1)",
+        "",
+        5,
+        None,
+        ["data:image/png;base64,AAAA"],
+    ],
+)
+def test_a_value_that_is_not_an_allowed_data_uri_is_dropped(clean_env, value):
+    assert icons_from(clean_env, {"work-1": value}) == {}
+
+
+def test_the_size_limit_is_48_kib_for_the_whole_value(clean_env):
+    prefix = "data:image/png;base64,"
+    fits = prefix + "A" * 49_128  # a valid payload: a multiple of 4 characters
+    too_big = fits + "AAAA"
+
+    assert len(fits) <= 48 * 1024 < len(too_big)
+    assert icons_from(clean_env, {"work-1": fits, "work-2": too_big}) == {"work-1": fits}
+
+
+@pytest.mark.parametrize("raw", ["[]", '"x"', "not json", '{"work-1": "unterminated', ""])
+def test_a_malformed_icons_setting_is_ignored_and_never_stops_startup(clean_env, raw):
+    assert icons_from(clean_env, raw) == {}
