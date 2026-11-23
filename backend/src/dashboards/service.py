@@ -295,6 +295,7 @@ async def create_event(
         ends_at=data.ends_at.astimezone(UTC),
         busy_only=data.busy_only,
         source=source,
+        source_ref=None,
         created_at=now,
         updated_at=now,
     )

@@ -24,6 +24,7 @@ from src.dashboards.collectors.base import (
     clean_title,
     safe_url,
 )
+from src.dashboards.collectors.sync import TaskCollector
 
 SEARCH_URL = "https://api.github.com/search/issues"
 SEARCH_RESULT_LIMIT = 1000
@@ -36,7 +37,7 @@ ROLES = (
 )
 
 
-class GitHubCollector:
+class GitHubCollector(TaskCollector):
     name = "github"
     source = "github"
 

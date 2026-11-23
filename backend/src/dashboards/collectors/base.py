@@ -6,10 +6,11 @@ else the source sends is dropped at parse time, and nothing here is ever logged.
 
 import hashlib
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.http import UpstreamError
 
@@ -32,15 +33,29 @@ class ExternalItem:
     due_date: date | None = None
 
 
+@dataclass(frozen=True)
+class CalendarItem:
+    """One calendar event occurrence, already in UTC. `external_id` is stable across polls."""
+
+    external_id: str
+    title: str
+    starts_at: datetime
+    ends_at: datetime
+    busy_only: bool
+
+
 class Collector(Protocol):
-    """A source of tasks. `fetch` returns every open item or raises: a partial answer would make
-    the sync close tasks that are merely missing from it."""
+    """One source the manager polls. `collect` fetches, writes to the database and returns the
+    counts to log (numbers only), or raises. A failed or cut-off fetch must change nothing."""
 
     name: str  # the name in logs and settings
-    source: str  # the `task.source` value of its rows
-    space: str  # where new tasks go
 
-    async def fetch(self, client: httpx.AsyncClient) -> list[ExternalItem]: ...
+    async def collect(
+        self,
+        client: httpx.AsyncClient,
+        sessions: async_sessionmaker[AsyncSession],
+        now: datetime,
+    ) -> dict[str, int]: ...
 
 
 def fingerprint(title: str, url: str | None) -> str:

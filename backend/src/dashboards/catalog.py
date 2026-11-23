@@ -7,7 +7,7 @@ from typing import Literal, NamedTuple
 SpaceId = Literal["personal", "work-1", "work-2"]
 TaskStatus = Literal["open", "done"]
 TaskStatusFilter = Literal["open", "done", "all"]
-Source = Literal["web", "mcp", "telegram", "import", "github", "linear"]
+Source = Literal["web", "mcp", "telegram", "import", "github", "linear", "calendar"]
 # Sources whose tasks a collector owns (title, url and status); `source_ref` holds the external id.
 COLLECTED_SOURCES: tuple[Source, ...] = ("github", "linear")
 

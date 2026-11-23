@@ -19,6 +19,10 @@ from tests.dashboards_support import (
 pytestmark = pytest.mark.anyio
 
 TABLES = ("space", "area", "task", "event")
+EVENT_WITH_SOURCE = (
+    "INSERT INTO event (id, space_id, title, starts_at, ends_at, source) "
+    "VALUES (gen_random_uuid(), 'work-1', 'x', now(), now() + interval '1 hour', 'SOURCE')"
+)
 WITH_SOURCE = (
     "INSERT INTO task (id, space_id, title, source) "
     "VALUES (gen_random_uuid(), 'personal', 'x', 'SOURCE')"
@@ -55,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0002"
+    assert version == "dashboards_0003"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -138,3 +142,20 @@ async def test_collectors_may_write_their_own_sources_and_nobody_else_is_invente
         await execute(empty_db_url, WITH_SOURCE.replace("SOURCE", source))
     with pytest.raises(IntegrityError):
         await execute(empty_db_url, WITH_SOURCE.replace("SOURCE", "slack"))
+
+
+async def test_calendar_events_have_a_unique_external_id_and_their_own_source(empty_db_url):
+    await migrate(empty_db_url)
+
+    unique = await scalar(
+        empty_db_url,
+        "SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_event_source_source_ref'",
+    )
+    for source in ("calendar", "web", "mcp"):
+        await execute(empty_db_url, EVENT_WITH_SOURCE.replace("SOURCE", source))
+    with pytest.raises(IntegrityError):
+        await execute(empty_db_url, EVENT_WITH_SOURCE.replace("SOURCE", "github"))
+
+    assert "UNIQUE" in unique
+    assert "source_ref IS NOT NULL" in unique
+    assert await scalar(empty_db_url, "SELECT count(*) FROM event") == 3
