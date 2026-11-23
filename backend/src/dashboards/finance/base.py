@@ -21,10 +21,11 @@ Nothing here logs an amount, a description, a counterparty, an account number or
 manager logs the collector name, the counts this returns and an error kind.
 """
 
+import asyncio
 import calendar
 import logging
 import uuid
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Protocol
@@ -43,6 +44,8 @@ OVERLAP = timedelta(days=3)  # every incremental window starts this far before t
 MAX_PAGES = 10  # a window of more than this many full pages is refused, never half stored
 EMPTY_WINDOWS_AT_END = 3  # this many empty windows in a row: the provider's history ended
 INSERT_CHUNK = 500
+BURST_BUDGET_SECONDS = 90.0  # a tick may keep going this long, so a manager timeout never hits
+FULL_HISTORY_MONTHS = 120  # how far back a provider with `full_history` is asked, at the most
 
 
 @dataclass(frozen=True)
@@ -54,6 +57,7 @@ class AccountData:
     mask_last4: str | None
     balance: int
     credit_limit: int
+    opened_at: datetime | None = None  # when the provider says it was opened: the history's start
 
 
 @dataclass(frozen=True)
@@ -70,6 +74,8 @@ class TransactionData:
     balance_after: int | None
     pending: bool
     internal_transfer: bool = False  # the counterparty is another account of the same owner
+    declined: bool = False  # refused by the bank: never money that moved
+    settled_at: datetime | None = None  # when it left pending, if the provider says
 
 
 class FinanceProvider(Protocol):
@@ -81,6 +87,20 @@ class FinanceProvider(Protocol):
     refresh_every: timedelta  # accounts and balances, and each account's newest window
     max_window: timedelta  # the longest statement window one request may span
     page_limit: int  # a statement answer of this many items may have more behind it
+    full_history: bool  # walk back as far as the account goes, not `FINANCE_BACKFILL_MONTHS`
+    statement_less_types: frozenset[str]  # account types that have a balance but no statement
+
+    def burst(self, now: datetime) -> int:
+        """How many requests one tick may make (it waits `min_call_gap` between them)."""
+        ...
+
+    def history_floor(self, now: datetime) -> datetime | None:
+        """The oldest time the provider will answer for right now, or None for no limit."""
+        ...
+
+    async def needs_attention(self, now: datetime) -> bool:
+        """True to refresh the accounts now instead of at the next `refresh_every`."""
+        ...
 
     async def fetch_accounts(self, client: httpx.AsyncClient) -> list[AccountData]: ...
 
@@ -95,6 +115,22 @@ class FinanceProvider(Protocol):
         """One page of the account's statement for [start, end]: at most `page_limit` items,
         the newest ones when there are more."""
         ...
+
+
+class ProviderDefaults:
+    """The optional parts of a provider, at their plain values: one request per tick, no floor."""
+
+    full_history = False
+    statement_less_types: frozenset[str] = frozenset()
+
+    def burst(self, now: datetime) -> int:
+        return 1
+
+    def history_floor(self, now: datetime) -> datetime | None:
+        return None
+
+    async def needs_attention(self, now: datetime) -> bool:
+        return False
 
 
 def months_back(moment: datetime, months: int) -> datetime:
@@ -125,6 +161,8 @@ class _Cursors:
     id: uuid.UUID
     external_id: str
     currency: str
+    type: str | None
+    opened_at: datetime | None
     synced_until: datetime | None
     backfilled_from: datetime | None
     backfill_done: bool
@@ -134,10 +172,16 @@ class _Cursors:
 class FinanceCollector:
     """Drives one provider. `collect` is the manager's per-tick call."""
 
-    def __init__(self, provider: FinanceProvider, backfill_months: int) -> None:
+    def __init__(
+        self,
+        provider: FinanceProvider,
+        backfill_months: int,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
         self.name = provider.name
         self._provider = provider
         self._backfill_months = backfill_months
+        self._sleep = sleep
         self._next_call_at: datetime | None = None
         self._last_refresh: datetime | None = None
         self._last_caught_up: dict[str, datetime] = {}
@@ -150,23 +194,39 @@ class FinanceCollector:
         now: datetime,
     ) -> dict[str, int]:
         counts = {"calls": 0, "accounts": 0, "windows": 0, "added": 0, "updated": 0}
-        if self._next_call_at is not None and now < self._next_call_at:
+        blocked = self._next_call_at is not None and now < self._next_call_at
+        if blocked and not await self._provider.needs_attention(now):
             return counts
         connection_id, status = await self._connection(sessions, now)
         if status == "paused":
             return counts
-        try:
-            await self._step(client, sessions, now, connection_id, counts)
-        except UpstreamError as exc:
-            self._window = None  # a partial fetch is thrown away; the window is asked again
-            gap = self._provider.refresh_every if exc.kind == "auth" else self._gap()
-            self._next_call_at = now + gap
-            await self._failed(sessions, connection_id, now, exc.kind)
-            raise
-        except Exception:
-            self._window = None
-            self._next_call_at = now + self._gap()
-            raise
+        slept = 0.0
+        index = 0
+        while True:
+            step_now = now + timedelta(seconds=slept)
+            step = {"calls": 0, "accounts": 0, "windows": 0, "added": 0, "updated": 0}
+            try:
+                await self._step(client, sessions, step_now, connection_id, step)
+            except UpstreamError as exc:
+                self._window = None  # a partial fetch is thrown away; the window is asked again
+                gap = self._provider.refresh_every if exc.kind == "auth" else self._gap()
+                self._next_call_at = step_now + gap
+                await self._failed(sessions, connection_id, step_now, exc.kind)
+                raise
+            except Exception:
+                self._window = None
+                self._next_call_at = step_now + self._gap()
+                raise
+            for key, value in step.items():
+                counts[key] += value
+            # The burst is asked again after every step: a provider learns of a window by a step.
+            steps = max(1, self._provider.burst(step_now))
+            if not step["calls"] or index + 1 >= steps or slept >= BURST_BUDGET_SECONDS:
+                break
+            wait = self._gap().total_seconds()
+            await self._sleep(wait)
+            slept += wait
+            index += 1
         if counts["calls"]:
             await self._succeeded(sessions, connection_id, now)
         return counts
@@ -190,6 +250,7 @@ class FinanceCollector:
             refresh_due = (
                 self._last_refresh is None
                 or now - self._last_refresh >= self._provider.refresh_every
+                or await self._provider.needs_attention(now)
             )
             if refresh_due:
                 self._called(now, counts)
@@ -229,7 +290,9 @@ class FinanceCollector:
     ) -> _Window | None:
         """The next statement window to fetch, or None when nothing is due."""
         provider = self._provider
-        depth_limit = months_back(now, self._backfill_months)
+        months = FULL_HISTORY_MONTHS if provider.full_history else self._backfill_months
+        depth = months_back(now, months)
+        floor = provider.history_floor(now)
         async with sessions() as session:
             rows = (
                 await session.execute(
@@ -237,6 +300,8 @@ class FinanceCollector:
                         Account.id,
                         Account.external_id,
                         Account.currency,
+                        Account.type,
+                        Account.opened_at,
                         Account.synced_until,
                         Account.backfilled_from,
                         Account.backfill_done,
@@ -246,26 +311,42 @@ class FinanceCollector:
                     .order_by(Account.created_at, Account.external_id)
                 )
             ).all()
-        accounts = [_Cursors(*row) for row in rows]
+        accounts = [
+            cursors
+            for cursors in (_Cursors(*row) for row in rows)
+            if cursors.type not in provider.statement_less_types
+        ]
+
+        def limit_of(cursors: _Cursors) -> datetime:
+            """How far back this account's history is worth walking."""
+            limit = depth if cursors.opened_at is None else max(depth, cursors.opened_at)
+            return limit if floor is None else max(limit, floor)
+
         for cursors in accounts:
             caught = self._last_caught_up.get(cursors.external_id)
             if caught is not None and now - caught < provider.refresh_every:
                 continue
+            limit = limit_of(cursors)
             if cursors.synced_until is None:
                 start = now - provider.max_window
-                return self._window_for("initial", cursors, (start, now), depth_limit, True)
+                if floor is not None:
+                    start = max(start, floor)
+                return self._window_for("initial", cursors, (start, now), limit, True)
             start = cursors.synced_until - OVERLAP
+            if floor is not None:
+                start = max(start, floor)
             end = min(start + provider.max_window, now)
-            return self._window_for("incremental", cursors, (start, end), depth_limit, end >= now)
+            return self._window_for("incremental", cursors, (start, end), limit, end >= now)
         for cursors in accounts:
             if cursors.backfill_done or cursors.backfilled_from is None:
                 continue
+            limit = limit_of(cursors)
             end = cursors.backfilled_from
-            if end <= depth_limit:
+            if end <= limit:
                 await self._mark_backfill_done(sessions, cursors.id)
                 continue
-            start = max(end - provider.max_window, depth_limit)
-            return self._window_for("backfill", cursors, (start, end), depth_limit, False)
+            start = max(end - provider.max_window, limit)
+            return self._window_for("backfill", cursors, (start, end), limit, False)
         return None
 
     def _window_for(
@@ -316,6 +397,8 @@ class FinanceCollector:
                 "balance_after": item.balance_after,
                 "pending": item.pending,
                 "internal_transfer": item.internal_transfer,
+                "declined": item.declined,
+                "settled_at": item.settled_at,
             }
             for item in window.items.values()
         ]
@@ -408,6 +491,7 @@ class FinanceCollector:
                     "balance": data.balance,
                     "credit_limit": data.credit_limit,
                     "balance_at": now,
+                    "opened_at": data.opened_at,
                     "archived": False,
                     "updated_at": now,
                 }

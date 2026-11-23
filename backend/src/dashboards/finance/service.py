@@ -61,7 +61,9 @@ def day_start(day: date, zone: tzinfo) -> datetime:
 
 
 @guarded
-async def list_accounts(session: AsyncSession) -> tuple[Sequence[Account], Sequence[Connection]]:
+async def list_accounts(
+    session: AsyncSession,
+) -> tuple[Sequence[Account], Sequence[Connection], dict[uuid.UUID, datetime]]:
     accounts = (
         await session.scalars(
             select(Account).order_by(Account.archived, Account.created_at, Account.external_id)
@@ -70,7 +72,14 @@ async def list_accounts(session: AsyncSession) -> tuple[Sequence[Account], Seque
     connections = (
         await session.scalars(select(Connection).order_by(Connection.created_at, Connection.id))
     ).all()
-    return accounts, connections
+    oldest = (
+        await session.execute(
+            select(Transaction.account_id, func.min(Transaction.booked_at))
+            .where(Transaction.declined.is_(False))
+            .group_by(Transaction.account_id)
+        )
+    ).all()
+    return accounts, connections, {account_id: moment for account_id, moment in oldest}
 
 
 @guarded
@@ -144,6 +153,7 @@ async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> Finance
             .where(
                 Transaction.booked_at >= day_start(first, zone),
                 Transaction.booked_at < day_start(following, zone),
+                Transaction.declined.is_(False),  # a refused payment never moved money
             )
             .group_by(Transaction.currency)
         )

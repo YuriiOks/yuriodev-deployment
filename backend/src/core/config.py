@@ -8,6 +8,7 @@ import base64
 import json
 from functools import lru_cache
 from typing import Any, Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
@@ -25,6 +26,7 @@ LogFormat = Literal["json", "console"]
 FeedProviderName = Literal["fixture", "typefully"]
 # Spaces a collector may fill. `work-2` is deliberately absent: nothing may write there on its own.
 CollectorSpace = Literal["personal", "work-1"]
+MONZO_CALLBACK_PATH = "/api/dashboards/v1/finance/monzo/callback"
 
 
 class Settings(BaseSettings):
@@ -134,6 +136,14 @@ class Settings(BaseSettings):
     # Seconds between finance collector ticks; each tick makes at most one provider request, and
     # never two within the provider's own minimum gap, whatever this is set to.
     finance_poll_interval_seconds: int = Field(90, ge=60, le=3600)
+    # Monzo: the OAuth client registered in Monzo's developer portal (a confidential one, so it
+    # gets a refresh token). Both in the secrets file; unset means no Monzo.
+    monzo_client_id: SecretStr | None = None
+    monzo_client_secret: SecretStr | None = None
+    # The address this backend is reached at from a browser, for OAuth redirects, for example
+    # https://dev.yuriodev.co.uk. Not secret. Kept as text and read through `public_base_url`: a
+    # malformed value must never stop the app, it only leaves Monzo off.
+    dashboards_public_base_url: str | None = None
 
     @property
     def dashboards_enabled(self) -> bool:
@@ -162,8 +172,25 @@ class Settings(BaseSettings):
         return self.dashboards_enabled and any(item is not None for item in credentials)
 
     @property
+    def public_base_url(self) -> str | None:
+        """DASHBOARDS_PUBLIC_BASE_URL when it is an https origin (http only for localhost), with no
+        path, query or credentials; else None."""
+        return parse_public_base(self.dashboards_public_base_url)
+
+    @property
+    def monzo_redirect_uri(self) -> str | None:
+        base = self.public_base_url
+        return None if base is None else f"{base}{MONZO_CALLBACK_PATH}"
+
+    @property
+    def monzo_enabled(self) -> bool:
+        credentials = self.monzo_client_id is not None and self.monzo_client_secret is not None
+        return self.dashboards_enabled and credentials and self.monzo_redirect_uri is not None
+
+    @property
     def finance_enabled(self) -> bool:
-        return self.dashboards_enabled and self.monobank_token is not None
+        monobank = self.dashboards_enabled and self.monobank_token is not None
+        return monobank or self.monzo_enabled
 
     @field_validator(
         "log_level",
@@ -207,6 +234,8 @@ class Settings(BaseSettings):
         "calendar_ics_work_1",
         "calendar_owner_emails",
         "monobank_token",
+        "monzo_client_id",
+        "monzo_client_secret",
         mode="before",
     )
     @classmethod
@@ -219,6 +248,29 @@ class Settings(BaseSettings):
             value = value.strip()
             return value or None
         return value
+
+
+def parse_public_base(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    value = raw.strip().rstrip("/")
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return None
+    local = parts.hostname in ("localhost", "127.0.0.1")
+    scheme_ok = parts.scheme == "https" or (parts.scheme == "http" and local)
+    clean = (
+        parts.hostname
+        and not parts.username
+        and not parts.password
+        and parts.path in ("", "/")
+        and not parts.query
+        and not parts.fragment
+        and value.isprintable()
+        and " " not in value
+    )
+    return value if scheme_ok and clean else None
 
 
 def parse_space_names(raw: str | None) -> dict[str, str]:

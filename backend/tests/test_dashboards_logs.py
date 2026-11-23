@@ -3,6 +3,7 @@
 import json
 import logging
 from datetime import timedelta
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
@@ -21,6 +22,7 @@ from tests.finance_support import (
     mono_item,
     ts,
 )
+from tests.monzo_support import MZ_BASE, MZ_ID, MZ_KEY, FakeMonzo, monzo_tx, no_sleep
 
 pytestmark = pytest.mark.anyio
 
@@ -36,6 +38,11 @@ CARD_NUMBER = "537541******6173"
 IBAN = "UA55SENTINEL3322001000002620999"
 AMOUNT = 7351984
 BALANCE = 9183746
+# Monzo: the code and the pot's name are sentinels too; the tokens are "access-token-N" and
+# "refresh-token-N" (FakeMonzo), the user id "user_00009sample".
+CODE = "CODE-SENTINEL-6602"
+POT_NAME = "POT-NAME-SENTINEL-4091"
+FINANCE = "/api/dashboards/v1/finance"
 
 
 def everything_logged(caplog, capsys):
@@ -214,3 +221,59 @@ async def test_bank_data_and_the_key_stay_out_of_the_log(
     for record in caplog.records:
         if getattr(record, "collector", "") == "monobank":
             assert set(vars(record)) & {"amount", "description", "counterparty", "balance"} == set()
+
+
+async def test_monzo_tokens_codes_and_bank_data_stay_out_of_the_log_and_the_answers(
+    db_url, make_dashboards_app, clock, caplog, capsys
+):
+    caplog.set_level(logging.DEBUG)
+    fake = FakeMonzo(clock)
+    fake.code = CODE
+    fake.pots[0]["name"] = POT_NAME
+    fake.transactions = [
+        monzo_tx(1, clock.now - timedelta(days=1), -AMOUNT, DESCRIPTION, merchant=COUNTERPARTY)
+    ]
+    app = make_dashboards_app(
+        db_url,
+        log_level="DEBUG",
+        log_format="json",
+        monzo_client_id=MZ_ID,
+        monzo_client_secret=MZ_KEY,
+        dashboards_public_base_url=MZ_BASE,
+    )
+    app.state.collector_transport = httpx.MockTransport(fake)
+    app.state.finance_sleep = no_sleep
+    answers = []
+    async with running(app, AUTH) as client, Client(app.state.mcp) as mcp:
+        manager = app.state.finance_collectors
+        await manager.ticked.wait()
+        for attempt in (CODE + "-forged", CODE):  # a refused code first, then the real one
+            redirect = await client.get(f"{FINANCE}/monzo/connect")
+            state = parse_qs(urlsplit(redirect.headers["location"]).query)["state"][0]
+            params = {"code": attempt, "state": state}
+            callback = await client.get(f"{FINANCE}/monzo/callback", params=params)
+            answers += [redirect.headers["location"], callback.headers["location"]]
+        await client.get(f"{FINANCE}/monzo/callback", params={"code": CODE, "state": CODE})
+        clock.now += timedelta(seconds=90)
+        await manager.tick()  # the history, in the five minutes
+        fake.fail_refresh = True
+        clock.now += timedelta(hours=5, minutes=45)
+        await manager.tick()  # the refresh is refused
+        for path in ("accounts", "transactions", "summary"):
+            answers.append((await client.get(f"{FINANCE}/{path}")).text)
+        for tool in ("finance_accounts", "finance_balances", "finance_transactions"):
+            answers.append((await mcp.call_tool(tool, {})).content[0].text)
+
+    logged = everything_logged(caplog, capsys)
+    events = {getattr(r, "event", "") for r in caplog.records}
+    assert {"finance.monzo_consent", "finance.monzo_refused", "collector.synced"} <= events
+    assert "http.request" in logged
+    shown = "\n".join(answers)
+    assert DESCRIPTION in shown  # the data is served to the owner: only the log must stay clean
+    tokens = (CODE, MZ_KEY, "access-token-", "refresh-token-")
+    unseen = ("NOTE-SENTINEL", "ADDRESS-SENTINEL")  # stored nowhere, so shown nowhere
+    bank = (DESCRIPTION, COUNTERPARTY, POT_NAME, str(AMOUNT), "user_00009sample")
+    for secret in tokens + unseen + bank:
+        assert secret not in logged, secret
+    for secret in tokens + unseen:
+        assert secret not in shown, secret  # not in a redirect or an API answer either

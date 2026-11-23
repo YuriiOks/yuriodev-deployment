@@ -100,6 +100,7 @@ async def _start_dashboards(
     app.state.dashboards = None
     app.state.collectors = None
     app.state.finance_collectors = None
+    app.state.finance_http = None
     if settings.database_url is None:
         return []
     try:
@@ -132,13 +133,16 @@ async def _start_dashboards(
             # Its own loop, interval and lock: bank limits are per minute, tasks are per 5.
             finance = CollectorManager(
                 runtime,
-                build_finance_collectors(settings),
+                build_finance_collectors(
+                    settings, runtime.sessions, app.state.clock, app.state.finance_sleep
+                ),
                 client,
                 app.state.clock,
                 interval=settings.finance_poll_interval_seconds,
                 lock_key=FINANCE_LOCK_KEY,
             )
             app.state.finance_collectors = finance
+            app.state.finance_http = client  # the Monzo consent routes call out with it
             tasks.append(asyncio.create_task(finance.run_forever(), name="finance-collectors"))
     return tasks
 
@@ -173,7 +177,9 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.mcp = None
     app.state.collectors = None  # the collector loop, set by the lifespan
     app.state.finance_collectors = None  # the finance loop, set by the lifespan
+    app.state.finance_http = None  # its HTTP client, for the consent routes
     app.state.collector_transport = None
+    app.state.finance_sleep = asyncio.sleep  # a test seam: the pauses between provider requests
 
     # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503
     # still get a request id and an access line from RequestContextMiddleware.

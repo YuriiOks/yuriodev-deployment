@@ -30,12 +30,12 @@ from typing import Any
 import httpx
 from pydantic import SecretStr
 
-from src.core.http import UpstreamError, get_json_capped
-from src.dashboards.finance.base import AccountData, TransactionData
+from src.core.http import get_json_capped
+from src.dashboards.finance.base import AccountData, ProviderDefaults, TransactionData
+from src.dashboards.finance.parsing import bad, safe_id, text, whole
 
 BASE_URL = "https://api.monobank.ua"
 MAX_PAGE = 500
-ID_PATTERN_CHARS = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
 MAX_ID = 64
 MAX_DESCRIPTION = 500
 MAX_COUNTERPARTY = 200
@@ -97,7 +97,7 @@ ACCOUNT_LABELS = {
 }
 
 
-class MonobankProvider:
+class MonobankProvider(ProviderDefaults):
     name = "monobank"
     ref = "personal"
     min_call_gap = timedelta(seconds=61)  # documented: once per 60 seconds
@@ -136,28 +136,8 @@ class MonobankProvider:
         return parse_statement(body, currency, self._own_ibans)
 
 
-def bad() -> UpstreamError:
-    return UpstreamError("bad_json", 200)
-
-
 def currency_code(value: object) -> str:
     return CURRENCIES.get(value, UNKNOWN_CURRENCY) if isinstance(value, int) else UNKNOWN_CURRENCY
-
-
-def whole(value: object) -> int:
-    """An integer from the answer, never a float or a bool: money is exact."""
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
-    raise bad()
-
-
-def text(value: object, limit: int) -> str | None:
-    """One printable line, cut to `limit`; None when nothing is left."""
-    if not isinstance(value, str):
-        return None
-    line = " ".join(value.split())
-    line = "".join(ch for ch in line if ch.isprintable())[:limit].strip()
-    return line or None
 
 
 def last4(value: object) -> str | None:
@@ -175,24 +155,13 @@ def parse_accounts(body: Any) -> list[AccountData]:
     return [parse_account(row) for row in rows] + [parse_jar(row) for row in jars]
 
 
-def account_id(row: dict[str, Any]) -> str:
-    value = row.get("id")
-    if (
-        not isinstance(value, str)
-        or not 0 < len(value) <= MAX_ID
-        or not set(value) <= ID_PATTERN_CHARS  # it goes into a URL path
-    ):
-        raise bad()
-    return value
-
-
 def parse_jar(row: Any) -> AccountData:
     """A jar (a savings pot) is an account of type `jar`, asked for like any other."""
     if not isinstance(row, dict):
         raise bad()
     currency = currency_code(row.get("currencyCode"))
     return AccountData(
-        external_id=account_id(row),
+        external_id=safe_id(row.get("id")),
         name=text(row.get("title"), 100) or f"Jar {currency}",
         type="jar",
         currency=currency,
@@ -213,7 +182,7 @@ def own_ibans(body: Any) -> frozenset[str]:
 def parse_account(row: Any) -> AccountData:
     if not isinstance(row, dict):
         raise bad()
-    external_id = account_id(row)
+    external_id = safe_id(row.get("id"))  # it goes into a URL path
     currency = currency_code(row.get("currencyCode"))
     kind = text(row.get("type"), 32)
     pans = row.get("maskedPan")

@@ -1,4 +1,4 @@
-"""The tables of the `finance` schema, as migration `dashboards_0007` creates them.
+"""The tables of the `finance` schema, as migrations `dashboards_0007` to `0009` create them.
 
 The migration also makes two transaction indexes, on `(account_id, booked_at DESC, id DESC)` and
 `(booked_at DESC, id DESC)`; they only matter to queries, so they are not declared here.
@@ -20,6 +20,7 @@ from sqlalchemy import (
     MetaData,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     false,
@@ -76,6 +77,7 @@ class Account(FinanceBase):
     balance: Mapped[int] = mapped_column(BigInteger, nullable=False)
     credit_limit: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     balance_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     synced_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     backfilled_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -120,6 +122,41 @@ class Transaction(FinanceBase):
     balance_after: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     pending: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     internal_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    declined: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class MonzoToken(FinanceBase):
+    """Monzo's OAuth state for one connection: owned by the Monzo provider, never selected by the
+    API. The tokens are stored as the provider issued them (see deploy/README.md, "Finance")."""
+
+    __tablename__ = "monzo_token"
+
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.connection.id"), primary_key=True
+    )
+    access_token: Mapped[str] = mapped_column(Text, nullable=False)
+    refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Set when the API first answered: the owner approved the client in the app. The five
+    # minutes in which the whole history can be read start then.
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approval_deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class MonzoOAuthState(FinanceBase):
+    """A consent `state` that was handed out: only its hash is kept, single use, short lived."""
+
+    __tablename__ = "monzo_oauth_state"
+
+    state_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

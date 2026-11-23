@@ -26,6 +26,8 @@ ACCOUNT_FIELDS = {
     "credit_limit",
     "own_balance_minor",
     "balance_at",
+    "opened_at",
+    "history_from",
     "archived",
 }
 TRANSACTION_FIELDS = {
@@ -42,6 +44,8 @@ TRANSACTION_FIELDS = {
     "balance_after",
     "pending",
     "internal_transfer",
+    "declined",
+    "settled_at",
 }
 
 
@@ -109,6 +113,8 @@ async def test_accounts_carry_balances_in_minor_units_and_the_state_of_the_link(
     assert (first["name"], first["balance"], first["credit_limit"]) == ("Main", 1_250_000, 500_000)
     assert first["mask_last4"] == "1234"
     assert first["own_balance_minor"] == 750_000  # the stored balance minus the credit limit
+    assert first["history_from"] == "2026-10-31T23:30:00Z"  # its oldest transaction
+    assert first["opened_at"] is None
     assert [a["archived"] for a in body["accounts"]] == [False, False, True]  # open ones first
     (link,) = body["connections"]
     assert (link["provider"], link["status"]) == ("sample", "ok")
