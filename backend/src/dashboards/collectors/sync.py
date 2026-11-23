@@ -187,9 +187,9 @@ async def sync_events(
             counts.updated += 1
     if delete_missing:
         window_start, window_end = span
-        for ref, event in by_ref.items():
+        for known, event in by_ref.items():
             inside = event.starts_at < window_end and event.ends_at > window_start
-            if ref not in wanted and inside:
+            if known not in wanted and inside:
                 await session.delete(event)
                 counts.deleted += 1
     await session.commit()
