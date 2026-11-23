@@ -19,6 +19,7 @@ from src.core.config import Settings, get_settings
 from src.core.errors import install_exception_handlers
 from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
+from src.dashboards.collectors.manager import CollectorManager, build_collectors
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.runtime import DashboardsRuntime
@@ -91,6 +92,7 @@ async def _start_dashboards(
     A URL the driver rejects is logged once (the class only: a message could hold the password)
     and leaves the API answering 503 `dashboards_unavailable`."""
     app.state.dashboards = None
+    app.state.collectors = None
     if settings.database_url is None:
         return []
     try:
@@ -103,7 +105,20 @@ async def _start_dashboards(
     app.state.dashboards = runtime
     # The SDK's session manager must run for the app's whole life; its tasks end with the stack.
     await stack.enter_async_context(app.state.mcp.session_manager.run())
-    return [asyncio.create_task(runtime.migrate_until_ready(), name="dashboards-migrate")]
+    tasks = [asyncio.create_task(runtime.migrate_until_ready(), name="dashboards-migrate")]
+    if settings.collectors_enabled:
+        from src.core.http import build_http_client  # httpx is only imported when collecting
+
+        # `collector_transport` is a test seam (httpx.MockTransport); None means the network.
+        transport = app.state.collector_transport
+        client = await stack.enter_async_context(build_http_client(settings, transport))
+        interval = settings.dashboards_collect_interval_seconds
+        manager = CollectorManager(
+            runtime, build_collectors(settings), client, app.state.clock, interval=interval
+        )
+        app.state.collectors = manager
+        tasks.append(asyncio.create_task(manager.run_forever(), name="dashboards-collectors"))
+    return tasks
 
 
 def _log_task_exit(task: asyncio.Task[None]) -> None:
@@ -134,6 +149,8 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.zone = ZoneInfo(settings.dashboards_timezone)
     app.state.dashboards = None  # the database seam, set by the lifespan
     app.state.mcp = None
+    app.state.collectors = None  # the collector loop, set by the lifespan
+    app.state.collector_transport = None
 
     # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503
     # still get a request id and an access line from RequestContextMiddleware.

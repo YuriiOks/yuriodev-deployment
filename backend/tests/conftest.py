@@ -132,7 +132,8 @@ def migrated_db_url(pg_server_url: str) -> Iterator[str]:
 @pytest.fixture
 def db_url(migrated_db_url: str) -> str:
     # DELETE, not TRUNCATE: it does not wait for readers, so a leaked transaction cannot hang it.
-    asyncio.run(execute(migrated_db_url, "DELETE FROM task", "DELETE FROM event"))
+    statements = ("DELETE FROM task", "DELETE FROM task_tombstone", "DELETE FROM event")
+    asyncio.run(execute(migrated_db_url, *statements))
     return migrated_db_url
 
 

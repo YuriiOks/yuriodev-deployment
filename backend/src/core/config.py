@@ -14,6 +14,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
 FeedProviderName = Literal["fixture", "typefully"]
+# Spaces a collector may fill. `work-2` is deliberately absent: nothing may write there on its own.
+CollectorSpace = Literal["personal", "work-1"]
 
 
 class Settings(BaseSettings):
@@ -80,11 +82,39 @@ class Settings(BaseSettings):
     # IANA zone that decides what "today" is (overdue, `today`, day ranges). Not secret.
     dashboards_timezone: str = "Europe/London"
 
+    # Collectors (src/dashboards/collectors/): background pollers that turn outside work items
+    # into tasks. They run only with the dashboards API on (DATABASE_URL) and each one only when
+    # its credential is set. Tokens come from env/<env>.secrets.env and are never logged.
+    dashboards_collect_interval_seconds: int = Field(300, ge=30, le=86_400)
+    # GitHub: pull requests you opened and pull requests waiting for your review. Needs a token
+    # that can search the repositories (see deploy/README.md for the minimum scopes).
+    github_token: SecretStr | None = None
+    github_space: CollectorSpace = "work-1"
+    # Appended to both searches, e.g. an `org:<name>` qualifier: it lives in the secrets file so no
+    # organisation name is ever in a tracked file.
+    github_search_scope: str = ""
+    # Linear: issues assigned to the API key's user that are not completed or canceled.
+    linear_api_key: SecretStr | None = None
+    linear_space: CollectorSpace = "work-1"
+
     @property
     def dashboards_enabled(self) -> bool:
         return self.database_url is not None
 
-    @field_validator("log_level", "log_format", "social_feed_provider", mode="before")
+    @property
+    def collectors_enabled(self) -> bool:
+        return self.dashboards_enabled and (
+            self.github_token is not None or self.linear_api_key is not None
+        )
+
+    @field_validator(
+        "log_level",
+        "log_format",
+        "social_feed_provider",
+        "github_space",
+        "linear_space",
+        mode="before",
+    )
     @classmethod
     def _normalise_case(cls, value: Any, info: ValidationInfo) -> Any:
         if not isinstance(value, str):
@@ -101,7 +131,22 @@ class Settings(BaseSettings):
             raise ValueError("DASHBOARDS_TIMEZONE must be an IANA time zone name") from None
         return value
 
-    @field_validator("typefully_api_key", "database_url", "dashboards_api_token", mode="before")
+    @field_validator("github_search_scope")
+    @classmethod
+    def _clean_scope(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) > 200 or not value.isprintable():
+            raise ValueError("GITHUB_SEARCH_SCOPE must be a short printable search qualifier")
+        return value
+
+    @field_validator(
+        "typefully_api_key",
+        "database_url",
+        "dashboards_api_token",
+        "github_token",
+        "linear_api_key",
+        mode="before",
+    )
     @classmethod
     def _strip_key(cls, value: Any) -> Any:
         # A pasted key often carries a trailing space or newline; blank means unset. Any other

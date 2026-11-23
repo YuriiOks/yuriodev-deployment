@@ -1,4 +1,4 @@
-"""The tables of the dashboards data API. The first Alembic migration creates exactly these."""
+"""The tables of the dashboards data API. Alembic migrations create exactly these."""
 
 import uuid
 from datetime import date, datetime
@@ -17,6 +17,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -54,8 +55,18 @@ class Task(Base):
     __tablename__ = "task"
     __table_args__ = (
         CheckConstraint("status IN ('open', 'done')", name="status"),
-        CheckConstraint("source IN ('web', 'mcp', 'telegram', 'import')", name="source"),
+        CheckConstraint(
+            "source IN ('web', 'mcp', 'telegram', 'import', 'github', 'linear')", name="source"
+        ),
         Index("ix_task_space_id_status", "space_id", "status"),
+        # One row per external item: a collector upserts on (source, source_ref).
+        Index(
+            "uq_task_source_source_ref",
+            "source",
+            "source_ref",
+            unique=True,
+            postgresql_where=text("source_ref IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -68,11 +79,28 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String(8), nullable=False, server_default="open")
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="web")
+    # The external id of a collected task (a repo-qualified PR number, a Linear issue id).
     source_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CollectedTombstone(Base):
+    """A collected task the user deleted. While the external item is unchanged (same
+    fingerprint of title and url) the collector does not create the task again; the row is
+    dropped once the item is gone from the source."""
+
+    __tablename__ = "task_tombstone"
+
+    source: Mapped[str] = mapped_column(String(16), primary_key=True)
+    source_ref: Mapped[str] = mapped_column(Text, primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    deleted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
