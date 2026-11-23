@@ -4,6 +4,7 @@ Names are invented (`example-org/sample-repo`, `ENG-1`): nothing here refers to 
 organisation, repository, person or ticket.
 """
 
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -13,7 +14,11 @@ REPO = "example-org/sample-repo"
 
 
 def json_response(data: Any, status: int = 200, headers: dict[str, str] | None = None):
-    return httpx.Response(status, json=data, headers=headers)
+    """A JSON answer as a stream: the collectors read bodies with `aiter_raw`, which a response
+    built from `json=` (already consumed) refuses."""
+    merged = {"content-type": "application/json", **(headers or {})}
+    stream = httpx.ByteStream(json.dumps(data).encode())
+    return httpx.Response(status, headers=merged, stream=stream)
 
 
 def client_for(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncClient:
