@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveEvent } from './liveApi';
-import { FOCUS_NOTE, clampToHours, rangeOf, toCalEvents } from './liveEvents';
+import { FOCUS_NOTE, clampToHours, rangeOf, toCalEvents, withoutCopies } from './liveEvents';
 import { liveHero, nextAtLabel } from './liveLabels';
 import { localDate, localTime, minutesUntil, splitIso, toOffsetIso } from './liveTime';
 import { STRINGS } from './strings';
@@ -59,6 +59,28 @@ describe('toCalEvents', () => {
     const [late] = toCalEvents([live('c', ['2026-11-24', '22:00'], ['2026-11-25', '01:00'])]);
     expect(late.end).toBe('23:59');
     expect(toCalEvents([{ ...live('d', ['2026-11-24', '10:00'], ['2026-11-24', '11:00']), startsAt: 'x' }])).toEqual([]);
+  });
+});
+
+describe('withoutCopies', () => {
+  const slot: [[string, string], [string, string]] = [['2026-11-24', '09:15'], ['2026-11-24', '09:30']];
+
+  it('drops a personal copy of a work meeting and keeps the work one', () => {
+    const kept = withoutCopies([live('work', ...slot), live('copy', ...slot, { space: 'personal' })]);
+    expect(kept.map((event) => event.id)).toEqual(['work']);
+  });
+
+  it('keeps a personal event that only overlaps a work one, and one with no work twin', () => {
+    const kept = withoutCopies([
+      live('work', ...slot),
+      live('overlap', ['2026-11-24', '09:15'], ['2026-11-24', '10:00'], { space: 'personal' }),
+      live('alone', ['2026-11-24', '12:00'], ['2026-11-24', '12:15'], { space: 'personal' }),
+    ]);
+    expect(kept.map((event) => event.id)).toEqual(['work', 'overlap', 'alone']);
+  });
+
+  it('drops a cancelled meeting', () => {
+    expect(withoutCopies([live('gone', ...slot, { title: 'Canceled: 1:1' }), live('off', ...slot, { title: 'Cancelled: sync' })])).toEqual([]);
   });
 });
 
