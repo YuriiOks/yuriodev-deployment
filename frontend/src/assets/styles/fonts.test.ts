@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import globalCss from './global.css?raw';
-import dashboardFontsCss from './dashboard-fonts.css?raw';
 import dashboardType from './dashboard-type.module.css?raw';
 
 // Fira Code is self-hosted: every @font-face points at a woff2 file in assets/fonts, no request leaves the site.
@@ -42,43 +41,12 @@ describe('self-hosted Fira Code', () => {
   });
 });
 
-// Fira Sans is the private dashboards' interface face: self-hosted like Fira Code, loaded only by DashboardShell.
-const sansFaces = [...dashboardFontsCss.matchAll(/@font-face\s*\{([^}]*)\}/g)].map((m) => m[1]);
-
-describe('self-hosted Fira Sans for the dashboards', () => {
-  it('has latin and cyrillic at 400, 500 and 600, one static face each', () => {
-    const sources = sansFaces.map((face) => /url\('([^']+)'\)/.exec(face)?.[1]).sort();
-    expect(sources).toEqual(
-      ['cyrillic', 'latin'].flatMap((subset) => [400, 500, 600].map((w) => `../fonts/fira-sans-${subset}-${w}.woff2`)).sort(),
-    );
-    for (const face of sansFaces) {
-      expect(face).toMatch(/font-family:\s*'Fira Sans'/);
-      expect(face).toMatch(/font-weight:\s*(400|500|600);/);
-      expect(face).toMatch(/font-display:\s*swap/);
-      expect(face).toMatch(/format\('woff2'\)/);
-      expect(face).toMatch(/unicode-range:/);
-    }
-  });
-
-  it('the cyrillic faces cover Russian letters, the latin faces plain ASCII', () => {
-    for (const face of sansFaces.filter((f) => f.includes('-cyrillic-'))) expect(face).toContain('U+0400-045F');
-    for (const face of sansFaces.filter((f) => f.includes('-latin-'))) expect(face).toContain('U+0000-00FF');
-  });
-
-  it('every file exists next to the licence, nothing comes from another origin', () => {
-    for (const subset of ['latin', 'cyrillic']) {
-      for (const w of [400, 500, 600]) expect(Object.keys(files)).toContain(`/src/assets/fonts/fira-sans-${subset}-${w}.woff2`);
-    }
-    expect(dashboardFontsCss).not.toMatch(/url\(\s*['"]?https?:/);
-    expect(dashboardFontsCss).toContain('OFL');
-  });
-
-  it('is not part of the public stylesheet', () => {
-    expect(globalCss).not.toContain('Fira Sans');
-  });
-
-  it('keeps Fira Code for data through one utility', () => {
+// The private dashboards use the platform's Fira Code too (no second face), and keep it for data through one utility.
+describe('the dashboards use Fira Code', () => {
+  it('sets their interface in the site\'s monospace and ships no other face', () => {
     expect(dashboardType).toMatch(/\.dashNum\s*\{[^}]*font-family:\s*var\(--font-mono\)/);
     expect(dashboardType).toMatch(/font-variant-numeric:\s*tabular-nums/);
+    expect(globalCss).not.toContain('Fira Sans');
+    expect(Object.keys(files).filter((name) => name.includes('fira-sans'))).toEqual([]);
   });
 });

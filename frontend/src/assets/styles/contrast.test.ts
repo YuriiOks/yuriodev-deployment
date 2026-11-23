@@ -226,7 +226,7 @@ const PAIRS: Record<Theme, Pair[]> = {
    three glows, and an event's opaque tint. */
 const SPACES: readonly Space[] = ['personal', 'work-1', 'work-2'];
 const SPACE_INKS = SPACES.map((s) => `--dash-ink-${s}`);
-const DASH_SOLID = [['--dash-bg'], ['--dash-surface'], ['--dash-chip']];
+const DASH_SOLID = [['--dash-bg'], ['--dash-surface'], ['--dash-chip'], ['--dash-well']];
 
 /* The glass (recipes.module.css .glassDash): its translucent fill over what really sits behind it, which
    is the page's own colour and its three glows (nothing scrolls behind a panel). Each glow is held at its
@@ -236,8 +236,6 @@ const GLOW = (n: 'a' | 'b' | 'c') => `rgba(var(--dash-glow-${n}-rgb), var(--dash
 const BACKS: readonly (readonly string[])[] = [['--dash-bg'], [GLOW('a'), '--dash-bg'], [GLOW('b'), '--dash-bg'], [GLOW('c'), '--dash-bg']];
 /** `layer` (and what is above it) painted on the glass, on each of the backings. */
 const onGlass = (layers: readonly string[] = []): (readonly string[])[] => BACKS.map((back) => [...layers, '--dash-glass', ...back]);
-/** The bar: its own, denser glass over the page and the glows. */
-const onBar = (): (readonly string[])[] => BACKS.map((back) => ['--dash-bar-glass', ...back]);
 /** The calendar's weekend columns: the chip at 40% over the glass. */
 const WEEKEND = 'rgba(var(--dash-chip-rgb), 0.4)';
 
@@ -248,12 +246,15 @@ const DASH_PAIRS: Pair[] = [
   ...cross(['--dash-danger', '--dash-warn', '--dash-ok'], DASH_SOLID, TEXT),
   // The same on the glass, over the page and each glow, and on a row's hover plate over the glass.
   ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-danger', '--dash-warn', '--dash-ok'], onGlass(), TEXT),
-  ...cross(['--dash-t1', '--dash-t2', '--dash-t3'], onGlass(['--dash-chip']), TEXT),
   ...cross(['--dash-t1', '--dash-t2', '--dash-t3'], onGlass([WEEKEND]), TEXT),
   // Text straight on the page, over the glows (the strip, the tabs, the footer line).
   ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-danger', '--dash-warn'], BACKS, TEXT),
-  // The bar's links and brand.
-  ...cross(['--dash-t1', '--dash-t2'], onBar(), TEXT),
+  // The heading colour (titles, the active link, priority numbers) and the page's ink (line work, the strip's time,
+  // reference links) as text: on every solid, on the glass, on a row's plates and on the page over the glows.
+  ...cross(['--dash-heading', '--dash-accent'], [...DASH_SOLID, ...onGlass(), ...BACKS], TEXT),
+  ...cross(['--dash-heading'], onGlass(['--dash-heading-tint']), TEXT),
+  ...cross(['--dash-t1', '--dash-t2', '--dash-accent'], onGlass(['--dash-prio-bg']), TEXT),
+  ...cross(['--dash-t1', '--dash-t2', '--dash-t3', '--dash-accent', '--dash-heading'], onGlass(['--dash-chip']), TEXT),
   // The primary button, the ticked checkbox and the space tile: the ink on the space's fill.
   { fg: '--dash-on-fill', bg: ['--dash-fill'], min: TEXT },
   // A space's ink as the 2px underline of the active tab and link, and its fill beside the text it marks.
@@ -276,7 +277,7 @@ const SHARED_PAIRS: Pair[] = [
   ]),
 ];
 
-/* The hub (/dashboards) is the one dashboards page with colour: each card washes its scheme's colour (a gradient from
+/* The hub: each card washes its scheme's colour (a gradient from
    -a to -s, both held), with the scheme's ink for its numbers and its "Next:" label, t1 for the name, t2 for the
    rest (never t3: it does not hold on a dark tint) and the danger colour for an overdue count. The ink is also the
    hover edge, so it must show against the page and its glows. The header card runs from the personal wash to the
@@ -308,25 +309,33 @@ describe('dashboard palettes meet WCAG AA', () => {
 
   it('the spaces really differ (the parser picks up each space block)', () => {
     const accent = (theme: Theme, space: Space) => resolve(tokensFor(theme, space), 'var(--dash-accent)');
-    expect(accent('dark', 'personal')).toBe('#5fc8e3');
+    expect(accent('dark', 'personal')).toBe('#00d4ff');
     expect(accent('light', 'personal')).toBe('#0b6780');
-    expect(accent('dark', 'work-1')).toBe('#b3a4ff');
-    expect(accent('light', 'work-1')).toBe('#5a3fc8');
-    expect(accent('dark', 'work-2')).toBe('#ff7b86');
+    expect(accent('dark', 'work-1')).toBe('#b88cff');
+    expect(accent('light', 'work-1')).toBe('#7a22d0');
+    expect(accent('dark', 'work-2')).toBe('#ff6874');
     expect(accent('light', 'work-2')).toBe('#c4000f');
-    // The neutral pages (hub, calendar) spend no space colour.
-    expect(resolve(tokensFor('dark'), 'var(--dash-accent)')).toBe('#eceef2');
-    expect(resolve(tokensFor('light'), 'var(--dash-accent)')).toBe('#12151a');
+    // The pages that belong to no space (hub, calendar, projects) are the site's own cyan, like Personal.
+    expect(resolve(tokensFor('dark'), 'var(--dash-accent)')).toBe('#00d4ff');
+    expect(resolve(tokensFor('light'), 'var(--dash-accent)')).toBe('#0b6780');
+    // Each skin has its own page, glass and heading colours.
+    const heading = (theme: Theme, space?: Space) => resolve(tokensFor(theme, space), 'var(--dash-heading)');
+    expect(heading('dark')).toBe('#ffc107');
+    expect(heading('dark', 'work-1')).toBe('#d3b8ff');
+    expect(heading('dark', 'work-2')).toBe('#ffffff');
+    expect(resolve(tokensFor('dark', 'work-1'), 'var(--dash-bg)')).toBe('#120e24');
+    expect(resolve(tokensFor('light', 'work-2'), 'var(--dash-bg)')).toBe('#f3f3f3');
   });
 
-  it('the neutral ramp is shared: a space changes the page colour, the ink, the fill and the glow, nothing else', () => {
+  it('a skin changes only its colour tokens: no size, shape or type token differs between spaces', () => {
     for (const theme of ['dark', 'light'] as const) {
       const base = tokensFor(theme);
       for (const space of SPACES) {
         const own = tokensFor(theme, space);
         const changed = [...own.keys()].filter((key) => own.get(key) !== base.get(key)).sort();
         for (const key of changed) {
-          expect(key, `${theme} ${space}`).toMatch(/^--dash-(bg|accent|fill|on-fill|glow-[abc](-rgb)?)$/);
+          expect(key, `${theme} ${space}`).not.toMatch(/^--dash-(fs|lh|r|h)-|font/);
+          expect(key, `${theme} ${space}`).toMatch(/^--dash-/);
         }
       }
     }

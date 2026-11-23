@@ -5,22 +5,24 @@
   gap: var(--space-2);
 }
 
-/* A plain input: 36px, 8px radius, the surface, a 1px control edge, 14px sans. The `>` is data (mono) in t3. */
+/* The quick-add field: a well with a control border and the control radius (the mockup's input). The `>` is the
+   terminal's green, as on the site. */
 .form {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   height: var(--dash-h-input);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   box-sizing: border-box;
-  background: var(--dash-surface);
+  background: var(--dash-well);
   border: 1px solid var(--dash-edge);
   border-radius: var(--dash-r-control);
 }
 
 .prompt {
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  color: var(--dash-t3);
+  color: var(--dash-ok);
+  font-weight: 700;
 }
 
 .input {

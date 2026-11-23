@@ -1,11 +1,11 @@
-/* An entrance card, washed in its scheme's colour (the hub is the one dashboards page that wears colour, by
-   decision: --hub-<scheme>-ink / -a / -s in _variables.css, every pair held by contrast.test.ts). The whole card is
-   the link: the title's anchor is stretched over it; hovering or focusing it draws the edge in the scheme's ink. */
+/* An entrance card: glass washed in its scheme's colour (--hub-<scheme>-ink / -a / -s in _variables.css, every pair
+   held by contrast.test.ts) with a border of the scheme's ink, a soft drop and the name in that ink. The whole card is
+   the link: the title's anchor is stretched over it; hovering or focusing it brightens the edge to the full ink. */
 .card {
-  --scheme-ink: var(--dash-t1);
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  --scheme-ink: var(--dash-accent);
   --scheme-a: var(--dash-surface);
   --scheme-s: var(--dash-surface);
-  composes: glassDash from '../../../assets/styles/recipes.module.css';
   position: relative;
   display: flex;
   flex-direction: column;
@@ -13,7 +13,7 @@
   padding: var(--space-5);
   box-sizing: border-box;
   background: linear-gradient(155deg, var(--scheme-a), var(--scheme-s));
-  border-color: color-mix(in srgb, var(--scheme-ink) 35%, transparent);
+  border-color: color-mix(in srgb, var(--scheme-ink) 40%, transparent);
   border-radius: var(--dash-r-surface);
   transition: border-color 120ms;
 }
@@ -38,13 +38,13 @@
   gap: var(--space-3);
 }
 
-/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
+/* global.css gives every h2 an underline and spacing: both cleared (the name has no '# '). */
 .card .name {
   margin: 0;
   padding: 0;
-  font-size: var(--dash-fs-title);
-  font-weight: 600;
-  line-height: var(--dash-lh-title);
+  font-size: var(--dash-fs-page);
+  font-weight: 700;
+  line-height: var(--dash-lh-page);
 }
 
 .card .name::before,
@@ -53,7 +53,7 @@
 }
 
 .link {
-  color: var(--dash-t1);
+  color: var(--scheme-ink);
   text-decoration: none;
 }
 
@@ -68,9 +68,12 @@
   outline: none;
 }
 
-/* Three stats side by side, a 24px gap and a hairline between them. */
+/* Three stats in three cells of exactly equal width, each a chip with a hairline (the mockup's), the number and its
+   label centred in the cell. */
 .stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -79,23 +82,22 @@
 .stat {
   display: flex;
   flex-direction: column;
-  padding-inline: var(--space-5);
-}
-
-.stat:first-child {
-  padding-left: 0;
-}
-
-.stat + .stat {
-  border-left: 1px solid var(--dash-line);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-1);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-control);
+  text-align: center;
 }
 
 .number {
   color: var(--scheme-ink);
   font-size: var(--dash-fs-stat);
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 700;
   line-height: var(--dash-lh-stat);
 }
 
@@ -115,7 +117,7 @@
 
 .next {
   margin: 0;
-  color: var(--dash-t2);
+  color: var(--dash-t1);
 }
 
 .at {
@@ -125,10 +127,6 @@
 @media (max-width: 47.99rem) {
   .card {
     padding: var(--space-4);
-  }
-
-  .stat {
-    padding-inline: var(--space-4);
   }
 }
 
@@ -183,5 +181,5 @@
 
 .nextLabel {
   color: var(--scheme-ink);
-  font-weight: 500;
+  font-weight: 700;
 }

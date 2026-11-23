@@ -366,9 +366,9 @@ test.describe('dashboards: no site chrome', () => {
     await open(page, '/dashboards/personal');
     const list = (await column())!;
     expect(list.width).toBeLessThanOrEqual(1152);
-    // The bar keeps the wide cap on every page (the brand is where the calendar's is: 24px in from the 96rem column),
-    // while the list page's own content starts at its narrower column's edge.
-    expect(Math.abs(list.brand - (Math.round((1920 - 1536) / 2) + 24)), 'the brand sits at the wide cap').toBeLessThanOrEqual(1);
+    // The bar keeps the wide cap on every page (a glass card 96rem wide, centred: its brand sits 17px inside the card's
+    // edge, border and padding), while the list page's own content starts at its narrower column's edge.
+    expect(Math.abs(list.brand - (Math.round((1920 - 1536) / 2) + 17)), 'the brand sits at the wide cap').toBeLessThanOrEqual(1);
     expect(Math.abs(list.first - (list.left + 24)), 'the page content starts at its own column edge').toBeLessThanOrEqual(1);
   });
 

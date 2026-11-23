@@ -20,7 +20,7 @@ const Panel: React.FC<PanelProps> = ({ panel, done, onToggle }) => {
   const lead = panel.rows.some((row) => row.kind !== 'info');
 
   return (
-    <section aria-labelledby={titleId} className={styles.panel}>
+    <section aria-labelledby={titleId} className={styles.panel} data-emphasis={panel.priority ? 'true' : undefined}>
       <div className={styles.head}>
         <h2 id={titleId} className={styles.title}>
           {text(panel.title)}

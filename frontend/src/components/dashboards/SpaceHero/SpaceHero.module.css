@@ -1,13 +1,18 @@
-/* The next-event strip: one 56px row, no box, no border, no icon square. Desktop: tile, name, the event as
-   the page's one 20px line, the countdown, "then ...", Join at the right. A phone: two lines, the tile with
-   the name and Join, then the event and the countdown. */
+/* The next-event strip: a glass card with the page's border (the mockup's hero): the tile, the name, the event as
+   the page's one big line (the time in the page's cyan, the title in t1), the countdown in the heading colour, what
+   comes after, and the primary Join. A phone stacks it in two lines. */
 .strip {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: grid;
   grid-template-columns: auto auto minmax(0, max-content) auto minmax(0, 1fr) auto;
   grid-template-areas: 'tile name event left then join';
   align-items: center;
   column-gap: var(--space-3);
   min-height: var(--dash-h-strip);
+  padding: var(--space-3) var(--space-4);
+  box-sizing: border-box;
+  border-color: color-mix(in srgb, var(--dash-accent) 40%, transparent);
+  border-radius: var(--dash-r-surface);
 }
 
 .tile {
@@ -22,7 +27,7 @@
   padding: 0;
   color: var(--dash-t2);
   font-size: var(--dash-fs-ui);
-  font-weight: 500;
+  font-weight: 700;
   line-height: var(--dash-lh-ui);
 }
 
@@ -33,26 +38,27 @@
 
 .event {
   grid-area: event;
-  margin: 0 var(--space-2) 0 var(--space-2);
+  margin: 0 var(--space-2);
   overflow: hidden;
   color: var(--dash-t1);
-  font-size: var(--dash-fs-page);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: var(--dash-lh-page);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .at {
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  font-weight: 500;
+  color: var(--dash-accent);
+  font-weight: 700;
 }
 
 .left {
   grid-area: left;
   margin: 0;
-  color: var(--dash-t2);
+  color: var(--dash-heading);
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -91,13 +97,9 @@
       'tile name join'
       'event event left';
     row-gap: var(--space-1);
-    padding-block: var(--space-2);
   }
 
   .event {
     margin: 0;
-    font-size: var(--dash-fs-title);
-    font-weight: 600;
-    line-height: var(--dash-lh-title);
   }
 }

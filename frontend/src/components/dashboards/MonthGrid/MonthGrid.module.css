@@ -90,8 +90,8 @@
 
 /* Today: the neutral filled circle, as in the week's header. */
 .today .number {
-  background: var(--dash-t1);
-  color: var(--dash-surface);
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
 }
 
 .alert {

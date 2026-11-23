@@ -1,31 +1,39 @@
-/* The bar: sticky, full width, 48px, the one glass surface of the dashboards (recipes.module.css
-   .glassBar, a denser veil over the page's glows) with a hairline under it, no radius. Its content sits in
-   the page's column. The pages are text links: t2, t1 on hover, the current one t1 with a 2px underline in the
-   space's colour that sits on the bar's bottom edge. */
+/* The bar: sticky at the top, one glass card in the page's column (the mockup's header: a rounded glass pill-box with
+   a hairline border and a soft drop), so the content scrolls under it. Inside: the brand (cyan, with the amber
+   segment), the pages as bordered pills (the current one in the heading colour, bold, on its tint and edge), the
+   language switch and the theme button. */
 .bar {
-  composes: glassBar from '../../../assets/styles/recipes.module.css';
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  height: var(--dash-h-bar);
-  box-sizing: border-box;
+  padding-top: var(--space-3);
+  pointer-events: none;
 }
 
 .inner {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: var(--space-3);
-  height: 100%;
-  /* Always the wide cap (the calendar's), whatever the page's own column: the bar never moves between pages. */
+  min-height: var(--dash-h-bar);
   max-width: 96rem;
-  margin-inline: auto;
-  padding-inline: var(--space-4);
+  margin-inline: var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+  pointer-events: auto;
 }
 
 @media (min-width: 48rem) {
   .inner {
-    padding-inline: var(--space-5);
+    margin-inline: var(--space-5);
+  }
+}
+
+/* Wider than the cap: the card sits in the middle, as the content column does. */
+@media (min-width: 104rem) {
+  .inner {
+    margin-inline: auto;
   }
 }
 
@@ -33,25 +41,23 @@
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
   display: inline-flex;
   align-items: center;
-  color: var(--dash-t1);
+  color: var(--dash-accent);
   font-size: var(--dash-fs-ui);
-  font-weight: 500;
+  font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.divider {
-  align-self: center;
-  width: 1px;
-  height: 1.25rem;
-  margin-inline: var(--space-1);
-  background: var(--dash-line);
+.segment {
+  color: var(--dash-heading);
 }
 
 .nav {
   display: flex;
   flex: 1 1 auto;
-  gap: var(--space-4);
+  gap: var(--space-2);
   min-width: 0;
+  padding: var(--space-1) 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -61,33 +67,39 @@
 }
 
 .link {
-  position: relative;
   display: inline-flex;
   flex: none;
   align-items: center;
+  min-height: var(--dash-h-control);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
   color: var(--dash-t2);
   font-size: var(--dash-fs-ui);
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
-  transition: color 120ms;
+  transition:
+    background-color 120ms,
+    border-color 120ms,
+    color 120ms;
 }
 
 .link.active {
-  color: var(--dash-t1);
-}
-
-.link.active::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 2px;
-  background: var(--dash-accent);
+  background: var(--dash-heading-tint);
+  border-color: var(--dash-heading-edge);
+  color: var(--dash-heading);
+  font-weight: 700;
 }
 
 @media (hover: hover) {
   .link:hover {
+    border-color: var(--dash-edge);
     color: var(--dash-t1);
+  }
+
+  .link.active:hover {
+    color: var(--dash-heading);
   }
 }
 
@@ -98,15 +110,8 @@
   margin-left: auto;
 }
 
-/* Wide enough for all of it: the pages sit next to the brand, the switches at the end. */
-@media (min-width: 64rem) {
-  .nav {
-    flex: 0 1 auto;
-  }
-}
-
 @media (forced-colors: active) {
-  .link.active::after {
-    background: Highlight;
+  .link.active {
+    border-color: Highlight;
   }
 }

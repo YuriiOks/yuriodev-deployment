@@ -12,7 +12,6 @@ import DashboardBar from '../DashboardBar/DashboardBar';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import LangSwitch from '../LangSwitch/LangSwitch';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
-import '../../../assets/styles/dashboard-fonts.css';
 import styles from './DashboardShell.module.css';
 
 const Frame: React.FC = () => {

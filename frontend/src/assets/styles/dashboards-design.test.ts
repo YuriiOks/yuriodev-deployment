@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-// The private dashboards' design rules (the "calm tool" brief), held in their own stylesheets so they cannot
-// drift back: three weights, no capitals, five type steps, the dashboards' interface face, spacing from one
-// scale, no coloured shadows, no gradients and glows outside the shell's page layer. The one deliberate exception is
-// the hub (/dashboards): by the owner's decision its header and cards wear colour (a wash per space, five accents for
-// projects); that colour lives in --hub-* tokens that only the hub's own stylesheets may read, so the space pages and
-// the calendar stay calm.
+// The private dashboards' look: they wear the platform (the approved mockup). Fira Code throughout, the site's navy
+// night and pale day with cyan line work and amber headings, soft colour glows on the page and glass panels over
+// them; each space is a skin of that (Personal the site's own palette, Work 1 violet, Work 2 red with black and
+// white). These rules hold it in their own stylesheets so it cannot drift: one face, five type steps, weights 400 to
+// 700, spacing from one scale, three radii and the pill, colour only through the --dash-* tokens (so every pair stays
+// under contrast.test.ts), shadows only from tokens, glass only through the recipe, one set of glows.
 const all = import.meta.glob('/src/**/*.css', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const files = Object.entries(all).filter(
   ([file]) =>
@@ -42,11 +42,11 @@ describe('dashboards design rules', () => {
     expect(files.length).toBeGreaterThan(15);
   });
 
-  it('uses weights 400, 500 and 600 only, as numbers', () => {
-    expect(declarations('font-weight', (value) => /^(400|500|600)$/.test(value))).toEqual([]);
+  it('uses weights 400 to 700, as numbers', () => {
+    expect(declarations('font-weight', (value) => /^(400|500|600|700)$/.test(value))).toEqual([]);
   });
 
-  it('has no capitals and no tracking except the two negative ones', () => {
+  it('has no capitals and no tracking except the one negative one', () => {
     expect(find(/text-transform\s*:\s*uppercase/)).toEqual([]);
     expect(declarations('letter-spacing', (value) => /^-0\.0[12]em$/.test(value))).toEqual([]);
   });
@@ -57,23 +57,24 @@ describe('dashboards design rules', () => {
     expect(find(/var\(--fs-/)).toEqual([]);
   });
 
-  it('uses the dashboards face, and the mono only through .dashNum', () => {
-    expect(
-      declarations('font-family', (value, file) => value === 'var(--dash-font-ui)' || file.endsWith('dashboard-fonts.css') || file.endsWith('dashboard-type.module.css')),
-    ).toEqual([]);
-    expect(find(/var\(--font-mono\)/, (file) => file.endsWith('dashboard-type.module.css'))).toEqual([]);
+  it('uses one face: the platform\'s Fira Code, through --dash-font-ui or --font-mono, never a named font', () => {
+    expect(declarations('font-family', (value) => /^var\(--(dash-font-ui|font-mono)\)$/.test(value))).toEqual([]);
+    expect(find(/@font-face/)).toEqual([]);
   });
 
-  it('has no text shadow, and no space colour in a shadow', () => {
+  it('draws shadows only from the skin\'s tokens (the glass shadow, the glow), and no text shadow', () => {
     expect(find(/text-shadow/)).toEqual([]);
-    expect(find(/box-shadow[^;]*(--dash-accent|--dash-fill|--dash-ink-|--dash-glow)/)).toEqual([]);
+    // A box shadow names a token, or is an inset hairline or bar (an event's ink bar and ring), or a list that starts on the next line.
+    expect(
+      declarations('box-shadow', (value) => value === '' || /^(var\(--dash-(glass-shadow|glow-shadow)\)|none)$/.test(value) || /inset/.test(value)),
+    ).toEqual([]);
   });
 
-  it('spaces padding, margin and gap from the 4/8/12/16/24/32px scale (and a 2px hairline step)', () => {
-    const allowed = new Set(['0', '0.125', '0.25', '0.5', '0.75', '1', '1.5', '2']);
+  it('spaces padding, margin and gap from the 4/8/12/16/24/32px scale (and a 2px and 3px hairline step)', () => {
+    const allowed = new Set(['0', '0.125', '0.1875', '0.25', '0.5', '0.75', '1', '1.5', '2']);
     // Two measured exceptions: the event block's 10px left padding (a 3px bar plus 7px of air), and the tab row's
     // end padding that holds the scroll fade.
-    const exceptions = ['0.625rem', '3.5rem 0 0.125rem'];
+    const exceptions = ['0.625rem', '3.5rem'];
     expect(
       declarations('(?:padding|margin|gap|row-gap|column-gap)[\\w-]*', (value) => {
         if (exceptions.some((e) => value.includes(e))) return true;
@@ -83,21 +84,31 @@ describe('dashboards design rules', () => {
     ).toEqual([]);
   });
 
-  it('uses only the three dashboards radii (or a circle, or a fixed fraction of one)', () => {
+  it('uses only the three radii and the pill (or a circle, or a fixed fraction of one)', () => {
     expect(
       declarations('border-radius', (value) =>
-        /^(var\(--dash-r-(surface|control|tag)\)|var\(--radius-(round|pill)\)|inherit|0|calc\(var\(--dash-r-control\) - 0\.125rem\))$/.test(value),
+        /^(var\(--dash-r-(surface|control|tag)\)|var\(--radius-(round|pill)\)|inherit|0)$/.test(value),
       ),
     ).toEqual([]);
   });
 
-  it('keeps the glows to the shell: radial gradients appear nowhere else', () => {
+  it('takes colour only from the tokens: no hex or rgb literal in a dashboards stylesheet (one white plate for brand icons aside)', () => {
+    expect(
+      find(/#[0-9a-fA-F]{3,8}\b|\brgba?\((?!var\()/, (file, line) => file.endsWith('SpaceTile.module.css') && /#ffffff/.test(line)),
+    ).toEqual([]);
+  });
+
+  it('keeps the page glows to the shell: radial gradients appear nowhere else', () => {
     expect(find(/radial-gradient/, (file) => file.includes('DashboardShell.module.css'))).toEqual([]);
   });
 
-  it('keeps the hub colour on the hub: --hub-* tokens are read only by the hub header and the cards', () => {
+  it('makes glass only through the recipe: no backdrop-filter outside recipes.module.css (design-budget.test.ts) and no own glass fill', () => {
+    expect(find(/backdrop-filter/)).toEqual([]);
+    expect(find(/background(-color)?\s*:\s*var\(--dash-glass\)/)).toEqual([]);
+  });
+
+  it('reads the hub\'s per-card wash tokens (--hub-*) only in the hub\'s header and cards', () => {
     const hub = ['/HubHeader/', '/SpaceCard/', '/ProjectCards/'];
     expect(find(/var\(--hub-/, (file) => hub.some((part) => file.includes(part)))).toEqual([]);
-    expect(find(/--scheme-/, (file) => hub.some((part) => file.includes(part)) || file.includes('/ProjectTile/'))).toEqual([]);
   });
 });

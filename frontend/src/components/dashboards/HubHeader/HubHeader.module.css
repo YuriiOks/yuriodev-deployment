@@ -1,18 +1,17 @@
-/* The hub header: a card of its own, spanning the cards' width, in the site's palette: the personal wash (cyan)
-   running into the amber one (--hub-head-a to --hub-head-b, contrast.test.ts holds both ends). The hub is the one
-   dashboards page that wears colour (the owner's decision); the space pages and the calendar stay calm. */
+/* The hub header: a glass card of its own with the site's cyan border, washed from the personal cyan into amber
+   (--hub-head-a to --hub-head-b, contrast.test.ts holds both ends). */
 .header {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3) var(--space-5);
   min-height: var(--dash-h-strip);
-  margin-top: var(--space-4);
   padding: var(--space-4) var(--space-5);
   box-sizing: border-box;
   background: linear-gradient(100deg, var(--hub-head-a), var(--hub-head-b));
-  border: 1px solid var(--hub-personal-ink);
+  border-color: color-mix(in srgb, var(--hub-personal-ink) 45%, transparent);
   border-radius: var(--dash-r-surface);
 }
 
@@ -22,18 +21,21 @@
   gap: var(--space-1);
 }
 
-/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+/* The h1: bold amber, led by the cyan '# ' (the site's title mark); global.css's other h1 decoration is cleared. */
 .header .title {
   margin: 0;
   padding: 0;
-  color: var(--dash-t1);
+  color: var(--hub-amber-ink);
   font-size: var(--dash-fs-page);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
   line-height: var(--dash-lh-page);
 }
 
-.header .title::before,
+.header .title::before {
+  content: '# ';
+  color: var(--hub-personal-ink);
+}
+
 .header .title::after {
   content: none;
 }
@@ -42,7 +44,7 @@
   margin: 0;
   color: var(--hub-personal-ink);
   font-size: var(--dash-fs-meta);
-  font-weight: 500;
+  font-weight: 700;
   line-height: var(--dash-lh-meta);
 }
 
@@ -61,12 +63,12 @@
 
 .total {
   color: var(--dash-t1);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .nextLabel {
   color: var(--hub-amber-ink);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .at {

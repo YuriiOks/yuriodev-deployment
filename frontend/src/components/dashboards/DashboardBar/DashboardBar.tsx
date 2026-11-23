@@ -17,10 +17,9 @@ export interface DashboardBarProps {
 }
 
 /**
- * The dashboards' only chrome (the site's header is not on these pages), sticky at the top: the one place
- * that is glass, because the content scrolls under it. A link back to the site, a hairline divider, the five
- * pages as text links (the current one underlined in the space's colour), the language switch and the theme
- * toggle.
+ * The dashboards' only chrome (the site's header is not on these pages), sticky at the top: one glass card in the
+ * page's column with the brand (a link back to the site), the five pages as pills (the current one in the heading
+ * colour), the language switch and the theme toggle. On a phone it is only the pages.
  */
 const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t } = useDashboardLang();
@@ -37,9 +36,8 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
         {!phone && (
           <>
             <Link to="/" className={styles.brand} aria-label={t.backToSite}>
-              yuriodev
+              yuriodev<span className={styles.segment}>/dashboards</span>
             </Link>
-            <span aria-hidden="true" className={styles.divider} />
           </>
         )}
         <nav aria-label={t.navLabel} className={styles.nav}>
