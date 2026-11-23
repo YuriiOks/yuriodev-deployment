@@ -426,7 +426,7 @@ async def test_events_are_created_and_listed_across_spaces_in_order(db_url, make
         late = await add_event(client, "work-2", "late", "11-24T15:00", "11-24T16:00")
         early = await add_event(client, "personal", "early", "11-23T08:00", "11-23T09:00")
         focus = await add_event(
-            client, "work-1", "focus", "2026-11-23T08:00", "2026-11-23T10:00", busy_only=True
+            client, "work-1", "focus", "11-23T08:00", "11-23T10:00", busy_only=True
         )
         response = await get_events(client, "2026-11-23", "2026-11-24")
 
@@ -508,7 +508,7 @@ async def test_the_range_needs_two_valid_dates(db_url, make_dashboards_app, para
 async def test_a_bad_event_is_422(db_url, make_dashboards_app, body):
     async with running(make_dashboards_app(db_url), AUTH) as client:
         response = await client.post(f"{BASE}/spaces/work-1/events", json=body)
-        stored = await event_titles(client, "2026-01-01", "2026-12-31")
+        stored = await event_titles(client, "2026-11-01", "2026-12-15")
 
     assert response.status_code == 422
     assert error_of(response) == "validation_error"
