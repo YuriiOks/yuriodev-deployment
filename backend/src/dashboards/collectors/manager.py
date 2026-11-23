@@ -62,6 +62,7 @@ class CollectorManager:
         self._sleep = sleep
         self._paused_until: dict[str, datetime] = {}
         self.ticks = 0  # completed ticks (also those that found the lock taken)
+        self.ticked = asyncio.Event()  # set once the first tick has completed
 
     def describe(self) -> list[str]:
         return [collector.name for collector in self._collectors]
@@ -87,6 +88,7 @@ class CollectorManager:
                 for collector in self._collectors:
                     await self._run_one(collector)
         self.ticks += 1
+        self.ticked.set()
 
     @asynccontextmanager
     async def _advisory_lock(self) -> AsyncIterator[bool]:
@@ -138,7 +140,7 @@ class CollectorManager:
                     "event": "collector.synced",
                     "collector": collector.name,
                     "fetched": len(items),
-                    "created": counts.created,
+                    "added": counts.created,  # not "created": that is a LogRecord field
                     "updated": counts.updated,
                     "closed": counts.closed,
                     "skipped": counts.skipped,

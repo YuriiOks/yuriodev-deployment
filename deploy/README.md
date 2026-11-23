@@ -738,7 +738,7 @@ docker compose -f deploy/dev/compose.yml logs --since 5m backend-dev | grep 'col
 rm ~/.yuriodev-deploy-paused
 ```
 
-Within one interval the log shows `collector.synced` with `fetched`, `created`, `updated`,
+Within one interval the log shows `collector.synced` with `fetched`, `added`, `updated`,
 `closed` and `skipped` counts, and the tasks appear in the target space. `collector.upstream_error`
 carries only the failure `kind` (`auth` means a bad or too narrow token) and `status`; a
 `paused_s` value means the source rate limited the token. To switch a collector off, remove its

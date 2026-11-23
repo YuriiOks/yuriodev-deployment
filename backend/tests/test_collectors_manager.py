@@ -78,7 +78,7 @@ async def test_a_tick_syncs_every_collector(db_url, make_dashboards_app, clock, 
     assert personal == ["Second one"]
     assert manager.ticks == 1
     synced = records(caplog, "collector.synced")
-    assert [(r.collector, r.fetched, r.created, r.closed) for r in synced] == [
+    assert [(r.collector, r.fetched, r.added, r.closed) for r in synced] == [
         ("github", 1, 1, 0),
         ("linear", 1, 1, 0),
     ]
@@ -254,9 +254,7 @@ async def test_the_loop_waits_for_the_schema(db_url, make_dashboards_app, clock)
         await asyncio.sleep(0.2)
         before = collector.calls
         app.state.dashboards.ready.set()
-        async with asyncio.timeout(30):
-            while collector.calls == 0:
-                await asyncio.sleep(0.05)
+        await asyncio.wait_for(manager.ticked.wait(), timeout=30)
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
@@ -280,9 +278,7 @@ async def test_the_app_starts_the_collectors_when_tokens_are_set(db_url, make_da
     app.state.collector_transport = httpx.MockTransport(upstream)
     async with running(app, AUTH) as client:
         assert app.state.collectors.describe() == ["github", "linear"]
-        async with asyncio.timeout(30):
-            while app.state.collectors.ticks < 1:
-                await asyncio.sleep(0.05)
+        await asyncio.wait_for(app.state.collectors.ticked.wait(), timeout=30)
         listed = (await client.get(f"{BASE}/spaces/work-1/tasks")).json()["tasks"]
 
     by_title = {task["title"]: task for task in listed}
@@ -298,9 +294,7 @@ async def test_a_collector_without_its_credential_is_not_started(db_url, make_da
     app.state.collector_transport = httpx.MockTransport(upstream)
     async with running(app, AUTH) as client:
         assert app.state.collectors.describe() == ["linear"]
-        async with asyncio.timeout(30):
-            while app.state.collectors.ticks < 1:
-                await asyncio.sleep(0.05)
+        await asyncio.wait_for(app.state.collectors.ticked.wait(), timeout=30)
         personal = (await client.get(f"{BASE}/spaces/personal/tasks")).json()["tasks"]
         work = (await client.get(f"{BASE}/spaces/work-1/tasks")).json()["tasks"]
 
