@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveEvent } from './liveApi';
-import { FOCUS_NOTE, clampToHours, rangeOf, toCalEvents, withoutCopies } from './liveEvents';
+import { FOCUS_NOTE, clampToHours, hoursFor, rangeOf, toCalEvents, withoutCopies } from './liveEvents';
 import { liveHero, nextAtLabel } from './liveLabels';
 import { localDate, localTime, minutesUntil, splitIso, toOffsetIso } from './liveTime';
 import { STRINGS } from './strings';
@@ -77,6 +77,28 @@ describe('withoutCopies', () => {
       live('alone', ['2026-11-24', '12:00'], ['2026-11-24', '12:15'], { space: 'personal' }),
     ]);
     expect(kept.map((event) => event.id)).toEqual(['work', 'overlap', 'alone']);
+  });
+
+  it('treats a personal event tagged with a work space name as that space\'s', () => {
+    const names = { 'work-1': 'Acme', 'work-2': 'Globex' };
+    const kept = withoutCopies(
+      [
+        live('real', ['2026-11-24', '08:45'], ['2026-11-24', '09:00']),
+        live('stale', ['2026-11-24', '09:15'], ['2026-11-24', '09:30'], { space: 'personal', title: 'Stand-up (Acme)' }),
+        live('other', ['2026-11-24', '12:00'], ['2026-11-24', '12:15'], { space: 'personal', title: 'Stand-up (globex)' }),
+        live('mine', ['2026-11-24', '18:00'], ['2026-11-24', '19:00'], { space: 'personal', title: 'Dinner (with Acme people)' }),
+      ],
+      names,
+    );
+    // The space with its own calendar keeps only its real event; the one without gets the tagged entry.
+    expect(kept.map((event) => `${event.id}:${event.space}`)).toEqual(['real:work-1', 'other:work-2', 'mine:personal']);
+  });
+
+  it('starts the grid earlier for an early event and never later than usual', () => {
+    const cal = (start: string): CalEvent => ({ id: start, date: '2026-11-24', start, end: '23:00', title: { ru: 'a', en: 'a' }, space: 'personal' });
+    expect(hoursFor([cal('07:30'), cal('10:00')], HOURS)[0]).toBe('07:00');
+    expect(hoursFor([cal('10:00')], HOURS)).toEqual(HOURS);
+    expect(hoursFor([], HOURS)).toEqual(HOURS);
   });
 
   it('drops a cancelled meeting', () => {

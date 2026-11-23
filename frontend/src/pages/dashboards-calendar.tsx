@@ -16,7 +16,8 @@ import { useCalendar } from '../hooks/useDashboards';
 import { addDays, addMonths, isWeekend, monthMatrix, monthOf, nearestWorkday, stepDay, weekDates } from '../services/dashboards/calendarDates';
 import { dateLabel, fill, monthTitle, weekRangeLabel } from '../services/dashboards/calendarLabels';
 import { createEvent } from '../services/dashboards/liveApi';
-import { clampToHours, rangeOf, toCalEvents } from '../services/dashboards/liveEvents';
+import { useSpaceNames } from '../hooks/useSpaceNames';
+import { clampToHours, hoursFor, rangeOf, toCalEvents } from '../services/dashboards/liveEvents';
 import { localDate, toOffsetIso } from '../services/dashboards/liveTime';
 import { readWorkdaysOnly, writeWorkdaysOnly } from '../services/dashboards/preferences';
 import { findConflicts, summarizeHidden } from '../services/dashboards/weekLayout';
@@ -56,8 +57,11 @@ const DashboardsCalendar = () => {
   // What is on screen decides what is fetched: the week (even when a phone shows one day) or the month's weeks.
   const range = week ? weekDates(anchor) : monthMatrix(year, month).flat().map((day) => day.date);
   const fetched = useLiveEvents(rangeOf(range).from, rangeOf(range).to, live);
-  const allEvents = live ? toCalEvents(fetched.events) : sample.events;
+  const { serverNameOf } = useSpaceNames();
+  const allEvents = live ? toCalEvents(fetched.events, { 'work-1': serverNameOf('work-1'), 'work-2': serverNameOf('work-2') }) : sample.events;
   const events = allEvents.filter((event) => shown.has(event.date));
+  // A live week starts its grid earlier when something on screen begins before the usual first hour.
+  const hours = live ? hoursFor(events, sample.hours) : sample.hours;
   const conflicts = findConflicts(events.map((event) => ({ ...event, day: event.date })));
   // The count is of what is marked on screen: blocks in a week, days in a month.
   const marked = week
@@ -141,7 +145,7 @@ const DashboardsCalendar = () => {
         />
       )}
       {week ? (
-        <WeekGrid dates={dates} today={todayDate} hours={sample.hours} events={live ? clampToHours(events, sample.hours) : events} conflicts={conflicts} now={now} />
+        <WeekGrid dates={dates} today={todayDate} hours={hours} events={live ? clampToHours(events, hours) : events} conflicts={conflicts} now={now} />
       ) : (
         <MonthGrid year={year} month={month} today={todayDate} events={events} conflicts={conflicts} onPickDay={pickDay} workdaysOnly={workdaysOnly} />
       )}

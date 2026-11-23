@@ -11,6 +11,7 @@ import panelStyles from '../components/dashboards/Panel/Panel.module.css';
 import rowStyles from '../components/dashboards/PanelRow/PanelRow.module.css';
 import { useLiveEvents } from '../hooks/useLiveEvents';
 import { useLiveSummary } from '../hooks/useLiveSummary';
+import { useSpaceNames } from '../hooks/useSpaceNames';
 import { useLiveTasks } from '../hooks/useLiveTasks';
 import { useNow } from '../hooks/useNow';
 import { fill } from '../services/dashboards/calendarLabels';
@@ -66,7 +67,8 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const areaList = space === 'personal' ? areas : null;
   // The space's meetings of today, for the overview of a space that has collected tasks (the work spaces).
   const todayEvents = useLiveEvents(today, today, space !== 'personal');
-  const meetings = withoutCopies(todayEvents.events)
+  const { serverNameOf } = useSpaceNames();
+  const meetings = withoutCopies(todayEvents.events, { 'work-1': serverNameOf('work-1'), 'work-2': serverNameOf('work-2') })
     .filter((event) => event.space === space && localDate(new Date(event.startsAt)) === today)
     .sort((a, b) => (a.startsAt < b.startsAt ? -1 : 1));
   const hasCollected = tasks.tasks.some((task) => COLLECTED_SOURCES.has(task.source));
