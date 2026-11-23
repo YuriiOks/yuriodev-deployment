@@ -11,6 +11,7 @@
   --scheme-p: var(--dash-chip);
   --scheme-c: var(--dash-chip);
   --scheme-ch: var(--dash-chip);
+  --scheme-z: var(--dash-t2);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -134,7 +135,7 @@
 }
 
 .zero {
-  color: var(--dash-t2);
+  color: var(--scheme-z);
 }
 
 .alarm {
@@ -170,6 +171,7 @@
   --scheme-p: var(--hub-personal-p);
   --scheme-c: var(--hub-personal-c);
   --scheme-ch: var(--hub-personal-ch);
+  --scheme-z: var(--hub-personal-z);
 }
 
 .card[data-scheme="work-1"] {
@@ -178,6 +180,7 @@
   --scheme-p: var(--hub-work-1-p);
   --scheme-c: var(--hub-work-1-c);
   --scheme-ch: var(--hub-work-1-ch);
+  --scheme-z: var(--hub-work-1-z);
 }
 
 .card[data-scheme="work-2"] {
@@ -186,6 +189,7 @@
   --scheme-p: var(--hub-work-2-p);
   --scheme-c: var(--hub-work-2-c);
   --scheme-ch: var(--hub-work-2-ch);
+  --scheme-z: var(--hub-work-2-z);
 }
 
 .card[data-scheme="project"] {
@@ -194,6 +198,7 @@
   --scheme-p: var(--hub-project-p);
   --scheme-c: var(--hub-project-c);
   --scheme-ch: var(--hub-project-ch);
+  --scheme-z: var(--hub-project-z);
 }
 
 .nextLabel {
