@@ -276,6 +276,7 @@ async def test_a_refused_refresh_stops_all_calls_until_the_owner_consents_again(
                 await finance.collect(client, sessions, clock.now)
         silent = len(fake.calls) == calls
         fake.fail_refresh = False
+        fake.approved_at = None  # the owner consents and approves in the app once more
         await consent(app, fake, clock)
         recovered = await finance.collect(client, sessions, clock.now)
 
