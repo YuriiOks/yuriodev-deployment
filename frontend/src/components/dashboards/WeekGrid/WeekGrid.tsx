@@ -45,7 +45,6 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
   const { t, text } = useDashboardLang();
   const { nameOf } = useSpaceNames();
   const firstMinute = toMinutes(hours[0]);
-  const endLabel = `${String(Math.floor((toMinutes(hours[hours.length - 1]) + 60) / 60)).padStart(2, '0')}:00`;
   const single = dates.length === 1;
   const nowOffset = now ? nowOffsetHours(now, hours) : null;
 
@@ -81,7 +80,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
           <tbody>
             <tr>
               <td aria-hidden="true" className={styles.gutter}>
-                {[...hours, endLabel].map((hour, index) => (
+                {hours.map((hour, index) => (
                   <span key={hour} className={styles.hour} style={vars({ '--i': index })}>
                     {hour}
                   </span>

@@ -109,7 +109,7 @@
   color: var(--dash-surface);
 }
 
-/* The hour labels (data: mono), each on its hour line; the last one labels the end of the grid. */
+/* The hour labels (data: mono), each in the middle of its hour's row. */
 .gutter {
   position: relative;
   height: calc(var(--hour-h) * var(--hours));
@@ -119,7 +119,7 @@
 .hour {
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
   position: absolute;
-  top: calc(var(--hour-h) * var(--i));
+  top: calc(var(--hour-h) * (var(--i) + 0.5));
   right: var(--space-2);
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
