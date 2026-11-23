@@ -19,13 +19,18 @@ from src.core.config import Settings, get_settings
 from src.core.errors import install_exception_handlers
 from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
-from src.dashboards.collectors.manager import CollectorManager, build_collectors
+from src.dashboards.collectors.manager import (
+    FINANCE_LOCK_KEY,
+    CollectorManager,
+    build_collectors,
+    build_finance_collectors,
+)
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.projects import upgrade_projects
 from src.dashboards.runtime import DashboardsRuntime
 from src.feed.service import FeedService
-from src.routes import dashboards, health, posts, projects
+from src.routes import dashboards, finance, health, posts, projects
 
 logger = logging.getLogger("yuriodev.app")
 
@@ -94,6 +99,7 @@ async def _start_dashboards(
     and leaves the API answering 503 `dashboards_unavailable`."""
     app.state.dashboards = None
     app.state.collectors = None
+    app.state.finance_collectors = None
     if settings.database_url is None:
         return []
     try:
@@ -108,17 +114,32 @@ async def _start_dashboards(
     # The SDK's session manager must run for the app's whole life; its tasks end with the stack.
     await stack.enter_async_context(app.state.mcp.session_manager.run())
     tasks = [asyncio.create_task(runtime.migrate_until_ready(), name="dashboards-migrate")]
-    if settings.collectors_enabled:
+    if settings.collectors_enabled or settings.finance_enabled:
         from src.core.http import build_http_client  # httpx is only imported when collecting
 
         # `collector_transport` is a test seam (httpx.MockTransport); None means the network.
         transport = app.state.collector_transport
         client = await stack.enter_async_context(build_http_client(settings, transport))
-        interval = settings.dashboards_collect_interval_seconds
-        collectors = build_collectors(settings, app.state.zone)
-        manager = CollectorManager(runtime, collectors, client, app.state.clock, interval=interval)
-        app.state.collectors = manager
-        tasks.append(asyncio.create_task(manager.run_forever(), name="dashboards-collectors"))
+        if settings.collectors_enabled:
+            interval = settings.dashboards_collect_interval_seconds
+            collectors = build_collectors(settings, app.state.zone)
+            manager = CollectorManager(
+                runtime, collectors, client, app.state.clock, interval=interval
+            )
+            app.state.collectors = manager
+            tasks.append(asyncio.create_task(manager.run_forever(), name="dashboards-collectors"))
+        if settings.finance_enabled:
+            # Its own loop, interval and lock: bank limits are per minute, tasks are per 5.
+            finance = CollectorManager(
+                runtime,
+                build_finance_collectors(settings),
+                client,
+                app.state.clock,
+                interval=settings.finance_poll_interval_seconds,
+                lock_key=FINANCE_LOCK_KEY,
+            )
+            app.state.finance_collectors = finance
+            tasks.append(asyncio.create_task(finance.run_forever(), name="finance-collectors"))
     return tasks
 
 
@@ -151,6 +172,7 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.dashboards = None  # the database seam, set by the lifespan
     app.state.mcp = None
     app.state.collectors = None  # the collector loop, set by the lifespan
+    app.state.finance_collectors = None  # the finance loop, set by the lifespan
     app.state.collector_transport = None
 
     # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503
@@ -172,6 +194,7 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.include_router(posts.router)
     app.include_router(dashboards.router)
     app.include_router(projects.router)
+    app.include_router(finance.router)
     if settings.dashboards_enabled:
         _add_mcp(app)
     if docs:

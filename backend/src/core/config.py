@@ -123,6 +123,18 @@ class Settings(BaseSettings):
     # Your own address(es), comma-separated: an event you declined in the feed is skipped.
     calendar_owner_emails: SecretStr | None = None
 
+    # Finance (src/dashboards/finance/): read-only bank data. Off unless the dashboards API is on
+    # and a bank credential is set; the credential comes from env/<env>.secrets.env, is never
+    # logged and the collector makes no outbound call without it.
+    # Monobank personal API token (read-only by nature; the owner enters it).
+    monobank_token: SecretStr | None = None
+    # How far back the first import of a new account reaches, in months (0: none, only the
+    # newest month). A slow background walk of one statement window at a time.
+    finance_backfill_months: int = Field(12, ge=0, le=36)
+    # Seconds between finance collector ticks; each tick makes at most one provider request, and
+    # never two within the provider's own minimum gap, whatever this is set to.
+    finance_poll_interval_seconds: int = Field(90, ge=60, le=3600)
+
     @property
     def dashboards_enabled(self) -> bool:
         return self.database_url is not None
@@ -148,6 +160,10 @@ class Settings(BaseSettings):
             self.calendar_ics_work_1,
         )
         return self.dashboards_enabled and any(item is not None for item in credentials)
+
+    @property
+    def finance_enabled(self) -> bool:
+        return self.dashboards_enabled and self.monobank_token is not None
 
     @field_validator(
         "log_level",
@@ -190,6 +206,7 @@ class Settings(BaseSettings):
         "calendar_ics_personal",
         "calendar_ics_work_1",
         "calendar_owner_emails",
+        "monobank_token",
         mode="before",
     )
     @classmethod

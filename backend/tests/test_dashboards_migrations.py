@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0006"
+    assert version == "dashboards_0007"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -186,3 +186,69 @@ async def test_the_project_registry_exists_and_starts_empty(empty_db_url):
 
     assert columns == "archived,created_at,icon,id,name,schema_version"
     assert await scalar(empty_db_url, "SELECT count(*) FROM project") == 0
+
+
+LINK_ID = "00000000-0000-0000-0000-0000000000c1"
+ACCOUNT_ID = "00000000-0000-0000-0000-0000000000a1"
+NEW_LINK = (
+    "INSERT INTO finance.connection (id, provider, ref) VALUES ('LINK', 'sample', 'one')"
+).replace("LINK", LINK_ID)
+NEW_ACCOUNT = (
+    "INSERT INTO finance.account (id, connection_id, provider, external_id, name, currency, "
+    "balance, balance_at) "
+    "VALUES ('ACCOUNT', 'LINK', 'sample', 'acc-1', 'Main', 'GBP', 12050, now())"
+).replace("ACCOUNT", ACCOUNT_ID).replace("LINK", LINK_ID)
+NEW_TRANSACTION = (
+    "INSERT INTO finance.transaction (id, account_id, external_id, booked_at, amount, currency) "
+    "VALUES (gen_random_uuid(), 'ACCOUNT', 'tx-1', now(), -250, 'GBP')"
+).replace("ACCOUNT", ACCOUNT_ID)
+BAD_FINANCE_ROWS = (
+    NEW_TRANSACTION,  # the same external id twice in one account
+    NEW_TRANSACTION.replace("'tx-1'", "'tx-2'").replace("'GBP'", "'gbp'"),  # not an ISO code
+    # an original amount without its currency
+    NEW_TRANSACTION.replace("currency)", "currency, original_amount)")
+    .replace("'tx-1'", "'tx-3'")
+    .replace("'GBP')", "'GBP', 100)"),
+    # a full card number where four digits belong
+    NEW_ACCOUNT.replace("balance_at)", "balance_at, mask_last4)")
+    .replace("now())", "now(), '1234567890123456')")
+    .replace("'acc-1'", "'acc-2'")
+    .replace(ACCOUNT_ID, ACCOUNT_ID[:-1] + "2"),
+    NEW_LINK.replace("ref)", "ref, status)").replace("'one')", "'two', 'broken')"),
+)
+
+
+async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty_db_url):
+    await migrate(empty_db_url)
+
+    inside = await scalar(
+        empty_db_url,
+        "SELECT string_agg(table_name, ',' ORDER BY table_name) FROM information_schema.tables "
+        "WHERE table_schema = 'finance'",
+    )
+    outside = await scalar(
+        empty_db_url,
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' "
+        "AND table_name IN ('connection', 'account', 'transaction')",
+    )
+    money = await scalar(
+        empty_db_url,
+        "SELECT string_agg(DISTINCT data_type, ',') FROM information_schema.columns "
+        "WHERE table_schema = 'finance' AND column_name IN "
+        "('amount', 'balance', 'credit_limit', 'original_amount', 'balance_after')",
+    )
+
+    assert inside == "account,connection,transaction"
+    assert outside == 0
+    assert money == "bigint"
+
+
+async def test_the_finance_tables_enforce_their_rules(empty_db_url):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_LINK, NEW_ACCOUNT, NEW_TRANSACTION)
+
+    assert await scalar(empty_db_url, "SELECT status FROM finance.connection") == "ok"
+    assert await scalar(empty_db_url, "SELECT pending FROM finance.transaction") is False
+    for statement in BAD_FINANCE_ROWS:
+        with pytest.raises(IntegrityError):
+            await execute(empty_db_url, statement)
