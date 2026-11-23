@@ -81,4 +81,5 @@ def ics_response(
     body: bytes, status: int = 200, headers: dict[str, str] | None = None
 ) -> httpx.Response:
     merged = {"content-type": "text/calendar; charset=utf-8", **(headers or {})}
-    return httpx.Response(status, content=body, headers=merged)
+    # A stream, not `content=`: the collectors read bodies with `aiter_raw`.
+    return httpx.Response(status, headers=merged, stream=httpx.ByteStream(body))
