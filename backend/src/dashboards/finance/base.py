@@ -325,11 +325,14 @@ class FinanceCollector:
                     for name in rows[0]
                     if name not in ("account_id", "external_id")
                 }
-                upsert = chunk.on_conflict_do_update(
-                    index_elements=[Transaction.account_id, Transaction.external_id],
-                    set_=fresh,
-                ).returning(literal_column("(xmax = 0)"))
-                outcome = (await session.execute(upsert)).all()
+                outcome = (
+                    await session.execute(
+                        chunk.on_conflict_do_update(
+                            index_elements=[Transaction.account_id, Transaction.external_id],
+                            set_=fresh,
+                        ).returning(literal_column("(xmax = 0)"))
+                    )
+                ).all()
                 added += sum(1 for (is_new,) in outcome if is_new)
                 updated += sum(1 for (is_new,) in outcome if not is_new)
             moved = await self._cursor_values(session, window, now)
