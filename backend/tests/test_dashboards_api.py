@@ -87,6 +87,38 @@ async def test_bootstrap_lists_the_seeded_spaces_and_areas(db_url, make_dashboar
     }
 
 
+async def test_bootstrap_names_the_spaces_by_default_and_by_the_server_setting(
+    db_url, make_dashboards_app
+):
+    plain = make_dashboards_app(db_url)
+    named = make_dashboards_app(
+        db_url, dashboards_space_names='{"work-1": " Acme ", "work-2": "x" , "bogus": "Nope"}'
+    )
+    async with running(plain, AUTH) as client:
+        by_default = (await client.get(f"{BASE}/bootstrap")).json()["spaces"]
+    async with running(named, AUTH) as client:
+        renamed = (await client.get(f"{BASE}/bootstrap")).json()["spaces"]
+
+    assert by_default == [
+        {"id": "personal", "name": "Personal"},
+        {"id": "work-1", "name": "Work 1"},
+        {"id": "work-2", "name": "Work 2"},
+    ]
+    assert renamed == [
+        {"id": "personal", "name": "Personal"},
+        {"id": "work-1", "name": "Acme"},
+        {"id": "work-2", "name": "x"},
+    ]
+
+
+async def test_a_malformed_space_names_setting_leaves_the_defaults(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url, dashboards_space_names="{not json")
+    async with running(app, AUTH) as client:
+        spaces = (await client.get(f"{BASE}/bootstrap")).json()["spaces"]
+
+    assert [space["name"] for space in spaces] == ["Personal", "Work 1", "Work 2"]
+
+
 async def test_a_task_is_created_with_defaults(db_url, make_dashboards_app):
     async with running(make_dashboards_app(db_url), AUTH) as client:
         task = await add_task(client, title="  Pay the invoice  ")

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { SPACES, SPACE_NAME } from '../../../services/dashboards/spaces';
+import { useSpaceNames } from '../../../hooks/useSpaceNames';
+import { SPACES } from '../../../services/dashboards/spaces';
 import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import styles from './CalendarToolbar.module.css';
@@ -46,7 +47,8 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
   onNewEvent,
   newEventOpen = false,
 }) => {
-  const { t, text } = useDashboardLang();
+  const { t } = useDashboardLang();
+  const { nameOf } = useSpaceNames();
   const week = view === 'week';
   const prev = week ? (day ? t.prevDay : t.prevWeek) : t.prevMonth;
   const next = week ? (day ? t.nextDay : t.nextWeek) : t.nextMonth;
@@ -72,7 +74,7 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           {SPACES.map((space) => (
             <li key={space} className={styles.item}>
               <span aria-hidden="true" className={styles.dot} data-for={space} />
-              {text(SPACE_NAME[space])}
+              {nameOf(space)}
             </li>
           ))}
           <li className={styles.item}>

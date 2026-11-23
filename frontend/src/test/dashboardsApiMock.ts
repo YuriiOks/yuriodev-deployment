@@ -97,9 +97,11 @@ export interface FakeApiOptions {
   readonly tasks?: Record<string, unknown>[];
   readonly events?: Record<string, unknown>[];
   readonly fail?: FailKey[];
+  /** Names the server gives spaces (by id); the others get the English default. */
+  readonly spaceNames?: Record<string, string>;
 }
 
-export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], fail = [] }: FakeApiOptions = {}): FakeApi {
+export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], fail = [], spaceNames = {} }: FakeApiOptions = {}): FakeApi {
   const api: FakeApi = {
     calls: [],
     tasks,
@@ -114,7 +116,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     const url = new URL(call.url, 'http://localhost');
     if (path === '/bootstrap') {
       if (api.fail.has('bootstrap')) return failure();
-      return json(enabled ? { enabled: true, spaces: [{ id: 'personal' }, { id: 'work-1' }, { id: 'work-2' }], areas: AREAS, server_time: new Date().toISOString() } : { enabled: false });
+      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal' }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1' }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2' }], areas: AREAS, server_time: new Date().toISOString() } : { enabled: false });
     }
     if (path === '/summary') {
       if (api.fail.has('summary')) return failure();

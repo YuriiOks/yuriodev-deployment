@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { SPACE_NAME } from '../../../services/dashboards/spaces';
+import { useSpaceNames } from '../../../hooks/useSpaceNames';
 import { countdownLabel } from '../../../services/dashboards/calendarLabels';
 import type { Hero, SpaceId } from '../../../services/dashboards/types';
 import SpaceTile from '../SpaceTile/SpaceTile';
@@ -19,6 +19,7 @@ export interface SpaceHeroProps {
  */
 const SpaceHero: React.FC<SpaceHeroProps> = ({ space, hero }) => {
   const { t, text } = useDashboardLang();
+  const { nameOf } = useSpaceNames();
   const after = hero?.day.find((event) => event.at > hero.at);
 
   return (
@@ -27,7 +28,7 @@ const SpaceHero: React.FC<SpaceHeroProps> = ({ space, hero }) => {
         <SpaceTile space={space} />
       </span>
       <h1 id={`${space}-title`} className={styles.name}>
-        {text(SPACE_NAME[space])}
+        {nameOf(space)}
       </h1>
       {hero && (
         <>

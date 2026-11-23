@@ -2,7 +2,8 @@ import React from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath, type PageId } from '../../../data/site';
-import { SPACES, SPACE_NAME, SPACE_PAGE } from '../../../services/dashboards/spaces';
+import { useSpaceNames } from '../../../hooks/useSpaceNames';
+import { SPACES, SPACE_PAGE } from '../../../services/dashboards/spaces';
 import { cx } from '../../../utils/cx';
 import LangSwitch from '../LangSwitch/LangSwitch';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
@@ -22,10 +23,11 @@ export interface DashboardBarProps {
  * toggle.
  */
 const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
-  const { t, text } = useDashboardLang();
+  const { t } = useDashboardLang();
+  const { nameOf } = useSpaceNames();
   const items: ReadonlyArray<readonly [PageId, string]> = [
     ['dashboards', t.navAll],
-    ...SPACES.map((id) => [SPACE_PAGE[id], text(SPACE_NAME[id])] as const),
+    ...SPACES.map((id) => [SPACE_PAGE[id], nameOf(id)] as const),
     ['dashboards-calendar', t.navCalendar],
   ];
 

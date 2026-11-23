@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.clock import Clock
 from src.core.config import Settings
 from src.dashboards import service
-from src.dashboards.catalog import TaskStatusFilter
+from src.dashboards.catalog import DEFAULT_SPACE_NAMES, TaskStatusFilter
 from src.dashboards.runtime import get_runtime, session_scope
 from src.dashboards.schemas import (
     AreaOut,
@@ -60,9 +60,10 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
     async with session_scope(get_runtime(request)) as session:
         spaces = await service.list_spaces(session)
         areas = await service.list_areas(session)
+    names = {**DEFAULT_SPACE_NAMES, **settings.space_names}
     return BootstrapOut(
         enabled=True,
-        spaces=[SpaceRef(id=space_id) for space_id in spaces],
+        spaces=[SpaceRef(id=space_id, name=names.get(space_id, space_id)) for space_id in spaces],
         areas=[AreaOut.model_validate(area) for area in areas],
         server_time=now,
     )

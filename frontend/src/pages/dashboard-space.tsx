@@ -7,6 +7,7 @@ import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
 import SourceTabs from '../components/dashboards/SourceTabs/SourceTabs';
 import SpaceHero from '../components/dashboards/SpaceHero/SpaceHero';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useSpaceNames } from '../hooks/useSpaceNames';
 import { useSpace } from '../hooks/useDashboards';
 import { tabCount } from '../services/dashboards/summary';
 import type { SpaceId, TabId } from '../services/dashboards/types';
@@ -69,7 +70,8 @@ const SampleSpace = ({ space: id }: DashboardSpaceProps) => {
 /** A space page: on the API's data when the bootstrap says so, otherwise on the bundled sample data. */
 const DashboardSpace = ({ space: id }: DashboardSpaceProps) => {
   const { t } = useDashboardLang();
-  usePageTitle(t.titles[id]);
+  const { serverNameOf } = useSpaceNames();
+  usePageTitle(serverNameOf(id) ?? t.titles[id]);
   const { mode, areas } = useDashboardMode();
   return mode === 'live' ? <LiveSpace key={id} space={id} areas={areas} /> : <SampleSpace key={id} space={id} />;
 };
