@@ -43,12 +43,35 @@ describe('the bootstrap call', () => {
       areas: [{ id: 'money', space_id: 'personal', name_ru: 'Деньги', name_en: 'Money', sort: 0 }, { nope: 1 }],
       server_time: '2026-11-22T10:00:00+00:00',
     });
-    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00' });
+    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {} });
+  });
+
+  it('keeps the names the server gives spaces, and only real renames', () => {
+    const parsed = parseBootstrap({
+      enabled: true,
+      spaces: [
+        { id: 'personal', name: 'Personal' },
+        { id: 'work-1', name: '  Acme  ' },
+        { id: 'work-2', name: 'Globex' },
+        { id: 'work-3', name: 'Nope' },
+      ],
+    });
+    expect(parsed?.spaceNames).toEqual({ 'work-1': 'Acme', 'work-2': 'Globex' });
+  });
+
+  it('ignores a space name that is blank, too long, not text, or the bundled English default', () => {
+    const names = (spaces: unknown) => parseBootstrap({ enabled: true, spaces })?.spaceNames;
+    expect(names([{ id: 'work-1', name: 'Work 1' }, { id: 'work-2', name: 'Work 2' }])).toEqual({});
+    expect(names([{ id: 'work-1', name: '   ' }, { id: 'work-2', name: 'x'.repeat(25) }])).toEqual({});
+    expect(names([{ id: 'work-1', name: 5 }, { id: 'work-2' }, 'work-1', null])).toEqual({});
+    expect(names({ id: 'work-1', name: 'Acme' })).toEqual({});
+    expect(names(undefined)).toEqual({});
+    expect(names([{ id: 'work-1', name: 'x'.repeat(24) }])).toEqual({ 'work-1': 'x'.repeat(24) });
   });
 
   it('says disabled as it is', async () => {
     installFakeApi({ enabled: false });
-    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null });
+    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {} });
   });
 
   it('is null (the sample data) on a network error, a non-2xx answer, a non-JSON body or the wrong shape', async () => {

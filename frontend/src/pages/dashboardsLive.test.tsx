@@ -643,3 +643,53 @@ describe('task rows are rows', () => {
     expect(row.querySelectorAll('[class*="badge"], [class*="chip"]')).toHaveLength(0);
   });
 });
+
+describe('the names the server gives the spaces', () => {
+  const NAMES = { 'work-1': 'Acme', 'work-2': 'Globex' };
+
+  it('replaces Work 1 and Work 2 in the bar, the hub cards and the heading, in Russian', async () => {
+    setup({ spaceNames: NAMES });
+    renderAt('/dashboards');
+    expect(await within(main()).findByRole('region', { name: 'Acme' })).toBeInTheDocument();
+    expect(within(main()).getByRole('region', { name: 'Globex' })).toBeInTheDocument();
+    expect(within(main()).getByRole('region', { name: 'Личное' })).toBeInTheDocument();
+    const links = screen.getAllByRole('link', { name: 'Acme' });
+    expect(links.length).toBeGreaterThan(1); // the bar and the card
+    links.forEach((link) => expect(link).toHaveAttribute('href', '/dashboards/work-1'));
+    expect(screen.queryByText('Работа 1')).toBeNull();
+    expect(screen.queryByText('Работа 2')).toBeNull();
+  });
+
+  it('shows the same names in English, and the page and its title follow', async () => {
+    setup({ spaceNames: NAMES });
+    localStorage.setItem(LANG_STORAGE_KEY, 'en');
+    renderAt('/dashboards/work-1');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Acme' })).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toContain('Acme'));
+    expect(screen.queryByText('Work 1')).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Globex' })[0]).toHaveAttribute('href', '/dashboards/work-2');
+    expect(screen.getAllByRole('link', { name: 'Personal' }).length).toBeGreaterThan(0);
+  });
+
+  it('puts them in the calendar legend', async () => {
+    setup({ spaceNames: NAMES });
+    renderAt('/dashboards/calendar');
+    expect((await screen.findAllByText('Acme')).length).toBeGreaterThan(1); // the bar and the legend
+    expect(screen.getAllByText('Globex').length).toBeGreaterThan(1);
+    expect(screen.queryByText('Работа 1')).toBeNull();
+  });
+
+  it('keeps the bundled bilingual names when the server does not rename a space', async () => {
+    setup({ spaceNames: { 'work-2': 'Globex' } });
+    renderAt('/dashboards');
+    expect(await within(main()).findByRole('region', { name: 'Globex' })).toBeInTheDocument();
+    expect(within(main()).getByRole('region', { name: 'Работа 1' })).toBeInTheDocument();
+  });
+
+  it('leaves the sample data alone', async () => {
+    setup({ enabled: false });
+    renderAt('/dashboards');
+    expect(await within(main()).findByRole('region', { name: 'Работа 1' })).toBeInTheDocument();
+    expect(screen.queryByText('Acme')).toBeNull();
+  });
+});

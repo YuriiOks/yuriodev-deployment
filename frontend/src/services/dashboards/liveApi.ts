@@ -1,3 +1,4 @@
+import { SPACE_NAME } from './spaces';
 import type { SpaceId } from './types';
 
 /**
@@ -44,6 +45,8 @@ export interface Bootstrap {
   readonly enabled: boolean;
   readonly areas: readonly LiveArea[];
   readonly serverTime: string | null;
+  /** Names the server gives spaces (only those that differ from the bundled English default). */
+  readonly spaceNames: Readonly<Partial<Record<SpaceId, string>>>;
 }
 
 export type TaskStatus = 'open' | 'done';
@@ -139,6 +142,23 @@ function listOf(body: unknown, keys: readonly string[]): unknown[] | null {
   return null;
 }
 
+const MAX_SPACE_NAME = 24;
+
+/** The names the server gives spaces. A name equal to the bundled English one is no rename: the page then keeps its bilingual name. */
+function parseSpaceNames(raw: unknown): Partial<Record<SpaceId, string>> {
+  const names: Partial<Record<SpaceId, string>> = {};
+  if (!Array.isArray(raw)) return names;
+  for (const entry of raw) {
+    if (!isObject(entry) || typeof entry.name !== 'string') continue;
+    const id = entry.id;
+    if (!isSpace(id)) continue;
+    const name = entry.name.trim();
+    if (name.length === 0 || name.length > MAX_SPACE_NAME || name === SPACE_NAME[id].en) continue;
+    names[id] = name;
+  }
+  return names;
+}
+
 export function parseBootstrap(body: unknown): Bootstrap | null {
   if (!isObject(body) || typeof body.enabled !== 'boolean') return null;
   const areas: LiveArea[] = [];
@@ -150,7 +170,7 @@ export function parseBootstrap(body: unknown): Bootstrap | null {
       areas.push({ id: raw.id, nameRu, nameEn });
     }
   }
-  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null };
+  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces) };
 }
 
 export function parseTask(raw: unknown): LiveTask | null {

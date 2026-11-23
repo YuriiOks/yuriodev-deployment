@@ -4,12 +4,15 @@ Sources, in order: code defaults <- env/<env>.env <- env/<env>.secrets.env. Comp
 both files as container environment variables; nothing reads a dotenv file from disk.
 """
 
+import json
 from functools import lru_cache
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from src.dashboards.catalog import DEFAULT_SPACE_NAMES, MAX_SPACE_NAME
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
@@ -81,6 +84,11 @@ class Settings(BaseSettings):
     dashboards_trust_proxy_auth: bool = False
     # IANA zone that decides what "today" is (overdue, `today`, day ranges). Not secret.
     dashboards_timezone: str = "Europe/London"
+    # Display names of the spaces, a JSON object like {"work-1": "Acme", "work-2": "Globex"}, so
+    # real names can live in the untracked secrets file instead of the public repo. Kept as text
+    # and read through `space_names`: a malformed value must never stop the app, so it is not
+    # parsed (or echoed) by pydantic.
+    dashboards_space_names: str | None = None
 
     # Collectors (src/dashboards/collectors/): background pollers that turn outside work items
     # into tasks. They run only with the dashboards API on (DATABASE_URL) and each one only when
@@ -108,6 +116,12 @@ class Settings(BaseSettings):
     @property
     def dashboards_enabled(self) -> bool:
         return self.database_url is not None
+
+    @property
+    def space_names(self) -> dict[str, str]:
+        """The valid renames from DASHBOARDS_SPACE_NAMES: known space ids only, values trimmed,
+        1 to 24 printable characters. Anything else is ignored per key; nothing is logged."""
+        return parse_space_names(self.dashboards_space_names)
 
     @property
     def collectors_enabled(self) -> bool:
@@ -172,6 +186,25 @@ class Settings(BaseSettings):
             value = value.strip()
             return value or None
         return value
+
+
+def parse_space_names(raw: str | None) -> dict[str, str]:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    names: dict[str, str] = {}
+    for space_id in DEFAULT_SPACE_NAMES:
+        value = data.get(space_id)
+        if isinstance(value, str):
+            name = value.strip()
+            if 0 < len(name) <= MAX_SPACE_NAME and name.isprintable():
+                names[space_id] = name
+    return names
 
 
 @lru_cache(maxsize=1)

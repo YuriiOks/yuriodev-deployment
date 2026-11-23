@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath } from '../../../data/site';
-import { SPACE_NAME, SPACE_PAGE } from '../../../services/dashboards/spaces';
+import { useSpaceNames } from '../../../hooks/useSpaceNames';
+import { SPACE_PAGE } from '../../../services/dashboards/spaces';
 import type { Localized, SpaceId, SpaceSummary } from '../../../services/dashboards/types';
 import { cx } from '../../../utils/cx';
 import SpaceTile from '../SpaceTile/SpaceTile';
@@ -22,7 +23,8 @@ export interface SpaceCardProps {
  */
 const SpaceCard: React.FC<SpaceCardProps> = ({ space, summary, next }) => {
   const { t, text } = useDashboardLang();
-  const name = text(SPACE_NAME[space]);
+  const { nameOf } = useSpaceNames();
+  const name = nameOf(space);
   const titleId = `hub-${space}-title`;
   const stats: ReadonlyArray<readonly [number, string, boolean]> = [
     [summary.open, t.statOpen, false],

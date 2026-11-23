@@ -307,3 +307,42 @@ def test_a_malformed_calendar_address_is_never_echoed_by_the_settings(clean_env)
     settings = fresh()  # accepted here: the collector drops what it cannot use, silently
 
     assert "secret-token-text" not in repr(settings)
+
+
+def test_space_names_default_to_nothing(clean_env):
+    assert fresh().dashboards_space_names is None
+    assert fresh().space_names == {}
+
+
+def test_space_names_are_read_trimmed_and_limited_to_the_known_spaces(clean_env):
+    clean_env.setenv(
+        "DASHBOARDS_SPACE_NAMES",
+        '{"work-1": "  Acme  ", "work-2": "Globex", "personal": "Home", "work-3": "Nope"}',
+    )
+
+    assert fresh().space_names == {"work-1": "Acme", "work-2": "Globex", "personal": "Home"}
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ('{"work-1": "x"}', {"work-1": "x"}),
+        ('{"work-1": "a" }', {"work-1": "a"}),
+        ('{"work-1": "' + "n" * 24 + '"}', {"work-1": "n" * 24}),
+        ('{"work-1": "' + "n" * 25 + '"}', {}),
+        ('{"work-1": ""}', {}),
+        ('{"work-1": "   "}', {}),
+        ('{"work-1": 5, "work-2": null, "personal": ["x"]}', {}),
+        ('{"work-1": "bad\\nname", "work-2": "Fine"}', {"work-2": "Fine"}),
+        ('{"work-1": "\\u0410\\u043a\\u043c\\u0435"}', {"work-1": "\u0410\u043a\u043c\u0435"}),
+        ("[]", {}),
+        ('"just a string"', {}),
+        ("not json at all", {}),
+        ('{"work-1": "unterminated', {}),
+        ("", {}),
+    ],
+)
+def test_a_bad_space_name_is_ignored_and_never_stops_startup(clean_env, raw, expected):
+    clean_env.setenv("DASHBOARDS_SPACE_NAMES", raw)
+
+    assert fresh().space_names == expected

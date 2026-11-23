@@ -133,6 +133,7 @@ class SpaceRef(BaseModel):
     model_config = _RESPONSE
 
     id: str
+    name: str
 
 
 class BootstrapOut(BaseModel):

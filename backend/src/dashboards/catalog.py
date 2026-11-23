@@ -14,6 +14,14 @@ COLLECTED_SOURCES: tuple[Source, ...] = ("github", "linear")
 # The order spaces are listed in everywhere (bootstrap, summary, `today`).
 SPACE_IDS: tuple[SpaceId, ...] = ("personal", "work-1", "work-2")
 
+# What each space is called when DASHBOARDS_SPACE_NAMES does not rename it.
+DEFAULT_SPACE_NAMES: dict[str, str] = {
+    "personal": "Personal",
+    "work-1": "Work 1",
+    "work-2": "Work 2",
+}
+MAX_SPACE_NAME = 24
+
 MAX_RANGE_DAYS = 62  # GET /events and the list_events tool: at most this many days, inclusive
 
 

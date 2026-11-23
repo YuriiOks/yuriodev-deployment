@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { SPACES, SPACE_NAME } from '../../../services/dashboards/spaces';
+import { useSpaceNames } from '../../../hooks/useSpaceNames';
+import { SPACES } from '../../../services/dashboards/spaces';
 import type { SpaceId } from '../../../services/dashboards/types';
 import InlineError from '../InlineError/InlineError';
 import styles from './EventForm.module.css';
@@ -28,7 +29,8 @@ export interface EventFormProps {
  * Nothing is sent until Add; a refusal or a failure keeps the form open with one error line. Escape closes it.
  */
 const EventForm: React.FC<EventFormProps> = ({ today, onSubmit, onClose }) => {
-  const { t, text } = useDashboardLang();
+  const { t } = useDashboardLang();
+  const { nameOf } = useSpaceNames();
   const id = useId();
   const titleRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
@@ -105,7 +107,7 @@ const EventForm: React.FC<EventFormProps> = ({ today, onSubmit, onClose }) => {
           <select id={`${id}-space`} className={styles.select} value={space} onChange={(e) => setSpace(e.target.value as SpaceId)}>
             {SPACES.map((option) => (
               <option key={option} value={option}>
-                {text(SPACE_NAME[option])}
+                {nameOf(option)}
               </option>
             ))}
           </select>

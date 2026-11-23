@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
-import { SPACE_NAME } from '../../../services/dashboards/spaces';
+import { useSpaceNames } from '../../../hooks/useSpaceNames';
 import { dayOfMonth, isWeekend, weekdayIndex } from '../../../services/dashboards/calendarDates';
 import { nowOffsetHours } from '../../../services/dashboards/nowLine';
 import type { CalEvent } from '../../../services/dashboards/types';
@@ -43,6 +43,7 @@ const vars = (values: Record<string, string | number>) => values as React.CSSPro
  */
 const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, conflicts, now }) => {
   const { t, text } = useDashboardLang();
+  const { nameOf } = useSpaceNames();
   const firstMinute = toMinutes(hours[0]);
   const endLabel = `${String(Math.floor((toMinutes(hours[hours.length - 1]) + 60) / 60)).padStart(2, '0')}:00`;
   const single = dates.length === 1;
@@ -93,7 +94,7 @@ const WeekGrid: React.FC<WeekGridProps> = ({ dates, today, hours, events, confli
                       const conflict = conflicts.ids.has(event.id);
                       const minutes = endMin - startMin;
                       const short = minutes < SHORT_MINUTES;
-                      const space = text(SPACE_NAME[event.space]);
+                      const space = nameOf(event.space);
                       const title = text(event.title);
                       const range = `${event.start}–${event.end}`;
                       return (

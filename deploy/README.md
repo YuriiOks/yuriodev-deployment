@@ -615,6 +615,22 @@ the header `X-Dashboards-Token` equals `DASHBOARDS_API_TOKEN` (not
 `Authorization`, which basic auth owns on dev). With neither configured every
 request is 401. Production stays off until Cloudflare Access sits in front of it.
 
+Space names: the page calls the spaces "Personal", "Work 1" and "Work 2". To show real names
+without putting them in the public repo, add one line to the environment's secrets file (invented
+example) and recreate the backend:
+
+```
+DASHBOARDS_SPACE_NAMES={"work-1": "Acme", "work-2": "Globex"}
+```
+
+Keys are `personal`, `work-1`, `work-2` (all optional), each value 1 to 24 printable characters,
+trimmed. An entry that is invalid is ignored on its own, and a value that is not a JSON object is
+ignored as a whole: it never stops the backend and nothing is logged. `GET /bootstrap` then
+returns `name` for every space (the override, else the English default) and the page shows it in
+both languages in the bar, hub cards, space heading, calendar legend, event form and tab title;
+a space with no override keeps its bundled bilingual name ("Work 1" / "Работа 1"). URLs stay
+`/dashboards/work-1`. Sample-data mode is unchanged.
+
 ### One-time setup of dev
 
 Run on the box, in `~/yuriodev-deployment`, once the commit with these files is
