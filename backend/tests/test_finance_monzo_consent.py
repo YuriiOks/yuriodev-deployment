@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from tests.dashboards_support import AUTH, running, scalar
-from tests.monzo_support import MZ_BASE, MZ_ID, MZ_REDIRECT, MZ_KEY, FakeMonzo, no_sleep
+from tests.monzo_support import MZ_BASE, MZ_ID, MZ_KEY, MZ_REDIRECT, FakeMonzo, no_sleep
 
 pytestmark = pytest.mark.anyio
 
