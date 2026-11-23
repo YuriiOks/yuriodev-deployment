@@ -631,6 +631,25 @@ both languages in the bar, hub cards, space heading, calendar legend, event form
 a space with no override keeps its bundled bilingual name ("Work 1" / "Работа 1"). URLs stay
 `/dashboards/work-1`. Sample-data mode is unchanged.
 
+Space icons: to draw a brand mark instead of the letter or number tile, add one more line to the
+same secrets file (a JSON object keyed by `personal`, `work-1`, `work-2`, all optional; the value
+is the image itself as a base64 data URI, so nothing is fetched from anywhere):
+
+```
+DASHBOARDS_SPACE_ICONS={"work-1": "data:image/png;base64,<base64 of the image>"}
+```
+
+Allowed: `data:image/png;base64,`, `data:image/svg+xml;base64,`, `data:image/x-icon;base64,`,
+`data:image/vnd.microsoft.icon;base64,` and `data:image/webp;base64,`, a valid base64 payload, at
+most 48 KiB per value (the whole string). Anything else (a link, another type, a bad payload, too
+big) is dropped for that space alone and never stops the backend; nothing is logged. A value is
+easy to make with `base64 -i logo.png | tr -d '\n'` (write the `data:` prefix before it, and keep
+the file out of the repo). `GET /bootstrap` returns `icon` (a string or null) next to each
+space's `name`; the page draws it in the 24px tile of the hub cards and the space heading. The
+personal space's tile shows the site's own mark on the live dashboards even with no setting
+(bundled in the frontend, not fetched). The site's CSP allows `img-src 'self' data:`, which is why
+only data URIs are accepted. Sample-data mode keeps the letter tiles.
+
 ### Projects (a schema each)
 
 Besides the three spaces the dashboards can hold projects (the first ones: a court case and a side
