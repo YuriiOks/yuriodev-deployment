@@ -2,14 +2,25 @@
 
 import json
 import logging
+from datetime import timedelta
 
+import httpx
 import pytest
 from mcp import Client
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.errors import AppError
 from src.dashboards import service
+from tests.collectors_support import json_response
 from tests.dashboards_support import AUTH, CRED, running
+from tests.finance_support import (
+    MONO_KEY,
+    FakeMonobank,
+    forbidden,
+    mono_account,
+    mono_item,
+    ts,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -17,6 +28,14 @@ BASE = "/api/dashboards/v1"
 TITLE = "TITLE-SENTINEL-8841"
 NOTES = "NOTES-SENTINEL-5520"
 OTHER = "OTHER-SENTINEL-3917"
+# Finance: none of these may ever reach a log line (the key is MONO_KEY). The amounts are long
+# numbers so that no request id or timestamp can contain them by chance.
+DESCRIPTION = "DESCRIPTION-SENTINEL-7714"
+COUNTERPARTY = "COUNTERPARTY-SENTINEL-2086"
+CARD_NUMBER = "537541******6173"
+IBAN = "UA55SENTINEL3322001000002620999"
+AMOUNT = 7351984
+BALANCE = 9183746
 
 
 def everything_logged(caplog, capsys):
@@ -132,3 +151,66 @@ async def test_an_unexpected_tool_failure_is_logged_by_class_only(
     (record,) = [r for r in caplog.records if getattr(r, "event", "") == "dashboards.tool_error"]
     assert (record.tool, record.error) == ("list_tasks", "RuntimeError")
     assert TITLE not in "\n".join([caplog.text, result.content[0].text, str(vars(record))])
+
+
+async def test_bank_data_and_the_key_stay_out_of_the_log(
+    db_url, make_dashboards_app, clock, caplog, capsys
+):
+    caplog.set_level(logging.DEBUG)
+    leaking = f"{DESCRIPTION} {COUNTERPARTY} {CARD_NUMBER} {IBAN} {MONO_KEY} {AMOUNT}"
+    fake = FakeMonobank(
+        [mono_account(balance=BALANCE, pan=CARD_NUMBER, iban=IBAN)],
+        {
+            "acc-black-uah": [
+                mono_item(
+                    "tx-1",
+                    ts(2026, 11, 20),
+                    -AMOUNT,
+                    DESCRIPTION,
+                    counter=COUNTERPARTY,
+                    balance=BALANCE,
+                )
+            ]
+        },
+    )
+    app = make_dashboards_app(
+        db_url,
+        log_level="DEBUG",
+        log_format="json",
+        monobank_token=MONO_KEY,
+        finance_backfill_months=6,
+    )
+    app.state.collector_transport = httpx.MockTransport(fake)
+    async with running(app, AUTH) as client, Client(app.state.mcp) as mcp:
+        manager = app.state.finance_collectors
+        await manager.ticked.wait()
+        for failure in (None, json_response({"errorDescription": leaking}, 500), None, None):
+            fake.failures = [failure]
+            clock.now += timedelta(seconds=90)
+            await manager.tick()  # the newest window, a failing one, the walk back
+        fake.client_info_failures = [forbidden(), json_response({"errorDescription": leaking}, 429)]
+        for _ in range(2):  # the key refused, then the rate limit
+            clock.now += timedelta(minutes=21)
+            await manager.tick()
+        clock.now += timedelta(minutes=21)
+        await manager.tick()
+        await client.get("/api/dashboards/v1/finance/accounts")
+        await client.get("/api/dashboards/v1/finance/transactions", params={"q": DESCRIPTION})
+        await client.get("/api/dashboards/v1/finance/summary")
+        await client.get("/api/dashboards/v1/finance/transactions", params={"cursor": leaking})
+        await mcp.call_tool("finance_accounts", {})
+        await mcp.call_tool("finance_balances", {})
+        await mcp.call_tool("finance_transactions", {"query": DESCRIPTION, "min_amount": -AMOUNT})
+        await mcp.call_tool("finance_transactions", {"account": leaking})
+        await mcp.call_tool("finance_transactions", {"cursor": leaking})
+
+    logged = everything_logged(caplog, capsys)
+    events = {getattr(r, "event", "") for r in caplog.records}
+    assert {"collector.synced", "collector.upstream_error", "finance.connection_status"} <= events
+    assert "http.request" in logged  # the access lines are there: the check can see logs
+    for secret in (DESCRIPTION, COUNTERPARTY, CARD_NUMBER, IBAN, MONO_KEY, str(AMOUNT)):
+        assert secret not in logged, secret
+    assert str(BALANCE) not in logged
+    for record in caplog.records:
+        if getattr(record, "collector", "") == "monobank":
+            assert set(vars(record)) & {"amount", "description", "counterparty", "balance"} == set()

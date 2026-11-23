@@ -25,6 +25,9 @@ TOOLS = {
     "delete_event",
     "list_projects",
     "add_project",
+    "finance_accounts",
+    "finance_balances",
+    "finance_transactions",
 }
 
 

@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from pydantic import SecretStr
 from sqlalchemy import BigInteger, bindparam, text
+from sqlalchemy.sql.elements import TextClause
 
 from src.core.clock import Clock
 from src.core.config import Settings
@@ -31,18 +32,28 @@ from src.dashboards.collectors.base import Collector, pause_seconds
 from src.dashboards.collectors.github import GitHubCollector
 from src.dashboards.collectors.ical import CalendarCollector, split_feeds
 from src.dashboards.collectors.linear import LinearCollector
+from src.dashboards.finance.base import FinanceCollector
+from src.dashboards.finance.monobank import MonobankProvider
 from src.dashboards.runtime import DashboardsRuntime
 
 logger = logging.getLogger("yuriodev.collectors")
 
 ADVISORY_LOCK_KEY = 5_194_021_734  # not the migration lock's key
+FINANCE_LOCK_KEY = 5_194_021_736  # the finance loop's own: it never holds up the task loop
 COLLECTOR_TIMEOUT_SECONDS = 120
-LOCK = text("SELECT pg_try_advisory_lock(:key)").bindparams(
-    bindparam("key", ADVISORY_LOCK_KEY, type_=BigInteger)
-)
-UNLOCK = text("SELECT pg_advisory_unlock(:key)").bindparams(
-    bindparam("key", ADVISORY_LOCK_KEY, type_=BigInteger)
-)
+
+
+def lock_statements(key: int) -> tuple[TextClause, TextClause]:
+    """The try-lock and unlock statements for one advisory lock key (bound as bigint)."""
+    lock = text("SELECT pg_try_advisory_lock(:key)")
+    unlock = text("SELECT pg_advisory_unlock(:key)")
+    return (
+        lock.bindparams(bindparam("key", key, type_=BigInteger)),
+        unlock.bindparams(bindparam("key", key, type_=BigInteger)),
+    )
+
+
+LOCK, UNLOCK = lock_statements(ADVISORY_LOCK_KEY)
 
 
 class CollectorManager:
@@ -55,6 +66,7 @@ class CollectorManager:
         *,
         interval: float,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        lock_key: int = ADVISORY_LOCK_KEY,
     ) -> None:
         self._runtime = runtime
         self._collectors = collectors
@@ -62,6 +74,7 @@ class CollectorManager:
         self._clock = clock
         self._interval = interval
         self._sleep = sleep
+        self._lock, self._unlock = lock_statements(lock_key)
         self._paused_until: dict[str, datetime] = {}
         self.ticks = 0  # completed ticks (also those that found the lock taken)
         self.ticked = asyncio.Event()  # set once the first tick has completed
@@ -97,13 +110,13 @@ class CollectorManager:
         """The cross-process lock, held on one connection for the whole tick."""
         async with self._runtime.engine.connect() as connection:
             await connection.execution_options(isolation_level="AUTOCOMMIT")
-            acquired = bool((await connection.execute(LOCK)).scalar_one())
+            acquired = bool((await connection.execute(self._lock)).scalar_one())
             try:
                 yield acquired
             finally:
                 if acquired:
                     try:
-                        await connection.execute(UNLOCK)
+                        await connection.execute(self._unlock)
                     except Exception:
                         # A lock that might still be held must not go back to the pool with
                         # its connection: closing the connection frees it.
@@ -135,7 +148,10 @@ class CollectorManager:
             )
         else:
             self._paused_until.pop(collector.name, None)
-            logger.info(
+            # A collector that made no request this tick (finance: nothing was due) says so quietly.
+            level = logging.DEBUG if counts.get("calls", 1) == 0 else logging.INFO
+            logger.log(
+                level,
                 "collector synced",
                 extra={"event": "collector.synced", "collector": collector.name, **counts},
             )
@@ -177,6 +193,15 @@ def build_collectors(settings: Settings, zone: ZoneInfo | None = None) -> list[C
         feeds = split_feeds(setting)
         if feeds:
             collectors.append(CalendarCollector(space, feeds, zone, owners))
+    return collectors
+
+
+def build_finance_collectors(settings: Settings) -> list[Collector]:
+    """The finance collectors whose credential is set (none without a token)."""
+    collectors: list[Collector] = []
+    if settings.monobank_token is not None:
+        provider = MonobankProvider(settings.monobank_token)
+        collectors.append(FinanceCollector(provider, settings.finance_backfill_months))
     return collectors
 
 

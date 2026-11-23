@@ -1,4 +1,4 @@
-"""The MCP endpoint of the dashboards API: twelve tools over POST /api/mcp (streamable HTTP).
+"""The MCP endpoint of the dashboards API: fifteen tools over POST /api/mcp (streamable HTTP).
 
 Built on the official SDK's `MCPServer`, run stateless with plain JSON answers: every POST is
 one self-contained request, there is no session to lose on a restart, and nothing holds a stream
@@ -33,6 +33,7 @@ from src.core.errors import AppError, error_response
 from src.dashboards import projects as project_service
 from src.dashboards import service
 from src.dashboards.catalog import SPACE_IDS, TaskStatus, TaskStatusFilter
+from src.dashboards.finance import mcp as finance_mcp
 from src.dashboards.runtime import DashboardsRuntime, session_scope, unavailable
 from src.dashboards.schemas import (
     EventCreate,
@@ -55,7 +56,7 @@ INSTRUCTIONS = (
     "exactly one space; every tool that lists or adds tasks takes the space. Dates are "
     "YYYY-MM-DD, times are ISO 8601 with a UTC offset. Personal tasks may carry an area slug "
     "(money, work-income, court-paperwork, health-sport, romantic, friends, family, travel, "
-    "home, hobbies-growth)."
+    "home, hobbies-growth)." + finance_mcp.INSTRUCTIONS
 )
 
 type RuntimeGetter = Callable[[], DashboardsRuntime | None]
@@ -92,8 +93,9 @@ def _validated[M: BaseModel](model: type[M], fields: dict[str, Any]) -> M:
 
 
 def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -> MCPServer[Any]:
-    """The server with its twelve tools, and its streamable-HTTP session manager created (stateless,
-    JSON answers). `get_runtime` is read per call: the runtime only exists once the app runs."""
+    """The server with its fifteen tools, and its streamable-HTTP session manager created
+    (stateless, JSON answers). `get_runtime` is read per call: the runtime only exists once the
+    app runs."""
     server: MCPServer[Any] = MCPServer("yuriodev-dashboards", instructions=INSTRUCTIONS)
 
     async def _change(
@@ -285,6 +287,8 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         async with scope("delete_event") as (session, _):
             await service.delete_event(session, id)
             return _json({"deleted": id})
+
+    finance_mcp.register(server, scope, zone)
 
     # The SDK builds its session manager together with the Starlette app. Only the manager is
     # used (`McpEndpoint`), so the app itself is dropped.

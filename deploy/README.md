@@ -832,6 +832,75 @@ calendar, `too_many` for an absurd number of occurrences). The collector is name
 `calendar-personal` / `calendar-work-1`. A collected event deleted by hand comes back at the
 next poll while it is still in the feed.
 
+## Finance (read-only bank data)
+
+The backend can keep a read-only copy of your bank accounts, balances and transactions in its own
+Postgres schema, `finance` (tables `connection`, `account`, `transaction`, created by Alembic
+migration `dashboards_0007`; never mixed into the task tables). Money is always an integer in
+minor units (kopiykas, cents; `-45000` is -450.00) next to an ISO 4217 code, never a float. It
+ships **dark**: with no token nothing runs and nothing calls out, and the data is only served
+through the dashboards gate (token header, or the trusted proxy on dev/stage). Do not switch it on
+anywhere the server is not behind Cloudflare Access.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `MONOBANK_TOKEN` | unset | Monobank personal API token (a read-only credential, but it shows your whole history: secrets file only). Unset means no collector and no outbound call. |
+| `FINANCE_BACKFILL_MONTHS` | 12 | How far back a new account's first import reaches (0 to 36). 0 fetches only the newest month. |
+| `FINANCE_POLL_INTERVAL_SECONDS` | 90 | Seconds between collector ticks (60 to 3600). Each tick makes at most one provider request. |
+
+How the owner enters the token (a production change per the rules above: ask first; type it into
+the gitignored secrets file directly, never into chat, a tracked file or a command line):
+
+1. In the Monobank app or at https://api.monobank.ua/ sign in and issue a personal token.
+2. On the box: `cd ~/yuriodev-deployment && ${EDITOR:-nano} env/dev.secrets.env`, add the line
+   `MONOBANK_TOKEN=<the token>` (and optionally `FINANCE_BACKFILL_MONTHS=`), save, `chmod 600` it.
+3. `touch ~/.yuriodev-deploy-paused`, then
+   `docker compose -f deploy/dev/compose.yml up -d --no-deps backend-dev`, then
+   `docker compose -f deploy/dev/compose.yml logs --since 5m backend-dev | grep collector`, then
+   `rm ~/.yuriodev-deploy-paused`.
+4. To switch off: delete the line and recreate the backend. The stored data stays; to forget it,
+   empty the three tables by hand in `psql` (`DELETE FROM finance.transaction;` then
+   `finance.account`, then `finance.connection`).
+
+Within a few minutes the log shows `collector.synced` for the collector `monobank` with counts
+only (`calls`, `accounts`, `windows`, `added`, `updated`). A tick with `calls: 0` (nothing due)
+is logged at DEBUG. `collector.upstream_error` carries the failure `kind` and `status`; `auth`
+means Monobank refused the token, and the connection's `status` becomes `needs_reconsent` (the
+API shows it in `GET /finance/accounts`, `connections`; it returns to `ok` by itself after a
+good call; the collector retries a refused token only every 20 minutes). A connection set to
+`paused` by hand (`UPDATE finance.connection SET status = 'paused'`) makes no call at all.
+
+What it does, against Monobank's documented limits (https://api.monobank.ua/docs/, checked
+2026-11-23): the token goes in `X-Token`; `GET /personal/client-info` (accounts and balances)
+and `GET /personal/statement/{account}/{from}/{to}` are each limited to once per 60 seconds; a
+statement window may span at most 31 days and 1 hour (2 682 000 s). The collector keeps at least
+61 seconds between any two requests (in memory, per process, and one process polls at a time by
+a Postgres advisory lock of its own, so it never holds up the task collectors), uses windows of
+31 days, refreshes accounts and balances every 20 minutes, then each account's newest window
+(starting 3 days before the previous one ended, so a hold that settles is updated, never
+duplicated), and only when nothing is due walks the history back one window per request until the
+configured depth, or until three empty windows in a row. A statement answer of 500 items (the cap
+observed in use; the documentation names none) is taken to have more behind it and the window
+is asked again for the rest. A window is fetched whole in memory and written in one transaction
+with its cursor, so a failed or partial fetch changes nothing and the window is asked again. A
+429 pauses the collector for the time the source asked (at least a minute). Not used in this
+version: the webhook, jars (savings pots) and the client's other products.
+
+Keeping privacy: the logs carry only the collector name, counts and an error kind, never an
+amount, description, counterparty, account number or the token. Only the last four digits of a
+card (or, for an account without a card, of the IBAN) are stored. The API and MCP tools are read
+only: `GET /api/dashboards/v1/finance/accounts` (balances and link status),
+`/transactions?account=&from=&to=&q=&min_amount=&max_amount=&limit=&cursor=` (newest first,
+cursor-paged, `from` and `to` are days in `DASHBOARDS_TIMEZONE`) and `/summary` (per currency: total
+balance, spent and received this month; moves between your own accounts count on both sides),
+and the MCP tools `finance_accounts`, `finance_balances` and `finance_transactions`.
+
+Other banks later (a bank's own API with short-lived tokens, an Open Banking aggregator with
+expiring consents): add a provider that returns the neutral account and transaction shapes
+(`backend/src/dashboards/finance/base.py`); its auth or consent state lives in tables of its own
+and never in the shared ones, and `finance.connection.status` (`ok`, `needs_reconsent`,
+`paused`) is where the page can show "this link needs you".
+
 ## Local development
 
 Mac only — **never run this on the VPS.** `compose.local.yml` (project
