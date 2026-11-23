@@ -702,7 +702,7 @@ only the collector name, counts and an error kind: never a URL, token, title or 
 | Collector | Switched on by | Reads | Target space |
 |---|---|---|---|
 | GitHub | `GITHUB_TOKEN` | open pull requests you authored (`author:@me`) and open pull requests with a review requested from you (`review-requested:@me`), through the REST search API; `GITHUB_SEARCH_SCOPE` is appended to both queries (for example an `org:<name>` qualifier) | `GITHUB_SPACE`, default `work-1` |
-| Linear | `LINEAR_API_KEY` | issues assigned to the key's user whose state type is not `completed` or `canceled`, through GraphQL | `LINEAR_SPACE`, default `work-1` |
+| Linear | `LINEAR_API_KEY` | issues assigned to the key's user whose state type is not `completed`, `canceled` or `duplicate`, through GraphQL | `LINEAR_SPACE`, default `work-1` |
 
 `stage` is a short grouping label the collector sets (the page groups the GitHub and Linear tabs by it;
 you cannot set it, and manual tasks have none): Linear, the issue's workflow state type (`started`,

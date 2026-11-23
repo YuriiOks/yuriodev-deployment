@@ -64,6 +64,7 @@ async def test_the_key_is_sent_as_is_and_the_query_excludes_closed_states():
     assert "assignedIssues" in body["query"]
     assert '"completed"' in body["query"]
     assert '"canceled"' in body["query"]
+    assert '"duplicate"' in body["query"]
     assert "lin-key-value-9082" not in body["query"]
 
 

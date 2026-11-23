@@ -1,4 +1,4 @@
-"""Linear: issues assigned to the API key's user whose state is not completed or canceled.
+"""Linear: issues assigned to the API key's user whose state is not completed, canceled or duplicate.
 
 One GraphQL query over the viewer's assigned issues, paged by cursor.
 
@@ -19,8 +19,8 @@ from src.core.http import UpstreamError, post_json_capped
 from src.dashboards.collectors.base import MAX_PAGES, ExternalItem, clean_title, safe_url
 from src.dashboards.collectors.sync import TaskCollector
 
-# The open workflow state types: the filter excludes completed and canceled, so anything else
-# is unknown to us and gets no stage.
+# The open workflow state types: the filter excludes completed, canceled and duplicate (an issue
+# marked as a duplicate of another is closed), so anything else is unknown to us and gets no stage.
 STATE_TYPES = ("started", "unstarted", "backlog", "triage")
 GRAPHQL_URL = "https://api.linear.app/graphql"
 # `first` is 100: the largest page Linear serves.
@@ -30,7 +30,7 @@ query Open($after: String) {
     assignedIssues(
       first: 100
       after: $after
-      filter: { state: { type: { nin: ["completed", "canceled"] } } }
+      filter: { state: { type: { nin: ["completed", "canceled", "duplicate"] } } }
     ) {
       nodes { id identifier title url dueDate priority state { name type } }
       pageInfo { hasNextPage endCursor }
