@@ -142,3 +142,47 @@ async def test_a_rate_limited_answer_is_an_upstream_error():
 
     assert (raised.value.kind, raised.value.status) == ("rate_limited", 429)
     assert raised.value.headers["retry-after"] == "90"
+
+
+@pytest.mark.parametrize(
+    ("state", "stage"),
+    [
+        ("started", "started"),
+        ("unstarted", "unstarted"),
+        ("backlog", "backlog"),
+        ("triage", "triage"),
+        ("completed", None),
+        ("canceled", None),
+        ("something-new", None),
+    ],
+)
+async def test_the_stage_is_the_state_type_when_it_is_an_open_one(state, stage):
+    async with client_for(lambda request: issues_page([issue(1, state=state)])) as client:
+        (item,) = await collector().fetch(client)
+
+    assert item.stage == stage
+
+
+@pytest.mark.parametrize("state", [None, "started", {"name": "No type"}, {"type": 5}, []])
+async def test_a_missing_or_odd_state_means_no_stage(state):
+    node = issue(1)
+    node["state"] = state
+
+    async with client_for(lambda request: issues_page([node])) as client:
+        (item,) = await collector().fetch(client)
+
+    assert item.stage is None
+
+
+async def test_the_query_asks_for_the_state_and_the_priority():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content)["query"])
+        return issues_page([])
+
+    async with client_for(handler) as client:
+        await collector().fetch(client)
+
+    assert "state { name type }" in seen[0]
+    assert "priority" in seen[0]

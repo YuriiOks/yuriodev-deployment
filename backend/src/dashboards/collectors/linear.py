@@ -19,6 +19,9 @@ from src.core.http import UpstreamError, post_json_capped
 from src.dashboards.collectors.base import MAX_PAGES, ExternalItem, clean_title, safe_url
 from src.dashboards.collectors.sync import TaskCollector
 
+# The open workflow state types: the filter excludes completed and canceled, so anything else
+# is unknown to us and gets no stage.
+STATE_TYPES = ("started", "unstarted", "backlog", "triage")
 GRAPHQL_URL = "https://api.linear.app/graphql"
 # `first` is 100: the largest page Linear serves.
 QUERY = """
@@ -29,7 +32,7 @@ query Open($after: String) {
       after: $after
       filter: { state: { type: { nin: ["completed", "canceled"] } } }
     ) {
-      nodes { id identifier title url dueDate }
+      nodes { id identifier title url dueDate priority state { name type } }
       pageInfo { hasNextPage endCursor }
     }
   }
@@ -93,6 +96,7 @@ def _item(node: Any) -> ExternalItem:
         title=clean_title(f"{clean_title('', identifier)}: ", node.get("title")),
         url=safe_url(node.get("url")),
         due_date=_due(node.get("dueDate")),
+        stage=_stage(node.get("state")),
     )
 
 
@@ -103,3 +107,11 @@ def _due(value: object) -> date | None:
         return date.fromisoformat(value)
     except ValueError:
         return None
+
+
+def _stage(state: object) -> str | None:
+    """The workflow state's TYPE when it is one of the open ones, else None."""
+    state_type = state.get("type") if isinstance(state, dict) else None
+    if isinstance(state_type, str) and state_type in STATE_TYPES:
+        return state_type
+    return None

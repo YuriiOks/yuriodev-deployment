@@ -82,6 +82,8 @@ class Task(Base):
     # The external id of a collected task (a repo-qualified PR number, a Linear issue id).
     source_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Collector-owned grouping label of a collected task (a Linear state type, `mine`/`review`).
+    stage: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -29,9 +29,9 @@ DUPLICATE = (
 )
 
 
-def item(number, title=None, due=None):
+def item(number, title=None, due=None, stage=None):
     url = f"https://example.test/{number}"
-    return ExternalItem(f"ref-{number}", title or f"Item {number}", url, due)
+    return ExternalItem(f"ref-{number}", title or f"Item {number}", url, due, stage)
 
 
 async def sync(app, items, source="github", space="work-1"):
@@ -249,3 +249,75 @@ async def test_the_database_keeps_one_row_per_external_item(db_url, make_dashboa
             await execute(db_url, statement)
         with pytest.raises(IntegrityError):
             await execute(db_url, DUPLICATE)
+
+
+async def test_the_stage_is_written_on_create_and_a_stage_change_alone_is_an_update(
+    db_url, make_dashboards_app, clock
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await sync(app, [item(1, stage="unstarted")])
+        (first,) = await tasks(client)
+        mine = {"priority": True, "notes": "kept"}
+        await client.patch(f"{BASE}/tasks/{first['id']}", json=mine)
+        clock.now += timedelta(hours=1)
+        counts = await sync(app, [item(1, stage="started")])
+        (second,) = await tasks(client)
+        same = await sync(app, [item(1, stage="started")])
+
+    assert first["stage"] == "unstarted"
+    assert counts.updated == 1
+    assert (second["stage"], second["title"], second["id"]) == ("started", "Item 1", first["id"])
+    assert (second["priority"], second["notes"]) == (True, "kept")
+    assert second["updated_at"] == "2026-11-22T13:00:00Z"
+    assert same.updated == 0
+
+
+async def test_a_stage_that_goes_away_is_cleared(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await sync(app, [item(1, stage="started")])
+        await sync(app, [item(1, stage=None)])
+        (task,) = await tasks(client)
+
+    assert task["stage"] is None
+
+
+async def test_a_state_change_does_not_bring_a_deleted_task_back(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await sync(app, [item(1, stage="unstarted")])
+        (gone,) = await tasks(client)
+        await client.delete(f"{BASE}/tasks/{gone['id']}")
+        counts = await sync(app, [item(1, stage="started")])
+        listed = await tasks(client)
+
+    assert (counts.created, counts.skipped) == (0, 1)
+    assert listed == []
+
+
+async def test_the_user_cannot_set_the_stage_and_manual_tasks_have_none(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await sync(app, [item(1, stage="started")])
+        (collected,) = await tasks(client)
+        by_hand = (await client.post(f"{BASE}/spaces/work-1/tasks", json={"title": "x"})).json()
+        patch = await client.patch(f"{BASE}/tasks/{collected['id']}", json={"stage": "review"})
+        create = await client.post(f"{BASE}/spaces/work-1/tasks", json={"title": "y", "stage": "z"})
+        (after,) = [t for t in await tasks(client) if t["source"] == "github"]
+
+    assert by_hand["stage"] is None
+    assert patch.status_code == 422
+    assert create.status_code == 422
+    assert after["stage"] == "started"
+
+
+async def test_the_stage_is_in_the_mcp_task_output(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH), Client(app.state.mcp) as mcp:
+        await sync(app, [item(1, stage="review")])
+        result = await mcp.call_tool("list_tasks", {"space": "work-1"})
+
+    assert '"stage":"review"' in result.content[0].text
