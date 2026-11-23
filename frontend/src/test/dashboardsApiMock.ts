@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject';
 
 export interface Call {
   readonly method: string;
@@ -20,6 +20,8 @@ export interface FakeApi {
   readonly calls: Call[];
   readonly tasks: Record<string, unknown>[];
   readonly events: Record<string, unknown>[];
+  /** The projects; their tasks are in `tasks`, with a `project_id` and no `space_id`. */
+  readonly projects: { id: string; name: string; archived: boolean }[];
   readonly fail: Set<FailKey>;
   /** While set, a PATCH waits for it: resolve it to let the request through (to look at the optimistic state first). */
   gate: Promise<void> | null;
@@ -61,6 +63,13 @@ export function task(space: string, title: string, extra: Record<string, unknown
   };
 }
 
+/** A task of a project: the space endpoints' shape with `project_id` instead of `space_id`. */
+export function projectTask(project: string, title: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  const rest = { ...task('', title, extra) };
+  delete rest.space_id;
+  return { ...rest, project_id: project };
+}
+
 export function event(space: string, title: string, day: string, start: string, end: string, extra: Record<string, unknown> = {}) {
   counter += 1;
   return {
@@ -96,19 +105,31 @@ export interface FakeApiOptions {
   readonly enabled?: boolean;
   readonly tasks?: Record<string, unknown>[];
   readonly events?: Record<string, unknown>[];
+  readonly projects?: { id: string; name: string; archived?: boolean }[];
   readonly fail?: FailKey[];
   /** Names the server gives spaces (by id); the others get the English default. */
   readonly spaceNames?: Record<string, string>;
 }
 
-export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], fail = [], spaceNames = {} }: FakeApiOptions = {}): FakeApi {
+export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {} }: FakeApiOptions = {}): FakeApi {
   const api: FakeApi = {
     calls: [],
     tasks,
     events,
+    projects: projects.map((p) => ({ archived: false, ...p })),
     fail: new Set(fail),
     gate: null,
     callsTo: (method, pathPart) => api.calls.filter((call) => call.method === method && call.path.includes(pathPart)),
+  };
+
+  const projectCounts = (p: { id: string; name: string; archived: boolean }) => {
+    const open = api.tasks.filter((t) => t.project_id === p.id && t.status === 'open');
+    return {
+      ...p,
+      open: open.length,
+      priority: open.filter((t) => t.priority).length,
+      overdue: open.filter((t) => typeof t.due_date === 'string' && t.due_date < dayOffset(0)).length,
+    };
   };
 
   const handle = async (call: Call): Promise<Response> => {
@@ -116,7 +137,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     const url = new URL(call.url, 'http://localhost');
     if (path === '/bootstrap') {
       if (api.fail.has('bootstrap')) return failure();
-      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal' }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1' }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2' }], areas: AREAS, server_time: new Date().toISOString() } : { enabled: false });
+      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal' }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1' }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2' }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name }) => ({ id, name })), server_time: new Date().toISOString() } : { enabled: false });
     }
     if (path === '/summary') {
       if (api.fail.has('summary')) return failure();
@@ -132,7 +153,53 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       }
       return json({ spaces });
     }
-    let match = /^\/spaces\/([\w-]+)\/tasks$/.exec(path);
+    if (path === '/projects') {
+      if (method === 'GET') {
+        if (api.fail.has('projects')) return failure();
+        return json({ projects: api.projects.map((p) => projectCounts(p)) });
+      }
+      if (api.fail.has('createProject')) return failure();
+      const name = String(body?.name ?? '').trim();
+      if (api.projects.some((p) => p.name.toLowerCase() === name.toLowerCase())) return json({ error: 'conflict', message: 'x', request_id: 'test' }, 409);
+      const created = { id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `p${++counter}`, name, archived: false };
+      api.projects.push(created);
+      return json(projectCounts(created), 201);
+    }
+    let match = /^\/projects\/([\w-]+)$/.exec(path);
+    if (match && method === 'PATCH') {
+      const found = api.projects.find((p) => p.id === match![1]);
+      if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (api.fail.has('patchProject')) return failure();
+      Object.assign(found, body);
+      return json(projectCounts(found));
+    }
+    match = /^\/projects\/([\w-]+)\/tasks(?:\/([\w-]+))?$/.exec(path);
+    if (match) {
+      const project = api.projects.find((p) => p.id === match![1]);
+      if (!project) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (!match[2] && method === 'GET') {
+        if (api.fail.has('tasks')) return failure();
+        const status = url.searchParams.get('status') ?? 'open';
+        return json(api.tasks.filter((t) => t.project_id === project.id && (status === 'all' || t.status === status)));
+      }
+      if (!match[2]) {
+        if (api.fail.has('create')) return failure();
+        const created = projectTask(project.id, String(body?.title), { notes: body?.notes ?? '', priority: body?.priority === true, due_date: body?.due_date ?? null });
+        api.tasks.push(created);
+        return json(created, 201);
+      }
+      const found = api.tasks.find((t) => t.id === match![2] && t.project_id === project.id);
+      if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (method === 'PATCH') {
+        if (api.fail.has('patch')) return failure();
+        Object.assign(found, body);
+        if (body && 'status' in body) found.done_at = body.status === 'done' ? new Date().toISOString() : null;
+        return json(found);
+      }
+      api.tasks.splice(api.tasks.indexOf(found), 1);
+      return new Response(null, { status: 204 });
+    }
+    match = /^\/spaces\/([\w-]+)\/tasks$/.exec(path);
     if (match) {
       if (method === 'GET') {
         if (api.fail.has('tasks')) return failure();

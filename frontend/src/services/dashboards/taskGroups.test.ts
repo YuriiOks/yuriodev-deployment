@@ -8,6 +8,7 @@ let n = 0;
 const t = (title: string, extra: Partial<LiveTask> = {}): LiveTask => ({
   id: `id-${title}`,
   space: 'personal',
+  projectId: null,
   title,
   notes: '',
   areaId: null,

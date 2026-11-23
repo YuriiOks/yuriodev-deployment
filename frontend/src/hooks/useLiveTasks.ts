@@ -5,11 +5,13 @@ import {
   deleteTask,
   fetchTasks,
   patchTask,
+  scopeFromKey,
+  scopeKey,
   type LiveTask,
+  type TaskScope,
   type TaskDraft,
   type TaskPatch,
 } from '../services/dashboards/liveApi';
-import type { SpaceId } from '../services/dashboards/types';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
 
@@ -42,12 +44,14 @@ const EMPTY: ReadonlySet<string> = new Set();
 const asError = (error: unknown): ApiError => (error instanceof ApiError ? error : new ApiError('network', 0, 'network'));
 
 /**
- * One space's tasks from the API, with the writes the page needs. State is only set from a request's callback
+ * One list of tasks from the API (a space's, or a project's: `scope`), with the writes the page needs. State is only set from a request's callback
  * (never synchronously in an effect): "loading" is "the answer on hand is for another space or another reload".
  */
-export function useLiveTasks(space: SpaceId): LiveTasks {
+export function useLiveTasks(scope: TaskScope): LiveTasks {
   const [token, setToken] = useState(0);
-  const key = `${space}:${token}`;
+  // The scope as a string, so what the effects depend on is stable (an object scope is a new value every render).
+  const scopeId = scopeKey(scope);
+  const key = `${scopeId}:${token}`;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [sticky, setSticky] = useState<ReadonlySet<string>>(EMPTY);
   const [failed, setFailed] = useState<ReadonlySet<string>>(EMPTY);
@@ -56,7 +60,7 @@ export function useLiveTasks(space: SpaceId): LiveTasks {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchTasks(space, 'all', controller.signal).then(
+    fetchTasks(scopeFromKey(scopeId), 'all', controller.signal).then(
       (tasks) => {
         if (controller.signal.aborted) return;
         tasksRef.current = tasks;
@@ -70,7 +74,7 @@ export function useLiveTasks(space: SpaceId): LiveTasks {
       },
     );
     return () => controller.abort();
-  }, [space, key]);
+  }, [scopeId, key]);
 
   const apply = useCallback((change: (tasks: readonly LiveTask[]) => readonly LiveTask[]) => {
     tasksRef.current = change(tasksRef.current);
@@ -85,14 +89,14 @@ export function useLiveTasks(space: SpaceId): LiveTasks {
   const create = useCallback(
     async (draft: TaskDraft) => {
       try {
-        const task = await createTask(space, draft);
+        const task = await createTask(scopeFromKey(scopeId), draft);
         apply((tasks) => [...tasks, task]);
         return null;
       } catch (error) {
         return asError(error);
       }
     },
-    [space, apply],
+    [scopeId, apply],
   );
 
   const toggle = useCallback(
@@ -109,7 +113,7 @@ export function useLiveTasks(space: SpaceId): LiveTasks {
       });
       replace({ ...before, status, doneAt: status === 'done' ? new Date().toISOString() : null });
       if (status === 'done') setSticky((previous) => new Set(previous).add(id));
-      patchTask(id, { status }).then(
+      patchTask(id, { status }, undefined, scopeFromKey(scopeId)).then(
         (task) => {
           pending.current.delete(id);
           replace(task);
@@ -128,32 +132,32 @@ export function useLiveTasks(space: SpaceId): LiveTasks {
         },
       );
     },
-    [replace],
+    [replace, scopeId],
   );
 
   const update = useCallback(
     async (id: string, patch: TaskPatch) => {
       try {
-        replace(await patchTask(id, patch));
+        replace(await patchTask(id, patch, undefined, scopeFromKey(scopeId)));
         return null;
       } catch (error) {
         return asError(error);
       }
     },
-    [replace],
+    [replace, scopeId],
   );
 
   const remove = useCallback(
     async (id: string) => {
       try {
-        await deleteTask(id);
+        await deleteTask(id, undefined, scopeFromKey(scopeId));
         apply((tasks) => tasks.filter((task) => task.id !== id));
         return null;
       } catch (error) {
         return asError(error);
       }
     },
-    [apply],
+    [apply, scopeId],
   );
 
   const dismissFailure = useCallback((id: string) => {

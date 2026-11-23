@@ -15,6 +15,9 @@ import {
   pageAt,
   shortcutDefFor,
   socialsFor,
+  isProjectPath,
+  projectPath,
+  chromeAllowedAt,
 } from './site';
 
 const allUrls = [IDENTITY.website, ...SOCIALS.map(({ url }) => url), ...Object.values(PROJECT_LINKS)];
@@ -119,5 +122,22 @@ describe('helpers', () => {
     expect(key('t', { altKey: true })).toBeNull();
     expect(key('j', { ctrlKey: true })).toBeNull();
     expect(key('x')).toBeNull();
+  });
+});
+
+describe('project pages', () => {
+  it('are paths under /dashboards/projects/, with an encoded id', () => {
+    expect(projectPath('garden')).toBe('/dashboards/projects/garden');
+    expect(projectPath('a b')).toBe('/dashboards/projects/a%20b');
+    expect(isProjectPath('/dashboards/projects/garden')).toBe(true);
+    expect(isProjectPath('/dashboards/projects/')).toBe(false);
+    expect(isProjectPath('/dashboards/projects')).toBe(false);
+    expect(isProjectPath('/dashboards/personal')).toBe(false);
+  });
+
+  it('have no site chrome, like the other dashboards pages', () => {
+    expect(chromeAllowedAt('/dashboards/projects/garden')).toBe(false);
+    expect(chromeAllowedAt('/dashboards/personal')).toBe(false);
+    expect(chromeAllowedAt('/')).toBe(true);
   });
 });

@@ -129,7 +129,20 @@ export function pageLabel(id: PageId): string {
 
 /** Whether the site's chrome (header, footer, rail, canvas ...) frames the page at `pathname`: all but the pages with `chrome: false`. */
 export function chromeAllowedAt(pathname: string): boolean {
+  // A user's project page (/dashboards/projects/<id>) is one more dashboards page, though not one of PAGES.
+  if (isProjectPath(pathname)) return false;
   return pageAt(pathname)?.chrome !== false;
+}
+
+/** The path prefix of the project pages. */
+export const PROJECTS_PATH = '/dashboards/projects';
+
+/** The page of one project: `/dashboards/projects/<id>`. */
+export const projectPath = (id: string): string => `${PROJECTS_PATH}/${encodeURIComponent(id)}`;
+
+/** Whether `pathname` is a project page. */
+export function isProjectPath(pathname: string): boolean {
+  return pathname.startsWith(`${PROJECTS_PATH}/`) && pathname.length > PROJECTS_PATH.length + 1;
 }
 
 /** The page at `pathname` (trailing slash ignored), if it is one of PAGES. */
