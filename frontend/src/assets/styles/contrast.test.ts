@@ -279,25 +279,23 @@ const SHARED_PAIRS: Pair[] = [
   ]),
 ];
 
-/* The hub: each card is one flat tint of its scheme's colour (-a at rest, -h on hover and focus, -p pressed), with the
-   scheme's ink for its numbers, name and "Next:" label, t1 for the rest of the text and t2 for the labels (never t3: it
-   does not hold on a dark tint); the stat cells are the neutral chip. The ink is also the hover edge, so it must show
+/* The hub: a card is the neutral glass at rest (its name and "Next:" label in the scheme's ink, t1 and t2 for the rest) and,
+   on hover, focus and press, ONE flat tint of the scheme's colour (-h, then -p) with its numbers in the ink; the stat cells
+   are the neutral chip throughout (never t3 here: it does not hold on a dark tint). The ink is also the hover edge, so it must show
    against the page and its glows. The header card is the personal tint flat, its text t1 and t2 with the personal cyan and
    the amber as line work and labels. Projects have one scheme, Anthropic's: clay on warm ivory (light) or warm near-black
-   (dark), with their own text and chip colours (--hub-project-*). */
-const HUB_SCHEMES = ['personal', 'work-1', 'work-2'];
+   (dark) (--hub-project-*, tinted over the same neutral glass as the others on hover). */
+const HUB_SCHEMES = ['personal', 'work-1', 'work-2', 'project'];
 const HUB_PAIRS: Pair[] = [
   ...HUB_SCHEMES.flatMap((scheme) => [
-    ...cross(['--dash-t1', '--dash-t2', '--dash-danger', `--hub-${scheme}-ink`], [[`--hub-${scheme}-a`]], TEXT),
+    // At rest: the scheme's ink on the neutral glass over the page and each glow (the name, the "Next:" label), and as UI on every solid.
+    ...cross([`--hub-${scheme}-ink`], onGlass(), TEXT),
     ...cross([`--hub-${scheme}-ink`], [...BACKS, ...DASH_SOLID], UI),
-    // Hover, focus and pressed: the card's own flat steps, with the name and the Next line on them; and the ink on the stat chips.
+    // Hover, focus and pressed: the card's own flat tint (-h, then -p) with the name, labels and the Next line on it; the ink on the stat chips (the numbers).
     ...cross(['--dash-t1', '--dash-t2', `--hub-${scheme}-ink`], [[`--hub-${scheme}-h`], [`--hub-${scheme}-p`]], TEXT),
     ...cross([`--hub-${scheme}-ink`], [['--dash-chip']], TEXT),
   ]),
-  ...cross(['--hub-project-t1', '--hub-project-t2', '--hub-project-ink'], [['--hub-project-a'], ['--hub-project-h'], ['--hub-project-p']], TEXT),
-  ...cross(['--hub-project-t1', '--hub-project-t2', '--hub-project-ink', '--dash-danger'], [['--hub-project-chip']], TEXT),
-  ...cross(['--hub-project-ink'], [...BACKS, ...DASH_SOLID], UI),
-  // The tile: the brand clay with the warm black on it.
+  // The tile: the brand clay with the warm black on it (the tile itself is decorative: the name sits beside it).
   { fg: '--hub-project-on', bg: ['--hub-project-clay'], min: TEXT },
   ...cross(['--dash-t1', '--dash-t2', '--hub-personal-ink', '--hub-amber-ink'], [['--hub-head-a']], TEXT),
 ];

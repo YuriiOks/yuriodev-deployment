@@ -110,6 +110,19 @@ describe('the hub cards carry their colour scheme', () => {
     expect(within(main()).getByRole('region', { name: 'Side project' })).toHaveAttribute('data-scheme', 'project');
   });
 
+  it('a space card is one real link (one tab stop, no other interactive element) that the stretched anchor makes the whole card\'s target', async () => {
+    liveSetup({ projects: [{ id: 'garden', name: 'Garden' }] });
+    renderHub();
+    for (const [name, href] of [['Личное', '/dashboards/personal'], ['Работа 1', '/dashboards/work-1'], ['Работа 2', '/dashboards/work-2'], ['Garden', '/dashboards/projects/garden']]) {
+      const card = await within(main()).findByRole('region', { name });
+      const links = within(card).getAllByRole('link');
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAttribute('href', href);
+      expect(within(card).queryAllByRole('button')).toHaveLength(0);
+      expect(card.querySelectorAll('[onclick]')).toHaveLength(0);
+    }
+  });
+
   it('the new-project tile and its form carry no scheme', async () => {
     liveSetup();
     renderHub();

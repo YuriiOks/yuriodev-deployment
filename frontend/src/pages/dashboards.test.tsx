@@ -347,7 +347,7 @@ describe('the calendar: month view', () => {
 
   it('draws a day\'s events like the week\'s blocks: a chip per event in its space, a warn ring on the conflicting ones', async () => {
     await openMonth();
-    const chips = (name: string | RegExp) => Array.from(monthTable().getByRole('button', { name }).querySelectorAll('[data-for]'));
+    const chips = (name: string | RegExp) => Array.from(monthTable().getByRole('button', { name }).querySelectorAll('[data-for]:not([aria-hidden="true"])'));
     const busy = chips('24 ноября, событий: 4, есть конфликт');
     expect(busy).toHaveLength(3);
     for (const chip of busy) expect(['personal', 'work-1', 'work-2']).toContain(chip.getAttribute('data-for'));

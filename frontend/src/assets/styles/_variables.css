@@ -548,8 +548,8 @@
     --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #252847;  --hub-work-1-h: #2d2d50;  --hub-work-1-p: #34325a;
     --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #2e2336;  --hub-work-2-h: #38273a;  --hub-work-2-p: #432a3d;
     --hub-amber-ink: #ffc107;             --hub-amber-a: #2e2e29;  --hub-amber-h: #383628;  --hub-amber-p: #433d26;
-    --hub-project-ink: #ec9a7c;  --hub-project-a: #1f1e1d;  --hub-project-h: #3d2c26;  --hub-project-p: #53372d;
-    --hub-project-t1: #faf9f5;  --hub-project-t2: #cfccc0;  --hub-project-chip: #2b2a28;  --hub-project-clay: #d97757;  --hub-project-on: #141413;
+    --hub-project-ink: #ec9a7c;           --hub-project-a: #2b2937;  --hub-project-h: #352f3b;  --hub-project-p: #3f353e;
+    --hub-project-clay: #d97757;  --hub-project-on: #141413;
     --hub-head-a: var(--hub-personal-a);
 
     /* Shape: three radii and the pill. */
@@ -613,8 +613,8 @@
     --hub-work-1-ink: var(--dash-ink-work-1);--hub-work-1-a: #f4edfb;  --hub-work-1-h: #efe4f9;  --hub-work-1-p: #eaddf8;
     --hub-work-2-ink: var(--dash-ink-work-2);--hub-work-2-a: #faebec;  --hub-work-2-h: #f8e0e2;  --hub-work-2-p: #f6d7da;
     --hub-amber-ink: #8a5300;             --hub-amber-a: #f6f1eb;  --hub-amber-h: #f1eae0;  --hub-amber-p: #ede4d7;
-    --hub-project-ink: #9a3f24;  --hub-project-a: #f0eee6;  --hub-project-h: #edddd2;  --hub-project-p: #ead1c4;
-    --hub-project-t1: #141413;  --hub-project-t2: #4a4842;  --hub-project-chip: #e6e3d8;  --hub-project-clay: #d97757;  --hub-project-on: #141413;
+    --hub-project-ink: #9a3f24;           --hub-project-a: #f7f0ed;  --hub-project-h: #f3e8e5;  --hub-project-p: #efe1dd;
+    --hub-project-clay: #d97757;  --hub-project-on: #141413;
     --hub-head-a: var(--hub-personal-a);
 }
 

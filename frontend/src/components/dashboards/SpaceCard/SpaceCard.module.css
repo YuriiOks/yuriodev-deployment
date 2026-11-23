@@ -1,47 +1,62 @@
-/* An entrance card: glass with ONE flat tint of its scheme's colour (--hub-<scheme>-ink / -a / -h / -p in
-   _variables.css, every pair held by contrast.test.ts; no gradient), a flat border of the scheme's ink, a soft drop and
-   the name in that ink. The whole card is the link: the title's anchor is stretched over it; hovering, focusing or
-   pressing it steps the flat tint (-h, then -p) and brightens the edge in the same colour. */
+/* An entrance card: at rest the shared neutral glass (the page's skin: its surface, border, numbers and labels), with colour
+   only in the tile, the name and the "Next:" label, in the scheme's ink. On hover, keyboard focus and press the card's own
+   scheme comes in: ONE flat tint (--hub-<scheme>-h, then -p when pressed; no gradient), a border and numbers in the
+   ink, over a short transition (none with reduced motion). A touch screen has no hover and stays at rest. Every pair
+   in both states is held by contrast.test.ts. The whole card is the link: the title's anchor is stretched over it
+   (one real link, one tab stop). */
 .card {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
   --scheme-ink: var(--dash-accent);
-  --scheme-a: var(--dash-surface);
   --scheme-h: var(--dash-chip);
   --scheme-p: var(--dash-chip);
-  --scheme-t1: var(--dash-t1);
-  --scheme-t2: var(--dash-t2);
-  --scheme-chip: var(--dash-chip);
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-5);
   box-sizing: border-box;
-  background: var(--scheme-a);
-  border-color: color-mix(in srgb, var(--scheme-ink) 40%, transparent);
   border-radius: var(--dash-r-surface);
-  transition: border-color 120ms;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
 }
 
-/* Hover, focus and pressed are the card's own colour, never a shared neutral: flat steps (--scheme-h, then --scheme-p,
-   the ink over the surface, held by contrast.test.ts) and the edge in the full ink. */
 @media (hover: hover) {
   .card:hover {
     background: var(--scheme-h);
     border-color: var(--scheme-ink);
   }
+
+  .card:hover .number:not(.zero, .alarm) {
+    color: var(--scheme-ink);
+  }
 }
 
-.card:focus-within {
+.card:has(.link:focus-visible) {
   background: var(--scheme-h);
   border-color: var(--scheme-ink);
   outline: 2px solid var(--scheme-ink);
   outline-offset: 2px;
 }
 
+.card:has(.link:focus-visible) .number:not(.zero, .alarm) {
+  color: var(--scheme-ink);
+}
+
 .card:active {
   background: var(--scheme-p);
   border-color: var(--scheme-ink);
+}
+
+.card:active .number:not(.zero, .alarm) {
+  color: var(--scheme-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .number {
+    transition: none;
+  }
 }
 
 .head {
@@ -50,8 +65,10 @@
   gap: var(--space-3);
 }
 
-/* global.css gives every h2 an underline and spacing: both cleared (the name has no '# '). */
+/* global.css gives every h2 an underline, spacing and position: relative: all cleared (the name has no '# '), the position
+   so the link's stretched ::after is sized by the card and not by the heading. */
 .card .name {
+  position: static;
   margin: 0;
   padding: 0;
   font-size: var(--dash-fs-page);
@@ -99,14 +116,15 @@
   gap: var(--space-1);
   min-width: 0;
   padding: var(--space-3) var(--space-1);
-  background: var(--scheme-chip);
+  background: var(--dash-chip);
   border: 1px solid var(--dash-line);
   border-radius: var(--dash-r-control);
   text-align: center;
 }
 
 .number {
-  color: var(--scheme-ink);
+  color: var(--dash-t1);
+  transition: color 150ms;
   font-size: var(--dash-fs-stat);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -114,7 +132,7 @@
 }
 
 .zero {
-  color: var(--scheme-t2);
+  color: var(--dash-t2);
 }
 
 .alarm {
@@ -122,14 +140,14 @@
 }
 
 .label {
-  color: var(--scheme-t2);
+  color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
 }
 
 .next {
   margin: 0;
-  color: var(--scheme-t1);
+  color: var(--dash-t1);
 }
 
 .at {
@@ -146,33 +164,26 @@
    warm near-black, with its own text and chip colours). */
 .card[data-scheme="personal"] {
   --scheme-ink: var(--hub-personal-ink);
-  --scheme-a: var(--hub-personal-a);
   --scheme-h: var(--hub-personal-h);
   --scheme-p: var(--hub-personal-p);
 }
 
 .card[data-scheme="work-1"] {
   --scheme-ink: var(--hub-work-1-ink);
-  --scheme-a: var(--hub-work-1-a);
   --scheme-h: var(--hub-work-1-h);
   --scheme-p: var(--hub-work-1-p);
 }
 
 .card[data-scheme="work-2"] {
   --scheme-ink: var(--hub-work-2-ink);
-  --scheme-a: var(--hub-work-2-a);
   --scheme-h: var(--hub-work-2-h);
   --scheme-p: var(--hub-work-2-p);
 }
 
 .card[data-scheme="project"] {
   --scheme-ink: var(--hub-project-ink);
-  --scheme-a: var(--hub-project-a);
   --scheme-h: var(--hub-project-h);
   --scheme-p: var(--hub-project-p);
-  --scheme-t1: var(--hub-project-t1);
-  --scheme-t2: var(--hub-project-t2);
-  --scheme-chip: var(--hub-project-chip);
 }
 
 .nextLabel {
