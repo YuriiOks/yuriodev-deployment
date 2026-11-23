@@ -7,13 +7,17 @@ import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
 import SourceTabs from '../components/dashboards/SourceTabs/SourceTabs';
 import SpaceHero from '../components/dashboards/SpaceHero/SpaceHero';
 import TaskPanel from '../components/dashboards/TaskPanel/TaskPanel';
+import panelStyles from '../components/dashboards/Panel/Panel.module.css';
+import rowStyles from '../components/dashboards/PanelRow/PanelRow.module.css';
+import { useLiveEvents } from '../hooks/useLiveEvents';
 import { useLiveSummary } from '../hooks/useLiveSummary';
 import { useLiveTasks } from '../hooks/useLiveTasks';
 import { useNow } from '../hooks/useNow';
 import { fill } from '../services/dashboards/calendarLabels';
 import type { LiveArea, LiveTask } from '../services/dashboards/liveApi';
 import { liveHero } from '../services/dashboards/liveLabels';
-import { localDate } from '../services/dashboards/liveTime';
+import { withoutCopies } from '../services/dashboards/liveEvents';
+import { localDate, splitIso } from '../services/dashboards/liveTime';
 import { getSpace } from '../services/dashboards/source';
 import { areaCounts, groupTasks, inArea, type TaskGroups } from '../services/dashboards/taskGroups';
 import type { SpaceId, TabId } from '../services/dashboards/types';
@@ -29,7 +33,9 @@ interface LiveSpaceProps {
 /** The source tabs that list collected tasks, and the task source each one lists. */
 const COLLECTED: Partial<Record<TabId, string>> = { github: 'github', linear: 'linear' };
 const COLLECTED_SOURCES = new Set(Object.values(COLLECTED));
-const LINEAR_STAGES = new Set(['started', 'unstarted', 'triage', 'backlog']);
+/** How many rows a collected list shows on the overview before "show all". */
+const OVERVIEW_ROWS = 5;
+const LINEAR_STAGES =new Set(['started', 'unstarted', 'triage', 'backlog']);
 
 /** The open groups in reading order, as one list (the area tab shows them without the overview's headings). */
 const openTasks = (groups: TaskGroups): LiveTask[] => [...groups.priority, ...groups.due, ...groups.week, ...groups.later, ...groups.undated];
@@ -58,6 +64,12 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
 
   const current = tabs.includes(selected) ? selected : 'overview';
   const areaList = space === 'personal' ? areas : null;
+  // The space's meetings of today, for the overview of a space that has collected tasks (the work spaces).
+  const todayEvents = useLiveEvents(today, today, space !== 'personal');
+  const meetings = withoutCopies(todayEvents.events)
+    .filter((event) => event.space === space && localDate(new Date(event.startsAt)) === today)
+    .sort((a, b) => (a.startsAt < b.startsAt ? -1 : 1));
+  const hasCollected = tasks.tasks.some((task) => COLLECTED_SOURCES.has(task.source));
   const collectedSource = COLLECTED[current];
   const fromSource = collectedSource ? tasks.tasks.filter((task) => task.source === collectedSource) : [];
   const own = tasks.tasks.filter((task) => !COLLECTED_SOURCES.has(task.source) || task.priority);
@@ -125,6 +137,59 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     } else {
       body = panel(current, t.tabs[current], open, t.emptySource);
     }
+  } else if (current === 'overview' && hasCollected) {
+    // "Waiting for me": today's meetings, the reviews asked of this user, the issues in progress, then the
+    // priority and hand-written tasks. Each collected list names its source and leads to its tab.
+    const open = tasks.tasks.filter((task) => task.status === 'open');
+    const reviews = open.filter((task) => task.source === 'github' && task.stage === 'review');
+    const started = open.filter((task) => task.source === 'linear' && task.stage === 'started');
+    const short = (id: string, title: string, list: readonly LiveTask[], tab: TabId) => (
+      <TaskPanel
+        key={id}
+        id={id}
+        title={title}
+        tasks={list.slice(0, OVERVIEW_ROWS)}
+        total={list.length}
+        more={list.length > OVERVIEW_ROWS ? { label: fill(t.showAll, { n: list.length }), onClick: () => setSelected(tab) } : undefined}
+        today={today}
+        areas={areaList}
+        failed={tasks.failed}
+        empty={t.emptySource}
+        onToggle={tasks.toggle}
+        onSave={tasks.update}
+        onDelete={tasks.remove}
+      />
+    );
+    const rest = [...groups.due, ...groups.week, ...groups.later, ...groups.undated];
+    body = [
+      <section key="today" aria-labelledby={`${space}-today-title`} className={panelStyles.panel}>
+        <div className={panelStyles.head}>
+          <h2 id={`${space}-today-title`} className={panelStyles.title}>
+            {t.overviewToday}
+          </h2>
+          {meetings.length > 0 && <span className={panelStyles.count}>{meetings.length}</span>}
+        </div>
+        {meetings.length === 0 && <p className={panelStyles.empty}>{todayEvents.status === 'error' ? t.loadFailed : t.emptyToday}</p>}
+        {meetings.length > 0 && (
+          <ul className={panelStyles.rows}>
+            {meetings.map((event) => (
+              <li key={event.id} className={rowStyles.row}>
+                <span className={rowStyles.title} title={event.title}>
+                  {event.title}
+                </span>
+                <span className={rowStyles.meta}>
+                  {splitIso(event.startsAt)?.time}–{splitIso(event.endsAt)?.time}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>,
+      short('overview-reviews', t.overviewReviews, reviews, 'github'),
+      short('overview-started', t.overviewStarted, started, 'linear'),
+      panel('priority', t.groupPriority, groups.priority, t.emptyPriority),
+      ...(rest.length ? [panel('own', t.overviewOwn, rest)] : []),
+    ];
   } else if (current === 'overview') {
     const panels = [
       panel('priority', t.groupPriority, groups.priority, tasks.tasks.length === 0 ? t.emptyTasks : t.emptyPriority),

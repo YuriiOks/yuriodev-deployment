@@ -49,6 +49,13 @@ export interface Strings {
   readonly linearOther: string;
   readonly linearBacklog: string;
   readonly showBacklog: string;
+  /** The overview of a space with collected tasks: its lists, each naming its source, and "Show all {n}". */
+  readonly overviewToday: string;
+  readonly emptyToday: string;
+  readonly overviewReviews: string;
+  readonly overviewStarted: string;
+  readonly overviewOwn: string;
+  readonly showAll: string;
   readonly addTask: string;
   readonly addTaskFailed: string;
   readonly toggleFailed: string;
@@ -185,6 +192,12 @@ export const STRINGS: Record<Lang, Strings> = {
     linearOther: 'Прочее',
     linearBacklog: 'Бэклог',
     showBacklog: 'Бэклог: {n}',
+    overviewToday: 'Встречи сегодня · календарь',
+    emptyToday: 'Встреч сегодня нет',
+    overviewReviews: 'Ждут моего ревью · GitHub',
+    overviewStarted: 'В работе · Linear',
+    overviewOwn: 'Мои заметки и задачи',
+    showAll: 'Показать все: {n}',
     addTask: 'Добавить задачу',
     addTaskFailed: 'Не удалось добавить задачу. Повторите.',
     toggleFailed: 'Не удалось сохранить: задача возвращена как была.',
@@ -322,6 +335,12 @@ export const STRINGS: Record<Lang, Strings> = {
     linearOther: 'Other',
     linearBacklog: 'Backlog',
     showBacklog: 'Backlog: {n}',
+    overviewToday: 'Meetings today · calendar',
+    emptyToday: 'No meetings today',
+    overviewReviews: 'Waiting for my review · GitHub',
+    overviewStarted: 'In progress · Linear',
+    overviewOwn: 'My notes and tasks',
+    showAll: 'Show all: {n}',
     addTask: 'Add a task',
     addTaskFailed: 'Could not add the task. Try again.',
     toggleFailed: 'Could not save: the task is back as it was.',
