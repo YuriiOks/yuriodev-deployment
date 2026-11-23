@@ -1,0 +1,5 @@
+/* The area mark takes the personal ink of the page (the filter tints it the same as its row's text). */
+.icon {
+  flex: none;
+  color: var(--dash-ink-personal);
+}

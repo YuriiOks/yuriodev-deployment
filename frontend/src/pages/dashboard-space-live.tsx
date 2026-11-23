@@ -1,3 +1,4 @@
+import AreaIcon from '../components/dashboards/AreaIcon/AreaIcon';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
@@ -219,13 +220,16 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
         <h2 className={live.filterHead}>{t.areaFilter}</h2>
         <ul className={live.areas}>
           {[
-            { id: null, label: t.allAreas, count: total },
-            ...(areaList ?? []).map((a) => ({ id: a.id, label: text({ ru: a.nameRu, en: a.nameEn }), count: counts.get(a.id) ?? 0 })),
-            { id: '', label: t.noArea, count: counts.get('') ?? 0 },
+            { id: null, label: t.allAreas, count: total, mark: <AreaIcon name="stack" /> },
+            ...(areaList ?? []).map((a) => ({ id: a.id, label: text({ ru: a.nameRu, en: a.nameEn }), count: counts.get(a.id) ?? 0, mark: <AreaIcon id={a.id} /> })),
+            { id: '', label: t.noArea, count: counts.get('') ?? 0, mark: <AreaIcon name="dashed-circle" /> },
           ].map((entry) => (
             <li key={entry.id ?? 'all'}>
               <button type="button" className={live.area} aria-pressed={area === entry.id} onClick={() => setArea(entry.id)}>
-                <span>{entry.label}</span>
+                <span className={live.areaName}>
+                  {entry.mark}
+                  {entry.label}
+                </span>
                 <span className={live.areaCount} data-zero={entry.count === 0 ? 'true' : undefined}>
                   {entry.count}
                 </span>
