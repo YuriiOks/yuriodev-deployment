@@ -689,6 +689,62 @@ Never `docker compose down -v` or remove the volume: it is the data. A
 Postgres major upgrade (Dependabot ignores majors on purpose) is a dump,
 a new volume and a restore, not an image bump.
 
+## Collectors (GitHub, Linear)
+
+The backend can fill a space with your work items on its own and close the tasks when the
+items close. A background loop inside the backend (only when `DATABASE_URL` is set, see
+"Dashboards database") polls every `DASHBOARDS_COLLECT_INTERVAL_SECONDS` (default 300, at
+least 30) and runs each collector separately: one failing, being rate limited or timing out
+never stops the other or the app. A Postgres advisory lock lets only one process poll at a
+time. Every outbound call has a timeout (20 s each, 120 s per collector run) and the logs say
+only the collector name, counts and an error kind: never a URL, token, title or response body.
+
+| Collector | Switched on by | Reads | Target space |
+|---|---|---|---|
+| GitHub | `GITHUB_TOKEN` | open pull requests you authored (`author:@me`) and open pull requests with a review requested from you (`review-requested:@me`), through the REST search API; `GITHUB_SEARCH_SCOPE` is appended to both queries (for example an `org:<name>` qualifier) | `GITHUB_SPACE`, default `work-1` |
+| Linear | `LINEAR_API_KEY` | issues assigned to the key's user whose state type is not `completed` or `canceled`, through GraphQL | `LINEAR_SPACE`, default `work-1` |
+
+Tasks are titled `PR #123: <title>`, `Review PR #123: <title>` and `<IDENTIFIER>: <title>`, and
+carry a link (the page shows it). The target space can be `personal` or `work-1`: `work-2` is
+refused at startup.
+
+Minimum credentials: GitHub, a fine-grained personal access token with read-only "Pull
+requests" and "Metadata" on the repositories to watch (a classic token needs `repo` for
+private repositories, `public_repo` for public ones); Linear, a personal API key (read
+access is enough; it is sent as the `Authorization` header as is).
+
+Who owns what: the collector owns a collected task's title, link and open/done status and
+rewrites them on every poll (so finishing one by hand does not stick while the item is still
+open upstream); you own priority, notes, area, due date and everything else, which a poll never
+touches. A Linear due date is used only when the task is first created. When an item closes,
+is reassigned or stops matching, its task is marked done, never deleted. If you delete a
+collected task it is not recreated while the item is unchanged (a tombstone remembers a
+fingerprint of its title and link); a changed title or link brings it back, and the tombstone
+disappears when the item is gone upstream. A poll that fails or comes back cut off (more than
+1000 search results, an incomplete answer, more pages than the cap) changes nothing: tasks are
+only closed on a complete answer. A rate-limited source is left alone until the time it asked
+for (between one and sixty minutes).
+
+Switching one on for dev (a production change per the rules above: ask first). Create the
+values only in the gitignored secrets file, typed there directly, never into chat or a tracked
+file; example for GitHub:
+
+```bash
+cd ~/yuriodev-deployment
+${EDITOR:-nano} env/dev.secrets.env      # add GITHUB_TOKEN=<value> and, if wanted, GITHUB_SEARCH_SCOPE=org:<name>
+touch ~/.yuriodev-deploy-paused
+docker compose -f deploy/dev/compose.yml up -d --no-deps backend-dev
+docker compose -f deploy/dev/compose.yml logs --since 5m backend-dev | grep 'collector'
+rm ~/.yuriodev-deploy-paused
+```
+
+Within one interval the log shows `collector.synced` with `fetched`, `created`, `updated`,
+`closed` and `skipped` counts, and the tasks appear in the target space. `collector.upstream_error`
+carries only the failure `kind` (`auth` means a bad or too narrow token) and `status`; a
+`paused_s` value means the source rate limited the token. To switch a collector off, remove its
+credential from the secrets file and recreate the backend: tasks it created stay (they are
+ordinary tasks) and are no longer updated or closed.
+
 ## Local development
 
 Mac only — **never run this on the VPS.** `compose.local.yml` (project
