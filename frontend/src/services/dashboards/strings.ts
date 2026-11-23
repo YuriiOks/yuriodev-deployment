@@ -37,6 +37,8 @@ export interface Strings {
   readonly groupDone: string;
   readonly emptyPriority: string;
   readonly emptyTasks: string;
+  /** A connected source tab with nothing open. */
+  readonly emptySource: string;
   readonly addTask: string;
   readonly addTaskFailed: string;
   readonly toggleFailed: string;
@@ -164,6 +166,7 @@ export const STRINGS: Record<Lang, Strings> = {
     groupDone: 'Готово',
     emptyPriority: 'Приоритетных задач нет',
     emptyTasks: 'Задач пока нет. Добавьте первую в поле выше.',
+    emptySource: 'Открытого здесь нет',
     addTask: 'Добавить задачу',
     addTaskFailed: 'Не удалось добавить задачу. Повторите.',
     toggleFailed: 'Не удалось сохранить: задача возвращена как была.',
@@ -292,6 +295,7 @@ export const STRINGS: Record<Lang, Strings> = {
     groupDone: 'Done',
     emptyPriority: 'Nothing prioritised',
     emptyTasks: 'No tasks yet. Add the first one in the field above.',
+    emptySource: 'Nothing open here',
     addTask: 'Add a task',
     addTaskFailed: 'Could not add the task. Try again.',
     toggleFailed: 'Could not save: the task is back as it was.',

@@ -15,6 +15,16 @@
   padding-bottom: var(--space-2);
 }
 
+/* A collected task's title opens it at its source. */
+.link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
 li[data-editing="true"]:hover {
   background: transparent;
 }

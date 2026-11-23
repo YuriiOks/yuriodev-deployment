@@ -16,6 +16,8 @@ const t = (title: string, extra: Partial<LiveTask> = {}): LiveTask => ({
   status: 'open',
   doneAt: null,
   createdAt: `2026-11-01T10:${String(n++).padStart(2, '0')}:00Z`,
+  source: 'manual',
+  url: null,
   ...extra,
 });
 

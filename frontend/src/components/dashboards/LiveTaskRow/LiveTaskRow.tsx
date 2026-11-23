@@ -51,7 +51,13 @@ const LiveTaskRow: React.FC<LiveTaskRowProps> = ({ task, today, areas, failed, o
         </label>
       </span>
       <span id={titleId} className={cx(rowStyles.title, done && rowStyles.done)} title={task.title}>
-        {task.title}
+        {task.url ? (
+          <a className={styles.link} href={task.url} target="_blank" rel="noreferrer">
+            {task.title}
+          </a>
+        ) : (
+          task.title
+        )}
       </span>
       {(area || due) && (
         <span className={rowStyles.meta}>
