@@ -46,8 +46,9 @@ def when(item):
 
 
 def test_the_window_is_a_week_back_and_sixty_days_ahead_in_the_local_zone():
-    assert START == datetime(2026, 11, 15, 0, 0, tzinfo=UTC)
-    assert END == datetime(2027, 1, 22, 0, 0, tzinfo=UTC)
+    start, end = window(NOW, LONDON)
+    assert start == datetime(2026, 11, 15, 0, 0, tzinfo=UTC)
+    assert end == datetime(2027, 1, 22, 0, 0, tzinfo=UTC)
     berlin_start, berlin_end = window(NOW, ZoneInfo("Europe/Berlin"))
     assert berlin_start == datetime(2026, 11, 14, 23, 0, tzinfo=UTC)
     assert berlin_end == datetime(2027, 1, 21, 23, 0, tzinfo=UTC)
