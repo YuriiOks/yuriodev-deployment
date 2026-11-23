@@ -771,7 +771,7 @@ inside the window is deleted; if any feed of a space fails, that poll still adds
 but deletes nothing, and a feed that fails never changes its events. The address is never
 logged (a feed is named by its position in the list, `feed: 0`), never part of an error and
 never in an API answer. Logs show `collector.synced` with `feeds`, `failed`, `fetched`,
-`created`, `updated`, `deleted`, and `calendar.feed_failed` with the failure `kind`
+`added`, `updated`, `deleted`, and `calendar.feed_failed` with the failure `kind`
 (`http_5xx`, `not_found`, `bad_content_type`, `too_large`, `bad_ics` for a body that is not a
 calendar, `too_many` for an absurd number of occurrences). The collector is named
 `calendar-personal` / `calendar-work-1`. A collected event deleted by hand comes back at the

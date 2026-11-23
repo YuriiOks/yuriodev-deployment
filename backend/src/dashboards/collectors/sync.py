@@ -141,7 +141,7 @@ class TaskCollector:
             counts = await sync_items(session, self.source, self.space, items, now)
         return {
             "fetched": len(items),
-            "created": counts.created,
+            "added": counts.created,  # not "created": that is a LogRecord field
             "updated": counts.updated,
             "closed": counts.closed,
             "skipped": counts.skipped,

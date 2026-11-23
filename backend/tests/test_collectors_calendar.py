@@ -62,7 +62,7 @@ async def test_a_feed_becomes_events_in_its_space(db_url, make_dashboards_app, c
         counts = await poll(app, collector, serving(FULL_FEED), clock)
         events = await listed(client)
 
-    expected = {"feeds": 1, "failed": 0, "fetched": 6, "created": 6, "updated": 0, "deleted": 0}
+    expected = {"feeds": 1, "failed": 0, "fetched": 6, "added": 6, "updated": 0, "deleted": 0}
     assert counts == expected
     assert titles(events) == [
         "Day off",
@@ -97,8 +97,8 @@ async def test_polling_again_changes_nothing_and_an_edit_updates_in_place(
         edit = await poll(app, collector, serving(calendar(later)), clock)
         (after,) = await listed(client)
 
-    assert (same["created"], same["updated"], same["deleted"]) == (0, 0, 0)
-    assert (edit["created"], edit["updated"], edit["deleted"]) == (0, 1, 0)
+    assert (same["added"], same["updated"], same["deleted"]) == (0, 0, 0)
+    assert (edit["added"], edit["updated"], edit["deleted"]) == (0, 1, 0)
     assert after["id"] == before["id"]
     assert after["title"] == "Planning, renamed"
     assert after["starts_at"] == "2026-11-27T16:30:00Z"
@@ -196,7 +196,7 @@ async def test_with_one_feed_down_the_other_still_updates_but_nothing_is_deleted
         partial = await poll(app, collector, one_down, clock)
         events = await listed(client)
 
-    assert (first["created"], first["failed"]) == (2, 0)
+    assert (first["added"], first["failed"]) == (2, 0)
     assert (partial["failed"], partial["deleted"]) == (1, 0)
     assert titles(events) == ["Floating lunch", "Planning"]
 
@@ -210,7 +210,7 @@ async def test_the_same_event_in_two_feeds_of_a_space_is_one_event(
         counts = await poll(app, collector, serving(calendar(UTC_EVENT)), clock)
         events = await listed(client)
 
-    assert (counts["fetched"], counts["created"]) == (1, 1)
+    assert (counts["fetched"], counts["added"]) == (1, 1)
     assert titles(events) == ["Planning"]
 
 
@@ -237,7 +237,7 @@ async def test_the_server_is_asked_conditionally_and_a_304_reuses_the_last_copy(
     assert "if-none-match" not in seen[0].headers
     assert seen[1].headers["if-none-match"] == '"v7"'
     assert seen[1].headers["if-modified-since"] == "Sun, 22 Nov 2026 10:00:00 GMT"
-    assert (again["fetched"], again["created"], again["updated"], again["deleted"]) == (1, 0, 0, 0)
+    assert (again["fetched"], again["added"], again["updated"], again["deleted"]) == (1, 0, 0, 0)
     assert titles(events) == ["Planning"]
 
 

@@ -238,7 +238,7 @@ class CalendarCollector:
             "feeds": len(self._feeds),
             "failed": failed,
             "fetched": len(items),
-            "created": counts.created,
+            "added": counts.created,  # not "created": that is a LogRecord field
             "updated": counts.updated,
             "deleted": counts.deleted,
         }
