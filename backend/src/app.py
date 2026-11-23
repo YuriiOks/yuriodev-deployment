@@ -113,9 +113,8 @@ async def _start_dashboards(
         transport = app.state.collector_transport
         client = await stack.enter_async_context(build_http_client(settings, transport))
         interval = settings.dashboards_collect_interval_seconds
-        manager = CollectorManager(
-            runtime, build_collectors(settings), client, app.state.clock, interval=interval
-        )
+        collectors = build_collectors(settings, app.state.zone)
+        manager = CollectorManager(runtime, collectors, client, app.state.clock, interval=interval)
         app.state.collectors = manager
         tasks.append(asyncio.create_task(manager.run_forever(), name="dashboards-collectors"))
     return tasks

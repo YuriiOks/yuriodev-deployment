@@ -17,6 +17,7 @@ from pydantic import SecretStr
 
 from src.core.http import UpstreamError, post_json_capped
 from src.dashboards.collectors.base import MAX_PAGES, ExternalItem, clean_title, safe_url
+from src.dashboards.collectors.sync import TaskCollector
 
 GRAPHQL_URL = "https://api.linear.app/graphql"
 # `first` is 100: the largest page Linear serves.
@@ -36,7 +37,7 @@ query Open($after: String) {
 """
 
 
-class LinearCollector:
+class LinearCollector(TaskCollector):
     name = "linear"
     source = "linear"
 

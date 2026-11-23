@@ -23,3 +23,8 @@ python-multipart==0.0.33
 # Time zone database for DASHBOARDS_TIMEZONE (zoneinfo), so the slim image needs no system tzdata
 # (2026.6, 2026-10-28; pure Python).
 tzdata==2026.6
+# Calendar collector (src/dashboards/collectors/ical.py): read-only iCal feeds. Both pure Python.
+# icalendar 7.3.0 (2026-08-19), recurring-ical-events 3.8.2 (2026-04-30); they pull in
+# python-dateutil, x-wr-timezone and six (all long released, left to float in their ranges).
+icalendar==7.3.0
+recurring-ical-events==3.8.2

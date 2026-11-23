@@ -689,7 +689,7 @@ Never `docker compose down -v` or remove the volume: it is the data. A
 Postgres major upgrade (Dependabot ignores majors on purpose) is a dump,
 a new volume and a restore, not an image bump.
 
-## Collectors (GitHub, Linear)
+## Collectors (GitHub, Linear, calendar)
 
 The backend can fill a space with your work items on its own and close the tasks when the
 items close. A background loop inside the backend (only when `DATABASE_URL` is set, see
@@ -744,6 +744,38 @@ carries only the failure `kind` (`auth` means a bad or too narrow token) and `st
 `paused_s` value means the source rate limited the token. To switch a collector off, remove its
 credential from the secrets file and recreate the backend: tasks it created stay (they are
 ordinary tasks) and are no longer updated or closed.
+
+### Calendar (secret iCal addresses)
+
+The calendar collector reads read-only iCal feeds, no Google API and no sign-in, and keeps
+the `event` table of a space in line with them. Settings, all in the secrets file because
+the addresses are credentials (anyone holding one can read that calendar): `CALENDAR_ICS_PERSONAL`
+and `CALENDAR_ICS_WORK_1`, each a comma-separated list of `https://` URLs, one per calendar
+(Google Calendar: the calendar's settings, "Integrate calendar", "Secret address in iCal
+format"); optional `CALENDAR_OWNER_EMAILS` (your address, comma-separated) so events you
+declined are skipped (the feed only says who declined, so without it nothing is skipped as
+declined). There is no setting for `work-2`: it stays manual. A URL that is not `https`, or
+has spaces or credentials in it, is silently ignored.
+
+Each poll, per feed: a conditional request (`ETag` / `Last-Modified` when the server offers
+them; the last good copy is kept in memory, so a `304` still re-expands the window), at most
+5 MiB, then recurring events are expanded for the window "today minus 7 days to today plus 60
+days" in `DASHBOARDS_TIMEZONE` and written to `event` with source `calendar`. All-day events
+and times without a zone are read in `DASHBOARDS_TIMEZONE`; everything is stored in UTC. Kept:
+title, start, end, and `busy_only` for events the feed marks PRIVATE or CONFIDENTIAL. Skipped:
+cancelled events and instances, and declined ones. An event is named by its UID (a recurring
+one by its UID and the original start of the instance, so moving one instance keeps its row).
+The collector owns every field of the events it created; events made by hand or over MCP are
+never touched, and events outside the window are left as they are. An event that left a feed
+inside the window is deleted; if any feed of a space fails, that poll still adds and updates
+but deletes nothing, and a feed that fails never changes its events. The address is never
+logged (a feed is named by its position in the list, `feed: 0`), never part of an error and
+never in an API answer. Logs show `collector.synced` with `feeds`, `failed`, `fetched`,
+`added`, `updated`, `deleted`, and `calendar.feed_failed` with the failure `kind`
+(`http_5xx`, `not_found`, `bad_content_type`, `too_large`, `bad_ics` for a body that is not a
+calendar, `too_many` for an absurd number of occurrences). The collector is named
+`calendar-personal` / `calendar-work-1`. A collected event deleted by hand comes back at the
+next poll while it is still in the feed.
 
 ## Local development
 

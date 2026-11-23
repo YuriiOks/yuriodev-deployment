@@ -13,6 +13,7 @@ from sqlalchemy.pool import NullPool
 from src.core.http import UpstreamError
 from src.dashboards.collectors.base import ExternalItem
 from src.dashboards.collectors.manager import LOCK, CollectorManager, build_collectors
+from src.dashboards.collectors.sync import TaskCollector
 from src.dashboards.db import to_async_url
 from tests.collectors_support import REPO, issue, issues_page, json_response, pr, search_page
 from tests.dashboards_support import AUTH, CRED, running
@@ -26,7 +27,7 @@ SENTINEL_TITLE = "TITLE-SENTINEL-6120"
 SENTINEL_URL = "https://example.test/URL-SENTINEL-6120?token=QUERY-SENTINEL-6120"
 
 
-class FakeCollector:
+class FakeCollector(TaskCollector):
     """A collector that returns canned items, or raises what it is told to."""
 
     def __init__(self, name, items=(), error=None, source=None, space="work-1"):

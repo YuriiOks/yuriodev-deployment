@@ -23,6 +23,11 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["src"]
 
+# recurring-ical-events ships no py.typed marker: its calls are untyped (Any) here.
+[[tool.mypy.overrides]]
+module = ["recurring_ical_events"]
+ignore_missing_imports = true
+
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true

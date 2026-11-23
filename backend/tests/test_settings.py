@@ -281,3 +281,29 @@ def test_the_github_scope_is_a_short_printable_qualifier(clean_env):
         clean_env.setenv("GITHUB_SEARCH_SCOPE", bad)
         with pytest.raises(ValidationError):
             fresh()
+
+
+def test_calendar_feeds_are_secrets_and_count_as_a_credential(clean_env):
+    settings = fresh()
+    assert settings.calendar_ics_personal is None
+    assert settings.calendar_ics_work_1 is None
+    assert settings.calendar_owner_emails is None
+
+    clean_env.setenv("DATABASE_URL", "postgresql://u:p@h/d")
+    pasted = "  https://calendar.example.test/secret-feed/basic.ics\n"
+    clean_env.setenv("CALENDAR_ICS_WORK_1", pasted)
+    settings = fresh()
+
+    assert settings.collectors_enabled is True
+    assert settings.calendar_ics_work_1.get_secret_value().endswith("/basic.ics")
+    assert "secret-feed" not in repr(settings)
+    clean_env.setenv("CALENDAR_ICS_WORK_1", "   ")
+    assert fresh().calendar_ics_work_1 is None
+
+
+def test_a_malformed_calendar_address_is_never_echoed_by_the_settings(clean_env):
+    clean_env.setenv("CALENDAR_ICS_PERSONAL", "not even a url, secret-token-text")
+
+    settings = fresh()  # accepted here: the collector drops what it cannot use, silently
+
+    assert "secret-token-text" not in repr(settings)

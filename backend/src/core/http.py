@@ -14,7 +14,7 @@
 import asyncio
 import json
 import zlib
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -120,6 +120,17 @@ async def post_json_capped(
     )
 
 
+def is_json(media_type: str) -> bool:
+    return media_type.endswith("json")
+
+
+CALENDAR_TYPES = ("text/calendar", "application/ics", "application/octet-stream", "text/plain")
+
+
+def is_calendar(media_type: str) -> bool:
+    return media_type in CALENDAR_TYPES
+
+
 async def request_json_capped(
     client: httpx.AsyncClient,
     method: str,
@@ -133,6 +144,41 @@ async def request_json_capped(
 ) -> tuple[Any, httpx.Headers]:
     """Send the request and parse a 200 JSON body of at most `max_bytes`; raise UpstreamError
     otherwise."""
+    _, body, response_headers = await request_capped(
+        client,
+        method,
+        url,
+        headers=headers,
+        params=params,
+        json_body=json_body,
+        max_bytes=max_bytes,
+        deadline=deadline,
+        accepts=is_json,
+    )
+    try:
+        return json.loads(body), response_headers
+    except ValueError:  # json.JSONDecodeError and UnicodeDecodeError
+        raise UpstreamError("bad_json", 200) from None
+
+
+async def request_capped(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    *,
+    headers: Mapping[str, str],
+    params: Mapping[str, str | int] | None = None,
+    json_body: Any = None,
+    max_bytes: int = MAX_BODY_BYTES,
+    deadline: float = TOTAL_DEADLINE_SECONDS,
+    accepts: Callable[[str], bool] = is_json,
+    not_modified_ok: bool = False,
+) -> tuple[int, bytes, httpx.Headers]:
+    """Send the request and return (status, body, headers) of a 200 answer whose media type
+    `accepts` and whose body is at most `max_bytes`; raise UpstreamError otherwise.
+
+    With `not_modified_ok` a 304 is returned as (304, b"", headers) instead of failing, for
+    conditional requests."""
     kind: str
     status: int | None
     try:
@@ -140,12 +186,14 @@ async def request_json_capped(
             asyncio.timeout(deadline),
             client.stream(method, url, headers=headers, params=params, json=json_body) as response,
         ):
+            if response.status_code == 304 and not_modified_ok:
+                return 304, b"", response.headers
             if response.status_code != 200:
                 raise UpstreamError(
                     classify(response.status_code), response.status_code, response.headers
                 )
-            content_type = response.headers.get("content-type", "")
-            if not content_type.split(";")[0].strip().lower().endswith("json"):
+            media_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
+            if not accepts(media_type):
                 raise UpstreamError("bad_content_type", 200)
             inflater = _inflater(response.headers.get("content-encoding", ""))
             body = bytearray()
@@ -167,7 +215,7 @@ async def request_json_capped(
                 body += inflater.flush()  # all input is consumed: at most a few bytes remain
             if len(body) > max_bytes:
                 raise UpstreamError("too_large", 200)
-            return json.loads(body), response.headers
+            return 200, bytes(body), response.headers
     except UpstreamError:
         raise
     except TimeoutError, httpx.TimeoutException:
@@ -176,8 +224,6 @@ async def request_json_capped(
         kind, status = "connect", None
     except zlib.error:
         kind, status = "bad_encoding", 200
-    except ValueError:  # json.JSONDecodeError and UnicodeDecodeError
-        kind, status = "bad_json", 200
     # Raised outside the handler, so the original exception is neither chained nor kept as
     # context: nothing that quotes a request header stays reachable from the error.
     raise UpstreamError(kind, status)

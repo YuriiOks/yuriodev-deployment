@@ -18,17 +18,19 @@ import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
+from pydantic import SecretStr
 from sqlalchemy import BigInteger, bindparam, text
 
 from src.core.clock import Clock
 from src.core.config import Settings
 from src.core.http import UpstreamError
-from src.dashboards.collectors.base import Collector, ExternalItem, pause_seconds
+from src.dashboards.collectors.base import Collector, pause_seconds
 from src.dashboards.collectors.github import GitHubCollector
+from src.dashboards.collectors.ical import CalendarCollector, split_feeds
 from src.dashboards.collectors.linear import LinearCollector
-from src.dashboards.collectors.sync import SyncCounts, sync_items
 from src.dashboards.runtime import DashboardsRuntime
 
 logger = logging.getLogger("yuriodev.collectors")
@@ -119,8 +121,7 @@ class CollectorManager:
             return
         try:
             async with asyncio.timeout(COLLECTOR_TIMEOUT_SECONDS):
-                items = await collector.fetch(self._client)
-                counts = await self._store(collector, items, now)
+                counts = await collector.collect(self._client, self._runtime.sessions, now)
         except UpstreamError as exc:
             self._log_upstream_error(collector, exc, now)
         except Exception as exc:
@@ -136,22 +137,8 @@ class CollectorManager:
             self._paused_until.pop(collector.name, None)
             logger.info(
                 "collector synced",
-                extra={
-                    "event": "collector.synced",
-                    "collector": collector.name,
-                    "fetched": len(items),
-                    "added": counts.created,  # not "created": that is a LogRecord field
-                    "updated": counts.updated,
-                    "closed": counts.closed,
-                    "skipped": counts.skipped,
-                },
+                extra={"event": "collector.synced", "collector": collector.name, **counts},
             )
-
-    async def _store(
-        self, collector: Collector, items: list[ExternalItem], now: datetime
-    ) -> SyncCounts:
-        async with self._runtime.sessions() as session:
-            return await sync_items(session, collector.source, collector.space, items, now)
 
     def _log_upstream_error(
         self, collector: Collector, error: UpstreamError, now: datetime
@@ -171,7 +158,7 @@ class CollectorManager:
         )
 
 
-def build_collectors(settings: Settings) -> list[Collector]:
+def build_collectors(settings: Settings, zone: ZoneInfo | None = None) -> list[Collector]:
     """The collectors whose credential is set (none when no token is configured)."""
     collectors: list[Collector] = []
     if settings.github_token is not None:
@@ -181,4 +168,24 @@ def build_collectors(settings: Settings) -> list[Collector]:
         collectors.append(github)
     if settings.linear_api_key is not None:
         collectors.append(LinearCollector(settings.linear_api_key, settings.linear_space))
+    zone = zone or ZoneInfo(settings.dashboards_timezone)
+    owners = _addresses(settings.calendar_owner_emails)
+    for space, setting in (
+        ("personal", settings.calendar_ics_personal),
+        ("work-1", settings.calendar_ics_work_1),
+    ):
+        feeds = split_feeds(setting)
+        if feeds:
+            collectors.append(CalendarCollector(space, feeds, zone, owners))
     return collectors
+
+
+def _addresses(value: SecretStr | None) -> frozenset[str]:
+    if value is None:
+        return frozenset()
+    cleaned = (part.strip().lower().removeprefix("mailto:") for part in _split(value))
+    return frozenset(part for part in cleaned if part)
+
+
+def _split(value: SecretStr) -> list[str]:
+    return value.get_secret_value().split(",")

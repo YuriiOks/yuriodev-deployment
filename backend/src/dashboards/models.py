@@ -109,8 +109,18 @@ class Event(Base):
     __tablename__ = "event"
     __table_args__ = (
         CheckConstraint("ends_at > starts_at", name="ends_after_start"),
-        CheckConstraint("source IN ('web', 'mcp', 'telegram', 'import')", name="source"),
+        CheckConstraint(
+            "source IN ('web', 'mcp', 'telegram', 'import', 'calendar')", name="source"
+        ),
         Index("ix_event_starts_at", "starts_at"),
+        # One row per collected calendar event: the calendar collector upserts on this pair.
+        Index(
+            "uq_event_source_source_ref",
+            "source",
+            "source_ref",
+            unique=True,
+            postgresql_where=text("source_ref IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -120,6 +130,8 @@ class Event(Base):
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     busy_only: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="web")
+    # The external id of a collected event: space, feed UID and the occurrence's original start.
+    source_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -96,6 +96,14 @@ class Settings(BaseSettings):
     # Linear: issues assigned to the API key's user that are not completed or canceled.
     linear_api_key: SecretStr | None = None
     linear_space: CollectorSpace = "work-1"
+    # Calendar: read-only secret iCal addresses (Google Calendar's "secret address in iCal format"),
+    # a comma-separated list of https URLs per space, one per calendar. The URLs are credentials:
+    # secrets file only, never logged, never validated here (an error would echo them). There is no
+    # setting for work-2: that space stays manual.
+    calendar_ics_personal: SecretStr | None = None
+    calendar_ics_work_1: SecretStr | None = None
+    # Your own address(es), comma-separated: an event you declined in the feed is skipped.
+    calendar_owner_emails: SecretStr | None = None
 
     @property
     def dashboards_enabled(self) -> bool:
@@ -103,9 +111,13 @@ class Settings(BaseSettings):
 
     @property
     def collectors_enabled(self) -> bool:
-        return self.dashboards_enabled and (
-            self.github_token is not None or self.linear_api_key is not None
+        credentials = (
+            self.github_token,
+            self.linear_api_key,
+            self.calendar_ics_personal,
+            self.calendar_ics_work_1,
         )
+        return self.dashboards_enabled and any(item is not None for item in credentials)
 
     @field_validator(
         "log_level",
@@ -145,6 +157,9 @@ class Settings(BaseSettings):
         "dashboards_api_token",
         "github_token",
         "linear_api_key",
+        "calendar_ics_personal",
+        "calendar_ics_work_1",
+        "calendar_owner_emails",
         mode="before",
     )
     @classmethod
