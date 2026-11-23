@@ -383,7 +383,7 @@ async def test_the_finance_loop_takes_its_own_lock_and_idle_ticks_log_quietly(
 ):
     caplog.set_level(logging.DEBUG)
     fake = FakeMonobank([mono_account(BLACK)], {})
-    app = make_dashboards_app(db_url)
+    app = make_dashboards_app(db_url, log_level="DEBUG")
     engine = create_async_engine(to_async_url(db_url), poolclass=NullPool)
     async with running(app, AUTH), client_for(fake) as client:
         manager = CollectorManager(

@@ -193,6 +193,8 @@ def tx(n: int, account: uuid.UUID, when: datetime, amount: int, text: str, **ext
 
 
 def account(account_id: uuid.UUID, name: str, currency: str, balance: int, **extra: Any) -> Any:
+    """An account of the sample link; the ids 10, 11, 12 were created 3, 2, 1 days before NOW, so
+    the listing order (open first, oldest first) is the order of the ids."""
     return Account(
         id=account_id,
         connection_id=LINK,
@@ -202,6 +204,7 @@ def account(account_id: uuid.UUID, name: str, currency: str, balance: int, **ext
         currency=currency,
         balance=balance,
         balance_at=NOW,
+        created_at=NOW - timedelta(days=13 - account_id.int),
         **extra,
     )
 
