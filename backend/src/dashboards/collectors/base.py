@@ -31,6 +31,8 @@ class ExternalItem:
     title: str
     url: str | None
     due_date: date | None = None
+    # A grouping label the collector owns (not part of the tombstone fingerprint).
+    stage: str | None = None
 
 
 @dataclass(frozen=True)

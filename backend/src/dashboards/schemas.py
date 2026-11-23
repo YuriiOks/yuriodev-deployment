@@ -102,6 +102,7 @@ class TaskOut(BaseModel):
     done_at: datetime | None
     source: Source
     url: str | None
+    stage: str | None
     created_at: datetime
     updated_at: datetime
 

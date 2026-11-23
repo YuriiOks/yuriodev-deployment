@@ -30,6 +30,9 @@ SEARCH_URL = "https://api.github.com/search/issues"
 SEARCH_RESULT_LIMIT = 1000
 REPOS_MARKER = "/repos/"
 
+# `stage` of an item by role: the page groups the GitHub tab by it.
+STAGES = {"author": "mine", "review": "review"}
+
 # (role in the external id, search qualifier, title prefix)
 ROLES = (
     ("author", "author:@me", "PR"),
@@ -105,4 +108,5 @@ def _item(row: Any, role: str, prefix: str) -> ExternalItem:
         external_id=f"{repo}#{number}:{role}",
         title=clean_title(f"{prefix} #{number}: ", row.get("title")),
         url=safe_url(row.get("html_url")),
+        stage=STAGES[role],
     )

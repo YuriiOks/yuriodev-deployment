@@ -43,6 +43,7 @@ async def test_both_searches_become_items_with_role_titles():
         "PR #1: Fix the thing",
         "Review PR #2: Add the other thing",
     ]
+    assert [item.stage for item in items] == ["mine", "review"]
     assert items[0].url == f"https://github.com/{REPO}/pull/1"
     assert all(item.due_date is None for item in items)
     assert len(seen) == 2

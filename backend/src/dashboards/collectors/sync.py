@@ -89,6 +89,9 @@ def _refresh(task: Task, item: ExternalItem, now: datetime, counts: SyncCounts) 
     if task.url != item.url:
         task.url = item.url
         changed = True
+    if task.stage != item.stage:
+        task.stage = item.stage
+        changed = True
     if task.status != "open":
         task.status = "open"
         task.done_at = None
@@ -113,6 +116,7 @@ def _new_task(source: str, space: str, item: ExternalItem, now: datetime) -> Tas
         source=source,
         source_ref=item.external_id,
         url=item.url,
+        stage=item.stage,
         created_at=now,
         updated_at=now,
     )

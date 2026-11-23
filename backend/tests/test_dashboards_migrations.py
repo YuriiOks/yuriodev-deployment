@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0003"
+    assert version == "dashboards_0004"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -159,3 +159,17 @@ async def test_calendar_events_have_a_unique_external_id_and_their_own_source(em
     assert "UNIQUE" in unique
     assert "source_ref IS NOT NULL" in unique
     assert await scalar(empty_db_url, "SELECT count(*) FROM event") == 3
+
+
+async def test_the_task_stage_column_is_short_nullable_text(empty_db_url):
+    await migrate(empty_db_url)
+
+    column = await scalar(
+        empty_db_url,
+        "SELECT data_type || ':' || character_maximum_length || ':' || is_nullable "
+        "FROM information_schema.columns WHERE table_name = 'task' AND column_name = 'stage'",
+    )
+    await execute(empty_db_url, NEW_TASK)
+
+    assert column == "character varying:16:YES"
+    assert await scalar(empty_db_url, "SELECT stage IS NULL FROM task") is True

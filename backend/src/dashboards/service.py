@@ -188,6 +188,7 @@ async def create_task(
         source=source,
         source_ref=None,
         url=None,
+        stage=None,
         created_at=now,
         updated_at=now,
     )

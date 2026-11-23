@@ -43,13 +43,20 @@ def search_page(rows: list[dict[str, Any]], total: int | None = None, incomplete
     return json_response(body)
 
 
-def issue(number: int, title: str = "Do the thing", due: str | None = None) -> dict[str, Any]:
+def issue(
+    number: int,
+    title: str = "Do the thing",
+    due: str | None = None,
+    state: str = "started",
+) -> dict[str, Any]:
     return {
         "id": f"issue-id-{number}",
         "identifier": f"ENG-{number}",
         "title": title,
         "url": f"https://linear.app/example-team/issue/ENG-{number}",
         "dueDate": due,
+        "priority": 2,
+        "state": {"name": "Some state", "type": state},
     }
 
 

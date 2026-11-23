@@ -704,6 +704,12 @@ only the collector name, counts and an error kind: never a URL, token, title or 
 | GitHub | `GITHUB_TOKEN` | open pull requests you authored (`author:@me`) and open pull requests with a review requested from you (`review-requested:@me`), through the REST search API; `GITHUB_SEARCH_SCOPE` is appended to both queries (for example an `org:<name>` qualifier) | `GITHUB_SPACE`, default `work-1` |
 | Linear | `LINEAR_API_KEY` | issues assigned to the key's user whose state type is not `completed` or `canceled`, through GraphQL | `LINEAR_SPACE`, default `work-1` |
 
+`stage` is a short grouping label the collector sets (the page groups the GitHub and Linear tabs by it;
+you cannot set it, and manual tasks have none): Linear, the issue's workflow state type (`started`,
+`unstarted`, `backlog` or `triage`; anything else is no stage); GitHub, `mine` for pull requests you
+opened and `review` for pull requests waiting for your review. A change of stage alone updates the
+task and never brings a deleted one back (the tombstone fingerprint is title and link only).
+
 Tasks are titled `PR #123: <title>`, `Review PR #123: <title>` and `<IDENTIFIER>: <title>`, and
 carry a link (the page shows it). The target space can be `personal` or `work-1`: `work-2` is
 refused at startup.
@@ -713,7 +719,7 @@ requests" and "Metadata" on the repositories to watch (a classic token needs `re
 private repositories, `public_repo` for public ones); Linear, a personal API key (read
 access is enough; it is sent as the `Authorization` header as is).
 
-Who owns what: the collector owns a collected task's title, link and open/done status and
+Who owns what: the collector owns a collected task's title, link, `stage` and open/done status and
 rewrites them on every poll (so finishing one by hand does not stick while the item is still
 open upstream); you own priority, notes, area, due date and everything else, which a poll never
 touches. A Linear due date is used only when the task is first created. When an item closes,
