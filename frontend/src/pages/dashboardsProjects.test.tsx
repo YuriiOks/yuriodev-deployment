@@ -134,6 +134,7 @@ describe('the Projects section of the hub', () => {
     const form = within(within(section).getByRole('form'));
     await user.type(form.getByLabelText('Название проекта'), '   {Enter}');
     expect(api.callsTo('POST', '/projects')).toHaveLength(0);
+    await user.clear(form.getByLabelText('Название проекта'));
     await user.type(form.getByLabelText('Название проекта'), 'garden{Enter}');
     expect(await form.findByRole('alert')).toHaveTextContent('Проект с таким названием уже есть.');
     expect(form.getByLabelText('Название проекта')).toHaveValue('garden');
@@ -330,7 +331,7 @@ describe('a project page', () => {
     renderAt('/dashboards/projects/garden');
     expect(await within(main()).findByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(within(main()).getByRole('button', { name: 'Archive' })).toBeInTheDocument();
-    expect(within(main()).getByRole('region', { name: 'Priority' })).toBeInTheDocument();
+    expect(await within(main()).findByRole('region', { name: 'Priority' })).toBeInTheDocument();
   });
 });
 
