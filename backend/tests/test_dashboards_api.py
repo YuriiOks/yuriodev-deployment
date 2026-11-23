@@ -1,5 +1,6 @@
 """The REST API against a real Postgres: every endpoint, ordering, limits and space isolation."""
 
+import json
 from datetime import timedelta
 from uuid import UUID
 
@@ -100,14 +101,14 @@ async def test_bootstrap_names_the_spaces_by_default_and_by_the_server_setting(
         renamed = (await client.get(f"{BASE}/bootstrap")).json()["spaces"]
 
     assert by_default == [
-        {"id": "personal", "name": "Personal"},
-        {"id": "work-1", "name": "Work 1"},
-        {"id": "work-2", "name": "Work 2"},
+        {"id": "personal", "name": "Personal", "icon": None},
+        {"id": "work-1", "name": "Work 1", "icon": None},
+        {"id": "work-2", "name": "Work 2", "icon": None},
     ]
     assert renamed == [
-        {"id": "personal", "name": "Personal"},
-        {"id": "work-1", "name": "Acme"},
-        {"id": "work-2", "name": "x"},
+        {"id": "personal", "name": "Personal", "icon": None},
+        {"id": "work-1", "name": "Acme", "icon": None},
+        {"id": "work-2", "name": "x", "icon": None},
     ]
 
 
@@ -587,3 +588,26 @@ async def test_an_event_can_be_changed_and_deleted(db_url, make_dashboards_app, 
     assert deleted.status_code == 204
     assert again.status_code == 404
     assert left == []
+
+
+async def test_bootstrap_carries_the_icons_the_server_gives(db_url, make_dashboards_app):
+    good = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4"
+    good += "2mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    icons = json.dumps({"work-1": good, "work-2": "https://example.test/logo.png"})
+    app = make_dashboards_app(db_url, dashboards_space_icons=icons)
+    async with running(app, AUTH) as client:
+        spaces = (await client.get(f"{BASE}/bootstrap")).json()["spaces"]
+
+    assert [(space["id"], space["icon"]) for space in spaces] == [
+        ("personal", None),
+        ("work-1", good),
+        ("work-2", None),
+    ]
+
+
+async def test_bootstrap_has_no_icons_by_default_and_the_name_stays(db_url, make_dashboards_app):
+    async with running(make_dashboards_app(db_url), AUTH) as client:
+        spaces = (await client.get(f"{BASE}/bootstrap")).json()["spaces"]
+
+    assert all(space["icon"] is None for space in spaces)
+    assert spaces[1] == {"id": "work-1", "name": "Work 1", "icon": None}
