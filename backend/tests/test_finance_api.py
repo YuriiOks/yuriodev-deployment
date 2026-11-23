@@ -14,14 +14,34 @@ pytestmark = pytest.mark.anyio
 
 BASE = "/api/dashboards/v1/finance"
 PATHS = (f"{BASE}/accounts", f"{BASE}/transactions", f"{BASE}/summary")
-ACCOUNT_FIELDS = set(
-    "id connection_id provider name type currency mask_last4 balance credit_limit balance_at "
-    "archived".split()
-)
-TRANSACTION_FIELDS = set(
-    "id account_id booked_at amount currency original_amount original_currency description "
-    "counterparty category_code balance_after pending".split()
-)
+ACCOUNT_FIELDS = {
+    "id",
+    "connection_id",
+    "provider",
+    "name",
+    "type",
+    "currency",
+    "mask_last4",
+    "balance",
+    "credit_limit",
+    "balance_at",
+    "archived",
+}
+TRANSACTION_FIELDS = {
+    "id",
+    "account_id",
+    "booked_at",
+    "amount",
+    "currency",
+    "original_amount",
+    "original_currency",
+    "description",
+    "counterparty",
+    "category_code",
+    "balance_after",
+    "pending",
+}
+
 
 
 def ids(response):

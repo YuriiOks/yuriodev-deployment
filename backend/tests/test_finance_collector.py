@@ -3,6 +3,7 @@ windows, the history walk, pages, failures and the link status."""
 
 import logging
 from datetime import timedelta
+from itertools import pairwise
 
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -188,7 +189,7 @@ async def test_the_history_walk_goes_back_in_31_day_windows_to_the_configured_de
     assert len(windows) == 3  # the newest 31 days, the 31 before, and a last partial one
     for _, _, start, end in windows:
         assert end - start <= 2_682_000
-    for newer, older in zip(windows, windows[1:], strict=False):
+    for newer, older in pairwise(windows):
         assert older[3] == newer[2]  # each window ends where the one before it began
     depth = int(months_back(now, 3).timestamp())
     assert abs(windows[-1][2] - depth) < 3600  # the walk stops at the configured depth
