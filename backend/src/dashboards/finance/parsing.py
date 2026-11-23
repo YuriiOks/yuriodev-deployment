@@ -35,11 +35,7 @@ def text(value: object, limit: int) -> str | None:
 
 def safe_id(value: object) -> str:
     """An identifier that can go into a URL path: letters, digits, underscore, hyphen."""
-    if (
-        not isinstance(value, str)
-        or not 0 < len(value) <= MAX_ID
-        or not set(value) <= ID_CHARS
-    ):
+    if not isinstance(value, str) or not 0 < len(value) <= MAX_ID or not set(value) <= ID_CHARS:
         raise bad()
     return value
 

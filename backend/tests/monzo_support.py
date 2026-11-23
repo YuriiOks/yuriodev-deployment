@@ -139,9 +139,7 @@ class FakeMonzo:
 
     def _token(self, form: dict[str, list[str]]) -> httpx.Response:
         grant = form.get("grant_type", [""])[0]
-        right_client = (
-            form.get("client_id") == [MZ_ID] and form.get("client_secret") == [MZ_KEY]
-        )
+        right_client = form.get("client_id") == [MZ_ID] and form.get("client_secret") == [MZ_KEY]
         if not right_client:
             return json_response({"error": "invalid_client"}, 401)
         if grant == "authorization_code":
@@ -179,9 +177,7 @@ class FakeMonzo:
         if window_closed and since < self.clock.now - timedelta(days=90):
             return json_response({"code": "forbidden.verification_required"}, 403)
         rows = [
-            r
-            for r in self.transactions
-            if since <= datetime.fromisoformat(r["created"]) < before
+            r for r in self.transactions if since <= datetime.fromisoformat(r["created"]) < before
         ]
         rows.sort(key=lambda r: r["created"])
         limit = int(params.get("limit", "30"))
@@ -195,4 +191,3 @@ class FakeMonzo:
 async def no_sleep(seconds: float) -> None:
     """A pause that does not pause: the tests keep time on the fake clock."""
     return None
-

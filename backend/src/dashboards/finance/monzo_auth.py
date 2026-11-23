@@ -217,7 +217,8 @@ async def token_view(sessions: async_sessionmaker[AsyncSession]) -> TokenView | 
                     MonzoToken.approved_at,
                     MonzoToken.approval_deadline,
                     MonzoToken.revoked_at,
-                ).join(Connection, Connection.id == MonzoToken.connection_id)
+                )
+                .join(Connection, Connection.id == MonzoToken.connection_id)
                 .where(Connection.provider == PROVIDER, Connection.ref == REF)
             )
         ).first()
