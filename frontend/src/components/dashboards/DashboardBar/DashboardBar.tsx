@@ -22,18 +22,18 @@ export interface DashboardBarProps {
 /**
  * The dashboards' only chrome (the site's header is not on these pages): the site's own header, built from its parts
  * (Header.module.css: the terminal prompt with its blinking cursor, the 40px bordered controls, the underlined current
- * page, the same tokens), sticky at the top. The prompt runs the current place ("./dashboards/personal", by the name
- * the page shows, so a server's space or project name appears there), the dashboards pages are the nav, the portfolio
+ * page, the same tokens), sticky at the top. The prompt runs the current place ("./dashboards/personal"; a server's name for
+ * a space or a project appears there), the dashboards pages are the nav, the portfolio
  * is one link away, and RU/EN and the theme button are the site's controls. On a phone the prompt is short and the
  * pages scroll sideways.
  */
 const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t } = useDashboardLang();
-  const { nameOf } = useSpaceNames();
+  const { nameOf, serverNameOf } = useSpaceNames();
   const { projects } = useDashboardMode();
   const { pathname } = useLocation();
   const place = promptPlace(pathname, {
-    spaceName: nameOf,
+    spaceName: serverNameOf,
     projectName: (id) => projects.find((project) => project.id === id)?.name,
   });
   const items: ReadonlyArray<readonly [PageId, string]> = [

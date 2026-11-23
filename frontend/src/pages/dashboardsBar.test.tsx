@@ -49,12 +49,12 @@ describe('the dashboards bar is the site header\'s prompt, nav and controls', ()
     }
   });
 
-  it('on sample data a space\'s prompt uses its bundled name (Russian by default, English when chosen)', () => {
+  it('on sample data a space\'s prompt is its route slug, whatever the language', () => {
     sessionStorage.setItem('appLoaded', 'true');
     localStorage.clear();
     resetStorageFallback();
     const ru = renderAt('/dashboards/work-1');
-    expect(prompt()).toHaveTextContent('./dashboards/работа-1');
+    expect(prompt()).toHaveTextContent('./dashboards/work-1');
     ru.unmount();
     localStorage.setItem(LANG_STORAGE_KEY, 'en');
     renderAt('/dashboards/work-1');

@@ -13,15 +13,15 @@ export function promptSlug(name: string): string {
 }
 
 export interface PromptNames {
-  /** What the page shows for a space (the server's name where there is one). */
-  readonly spaceName: (space: SpaceId) => string;
+  /** The name the server gives a space, if it renames it; a space it does not rename is run by its route slug. */
+  readonly spaceName: (space: SpaceId) => string | undefined;
   /** A project's name by its id, if known. */
   readonly projectName: (id: string) => string | undefined;
 }
 
 /**
- * The place the dashboards' prompt runs, after "./": "dashboards" on the entrance, "dashboards/personal" on a space (by
- * the name the page shows, so a server name appears there), "dashboards/calendar", "dashboards/projects/garden".
+ * The place the dashboards' prompt runs, after "./": "dashboards" on the entrance, "dashboards/personal" on a space (its route slug, or
+ * the server's name for it when the server renames it), "dashboards/calendar", "dashboards/projects/garden".
  */
 export function promptPlace(pathname: string, names: PromptNames): string {
   if (isProjectPath(pathname)) {
@@ -29,7 +29,7 @@ export function promptPlace(pathname: string, names: PromptNames): string {
     return `dashboards/projects/${promptSlug(names.projectName(id) ?? id) || 'project'}`;
   }
   const space = spaceAt(pathname);
-  if (space) return `dashboards/${promptSlug(names.spaceName(space)) || space}`;
+  if (space) return `dashboards/${promptSlug(names.spaceName(space) ?? space) || space}`;
   if (pageAt(pathname)?.id === 'dashboards-calendar') return 'dashboards/calendar';
   return 'dashboards';
 }

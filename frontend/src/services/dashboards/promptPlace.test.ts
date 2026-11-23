@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { promptPlace, promptSlug } from './promptPlace';
 
 const names = {
-  spaceName: (space: string) => ({ personal: 'Personal', 'work-1': 'Acme Corp', 'work-2': 'Work 2' })[space as 'personal'] ?? space,
+  spaceName: (space: string) => ({ 'work-1': 'Acme Corp' })[space as 'work-1'],
   projectName: (id: string) => ({ garden: 'Garden', 'side-project': 'Side Project!' })[id as 'garden'],
 };
 
@@ -23,7 +23,7 @@ describe('promptPlace', () => {
     expect(promptPlace('/dashboards/calendar', names)).toBe('dashboards/calendar');
   });
 
-  it('uses the name a space is shown by, not its slug', () => {
+  it('uses the server\'s name for a space when it renames it, and the route slug otherwise', () => {
     expect(promptPlace('/dashboards/personal', names)).toBe('dashboards/personal');
     expect(promptPlace('/dashboards/work-1', names)).toBe('dashboards/acme-corp');
     expect(promptPlace('/dashboards/work-2', names)).toBe('dashboards/work-2');
