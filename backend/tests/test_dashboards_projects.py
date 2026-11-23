@@ -10,10 +10,9 @@ import pytest
 from mcp import Client
 from sqlalchemy import text
 
-from src.core.errors import AppError
 from src.dashboards import projects
 from src.dashboards.projects import PROJECT_STEPS, schema_name, slugify, upgrade_projects, valid_id
-from tests.dashboards_support import AUTH, UNREACHABLE_URL, execute, running, scalar
+from tests.dashboards_support import AUTH, UNREACHABLE_URL, running, scalar
 
 pytestmark = pytest.mark.anyio
 
