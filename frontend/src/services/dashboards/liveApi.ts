@@ -60,6 +60,10 @@ export interface LiveTask {
   readonly status: TaskStatus;
   readonly doneAt: string | null;
   readonly createdAt: string;
+  /** Who wrote it: 'manual', or a collector ('github', 'linear'). */
+  readonly source: string;
+  /** The task's page at its source (the pull request, the issue), when it has one. */
+  readonly url: string | null;
 }
 
 export interface TaskDraft {
@@ -163,6 +167,8 @@ export function parseTask(raw: unknown): LiveTask | null {
     status: raw.status,
     doneAt: isDateTime(raw.done_at) ? raw.done_at : null,
     createdAt: isDateTime(raw.created_at) ? raw.created_at : '',
+    source: typeof raw.source === 'string' ? raw.source : 'manual',
+    url: typeof raw.url === 'string' && raw.url.startsWith('https://') ? raw.url : null,
   };
 }
 

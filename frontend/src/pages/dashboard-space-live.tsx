@@ -26,13 +26,18 @@ interface LiveSpaceProps {
   areas: readonly LiveArea[];
 }
 
+/** The source tabs that list collected tasks, and the task source each one lists. */
+const COLLECTED: Partial<Record<TabId, string>> = { github: 'github', linear: 'linear' };
+const COLLECTED_SOURCES = new Set(Object.values(COLLECTED));
+
 /** The open groups in reading order, as one list (the area tab shows them without the overview's headings). */
 const openTasks = (groups: TaskGroups): LiveTask[] => [...groups.priority, ...groups.due, ...groups.week, ...groups.later, ...groups.undated];
 
 /**
  * A space on real data. The overview is the working surface: Priority, then what is due or overdue, this week,
  * later and undated, and a Done disclosure; the personal space also has the life-areas tab, which filters the
- * same tasks by area. Every other source tab is "not connected yet". Quick-add creates a task in this space (in
+ * same tasks by area. The GitHub and Linear tabs list the tasks their collectors brought; on the overview a
+ * collected task shows only when it is marked priority. Every other source tab is "not connected yet". Quick-add creates a task in this space (in
  * the chosen area on the areas tab), the checkbox completes or reopens it at once and rolls back on a refusal,
  * and each row opens its editor. Each request has its own loading and error state, so one failure leaves the
  * rest of the page working.
@@ -51,7 +56,15 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
 
   const current = tabs.includes(selected) ? selected : 'overview';
   const areaList = space === 'personal' ? areas : null;
-  const groups = groupTasks(current === 'areas' ? inArea(tasks.tasks, area) : tasks.tasks, today, tasks.sticky);
+  const collectedSource = COLLECTED[current];
+  const fromSource = collectedSource ? tasks.tasks.filter((task) => task.source === collectedSource) : [];
+  const own = tasks.tasks.filter((task) => !COLLECTED_SOURCES.has(task.source) || task.priority);
+  const shown = collectedSource ? fromSource : current === 'areas' ? inArea(own, area) : own;
+  const groups = groupTasks(shown, today, tasks.sticky);
+  const tabCounts: Partial<Record<TabId, number>> = {};
+  for (const [tab, source] of Object.entries(COLLECTED) as [TabId, string][]) {
+    tabCounts[tab] = tasks.tasks.filter((task) => task.source === source && task.status === 'open').length;
+  }
   const next = summary.summary?.[space].next ?? null;
   const hero = next ? liveHero(next, now, t) : null;
 
@@ -79,7 +92,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   let body: ReactNode;
   let split = false;
   let rows = 1;
-  if (current !== 'overview' && current !== 'areas') {
+  if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
     body = <NotConnected name={t.tabs[current]} />;
   } else if (tasks.status === 'loading') {
     body = <LoadingBlock rows={4} />;
@@ -89,6 +102,8 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
         <InlineError message={t.loadFailed} onRetry={tasks.reload} />
       </div>
     );
+  } else if (collectedSource) {
+    body = panel(current, t.tabs[current], openTasks(groups), t.emptySource);
   } else if (current === 'overview') {
     const panels = [
       panel('priority', t.groupPriority, groups.priority, tasks.tasks.length === 0 ? t.emptyTasks : t.emptyPriority),
@@ -134,7 +149,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     <>
       <div className={styles.top}>
         <SpaceHero space={space} hero={hero} />
-        <SourceTabs tabs={tabs} current={current} counts={{}} onSelect={setSelected} idPrefix={space} />
+        <SourceTabs tabs={tabs} current={current} counts={tabCounts} onSelect={setSelected} idPrefix={space} />
       </div>
       {workingTab && <QuickAdd placeholder={t.addTask} onSubmit={create} />}
       <div
