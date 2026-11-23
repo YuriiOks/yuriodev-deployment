@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath, projectPath, type PageId } from '../../../data/site';
@@ -42,18 +42,37 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { nameOf, serverNameOf } = useSpaceNames();
   const { projects, active } = useProjects();
   const currentRef = useRef<HTMLAnchorElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const [more, setMore] = useState(false);
   const { pathname } = useLocation();
   const place = promptPlace(pathname, {
     spaceName: serverNameOf,
     projectName: (id) => projects.find((project) => project.id === id)?.name,
   });
+  // When the row is wider than its room, its right end fades out (a hint that it scrolls): measured after paint, on a resize, on a scroll and
+  // whenever the pills change.
+  useEffect(() => {
+    const measure = () => {
+      const nav = navRef.current;
+      if (nav) setMore(nav.scrollWidth - nav.clientWidth > 1 && nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
+    };
+    const frame = window.requestAnimationFrame(measure);
+    const nav = navRef.current;
+    window.addEventListener('resize', measure);
+    nav?.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+      nav?.removeEventListener('scroll', measure);
+    };
+  }, [active.length, phone, pathname]);
   // The current pill stays in view when the row scrolls sideways (many projects, a phone).
   useEffect(() => {
     currentRef.current?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
   }, [pathname, active.length]);
   const marks: Record<string, React.ReactNode> = {
-    dashboards: <ProjectIcon name="grid" size={18} />,
-    'dashboards-calendar': <ProjectIcon name="calendar" size={18} />,
+    dashboards: <ProjectIcon name="grid" size={20} />,
+    'dashboards-calendar': <ProjectIcon name="calendar" size={20} />,
   };
   const before: ReadonlyArray<readonly [PageId, string, React.ReactNode]> = [['dashboards', t.navAll, marks.dashboards]];
   const spaces = SPACES.map((id) => [SPACE_PAGE[id], nameOf(id), <SpaceTile space={id} />] as const);
@@ -61,16 +80,16 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const items = [...before, ...spaces, ...after];
 
   return (
-    <div className={styles.bar}>
+    <div className={styles.bar} data-projects={active.length > 0 ? 'true' : undefined}>
       <div className={styles.inner}>
         <div className={cx(header.terminalPrompt, styles.prompt)}>
-          <span className={header.promptFull}>yurii@yuriodev:~$ ./{place}</span>
-          <span className={header.promptShort}>~$ ./{place.split('/').pop()}</span>
+          <span className={cx(header.promptFull, styles.full)}>yurii@yuriodev:~$ ./{place}</span>
+          <span className={cx(header.promptShort, styles.short)}>~$ ./{place.split('/').pop()}</span>
           <span className={header.cursor} aria-hidden="true">
             _
           </span>
         </div>
-        <nav aria-label={t.navLabel} className={styles.nav}>
+        <nav ref={navRef} aria-label={t.navLabel} className={styles.nav} data-more={more ? 'true' : undefined}>
           {items.map(([id, label, mark]) => (
             <NavLink key={id} to={pagePath(id)} end className={navClass}>
               <Mark>{mark}</Mark>

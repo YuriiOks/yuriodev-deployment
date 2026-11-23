@@ -103,3 +103,25 @@
   margin-inline: var(--space-1);
   background: var(--header-border-bottom-color);
 }
+
+/* With projects in the row there is no room at laptop widths for everything: below 100rem the prompt is the short one
+   (as on a phone) and the portfolio link is its arrow, so the pages and a few projects fit; the rest scroll sideways. */
+@media (max-width: 99.99rem) {
+  .bar[data-projects] .full {
+    display: none;
+  }
+
+  .bar[data-projects] .short {
+    display: inline;
+  }
+
+  .bar[data-projects] .portfolioText {
+    display: none;
+  }
+}
+
+/* The row's right end fades out while there is more to scroll to. */
+.nav[data-more="true"] {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+}

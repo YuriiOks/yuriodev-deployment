@@ -343,6 +343,14 @@ describe('dashboard palettes meet WCAG AA', () => {
     expect(resolve(tokensFor('light', 'work-2'), 'var(--dash-bg)')).toBe('#f3f3f3');
   });
 
+  it('every skin that changes the surface declares its own glass (a var()-made custom property is computed where it is declared, so the root\'s would stay navy)', () => {
+    const own = blocks(variablesCss).filter((block) => /\[data-space="(work-1|work-2|project)"\]/.test(block.selector));
+    expect(own.length).toBe(6);
+    for (const block of own) {
+      expect(block.body, block.selector).toMatch(/--dash-glass:\s*rgba\(var\(--dash-surface-rgb\), var\(--dash-glass-a\)\)/);
+    }
+  });
+
   it('a skin changes only its colour tokens: no size, shape or type token differs between spaces', () => {
     for (const theme of ['dark', 'light'] as const) {
       const base = tokensFor(theme);
