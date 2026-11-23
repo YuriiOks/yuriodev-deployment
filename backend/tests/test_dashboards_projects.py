@@ -636,8 +636,8 @@ async def test_the_mcp_tools_refuse_with_fixed_sentences(db_url, make_dashboards
         }
 
     assert all(failed for failed, _ in results.values())
-    assert "Project not found" in results["unknown"][1]
-    assert "Project not found" in results["unknown add"][1]
+    assert "Space or project not found" in results["unknown"][1]
+    assert "Space or project not found" in results["unknown add"][1]
     assert "Project is archived" in results["archived"][1]
     assert "Invalid arguments" in results["empty"][1]
     assert "A project with this id exists" in results["clash"][1]

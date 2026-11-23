@@ -69,6 +69,13 @@ def _task(task: object) -> dict[str, Any]:
     return TaskOut.model_validate(task).model_dump(mode="json")
 
 
+def _space_or_project(error: AppError) -> AppError:
+    """A `space` argument that is no space is read as a project id: say so when it is neither."""
+    if error.status == 404 and error.message == "Project not found":
+        return AppError(404, "not_found", "Space or project not found")
+    return error
+
+
 def _ptask(task: ProjectTaskOut) -> dict[str, Any]:
     return task.model_dump(mode="json")
 
@@ -119,7 +126,10 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         due date, then oldest."""
         async with scope("list_tasks") as (session, _):
             if space not in SPACE_IDS:
-                found = await project_service.list_project_tasks(session, space, status)
+                try:
+                    found = await project_service.list_project_tasks(session, space, status)
+                except AppError as exc:
+                    raise _space_or_project(exc) from None
                 return _json({"project": space, "tasks": [_ptask(t) for t in found]})
             tasks = await service.list_tasks(session, space, status)
             return _json({"space": space, "tasks": [_task(t) for t in tasks]})
@@ -145,7 +155,11 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         data = _validated(TaskCreate, fields)
         async with scope("add_task") as (session, now):
             if space not in SPACE_IDS:
-                made = await project_service.create_project_task(session, space, data, "mcp", now)
+                create = project_service.create_project_task
+                try:
+                    made = await create(session, space, data, "mcp", now)
+                except AppError as exc:
+                    raise _space_or_project(exc) from None
                 return _json(_ptask(made))
             task = await service.create_task(session, space, data, "mcp", now)
             return _json(_task(task))
@@ -211,7 +225,10 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
         async with scope("today") as (session, now):
             if space is not None and space not in SPACE_IDS:
                 day = now.astimezone(zone).date()
-                due = await project_service.due_project_tasks(session, space, day)
+                try:
+                    due = await project_service.due_project_tasks(session, space, day)
+                except AppError as exc:
+                    raise _space_or_project(exc) from None
                 group = {"space": space, "tasks": [_ptask(t) for t in due], "events": []}
                 return _json({"date": day.isoformat(), "spaces": [group]})
             view = await service.today(session, space, now, zone)

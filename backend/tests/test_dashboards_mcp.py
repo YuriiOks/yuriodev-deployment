@@ -121,8 +121,8 @@ async def test_tool_errors_are_fixed_sentences(db_url, make_dashboards_app):
         }
 
     assert all(failed for failed, _ in results.values())
-    assert "Space not found" in results["space"][1]
-    assert "Space not found" in results["add space"][1]
+    assert "Space or project not found" in results["space"][1]
+    assert "Space or project not found" in results["add space"][1]
     for name in ("title", "long title", "due", "nothing"):
         assert "Invalid arguments" in results[name][1], name
     assert "Unknown area for this space" in results["area"][1]
@@ -171,7 +171,7 @@ async def test_today_lists_priority_and_due_tasks_and_todays_events_per_space(
     assert work_2 == {"space": "work-2", "tasks": [], "events": []}
     assert [group["space"] for group in only_work["spaces"]] == ["work-1"]
     assert failed
-    assert "Space not found" in text
+    assert "Space or project not found" in text
 
 
 async def test_events_over_mcp(db_url, make_dashboards_app):
