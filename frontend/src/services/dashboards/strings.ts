@@ -21,6 +21,23 @@ export function pick(text: Localized, lang: Lang): string {
 /** Every fixed text of the dashboards' interface. Sample content lives in sampleData.ts. */
 export interface Strings {
   readonly navLabel: string;
+  readonly projectsTitle: string;
+  readonly newProject: string;
+  readonly projectName: string;
+  readonly createProject: string;
+  readonly projectExists: string;
+  readonly projectCreateFailed: string;
+  readonly projectsFailed: string;
+  readonly projectNotFound: string;
+  readonly projectNotFoundText: string;
+  readonly projectsNeedData: string;
+  readonly backToHub: string;
+  readonly renameProject: string;
+  readonly renameFailed: string;
+  readonly archiveProject: string;
+  readonly confirmArchive: string;
+  readonly archiveFailed: string;
+  readonly projectNamePlaceholder: string;
   readonly dueOverdue: string;
   readonly dueToday: string;
   readonly pendingSave: string;
@@ -167,6 +184,23 @@ export interface Strings {
 export const STRINGS: Record<Lang, Strings> = {
   ru: {
     navLabel: 'Дашборды',
+    projectsTitle: 'Проекты',
+    newProject: 'Новый проект',
+    projectName: 'Название проекта',
+    createProject: 'Создать',
+    projectExists: 'Проект с таким названием уже есть.',
+    projectCreateFailed: 'Не удалось создать проект. Повторите.',
+    projectsFailed: 'Не удалось загрузить проекты.',
+    projectNotFound: 'Проект не найден',
+    projectNotFoundText: 'Такого проекта нет, или он в архиве.',
+    projectsNeedData: 'Проекты доступны только на реальных данных.',
+    backToHub: 'К дашбордам',
+    renameProject: 'Переименовать',
+    renameFailed: 'Не удалось переименовать. Повторите.',
+    archiveProject: 'В архив',
+    confirmArchive: 'Подтвердить архивацию',
+    archiveFailed: 'Не удалось архивировать. Повторите.',
+    projectNamePlaceholder: 'Например, «Сад»',
     dueOverdue: 'просрочено',
     dueToday: 'сегодня',
     pendingSave: 'Сохраняется…',
@@ -310,6 +344,23 @@ export const STRINGS: Record<Lang, Strings> = {
   },
   en: {
     navLabel: 'Dashboards',
+    projectsTitle: 'Projects',
+    newProject: 'New project',
+    projectName: 'Project name',
+    createProject: 'Create',
+    projectExists: 'A project with this name already exists.',
+    projectCreateFailed: 'Could not create the project. Try again.',
+    projectsFailed: 'Could not load the projects.',
+    projectNotFound: 'Project not found',
+    projectNotFoundText: 'There is no such project, or it is archived.',
+    projectsNeedData: 'Projects need the live data.',
+    backToHub: 'Back to the dashboards',
+    renameProject: 'Rename',
+    renameFailed: 'Could not rename. Try again.',
+    archiveProject: 'Archive',
+    confirmArchive: 'Confirm archive',
+    archiveFailed: 'Could not archive. Try again.',
+    projectNamePlaceholder: 'For example, Garden',
     dueOverdue: 'overdue',
     dueToday: 'today',
     pendingSave: 'Saving…',

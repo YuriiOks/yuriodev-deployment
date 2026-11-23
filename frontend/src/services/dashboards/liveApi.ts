@@ -49,13 +49,36 @@ export interface Bootstrap {
   readonly spaceNames: Readonly<Partial<Record<SpaceId, string>>>;
   /** Icons the server gives spaces: small image data URIs only (never a link), kept as the server sent them. */
   readonly spaceIcons: Readonly<Partial<Record<SpaceId, string>>>;
+  /** The user's projects that are not archived (the server's names). */
+  readonly projects: readonly LiveProjectRef[];
+}
+
+/** A project with its counters (GET /projects). */
+export interface LiveProject {
+  readonly id: string;
+  readonly name: string;
+  readonly archived: boolean;
+  readonly open: number;
+  readonly priority: number;
+  readonly overdue: number;
+}
+
+/** What a list of tasks belongs to: a space (by id), or a project. */
+export type TaskScope = SpaceId | { readonly project: string };
+
+export interface LiveProjectRef {
+  readonly id: string;
+  readonly name: string;
 }
 
 export type TaskStatus = 'open' | 'done';
 
 export interface LiveTask {
   readonly id: string;
-  readonly space: SpaceId;
+  /** The space it belongs to; null for a project's task. */
+  readonly space: SpaceId | null;
+  /** The project it belongs to; null for a space's task. */
+  readonly projectId: string | null;
   readonly title: string;
   readonly notes: string;
   readonly areaId: string | null;
@@ -201,17 +224,26 @@ export function parseBootstrap(body: unknown): Bootstrap | null {
       areas.push({ id: raw.id, nameRu, nameEn });
     }
   }
-  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces), spaceIcons: parseSpaceIcons(body.spaces) };
+  const projects: LiveProjectRef[] = [];
+  if (Array.isArray(body.projects)) {
+    for (const raw of body.projects) {
+      if (isObject(raw) && typeof raw.id === 'string' && typeof raw.name === 'string') projects.push({ id: raw.id, name: raw.name });
+    }
+  }
+  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces), spaceIcons: parseSpaceIcons(body.spaces), projects };
 }
 
 export function parseTask(raw: unknown): LiveTask | null {
   if (!isObject(raw)) return null;
   const space = raw.space_id ?? raw.space;
-  if (typeof raw.id !== 'string' || !isSpace(space) || typeof raw.title !== 'string') return null;
+  const projectId = typeof raw.project_id === 'string' && raw.project_id !== '' ? raw.project_id : null;
+  if (typeof raw.id !== 'string' || typeof raw.title !== 'string') return null;
+  if (!isSpace(space) && projectId === null) return null;
   if (raw.status !== 'open' && raw.status !== 'done') return null;
   return {
     id: raw.id,
-    space,
+    space: isSpace(space) ? space : null,
+    projectId,
     title: raw.title,
     notes: typeof raw.notes === 'string' ? raw.notes : '',
     areaId: typeof raw.area_id === 'string' ? raw.area_id : null,
@@ -341,6 +373,40 @@ async function request(path: string, { method = 'GET', body, signal, timeoutMs =
   }
 }
 
+export function parseProject(raw: unknown): LiveProject | null {
+  if (!isObject(raw) || typeof raw.id !== 'string' || typeof raw.name !== 'string') return null;
+  return { id: raw.id, name: raw.name, archived: raw.archived === true, open: asCount(raw.open), priority: asCount(raw.priority), overdue: asCount(raw.overdue) };
+}
+
+export function parseProjects(body: unknown): LiveProject[] | null {
+  const list = listOf(body, ['projects', 'items']);
+  if (!list) return null;
+  return list.flatMap((raw) => {
+    const project = parseProject(raw);
+    return project ? [project] : [];
+  });
+}
+
+/** The start of a task list's URL: `/spaces/{id}` or `/projects/{id}`. */
+export function scopePath(scope: TaskScope): string {
+  return typeof scope === 'string' ? `/spaces/${scope}` : `/projects/${encodeURIComponent(scope.project)}`;
+}
+
+/** A scope as a string key (and back): `space:personal`, `project:garden`. */
+export function scopeKey(scope: TaskScope): string {
+  return typeof scope === 'string' ? `space:${scope}` : `project:${scope.project}`;
+}
+
+export function scopeFromKey(key: string): TaskScope {
+  return key.startsWith('project:') ? { project: key.slice('project:'.length) } : (key.slice('space:'.length) as SpaceId);
+}
+
+/** One task's URL: a space's tasks are addressed by id alone, a project's under the project. */
+function taskPath(id: string, scope?: TaskScope): string {
+  const own = encodeURIComponent(id);
+  return scope !== undefined && typeof scope !== 'string' ? `${scopePath(scope)}/tasks/${own}` : `/tasks/${own}`;
+}
+
 const must = <T>(value: T | null): T => {
   if (value === null) throw new ApiError('bad_response', 200, 'unexpected shape');
   return value;
@@ -359,8 +425,8 @@ export async function fetchSummary(signal?: AbortSignal): Promise<LiveSummary> {
   return must(parseSummary(await request('/summary', { signal })));
 }
 
-export async function fetchTasks(space: SpaceId, status: 'open' | 'done' | 'all' = 'all', signal?: AbortSignal): Promise<LiveTask[]> {
-  return must(parseTasks(await request(`/spaces/${space}/tasks?status=${status}`, { signal })));
+export async function fetchTasks(scope: TaskScope, status: 'open' | 'done' | 'all' = 'all', signal?: AbortSignal): Promise<LiveTask[]> {
+  return must(parseTasks(await request(`${scopePath(scope)}/tasks?status=${status}`, { signal })));
 }
 
 const taskBody = (draft: TaskDraft | TaskPatch): Json => {
@@ -371,16 +437,17 @@ const taskBody = (draft: TaskDraft | TaskPatch): Json => {
   return body;
 };
 
-export async function createTask(space: SpaceId, draft: TaskDraft, signal?: AbortSignal): Promise<LiveTask> {
-  return must(parseTask(await request(`/spaces/${space}/tasks`, { method: 'POST', body: taskBody(draft), signal })));
+export async function createTask(scope: TaskScope, draft: TaskDraft, signal?: AbortSignal): Promise<LiveTask> {
+  return must(parseTask(await request(`${scopePath(scope)}/tasks`, { method: 'POST', body: taskBody(draft), signal })));
 }
 
-export async function patchTask(id: string, patch: TaskPatch, signal?: AbortSignal): Promise<LiveTask> {
-  return must(parseTask(await request(`/tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: taskBody(patch), signal })));
+/** `scope` is only needed for a project's task (a space's tasks are addressed by id alone). */
+export async function patchTask(id: string, patch: TaskPatch, signal?: AbortSignal, scope?: TaskScope): Promise<LiveTask> {
+  return must(parseTask(await request(taskPath(id, scope), { method: 'PATCH', body: taskBody(patch), signal })));
 }
 
-export async function deleteTask(id: string, signal?: AbortSignal): Promise<void> {
-  await request(`/tasks/${encodeURIComponent(id)}`, { method: 'DELETE', signal });
+export async function deleteTask(id: string, signal?: AbortSignal, scope?: TaskScope): Promise<void> {
+  await request(taskPath(id, scope), { method: 'DELETE', signal });
 }
 
 /** The events of every space intersecting `from`..`to` (dates, at most 62 days apart). */
@@ -391,4 +458,17 @@ export async function fetchEvents(from: string, to: string, signal?: AbortSignal
 export async function createEvent(space: SpaceId, draft: EventDraft, signal?: AbortSignal): Promise<LiveEvent> {
   const body = { title: draft.title, starts_at: draft.startsAt, ends_at: draft.endsAt, busy_only: draft.busyOnly === true };
   return must(parseEvent(await request(`/spaces/${space}/events`, { method: 'POST', body, signal })));
+}
+
+export async function fetchProjects(signal?: AbortSignal): Promise<LiveProject[]> {
+  return must(parseProjects(await request('/projects', { signal })));
+}
+
+/** Creates a project; the server makes its id. Rejects with status 409 when the name clashes. */
+export async function createProject(name: string, signal?: AbortSignal): Promise<LiveProject> {
+  return must(parseProject(await request('/projects', { method: 'POST', body: { name }, signal })));
+}
+
+export async function patchProject(id: string, patch: Partial<{ name: string; archived: boolean }>, signal?: AbortSignal): Promise<LiveProject> {
+  return must(parseProject(await request(`/projects/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch, signal })));
 }

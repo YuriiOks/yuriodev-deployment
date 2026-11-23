@@ -1,0 +1,105 @@
+/* A project page's head: the neutral tile, the name (the page's one 20px line, the h1) and the two quiet actions.
+   The rest of the page is the space page's (dashboard-space.module.css, dashboard-space-live.module.css). */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: var(--dash-h-strip);
+}
+
+/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+.head .name {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
+  overflow-wrap: anywhere;
+}
+
+.head .name::before,
+.head .name::after {
+  content: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.rename {
+  display: flex;
+  flex: 1 1 20rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.input {
+  composes: input from '../assets/styles/dashboard-forms.module.css';
+  flex: 1 1 16rem;
+  width: auto;
+}
+
+.action {
+  composes: button buttonGhost from '../assets/styles/dashboard-controls.module.css';
+}
+
+.confirm {
+  color: var(--dash-danger);
+}
+
+.save {
+  composes: button buttonPrimary from '../assets/styles/dashboard-controls.module.css';
+}
+
+.cancel {
+  composes: button buttonSecondary from '../assets/styles/dashboard-controls.module.css';
+}
+
+.error {
+  flex-basis: 100%;
+}
+
+/* Not found: one panel with the words and the way back. */
+.missing {
+  composes: glassDash from '../assets/styles/recipes.module.css';
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+}
+
+.missing h1 {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 600;
+  line-height: var(--dash-lh-title);
+}
+
+.missing h1::before,
+.missing h1::after {
+  content: none;
+}
+
+.missing p {
+  margin: 0;
+  color: var(--dash-t2);
+}
+
+.back {
+  composes: button buttonSecondary from '../assets/styles/dashboard-controls.module.css';
+  margin-top: var(--space-2);
+}

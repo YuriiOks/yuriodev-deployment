@@ -2,6 +2,7 @@ import { useDashboardLang } from '../context/useDashboardLang';
 import DashboardHeading from '../components/dashboards/DashboardHeading/DashboardHeading';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
+import ProjectCards from '../components/dashboards/ProjectCards/ProjectCards';
 import SpaceCard from '../components/dashboards/SpaceCard/SpaceCard';
 import { useDashboardMode } from '../hooks/useDashboardMode';
 import { useLiveSummary } from '../hooks/useLiveSummary';
@@ -56,7 +57,7 @@ const LiveCards = () => {
   );
 };
 
-/** /dashboards: the entrance. A title, three cards with counters and what is next; no task is ever shown here. */
+/** /dashboards: the entrance. A title, three cards with counters and what is next; no task is ever shown here. On real data a Projects section follows. */
 const Dashboards = () => {
   const { t } = useDashboardLang();
   usePageTitle(t.titles.hub);
@@ -65,7 +66,14 @@ const Dashboards = () => {
   return (
     <>
       <DashboardHeading id="dashboards-title" title={t.hubTitle} />
-      {mode === 'live' ? <LiveCards /> : <SampleCards />}
+      {mode === 'live' ? (
+        <>
+          <LiveCards />
+          <ProjectCards />
+        </>
+      ) : (
+        <SampleCards />
+      )}
     </>
   );
 };

@@ -1,0 +1,135 @@
+/* The hub's Projects section: a quiet h2, then cards in the entrance's own grid; the cards are the space cards'
+   (their classes are composed, not copied), and the "new project" tile is a flat surface with a hairline, so it
+   reads as "add" next to the glass cards. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
+.section .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 600;
+  line-height: var(--dash-lh-title);
+}
+
+.section .title::before,
+.section .title::after {
+  content: none;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+@media (min-width: 64rem) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.card {
+  composes: card from '../SpaceCard/SpaceCard.module.css';
+}
+
+.head {
+  composes: head from '../SpaceCard/SpaceCard.module.css';
+}
+
+.name {
+  composes: name from '../SpaceCard/SpaceCard.module.css';
+}
+
+.link {
+  composes: link from '../SpaceCard/SpaceCard.module.css';
+}
+
+.stats {
+  composes: stats from '../SpaceCard/SpaceCard.module.css';
+}
+
+.stat {
+  composes: stat from '../SpaceCard/SpaceCard.module.css';
+}
+
+.number {
+  composes: number from '../SpaceCard/SpaceCard.module.css';
+}
+
+.zero {
+  composes: zero from '../SpaceCard/SpaceCard.module.css';
+}
+
+.alarm {
+  composes: alarm from '../SpaceCard/SpaceCard.module.css';
+}
+
+.statLabel {
+  composes: label from '../SpaceCard/SpaceCard.module.css';
+}
+
+/* The new-project tile: the same footprint as a card, a button. */
+.newTile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 7.5rem;
+  padding: var(--space-5);
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-surface);
+  color: var(--dash-t2);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 120ms,
+    color 120ms;
+}
+
+@media (hover: hover) {
+  .newTile:hover {
+    border-color: var(--dash-edge);
+    color: var(--dash-t1);
+  }
+}
+
+.plus {
+  font-size: var(--dash-fs-title);
+  line-height: 1;
+}
+
+.newForm {
+  gap: var(--space-3);
+}
+
+.label {
+  composes: label from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.input {
+  composes: input from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.actions {
+  composes: actions from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.create {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.cancel {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}

@@ -13,9 +13,10 @@ import DashboardShell from './components/dashboards/DashboardShell/DashboardShel
 import Dashboards from './pages/dashboards';
 import DashboardSpace from './pages/dashboard-space';
 import DashboardsCalendar from './pages/dashboards-calendar';
+import DashboardProject from './pages/dashboard-project';
 import { readStorage, writeStorage } from './utils/safeStorage';
 import { prefersReducedMotion } from './utils/motion';
-import { pagePath } from './data/site';
+import { PROJECTS_PATH, pagePath } from './data/site';
 import './App.css';
 
 /** sessionStorage flag: the first-visit loading screen has already been shown in this tab. */
@@ -63,6 +64,7 @@ function AppContent() {
               <Route path={pagePath('dashboards-work-1')} element={<DashboardSpace key="work-1" space="work-1" />} />
               <Route path={pagePath('dashboards-work-2')} element={<DashboardSpace key="work-2" space="work-2" />} />
               <Route path={pagePath('dashboards-calendar')} element={<DashboardsCalendar />} />
+              <Route path={`${PROJECTS_PATH}/:id`} element={<DashboardProject />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

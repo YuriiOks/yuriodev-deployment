@@ -15,8 +15,16 @@ import {
   parseTask,
   parseTasks,
   patchTask,
+  createProject,
+  fetchProjects,
+  parseProject,
+  parseProjects,
+  patchProject,
+  scopeFromKey,
+  scopeKey,
+  scopePath,
 } from './liveApi';
-import { installFakeApi, task } from '../../test/dashboardsApiMock';
+import { installFakeApi, projectTask, task } from '../../test/dashboardsApiMock';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -43,7 +51,7 @@ describe('the bootstrap call', () => {
       areas: [{ id: 'money', space_id: 'personal', name_ru: 'Деньги', name_en: 'Money', sort: 0 }, { nope: 1 }],
       server_time: '2026-11-22T10:00:00+00:00',
     });
-    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {}, spaceIcons: {} });
+    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {}, spaceIcons: {}, projects: [] });
   });
 
   it('keeps the names the server gives spaces, and only real renames', () => {
@@ -88,7 +96,7 @@ describe('the bootstrap call', () => {
 
   it('says disabled as it is', async () => {
     installFakeApi({ enabled: false });
-    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {}, spaceIcons: {} });
+    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {}, spaceIcons: {}, projects: [] });
   });
 
   it('is null (the sample data) on a network error, a non-2xx answer, a non-JSON body or the wrong shape', async () => {
@@ -200,5 +208,76 @@ describe('the data calls', () => {
     await expect(fetchTasks('personal')).rejects.toBeInstanceOf(ApiError);
     stub('<html>down</html>', 502);
     await expect(fetchEvents('2026-11-23', '2026-11-29')).rejects.toMatchObject({ code: 'http', status: 502 });
+  });
+});
+
+describe('projects', () => {
+  it('reads the not-archived projects out of the bootstrap', () => {
+    const parsed = parseBootstrap({ enabled: true, projects: [{ id: 'garden', name: 'Garden' }, { id: 5 }, { name: 'x' }] });
+    expect(parsed?.projects).toEqual([{ id: 'garden', name: 'Garden' }]);
+    expect(parseBootstrap({ enabled: true })?.projects).toEqual([]);
+  });
+
+  it('reads a project with its counters, and a list under `projects` or bare', () => {
+    expect(parseProject({ id: 'garden', name: 'Garden', archived: true, open: 4, priority: 1, overdue: 2 })).toEqual({
+      id: 'garden',
+      name: 'Garden',
+      archived: true,
+      open: 4,
+      priority: 1,
+      overdue: 2,
+    });
+    expect(parseProject({ id: 'a', name: 'A' })).toEqual({ id: 'a', name: 'A', archived: false, open: 0, priority: 0, overdue: 0 });
+    expect(parseProject({ id: 'a' })).toBeNull();
+    expect(parseProjects({ projects: [{ id: 'a', name: 'A' }, { junk: 1 }] })).toHaveLength(1);
+    expect(parseProjects([{ id: 'a', name: 'A' }])).toHaveLength(1);
+    expect(parseProjects({ nope: [] })).toBeNull();
+  });
+
+  it('reads a project\'s task (project_id, no space_id) and still refuses a record with neither', () => {
+    const parsed = parseTask(projectTask('garden', 'Buy seeds'));
+    expect(parsed).toMatchObject({ projectId: 'garden', space: null, title: 'Buy seeds' });
+    expect(parseTask(task('personal', 'A'))).toMatchObject({ projectId: null, space: 'personal' });
+    const orphan = { ...task('personal', 'A') } as Record<string, unknown>;
+    delete orphan.space_id;
+    expect(parseTask(orphan)).toBeNull();
+  });
+
+  it('addresses a task list by a space or by a project, and a scope survives its key', () => {
+    expect(scopePath('personal')).toBe('/spaces/personal');
+    expect(scopePath({ project: 'garden' })).toBe('/projects/garden');
+    expect(scopePath({ project: 'a b' })).toBe('/projects/a%20b');
+    for (const scope of ['work-1', { project: 'garden' }] as const) expect(scopeFromKey(scopeKey(scope))).toEqual(scope);
+    expect(scopeKey('personal')).toBe('space:personal');
+    expect(scopeKey({ project: 'garden' })).toBe('project:garden');
+  });
+
+  it('reads, creates and writes a project\'s tasks under the project, and a space\'s tasks as before', async () => {
+    const api = installFakeApi({ projects: [{ id: 'garden', name: 'Garden' }], tasks: [projectTask('garden', 'Seeds')] });
+    const scope = { project: 'garden' };
+    const listed = await fetchTasks(scope, 'all');
+    expect(listed).toHaveLength(1);
+    expect(api.calls[0].url).toBe(`${API_BASE}/projects/garden/tasks?status=all`);
+    const created = await createTask(scope, { title: 'New', priority: true });
+    expect(api.calls[1]).toMatchObject({ method: 'POST', path: '/projects/garden/tasks', body: { title: 'New', priority: true } });
+    await patchTask(created.id, { status: 'done' }, undefined, scope);
+    expect(api.calls[2]).toMatchObject({ method: 'PATCH', path: `/projects/garden/tasks/${created.id}`, body: { status: 'done' } });
+    await deleteTask(created.id, undefined, scope);
+    expect(api.calls[3]).toMatchObject({ method: 'DELETE', path: `/projects/garden/tasks/${created.id}` });
+    // A space's task needs no scope.
+    const other = await createTask('work-1', { title: 'Space task' });
+    await patchTask(other.id, { priority: true });
+    expect(api.calls[5].path).toBe(`/tasks/${other.id}`);
+  });
+
+  it('lists, creates and changes projects; a name clash is a 409', async () => {
+    const api = installFakeApi({ projects: [{ id: 'garden', name: 'Garden' }] });
+    expect((await fetchProjects()).map((p) => p.name)).toEqual(['Garden']);
+    const made = await createProject('Side project');
+    expect(made).toMatchObject({ id: 'side-project', name: 'Side project' });
+    expect(api.calls[1]).toMatchObject({ method: 'POST', path: '/projects', body: { name: 'Side project' } });
+    await patchProject('garden', { name: 'Allotment', archived: true });
+    expect(api.calls[2]).toMatchObject({ method: 'PATCH', path: '/projects/garden', body: { name: 'Allotment', archived: true } });
+    await expect(createProject('allotment')).rejects.toMatchObject({ status: 409, code: 'conflict' });
   });
 });
