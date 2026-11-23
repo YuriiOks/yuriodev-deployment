@@ -118,7 +118,11 @@ describe('the dashboards bar is the site header\'s prompt, nav and controls', ()
 
 describe('the bar lists the user\'s projects', () => {
   const nav = () => within(main()).getByRole('navigation', { name: 'Дашборды' });
-  const links = () => within(nav()).getAllByRole('link').map((link) => link.textContent);
+  // A pill's label: its text without the mark (the first child), which has a letter on some tiles.
+  const links = () =>
+    within(nav())
+      .getAllByRole('link')
+      .map((link) => Array.from(link.childNodes).slice(1).map((node) => node.textContent).join(''));
 
   it('puts the projects that are not archived after a divider that follows the fixed pages, in the server\'s order', async () => {
     live({ projects: [{ id: 'garden', name: 'Garden', icon: 'leaf' }, { id: 'old', name: 'Old one', archived: true }, { id: 'court', name: 'Court' }] });
