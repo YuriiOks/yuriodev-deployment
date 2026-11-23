@@ -6,8 +6,14 @@
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  padding-top: var(--space-3);
+  padding: var(--space-3) var(--space-4) 0;
   pointer-events: none;
+}
+
+@media (min-width: 48rem) {
+  .bar {
+    padding-inline: var(--space-5);
+  }
 }
 
 .inner {
@@ -17,24 +23,11 @@
   gap: var(--space-3);
   min-height: var(--dash-h-bar);
   max-width: 96rem;
-  margin-inline: var(--space-4);
+  margin-inline: auto;
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   box-sizing: border-box;
   border-radius: var(--dash-r-surface);
   pointer-events: auto;
-}
-
-@media (min-width: 48rem) {
-  .inner {
-    margin-inline: var(--space-5);
-  }
-}
-
-/* Wider than the cap: the card sits in the middle, as the content column does. */
-@media (min-width: 104rem) {
-  .inner {
-    margin-inline: auto;
-  }
 }
 
 .brand {
