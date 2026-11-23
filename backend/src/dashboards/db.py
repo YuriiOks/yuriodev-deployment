@@ -1,5 +1,6 @@
 """Database plumbing shared by the app and Alembic's env.py: URLs and the migration runner."""
 
+import threading
 from pathlib import Path
 
 from alembic import command
@@ -9,6 +10,11 @@ from sqlalchemy.engine import URL, make_url
 MIGRATIONS_DIR = Path(__file__).with_name("migrations")
 
 _ACCEPTED_DRIVERS = frozenset({"postgres", "postgresql", "postgresql+asyncpg"})
+
+# Alembic keeps the running environment in one module-level proxy (`alembic.context`), so two
+# runs in the same process must never overlap: the second would migrate on the first one's
+# connection. Separate processes are kept apart by the advisory lock in env.py.
+_ONE_RUN_PER_PROCESS = threading.Lock()
 
 
 def to_async_url(url: str) -> URL:
@@ -35,4 +41,5 @@ def run_migrations(url: str) -> None:
     config.set_main_option("script_location", str(MIGRATIONS_DIR))
     # Not a main option: the URL holds a password and `%` would be read as interpolation.
     config.attributes["url"] = url
-    command.upgrade(config, "head")
+    with _ONE_RUN_PER_PROCESS:
+        command.upgrade(config, "head")
