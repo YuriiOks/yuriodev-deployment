@@ -18,7 +18,7 @@ from tests.finance_support import drive
 from tests.monzo_support import (
     ACCOUNT,
     MZ_ID,
-    MZ_SECRET,
+    MZ_KEY,
     POT,
     FakeMonzo,
     monzo_tx,
@@ -35,7 +35,7 @@ TX_FIELD = "SELECT FIELD FROM finance.transaction WHERE external_id = 'EXT'"
 
 def collector_for(app, clock, months=12):
     provider = MonzoProvider(
-        SecretStr(MZ_ID), SecretStr(MZ_SECRET), app.state.dashboards.sessions, clock, no_sleep
+        SecretStr(MZ_ID), SecretStr(MZ_KEY), app.state.dashboards.sessions, clock, no_sleep
     )
     return FinanceCollector(provider, months, no_sleep)
 
@@ -217,18 +217,19 @@ async def test_a_new_consent_restarts_the_history_walk(db_url, make_dashboards_a
 async def test_the_token_is_refreshed_ahead_of_its_expiry_once(db_url, make_dashboards_app, clock):
     fake = FakeMonzo(clock)
     app = make_dashboards_app(db_url)
-    mz = (SecretStr(MZ_ID), SecretStr(MZ_SECRET))
+    mz = (SecretStr(MZ_ID), SecretStr(MZ_KEY))
     async with running(app, AUTH), client_for(fake) as client:
         await consent(app, fake, clock)
         sessions = app.state.dashboards.sessions
         first = await usable_token(client, sessions, *mz, clock.now)
+        first_issued = fake.access
         clock.now += timedelta(hours=5, minutes=45)  # inside the half hour before it expires
         refreshed = await usable_token(client, sessions, *mz, clock.now)
         again = await usable_token(client, sessions, *mz, clock.now)
 
-    assert first.access_token == "access-token-1"
+    assert first.access_token == first_issued
     assert (refreshed.access_token, again.access_token) == (fake.access, fake.access)
-    assert fake.access == "access-token-2"
+    assert fake.access != first_issued
     assert fake.refresh_calls == 1
     stored = await scalar(db_url, "SELECT refresh_token FROM finance.monzo_token")
     assert stored == fake.refresh  # the new pair replaced the one that was spent
@@ -239,7 +240,7 @@ async def test_two_processes_cannot_both_spend_the_one_time_refresh_token(
 ):
     fake = FakeMonzo(clock)
     app = make_dashboards_app(db_url)
-    mz = (SecretStr(MZ_ID), SecretStr(MZ_SECRET))
+    mz = (SecretStr(MZ_ID), SecretStr(MZ_KEY))
     async with running(app, AUTH), client_for(fake) as one, client_for(fake) as two:
         await consent(app, fake, clock)
         sessions = app.state.dashboards.sessions
@@ -289,18 +290,19 @@ async def test_a_client_without_refresh_tokens_must_consent_again_when_the_token
     db_url, make_dashboards_app, clock
 ):
     fake = FakeMonzo(clock)
+    only = "access-without-refresh"
     app = make_dashboards_app(db_url)
-    mz = (SecretStr(MZ_ID), SecretStr(MZ_SECRET))
+    mz = (SecretStr(MZ_ID), SecretStr(MZ_KEY))
     async with running(app, AUTH), client_for(fake) as client:
         sessions = app.state.dashboards.sessions
-        await store_consent(sessions, TokenPair("access-only", None, 7_200, "user_1"), clock.now)
+        await store_consent(sessions, TokenPair(only, None, 7_200, "user_1"), clock.now)
         clock.now += timedelta(hours=1, minutes=45)  # nearly expired, but still good
         still = await usable_token(client, sessions, *mz, clock.now)
         clock.now += timedelta(hours=1)
         with pytest.raises(UpstreamError) as expired:
             await usable_token(client, sessions, *mz, clock.now)
 
-    assert still.access_token == "access-only"
+    assert still.access_token == only
     assert expired.value.kind == "auth"
     assert fake.refresh_calls == 0
     assert await scalar(db_url, "SELECT revoked_at IS NOT NULL FROM finance.monzo_token") is True

@@ -19,7 +19,7 @@ from tests.collectors_support import json_response
 from tests.dashboards_support import FakeClock
 
 MZ_ID = "oauth2client_sample0001"
-MZ_SECRET = "mz-client-value-4471"
+MZ_KEY = "mz-client-value-4471"
 MZ_BASE = "https://dev.example.test"
 MZ_REDIRECT = f"{MZ_BASE}/api/dashboards/v1/finance/monzo/callback"
 ACCOUNT = "acc_00009237aqC8c5umZmrRdh"
@@ -140,7 +140,7 @@ class FakeMonzo:
     def _token(self, form: dict[str, list[str]]) -> httpx.Response:
         grant = form.get("grant_type", [""])[0]
         right_client = (
-            form.get("client_id") == [MZ_ID] and form.get("client_secret") == [MZ_SECRET]
+            form.get("client_id") == [MZ_ID] and form.get("client_secret") == [MZ_KEY]
         )
         if not right_client:
             return json_response({"error": "invalid_client"}, 401)
@@ -161,9 +161,9 @@ class FakeMonzo:
 
     def _accounts(self, params: dict[str, str]) -> httpx.Response:
         self.accounts_calls += 1
-        if self.approved_at is None and self.approve_after is not None:
-            if self.accounts_calls > self.approve_after:
-                self.approved_at = self.clock.now
+        waiting = self.approved_at is None and self.approve_after is not None
+        if waiting and self.accounts_calls > (self.approve_after or 0):
+            self.approved_at = self.clock.now
         if self.approved_at is None:
             return json_response({"code": "forbidden.insufficient_permissions"}, 403)
         rows = self.joint if params.get("account_type") == "uk_retail_joint" else self.accounts

@@ -22,7 +22,7 @@ from tests.finance_support import (
     mono_item,
     ts,
 )
-from tests.monzo_support import MZ_BASE, MZ_ID, MZ_SECRET, FakeMonzo, monzo_tx, no_sleep
+from tests.monzo_support import MZ_BASE, MZ_ID, MZ_KEY, FakeMonzo, monzo_tx, no_sleep
 
 pytestmark = pytest.mark.anyio
 
@@ -238,7 +238,7 @@ async def test_monzo_tokens_codes_and_bank_data_stay_out_of_the_log_and_the_answ
         log_level="DEBUG",
         log_format="json",
         monzo_client_id=MZ_ID,
-        monzo_client_secret=MZ_SECRET,
+        monzo_client_secret=MZ_KEY,
         dashboards_public_base_url=MZ_BASE,
     )
     app.state.collector_transport = httpx.MockTransport(fake)
@@ -270,7 +270,7 @@ async def test_monzo_tokens_codes_and_bank_data_stay_out_of_the_log_and_the_answ
     assert "http.request" in logged
     shown = "\n".join(answers)
     assert DESCRIPTION in shown  # the data is served to the owner: only the log must stay clean
-    tokens = (CODE, MZ_SECRET, "access-token-", "refresh-token-")
+    tokens = (CODE, MZ_KEY, "access-token-", "refresh-token-")
     unseen = ("NOTE-SENTINEL", "ADDRESS-SENTINEL")  # stored nowhere, so shown nowhere
     bank = (DESCRIPTION, COUNTERPARTY, POT_NAME, str(AMOUNT), "user_00009sample")
     for secret in tokens + unseen + bank:

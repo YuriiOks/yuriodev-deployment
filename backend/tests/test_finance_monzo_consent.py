@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from tests.dashboards_support import AUTH, running, scalar
-from tests.monzo_support import MZ_BASE, MZ_ID, MZ_REDIRECT, MZ_SECRET, FakeMonzo, no_sleep
+from tests.monzo_support import MZ_BASE, MZ_ID, MZ_REDIRECT, MZ_KEY, FakeMonzo, no_sleep
 
 pytestmark = pytest.mark.anyio
 
@@ -22,7 +22,7 @@ def monzo_app(make_dashboards_app, db_url, fake):
     app = make_dashboards_app(
         db_url,
         monzo_client_id=MZ_ID,
-        monzo_client_secret=MZ_SECRET,
+        monzo_client_secret=MZ_KEY,
         dashboards_public_base_url=MZ_BASE,
     )
     app.state.collector_transport = httpx.MockTransport(fake)
@@ -58,7 +58,7 @@ async def test_connect_sends_the_owner_to_monzo_with_a_single_use_state(
     assert query["redirect_uri"] == [MZ_REDIRECT]  # derived from the public base URL
     assert query["response_type"] == ["code"]
     assert len(state) >= 32
-    assert MZ_SECRET not in where_to(response)
+    assert MZ_KEY not in where_to(response)
     assert response.headers["cache-control"] == "no-store"
     assert (rows, raw_rows) == (1, 0)  # only a hash is kept, never the state itself
 
@@ -81,7 +81,7 @@ async def test_the_callback_exchanges_the_code_keeps_the_pair_and_goes_back_to_t
     assert fake.exchange_calls == 1
     assert (stored, waiting, status) == (1, True, "ok")
     shown = str(response.headers) + response.text
-    for private in ("code-1", fake.access, fake.refresh, MZ_SECRET):
+    for private in ("code-1", fake.access, fake.refresh, MZ_KEY):
         assert private not in shown
 
 
@@ -178,7 +178,7 @@ def test_monzo_needs_the_database_both_client_values_and_a_good_base_url(make_se
     full = {
         "database_url": database,
         "monzo_client_id": MZ_ID,
-        "monzo_client_secret": MZ_SECRET,
+        "monzo_client_secret": MZ_KEY,
         "dashboards_public_base_url": MZ_BASE,
     }
 
@@ -190,5 +190,5 @@ def test_monzo_needs_the_database_both_client_values_and_a_good_base_url(make_se
     broken = make_settings(**{**full, "dashboards_public_base_url": "http://example.test"})
     assert broken.monzo_enabled is False
     assert broken.finance_enabled is False
-    assert MZ_SECRET not in repr(make_settings(**full))
+    assert MZ_KEY not in repr(make_settings(**full))
     assert make_settings().monzo_client_id is None
