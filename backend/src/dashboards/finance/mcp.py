@@ -42,9 +42,7 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
             accounts, links = await service.list_accounts(session)
             return _json(
                 {
-                    "accounts": [
-                        AccountOut.model_validate(a).model_dump(mode="json") for a in accounts
-                    ],
+                    "accounts": [AccountOut.from_row(a).model_dump(mode="json") for a in accounts],
                     "connections": [
                         ConnectionOut.model_validate(c).model_dump(mode="json") for c in links
                     ],

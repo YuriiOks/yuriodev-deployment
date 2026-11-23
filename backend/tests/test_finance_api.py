@@ -24,6 +24,7 @@ ACCOUNT_FIELDS = {
     "mask_last4",
     "balance",
     "credit_limit",
+    "own_balance_minor",
     "balance_at",
     "archived",
 }
@@ -40,6 +41,7 @@ TRANSACTION_FIELDS = {
     "category_code",
     "balance_after",
     "pending",
+    "internal_transfer",
 }
 
 
@@ -106,6 +108,7 @@ async def test_accounts_carry_balances_in_minor_units_and_the_state_of_the_link(
     assert set(first) == ACCOUNT_FIELDS
     assert (first["name"], first["balance"], first["credit_limit"]) == ("Main", 1_250_000, 500_000)
     assert first["mask_last4"] == "1234"
+    assert first["own_balance_minor"] == 750_000  # the stored balance minus the credit limit
     assert [a["archived"] for a in body["accounts"]] == [False, False, True]  # open ones first
     (link,) = body["connections"]
     assert (link["provider"], link["status"]) == ("sample", "ok")
@@ -128,6 +131,8 @@ async def test_transactions_are_newest_first_and_every_amount_is_an_integer(
     assert rows[0]["booked_at"] == "2026-11-20T10:00:00Z"
     assert (rows[2]["original_amount"], rows[2]["original_currency"]) == (11_000, "USD")
     assert rows[3]["pending"] is True
+    flagged = [i for i, row in zip(NEWEST_FIRST, rows, strict=True) if row["internal_transfer"]]
+    assert flagged == [1008]
     assert not re.search(r'"(amount|original_amount|balance_after)":-?\d+[.eE]', response.text)
 
 
@@ -258,11 +263,19 @@ async def test_the_summary_totals_each_currency_and_this_months_movement(
     # Open accounts only in the balance; every November transaction in the movement, the archived
     # account's included; 31 October is last month's.
     assert body["currencies"] == [
-        {"currency": "EUR", "accounts": 1, "balance": 33_300, "spent": 2_500, "received": 10_000},
+        {
+            "currency": "EUR",
+            "accounts": 1,
+            "balance": 33_300,
+            "own_balance": 33_300,
+            "spent": 2_500,
+            "received": 10_000,
+        },
         {
             "currency": "UAH",
             "accounts": 1,
             "balance": 1_250_000,
+            "own_balance": 750_000,
             "spent": 45_000 + 12_000 + 500 + 300,
             "received": 1_000_000,
         },

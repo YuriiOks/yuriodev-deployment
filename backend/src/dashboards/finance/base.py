@@ -69,6 +69,7 @@ class TransactionData:
     category_code: str | None
     balance_after: int | None
     pending: bool
+    internal_transfer: bool = False  # the counterparty is another account of the same owner
 
 
 class FinanceProvider(Protocol):
@@ -314,6 +315,7 @@ class FinanceCollector:
                 "category_code": item.category_code,
                 "balance_after": item.balance_after,
                 "pending": item.pending,
+                "internal_transfer": item.internal_transfer,
             }
             for item in window.items.values()
         ]

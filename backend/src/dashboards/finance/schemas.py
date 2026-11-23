@@ -1,6 +1,7 @@
 """Response shapes of the finance API. Money is an `int` in minor units next to its ISO code."""
 
 from datetime import datetime
+from typing import Any, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -18,10 +19,17 @@ class AccountOut(BaseModel):
     type: str | None
     currency: str
     mask_last4: str | None
-    balance: int
+    balance: int  # exactly as the provider sends it: with a credit card it includes the limit
     credit_limit: int
+    own_balance_minor: int  # balance minus credit_limit: the owner's own money
     balance_at: datetime
     archived: bool
+
+    @classmethod
+    def from_row(cls, row: Any) -> Self:
+        names = [name for name in cls.model_fields if name != "own_balance_minor"]
+        values = {name: getattr(row, name) for name in names}
+        return cls.model_validate({**values, "own_balance_minor": row.balance - row.credit_limit})
 
 
 class ConnectionOut(BaseModel):
@@ -58,6 +66,7 @@ class TransactionOut(BaseModel):
     category_code: str | None
     balance_after: int | None
     pending: bool
+    internal_transfer: bool  # the counterparty is another account of the same owner
 
 
 class TransactionsOut(BaseModel):
@@ -76,6 +85,7 @@ class CurrencySummary(BaseModel):
     currency: str
     accounts: int
     balance: int
+    own_balance: int  # the balance minus the credit limits
     spent: int
     received: int
 

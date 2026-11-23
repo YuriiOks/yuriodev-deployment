@@ -46,6 +46,7 @@ async def test_accounts_and_balances(db_url, make_dashboards_app):
 
     assert [a["name"] for a in accounts["accounts"]] == ["Main", "Euro", "Old"]
     assert accounts["accounts"][0]["balance"] == 1_250_000
+    assert accounts["accounts"][0]["own_balance_minor"] == 750_000
     assert accounts["connections"][0]["status"] == "ok"
     assert balances["month"] == "2026-11"
     assert [(c["currency"], c["balance"]) for c in balances["currencies"]] == [

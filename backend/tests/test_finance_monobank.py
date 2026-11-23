@@ -185,3 +185,51 @@ def test_the_provider_limits_are_the_documented_ones_with_margin():
     assert provider.min_call_gap.total_seconds() > 60
     assert provider.max_window.total_seconds() <= 2_682_000
     assert provider.page_limit == 500
+
+
+def test_jars_are_accounts_of_type_jar():
+    body = {
+        "accounts": [mono_account()],
+        "jars": [{"id": "jar-1", "title": "Holiday fund", "currencyCode": 840, "balance": 25_000}],
+    }
+
+    black, jar = parse_accounts(body)
+
+    assert black.type == "black"
+    assert (jar.external_id, jar.name, jar.type, jar.currency) == (
+        "jar-1",
+        "Holiday fund",
+        "jar",
+        "USD",
+    )
+    assert (jar.balance, jar.credit_limit, jar.mask_last4) == (25_000, 0, None)
+    assert parse_accounts({"accounts": []}) == []
+    with pytest.raises(UpstreamError):
+        parse_accounts({"accounts": [], "jars": "no"})
+    with pytest.raises(UpstreamError):
+        parse_accounts({"accounts": [], "jars": [{"id": "a/b", "balance": 1}]})
+
+
+async def test_a_counterparty_that_is_one_of_the_owners_own_accounts_is_an_internal_transfer():
+    own_iban = "UA213220010000026207301234567"
+    items = [
+        mono_item("tx-1", ts(2026, 11, 20), -1_000, counter_iban=own_iban),
+        mono_item("tx-2", ts(2026, 11, 20), -2_000, counter_iban="UA00OTHER0000000000000000001"),
+        mono_item("tx-3", ts(2026, 11, 20), -3_000),
+    ]
+    fake = FakeMonobank([mono_account(iban=own_iban)], {"acc-black-uah": items})
+    provider = MonobankProvider(SecretStr(MONO_KEY))
+    start = datetime(2026, 11, 1, tzinfo=UTC)
+    end = datetime(2026, 11, 22, tzinfo=UTC)
+    async with client_for(fake) as client:
+        before = parse_statement([items[0]], "UAH")  # no accounts known yet
+        await provider.fetch_accounts(client)
+        found = await provider.fetch_statement(client, "acc-black-uah", "UAH", start, end)
+
+    assert before[0].internal_transfer is False
+    assert {item.external_id: item.internal_transfer for item in found} == {
+        "tx-1": True,
+        "tx-2": False,
+        "tx-3": False,
+    }
+    assert own_iban not in repr(found)  # the counterparty's IBAN is compared, never kept

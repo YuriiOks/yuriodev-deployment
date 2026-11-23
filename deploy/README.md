@@ -883,8 +883,14 @@ configured depth, or until three empty windows in a row. A statement answer of 5
 observed in use; the documentation names none) is taken to have more behind it and the window
 is asked again for the rest. A window is fetched whole in memory and written in one transaction
 with its cursor, so a failed or partial fetch changes nothing and the window is asked again. A
-429 pauses the collector for the time the source asked (at least a minute). Not used in this
-version: the webhook, jars (savings pots) and the client's other products.
+429 pauses the collector for the time the source asked (at least a minute). Jars (savings pots) are kept as accounts
+of type `jar`. The stored `balance` is exactly what the bank sends (with a credit card it includes
+the credit limit); `GET /finance/accounts` adds `own_balance_minor` (balance minus credit limit)
+and the summary adds `own_balance` per currency, so a page never shows a limit as money. A
+transaction is marked `internal_transfer` when its counterparty is another account of the same
+owner and the bank says enough to tell (Monobank sends a counterparty IBAN for business accounts
+only; it is compared with the owner's own IBANs in memory and never stored); the summary does not
+use the flag yet. Not used in this version: the webhook and managed clients.
 
 Keeping privacy: the logs carry only the collector name, counts and an error kind, never an
 amount, description, counterparty, account number or the token. Only the last four digits of a

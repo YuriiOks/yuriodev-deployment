@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0007"
+    assert version == "dashboards_0008"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -253,6 +253,8 @@ async def test_the_finance_tables_enforce_their_rules(empty_db_url):
 
     assert await scalar(empty_db_url, "SELECT status FROM finance.connection") == "ok"
     assert await scalar(empty_db_url, "SELECT pending FROM finance.transaction") is False
+    internal = "SELECT internal_transfer FROM finance.transaction"
+    assert await scalar(empty_db_url, internal) is False
     for statement in BAD_FINANCE_ROWS:
         with pytest.raises(IntegrityError):
             await execute(empty_db_url, statement)
