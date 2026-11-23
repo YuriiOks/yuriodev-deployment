@@ -78,9 +78,7 @@ class Account(FinanceBase):
     balance_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     synced_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    backfilled_from: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    backfilled_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     backfill_done: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     empty_streak: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(

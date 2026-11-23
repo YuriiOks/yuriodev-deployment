@@ -194,10 +194,14 @@ NEW_LINK = (
     "INSERT INTO finance.connection (id, provider, ref) VALUES ('LINK', 'sample', 'one')"
 ).replace("LINK", LINK_ID)
 NEW_ACCOUNT = (
-    "INSERT INTO finance.account (id, connection_id, provider, external_id, name, currency, "
-    "balance, balance_at) "
-    "VALUES ('ACCOUNT', 'LINK', 'sample', 'acc-1', 'Main', 'GBP', 12050, now())"
-).replace("ACCOUNT", ACCOUNT_ID).replace("LINK", LINK_ID)
+    (
+        "INSERT INTO finance.account (id, connection_id, provider, external_id, name, currency, "
+        "balance, balance_at) "
+        "VALUES ('ACCOUNT', 'LINK', 'sample', 'acc-1', 'Main', 'GBP', 12050, now())"
+    )
+    .replace("ACCOUNT", ACCOUNT_ID)
+    .replace("LINK", LINK_ID)
+)
 NEW_TRANSACTION = (
     "INSERT INTO finance.transaction (id, account_id, external_id, booked_at, amount, currency) "
     "VALUES (gen_random_uuid(), 'ACCOUNT', 'tx-1', now(), -250, 'GBP')"

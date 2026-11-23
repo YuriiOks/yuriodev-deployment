@@ -167,7 +167,6 @@ def forbidden() -> httpx.Response:
     return json_response({"errorDescription": "Unknown 'X-Token'"}, 403)
 
 
-
 LINK = uuid.UUID(int=1)
 ACC_A = uuid.UUID(int=10)  # UAH, open
 ACC_B = uuid.UUID(int=11)  # EUR, open

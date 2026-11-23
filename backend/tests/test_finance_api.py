@@ -43,7 +43,6 @@ TRANSACTION_FIELDS = {
 }
 
 
-
 def ids(response):
     return [int(row["id"].rsplit("-", 1)[1], 16) for row in response.json()["transactions"]]
 
