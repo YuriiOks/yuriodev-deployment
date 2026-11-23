@@ -64,6 +64,7 @@ def mono_item(
     hold: bool = False,
     balance: int = 1_000_000,
     counter: str | None = None,
+    counter_iban: str | None = None,
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "id": item_id,
@@ -81,6 +82,8 @@ def mono_item(
     }
     if counter is not None:
         row["counterName"] = counter
+    if counter_iban is not None:
+        row["counterIban"] = counter_iban
     return row
 
 
@@ -226,7 +229,7 @@ async def seed(app: Any) -> None:
         tx(7, ACC_B, at(11, 19), 10_000, "Refund", original_amount=11_000, original_currency="USD"),
         tx(6, ACC_B, at(11, 18), -2_500, "Acme Grocery", pending=True),
         tx(3, ACC_A, at(11, 15, 9), 1_000_000, "Payroll", counterparty="Globex Ltd"),
-        tx(8, ACC_C, at(11, 10), -300, "Old card"),
+        tx(8, ACC_C, at(11, 10), -300, "Old card", internal_transfer=True),
         tx(4, ACC_A, at(11, 1, 0, 30), -500, "Subscription 100% fun"),
         tx(5, ACC_A, october_end, -7_000, "Old purchase"),
     ]

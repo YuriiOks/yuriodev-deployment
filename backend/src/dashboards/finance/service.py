@@ -129,6 +129,7 @@ async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> Finance
                 Account.currency,
                 func.count(Account.id),
                 func.sum(Account.balance),
+                func.sum(Account.balance - Account.credit_limit),
                 func.min(Account.balance_at),
             )
             .where(Account.archived.is_(False))
@@ -147,20 +148,25 @@ async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> Finance
             .group_by(Transaction.currency)
         )
     ).all()
-    by_currency: dict[str, list[int]] = {}
-    for currency, count, total, _ in balances:
-        by_currency[currency] = [int(count), int(total), 0, 0]
+    by_currency: dict[str, list[int]] = {}  # count, balance, own balance, spent, received
+    for currency, count, total, own, _ in balances:
+        by_currency[currency] = [int(count), int(total), int(own), 0, 0]
     for currency, spent, got in flows:
-        entry = by_currency.setdefault(currency, [0, 0, 0, 0])
-        entry[2], entry[3] = int(spent), int(got)
-    as_of = min((row[3] for row in balances), default=None)
+        entry = by_currency.setdefault(currency, [0, 0, 0, 0, 0])
+        entry[3], entry[4] = int(spent), int(got)
+    as_of = min((row[4] for row in balances), default=None)
     return FinanceSummaryOut(
         month=f"{first.year:04d}-{first.month:02d}",
         as_of=as_of,
         currencies=[
             CurrencySummary(
-                currency=currency, accounts=n, balance=balance, spent=spent, received=got
+                currency=currency,
+                accounts=n,
+                balance=balance,
+                own_balance=own,
+                spent=spent,
+                received=got,
             )
-            for currency, (n, balance, spent, got) in sorted(by_currency.items())
+            for currency, (n, balance, own, spent, got) in sorted(by_currency.items())
         ],
     )

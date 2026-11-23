@@ -30,7 +30,7 @@ async def accounts(session: SessionDep) -> AccountsOut:
     """The accounts with their balances (open ones first) and the state of each bank link."""
     found, links = await service.list_accounts(session)
     return AccountsOut(
-        accounts=[AccountOut.model_validate(item) for item in found],
+        accounts=[AccountOut.from_row(item) for item in found],
         connections=[ConnectionOut.model_validate(item) for item in links],
     )
 

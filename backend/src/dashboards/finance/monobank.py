@@ -107,6 +107,9 @@ class MonobankProvider:
 
     def __init__(self, token: SecretStr) -> None:
         self._token = token
+        # The owner's own IBANs from the last client-info answer. Kept in memory only (never
+        # stored) to recognise a statement item whose counterparty is one of them.
+        self._own_ibans: frozenset[str] = frozenset()
 
     def _headers(self) -> dict[str, str]:
         return {"X-Token": self._token.get_secret_value()}
@@ -115,7 +118,9 @@ class MonobankProvider:
         body, _ = await get_json_capped(
             client, f"{BASE_URL}/personal/client-info", headers=self._headers()
         )
-        return parse_accounts(body)
+        accounts = parse_accounts(body)
+        self._own_ibans = own_ibans(body)
+        return accounts
 
     async def fetch_statement(
         self,
@@ -128,7 +133,7 @@ class MonobankProvider:
         first, last = int(start.timestamp()), int(end.timestamp())
         url = f"{BASE_URL}/personal/statement/{external_id}/{first}/{last}"
         body, _ = await get_json_capped(client, url, headers=self._headers())
-        return parse_statement(body, currency)
+        return parse_statement(body, currency, self._own_ibans)
 
 
 def bad() -> UpstreamError:
@@ -197,6 +202,14 @@ def parse_jar(row: Any) -> AccountData:
     )
 
 
+def own_ibans(body: Any) -> frozenset[str]:
+    rows = body.get("accounts") if isinstance(body, dict) else None
+    if not isinstance(rows, list):
+        return frozenset()
+    found = (row.get("iban") for row in rows if isinstance(row, dict))
+    return frozenset(value for value in found if isinstance(value, str) and value)
+
+
 def parse_account(row: Any) -> AccountData:
     if not isinstance(row, dict):
         raise bad()
@@ -220,13 +233,17 @@ def parse_account(row: Any) -> AccountData:
     )
 
 
-def parse_statement(body: Any, account_currency: str) -> list[TransactionData]:
+def parse_statement(
+    body: Any, account_currency: str, own: frozenset[str] = frozenset()
+) -> list[TransactionData]:
     if not isinstance(body, list):
         raise bad()
-    return [parse_item(row, account_currency) for row in body]
+    return [parse_item(row, account_currency, own) for row in body]
 
 
-def parse_item(row: Any, account_currency: str) -> TransactionData:
+def parse_item(
+    row: Any, account_currency: str, own: frozenset[str] = frozenset()
+) -> TransactionData:
     if not isinstance(row, dict):
         raise bad()
     external_id = row.get("id")
@@ -243,6 +260,7 @@ def parse_item(row: Any, account_currency: str) -> TransactionData:
         original_amount, original_currency = whole(operation), item_currency
     mcc = row.get("mcc")
     balance = row.get("balance")
+    counter_iban = row.get("counterIban")
     return TransactionData(
         external_id=external_id,
         booked_at=datetime.fromtimestamp(seconds, UTC),
@@ -255,4 +273,7 @@ def parse_item(row: Any, account_currency: str) -> TransactionData:
         category_code=str(mcc) if isinstance(mcc, int) and not isinstance(mcc, bool) else None,
         balance_after=None if balance is None else whole(balance),
         pending=row.get("hold") is True,
+        # The counterparty's IBAN is only ever compared, never stored. Monobank sends it for
+        # business accounts only, so a transfer between two personal cards is not recognised.
+        internal_transfer=isinstance(counter_iban, str) and counter_iban in own,
     )
