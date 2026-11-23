@@ -24,9 +24,10 @@ manager logs the collector name, the counts this returns and an error kind.
 import calendar
 import logging
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
 from sqlalchemy import literal_column, select, update
@@ -325,7 +326,7 @@ class FinanceCollector:
                     for name in rows[0]
                     if name not in ("account_id", "external_id")
                 }
-                outcome = (
+                outcome: Sequence[Any] = (
                     await session.execute(
                         chunk.on_conflict_do_update(
                             index_elements=[Transaction.account_id, Transaction.external_id],
