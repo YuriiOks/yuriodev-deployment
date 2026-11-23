@@ -47,6 +47,8 @@ export interface Bootstrap {
   readonly serverTime: string | null;
   /** Names the server gives spaces (only those that differ from the bundled English default). */
   readonly spaceNames: Readonly<Partial<Record<SpaceId, string>>>;
+  /** Icons the server gives spaces: small image data URIs only (never a link), kept as the server sent them. */
+  readonly spaceIcons: Readonly<Partial<Record<SpaceId, string>>>;
 }
 
 export type TaskStatus = 'open' | 'done';
@@ -159,6 +161,35 @@ function parseSpaceNames(raw: unknown): Partial<Record<SpaceId, string>> {
   return names;
 }
 
+/** The only data URIs an icon may be (the server checks the same list), and the longest one. */
+export const ICON_PREFIXES = [
+  'data:image/png;base64,',
+  'data:image/svg+xml;base64,',
+  'data:image/x-icon;base64,',
+  'data:image/vnd.microsoft.icon;base64,',
+  'data:image/webp;base64,',
+] as const;
+export const MAX_ICON_LENGTH = 48 * 1024;
+
+export function isIconUri(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > MAX_ICON_LENGTH) return false;
+  const prefix = ICON_PREFIXES.find((candidate) => value.startsWith(candidate));
+  if (!prefix) return false;
+  const payload = value.slice(prefix.length);
+  return payload.length > 0 && payload.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(payload);
+}
+
+function parseSpaceIcons(raw: unknown): Partial<Record<SpaceId, string>> {
+  const icons: Partial<Record<SpaceId, string>> = {};
+  if (!Array.isArray(raw)) return icons;
+  for (const entry of raw) {
+    if (!isObject(entry)) continue;
+    const id = entry.id;
+    if (isSpace(id) && isIconUri(entry.icon)) icons[id] = entry.icon;
+  }
+  return icons;
+}
+
 export function parseBootstrap(body: unknown): Bootstrap | null {
   if (!isObject(body) || typeof body.enabled !== 'boolean') return null;
   const areas: LiveArea[] = [];
@@ -170,7 +201,7 @@ export function parseBootstrap(body: unknown): Bootstrap | null {
       areas.push({ id: raw.id, nameRu, nameEn });
     }
   }
-  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces) };
+  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces), spaceIcons: parseSpaceIcons(body.spaces) };
 }
 
 export function parseTask(raw: unknown): LiveTask | null {

@@ -693,3 +693,58 @@ describe('the names the server gives the spaces', () => {
     expect(screen.queryByText('Acme')).toBeNull();
   });
 });
+
+describe('the space tiles', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const tile = (card: string, space: string) =>
+    main().querySelector<HTMLElement>(`[data-card="${card}"] [data-space="${space}"]`);
+
+  it('draws the image the server gave inside the same tile box, with no alt text and no link', async () => {
+    setup({ spaceIcons: { 'work-1': PNG } });
+    renderAt('/dashboards');
+    await within(main()).findByRole('region', { name: 'Работа 1' });
+    const box = tile('work-1', 'work-1');
+    const img = box?.querySelector('img');
+    expect(box).toHaveAttribute('data-icon', 'true');
+    expect(img).toHaveAttribute('src', PNG);
+    expect(img).toHaveAttribute('alt', '');
+    expect(box?.textContent).toBe('');
+    // A space the server gave no icon keeps its number tile.
+    expect(tile('work-2', 'work-2')?.querySelector('img')).toBeNull();
+    expect(tile('work-2', 'work-2')).toHaveTextContent('2');
+  });
+
+  it("shows the site's own mark for the personal space on the live dashboards, from the bundle", async () => {
+    setup();
+    renderAt('/dashboards');
+    await within(main()).findByRole('region', { name: 'Личное' });
+    const src = tile('personal', 'personal')?.querySelector('img')?.getAttribute('src') ?? '';
+    expect(src).not.toBe('');
+    expect(src).not.toMatch(/^https?:/);
+    expect(tile('work-1', 'work-1')?.querySelector('img')).toBeNull();
+  });
+
+  it('lets a server icon replace the personal space mark too', async () => {
+    setup({ spaceIcons: { personal: PNG } });
+    renderAt('/dashboards');
+    await within(main()).findByRole('region', { name: 'Личное' });
+    expect(tile('personal', 'personal')?.querySelector('img')).toHaveAttribute('src', PNG);
+  });
+
+  it('puts the image in the space heading too', async () => {
+    setup({ spaceIcons: { 'work-1': PNG } });
+    renderAt('/dashboards/work-1');
+    const heading = await within(main()).findByRole('heading', { level: 1, name: 'Работа 1' });
+    const strip = heading.parentElement;
+    expect(strip?.querySelector('img')).toHaveAttribute('src', PNG);
+  });
+
+  it('keeps the letter tiles on the sample data', async () => {
+    setup({ enabled: false });
+    renderAt('/dashboards');
+    await within(main()).findByRole('region', { name: 'Личное' });
+    expect(tile('personal', 'personal')?.querySelector('img')).toBeNull();
+    expect(tile('personal', 'personal')).toHaveTextContent('Л');
+  });
+});
+

@@ -21,6 +21,16 @@ DEFAULT_SPACE_NAMES: dict[str, str] = {
     "work-2": "Work 2",
 }
 MAX_SPACE_NAME = 24
+# DASHBOARDS_SPACE_ICONS: the only data URIs a space icon may be, and the longest one (the whole
+# string, prefix included).
+ICON_PREFIXES: tuple[str, ...] = (
+    "data:image/png;base64,",
+    "data:image/svg+xml;base64,",
+    "data:image/x-icon;base64,",
+    "data:image/vnd.microsoft.icon;base64,",
+    "data:image/webp;base64,",
+)
+MAX_ICON_LENGTH = 48 * 1024
 
 MAX_RANGE_DAYS = 62  # GET /events and the list_events tool: at most this many days, inclusive
 

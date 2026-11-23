@@ -61,9 +61,10 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
         spaces = await service.list_spaces(session)
         areas = await service.list_areas(session)
     names = {**DEFAULT_SPACE_NAMES, **settings.space_names}
+    icons = settings.space_icons
     return BootstrapOut(
         enabled=True,
-        spaces=[SpaceRef(id=space_id, name=names.get(space_id, space_id)) for space_id in spaces],
+        spaces=[SpaceRef(id=s, name=names.get(s, s), icon=icons.get(s)) for s in spaces],
         areas=[AreaOut.model_validate(area) for area in areas],
         server_time=now,
     )

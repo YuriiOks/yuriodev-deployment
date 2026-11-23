@@ -4,6 +4,7 @@ Sources, in order: code defaults <- env/<env>.env <- env/<env>.secrets.env. Comp
 both files as container environment variables; nothing reads a dotenv file from disk.
 """
 
+import base64
 import json
 from functools import lru_cache
 from typing import Any, Literal
@@ -12,7 +13,12 @@ from zoneinfo import ZoneInfo
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.dashboards.catalog import DEFAULT_SPACE_NAMES, MAX_SPACE_NAME
+from src.dashboards.catalog import (
+    DEFAULT_SPACE_NAMES,
+    ICON_PREFIXES,
+    MAX_ICON_LENGTH,
+    MAX_SPACE_NAME,
+)
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
@@ -89,6 +95,10 @@ class Settings(BaseSettings):
     # and read through `space_names`: a malformed value must never stop the app, so it is not
     # parsed (or echoed) by pydantic.
     dashboards_space_names: str | None = None
+    # Icons of the spaces, a JSON object keyed by space id whose values are small base64 data URIs
+    # (png, svg, ico, webp, at most 48 KiB each), so real logos can live in the untracked secrets
+    # file. Text like the names, read through `space_icons`, never a startup error.
+    dashboards_space_icons: str | None = None
 
     # Collectors (src/dashboards/collectors/): background pollers that turn outside work items
     # into tasks. They run only with the dashboards API on (DATABASE_URL) and each one only when
@@ -122,6 +132,12 @@ class Settings(BaseSettings):
         """The valid renames from DASHBOARDS_SPACE_NAMES: known space ids only, values trimmed,
         1 to 24 printable characters. Anything else is ignored per key; nothing is logged."""
         return parse_space_names(self.dashboards_space_names)
+
+    @property
+    def space_icons(self) -> dict[str, str]:
+        """The valid icons from DASHBOARDS_SPACE_ICONS: known space ids, an allowed image data
+        URI with a valid base64 payload, at most 48 KiB. Anything else is dropped per key."""
+        return parse_space_icons(self.dashboards_space_icons)
 
     @property
     def collectors_enabled(self) -> bool:
@@ -205,6 +221,35 @@ def parse_space_names(raw: str | None) -> dict[str, str]:
             if 0 < len(name) <= MAX_SPACE_NAME and name.isprintable():
                 names[space_id] = name
     return names
+
+
+def parse_space_icons(raw: str | None) -> dict[str, str]:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    icons: dict[str, str] = {}
+    for space_id in DEFAULT_SPACE_NAMES:
+        value = data.get(space_id)
+        if isinstance(value, str) and _valid_icon(value):
+            icons[space_id] = value
+    return icons
+
+
+def _valid_icon(value: str) -> bool:
+    if len(value) > MAX_ICON_LENGTH:
+        return False
+    prefix = next((p for p in ICON_PREFIXES if value.startswith(p)), None)
+    if prefix is None:
+        return False
+    try:
+        return len(base64.b64decode(value[len(prefix) :], validate=True)) > 0
+    except ValueError:  # binascii.Error is one
+        return False
 
 
 @lru_cache(maxsize=1)
