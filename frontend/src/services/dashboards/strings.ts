@@ -42,6 +42,13 @@ export interface Strings {
   /** The GitHub tab's two lists: the user's own pull requests, and those waiting for their review. */
   readonly githubMine: string;
   readonly githubReviews: string;
+  /** The Linear tab's lists, by the issue's state; the backlog is behind a disclosure ("Backlog: {n}"). */
+  readonly linearStarted: string;
+  readonly linearTodo: string;
+  readonly linearTriage: string;
+  readonly linearOther: string;
+  readonly linearBacklog: string;
+  readonly showBacklog: string;
   readonly addTask: string;
   readonly addTaskFailed: string;
   readonly toggleFailed: string;
@@ -172,6 +179,12 @@ export const STRINGS: Record<Lang, Strings> = {
     emptySource: 'Открытого здесь нет',
     githubMine: 'Мои PR',
     githubReviews: 'Ждут моего ревью',
+    linearStarted: 'В работе',
+    linearTodo: 'К выполнению',
+    linearTriage: 'На разборе',
+    linearOther: 'Прочее',
+    linearBacklog: 'Бэклог',
+    showBacklog: 'Бэклог: {n}',
     addTask: 'Добавить задачу',
     addTaskFailed: 'Не удалось добавить задачу. Повторите.',
     toggleFailed: 'Не удалось сохранить: задача возвращена как была.',
@@ -303,6 +316,12 @@ export const STRINGS: Record<Lang, Strings> = {
     emptySource: 'Nothing open here',
     githubMine: 'My pull requests',
     githubReviews: 'Waiting for my review',
+    linearStarted: 'In progress',
+    linearTodo: 'Todo',
+    linearTriage: 'Triage',
+    linearOther: 'Other',
+    linearBacklog: 'Backlog',
+    showBacklog: 'Backlog: {n}',
     addTask: 'Add a task',
     addTaskFailed: 'Could not add the task. Try again.',
     toggleFailed: 'Could not save: the task is back as it was.',
