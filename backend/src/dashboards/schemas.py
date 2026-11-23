@@ -10,7 +10,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints, model_validator
 
-from src.dashboards.catalog import Source, TaskStatus
+from src.dashboards.catalog import PROJECT_ICON_PATTERN, Source, TaskStatus
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 Notes = Annotated[str, StringConstraints(max_length=20_000)]
@@ -19,6 +19,7 @@ AreaRef = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, 
 DateValue = date  # for a field that is itself called `date`
 
 ProjectName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+IconKey = Annotated[str, StringConstraints(pattern=PROJECT_ICON_PATTERN)]
 
 _REQUEST = ConfigDict(extra="forbid")
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
@@ -61,6 +62,7 @@ class ProjectCreate(BaseModel):
     model_config = _REQUEST
 
     name: ProjectName
+    icon: IconKey | None = None
 
 
 class ProjectPatch(BaseModel):
@@ -68,12 +70,13 @@ class ProjectPatch(BaseModel):
 
     name: ProjectName | None = None
     archived: bool | None = None
+    icon: IconKey | None = None  # null clears it
 
     @model_validator(mode="after")
     def _something_to_change_and_no_nulls(self) -> Self:
         if not self.model_fields_set:
             raise ValueError("no fields to change")
-        for name in self.model_fields_set:
+        for name in self.model_fields_set - {"icon"}:
             if getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")
         return self
@@ -166,6 +169,7 @@ class ProjectRef(BaseModel):
 
     id: str
     name: str
+    icon: str | None
 
 
 class ProjectOut(BaseModel):
@@ -175,6 +179,7 @@ class ProjectOut(BaseModel):
 
     id: str
     name: str
+    icon: str | None
     archived: bool
     open: int
     priority: int

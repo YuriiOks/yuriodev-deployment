@@ -657,7 +657,7 @@ project). Each project is a row in `project` and gets a Postgres schema of its o
 `project_<id>` (for example `project_garden`), holding its own `task` table: the data of one
 project is physically apart from the others and from the spaces' tables, in the same database and
 the same backup (`pg_dump` below covers every schema). Projects are created from the page or over
-MCP (`add_project`); the id is made from the name (a taken one is refused). There is no delete:
+MCP (`add_project`); the id is made from the name (a taken one is refused). A project may carry an icon key (lower-case letters, digits and hyphens, at most 24: the name of one of the page's own drawings; the backend only checks the shape, so a new drawing needs no backend change). There is no delete:
 a project is archived (still readable, no longer writable) and can be unarchived, and nothing in
 the application ever drops a schema. To change the tables of the project schemas later a release
 bumps the per-project schema version; at startup the backend brings every project up to it, one

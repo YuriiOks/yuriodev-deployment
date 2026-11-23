@@ -145,6 +145,7 @@ async def test_a_project_gets_its_own_schema_and_table(db_url, make_dashboards_a
     assert created == {
         "id": "side-project",
         "name": "Side project",
+        "icon": None,
         "archived": False,
         "open": 0,
         "priority": 0,
@@ -234,7 +235,7 @@ async def test_rename_archive_and_the_bootstrap_list(db_url, make_dashboards_app
     assert renamed.json()["id"] == "garden"
     assert archived.json()["archived"] is True
     assert [(p["id"], p["archived"]) for p in listed] == [("garden", False), ("side-project", True)]
-    assert boot["projects"] == [{"id": "garden", "name": "The garden"}]
+    assert boot["projects"] == [{"id": "garden", "name": "The garden", "icon": None}]
     assert back.json()["archived"] is False
     assert [p["id"] for p in boot_after["projects"]] == ["garden", "side-project"]
 
@@ -251,6 +252,59 @@ async def test_a_bad_project_patch_is_422_and_an_unknown_one_404(db_url, make_da
     assert [response.status_code for response in bad] == [422] * 5
     assert missing.status_code == 404
     assert error_of(missing) == "not_found"
+
+
+async def test_a_project_can_carry_an_icon_key_and_it_shows_everywhere(db_url, make_dashboards_app):
+    async with running(make_dashboards_app(db_url), AUTH) as client:
+        made = await client.post(f"{BASE}/projects", json={"name": "Garden", "icon": "scales"})
+        plain = await make_project(client, "Side project")
+        listed = (await client.get(f"{BASE}/projects")).json()["projects"]
+        boot = (await client.get(f"{BASE}/bootstrap")).json()["projects"]
+        set_one = await client.patch(f"{BASE}/projects/side-project", json={"icon": "leaf-2"})
+        renamed = await client.patch(f"{BASE}/projects/garden", json={"name": "Yard"})
+        cleared = await client.patch(f"{BASE}/projects/side-project", json={"icon": None})
+
+    assert made.status_code == 201
+    assert made.json()["icon"] == "scales"
+    assert plain["icon"] is None
+    assert [(p["id"], p["icon"]) for p in listed] == [("garden", "scales"), ("side-project", None)]
+    assert [(p["id"], p["icon"]) for p in boot] == [("garden", "scales"), ("side-project", None)]
+    assert set_one.json()["icon"] == "leaf-2"
+    assert renamed.json()["icon"] == "scales"  # a patch without icon leaves it alone
+    assert cleared.json()["icon"] is None
+
+
+@pytest.mark.parametrize(
+    "icon",
+    ["Scales", "two words", "", "x" * 25, "caf\u00e9", "a_b", "a/b", "<svg>", "..", 5, ["a"]],
+)
+async def test_an_icon_that_is_not_a_plain_key_is_422(db_url, make_dashboards_app, icon):
+    async with running(make_dashboards_app(db_url), AUTH) as client:
+        await make_project(client)
+        create = await client.post(f"{BASE}/projects", json={"name": "Other", "icon": icon})
+        patch = await client.patch(f"{BASE}/projects/garden", json={"icon": icon})
+        listed = (await client.get(f"{BASE}/projects")).json()["projects"]
+
+    assert (create.status_code, patch.status_code) == (422, 422)
+    assert error_of(create) == "validation_error"
+    assert [(p["id"], p["icon"]) for p in listed] == [("garden", None)]
+
+
+async def test_the_longest_and_shortest_keys_are_accepted(db_url, make_dashboards_app):
+    async with running(make_dashboards_app(db_url), AUTH) as client:
+        await make_project(client)
+        long_key = (await client.patch(f"{BASE}/projects/garden", json={"icon": "a" * 24})).json()
+        short_key = (await client.patch(f"{BASE}/projects/garden", json={"icon": "9"})).json()
+
+    assert (long_key["icon"], short_key["icon"]) == ("a" * 24, "9")
+
+
+async def test_a_patch_with_only_null_name_is_still_422(db_url, make_dashboards_app):
+    async with running(make_dashboards_app(db_url), AUTH) as client:
+        await make_project(client)
+        response = await client.patch(f"{BASE}/projects/garden", json={"name": None})
+
+    assert response.status_code == 422
 
 
 # tasks ----------------------------------------------------------------------------------------
@@ -646,3 +700,20 @@ async def test_the_mcp_tools_refuse_with_fixed_sentences(db_url, make_dashboards
     assert "Project not found" in results["wrong project"][1]
     assert "Project is archived" in results["missing"][1]
     assert "Projects have no areas" in results["area"][1]
+
+
+async def test_the_mcp_tools_take_and_return_the_icon(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client, Client(app.state.mcp) as mcp:
+        with_icon = await ok(mcp, "add_project", name="Garden", icon="scales")
+        without = await ok(mcp, "add_project", name="Side project")
+        bad = await call(mcp, "add_project", name="Other", icon="Not A Key")
+        listed = await ok(mcp, "list_projects")
+        via_rest = (await client.get(f"{BASE}/projects")).json()["projects"]
+
+    assert (with_icon["icon"], without["icon"]) == ("scales", None)
+    assert bad[0] is True
+    assert "Invalid arguments" in bad[1]
+    pairs = [(p["id"], p["icon"]) for p in listed["projects"]]
+    assert pairs == [("garden", "scales"), ("side-project", None)]
+    assert via_rest == listed["projects"]

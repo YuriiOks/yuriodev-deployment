@@ -102,6 +102,7 @@ class Project(Base):
     id: Mapped[str] = mapped_column(String(31), primary_key=True)
     name: Mapped[str] = mapped_column(String(40), nullable=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    icon: Mapped[str | None] = mapped_column(String(24), nullable=True)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
