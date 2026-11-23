@@ -116,6 +116,21 @@ describe('dashboards design rules', () => {
     expect(block('.card .name')).toMatch(/position\s*:\s*static/);
   });
 
+  it('has one fluid column for every page: a 104rem cap, a gutter that grows from 16px to 64px, and the bar\'s content on the same rule', () => {
+    const shell = files.find(([file]) => file.endsWith('/DashboardShell/DashboardShell.module.css'))?.[1] ?? '';
+    const bar = files.find(([file]) => file.endsWith('/DashboardBar/DashboardBar.module.css'))?.[1] ?? '';
+    expect(shell).toMatch(/--dash-column:\s*104rem/);
+    expect(shell).not.toMatch(/--dash-column:\s*(72|96)rem/);
+    expect(shell).not.toMatch(/data-wide/);
+    for (const [query, value] of [['48rem', 'var\\(--space-5\\)'], ['64rem', 'var\\(--space-6\\)'], ['100rem', 'calc\\(var\\(--space-6\\) \\* 2\\)']]) {
+      expect(shell).toMatch(new RegExp(`@media \\(min-width: ${query}\\) \\{\\s*\\.root \\{\\s*--dash-gutter:\\s*${value}`));
+    }
+    expect(shell).toMatch(/max-width:\s*var\(--dash-column\)/);
+    expect(shell).toMatch(/padding:[^;]*var\(--dash-gutter\)/);
+    expect(bar).toMatch(/max-width:\s*var\(--dash-column\)/);
+    expect(bar).toMatch(/padding:\s*0 var\(--dash-gutter\)/);
+  });
+
   it('makes glass only through the recipe: no backdrop-filter outside recipes.module.css (design-budget.test.ts) and no own glass fill', () => {
     expect(find(/backdrop-filter/)).toEqual([]);
     expect(find(/background(-color)?\s*:\s*var\(--dash-glass\)/)).toEqual([]);

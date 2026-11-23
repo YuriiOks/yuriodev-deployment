@@ -4,10 +4,12 @@
    (--dash-glow-a/b/c, a triplet and a strength per space and theme, kept quiet), so a short page is as
    coloured as a long one and the glass picks the colour up as the page scrolls. The root itself is
    transparent. contrast.test.ts holds the text over the page and over each glow's peak.
-   The column is 72rem for the list pages and 96rem for the calendar (data-wide); the bar uses the
-   page's content only; the bar always uses the wide cap (96rem), so it stays put from page to page. */
+   The column is fluid (see --dash-column and --dash-gutter below), the same on every page, and the bar's content follows the same rule. */
 .root {
-  --dash-column: 72rem;
+  /* One fluid column for every page: the content fills the width between two gutters (16px on a phone, 24 from a tablet, 32 from
+     a laptop, 64 from 100rem) up to a cap of 104rem; the bar's content takes the same rule, so the two share their edges. */
+  --dash-column: 104rem;
+  --dash-gutter: var(--space-4);
   position: relative;
   min-height: 100vh;
   padding-bottom: var(--space-6);
@@ -17,8 +19,22 @@
   line-height: var(--dash-lh-ui);
 }
 
-.root[data-wide="true"] {
-  --dash-column: 96rem;
+@media (min-width: 48rem) {
+  .root {
+    --dash-gutter: var(--space-5);
+  }
+}
+
+@media (min-width: 64rem) {
+  .root {
+    --dash-gutter: var(--space-6);
+  }
+}
+
+@media (min-width: 100rem) {
+  .root {
+    --dash-gutter: calc(var(--space-6) * 2);
+  }
 }
 
 .root::before {
@@ -46,25 +62,19 @@
 .inner {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-4);
   width: 100%;
   max-width: var(--dash-column);
   margin-inline: auto;
-  padding: var(--space-4) var(--space-4) 0;
+  padding: var(--space-3) var(--dash-gutter) 0;
   box-sizing: border-box;
-}
-
-@media (min-width: 48rem) {
-  .inner {
-    padding-inline: var(--space-5);
-  }
 }
 
 /* The page's content area: the bar's sibling, a column, and a focus target. */
 .content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
 }
 

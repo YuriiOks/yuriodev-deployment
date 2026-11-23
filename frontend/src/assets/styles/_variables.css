@@ -568,9 +568,9 @@
     /* Sizes: a fine pointer gets 40px controls and 44px rows, a coarse one 44px and 56px rows. */
     --dash-h-control: 2.5rem;
     --dash-h-input: 2.75rem;
-    --dash-h-row: 2.75rem;
+    --dash-h-row: 2.5rem;
     --dash-h-bar: 3.5rem;
-    --dash-h-strip: 4rem;
+    --dash-h-strip: 3.5rem;
 }
 
 [data-theme="light"] {
