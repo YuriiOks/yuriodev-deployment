@@ -103,7 +103,15 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       </div>
     );
   } else if (collectedSource) {
-    body = panel(current, t.tabs[current], openTasks(groups), t.emptySource);
+    const open = openTasks(groups);
+    if (current === 'github') {
+      // The collector titles a pull request waiting for this user's review "Review PR #n: ...", their own "PR #n: ...".
+      const reviews = open.filter((task) => task.title.startsWith('Review PR #'));
+      const mine = open.filter((task) => !task.title.startsWith('Review PR #'));
+      body = [panel('github-mine', t.githubMine, mine, t.emptySource), panel('github-reviews', t.githubReviews, reviews, t.emptySource)];
+    } else {
+      body = panel(current, t.tabs[current], open, t.emptySource);
+    }
   } else if (current === 'overview') {
     const panels = [
       panel('priority', t.groupPriority, groups.priority, tasks.tasks.length === 0 ? t.emptyTasks : t.emptyPriority),

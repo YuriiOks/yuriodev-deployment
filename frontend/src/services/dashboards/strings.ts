@@ -39,6 +39,9 @@ export interface Strings {
   readonly emptyTasks: string;
   /** A connected source tab with nothing open. */
   readonly emptySource: string;
+  /** The GitHub tab's two lists: the user's own pull requests, and those waiting for their review. */
+  readonly githubMine: string;
+  readonly githubReviews: string;
   readonly addTask: string;
   readonly addTaskFailed: string;
   readonly toggleFailed: string;
@@ -167,6 +170,8 @@ export const STRINGS: Record<Lang, Strings> = {
     emptyPriority: 'Приоритетных задач нет',
     emptyTasks: 'Задач пока нет. Добавьте первую в поле выше.',
     emptySource: 'Открытого здесь нет',
+    githubMine: 'Мои PR',
+    githubReviews: 'Ждут моего ревью',
     addTask: 'Добавить задачу',
     addTaskFailed: 'Не удалось добавить задачу. Повторите.',
     toggleFailed: 'Не удалось сохранить: задача возвращена как была.',
@@ -296,6 +301,8 @@ export const STRINGS: Record<Lang, Strings> = {
     emptyPriority: 'Nothing prioritised',
     emptyTasks: 'No tasks yet. Add the first one in the field above.',
     emptySource: 'Nothing open here',
+    githubMine: 'My pull requests',
+    githubReviews: 'Waiting for my review',
     addTask: 'Add a task',
     addTaskFailed: 'Could not add the task. Try again.',
     toggleFailed: 'Could not save: the task is back as it was.',
