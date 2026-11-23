@@ -539,6 +539,19 @@
     --dash-ink-work-1: #b3a4ff;    --dash-fill-work-1: #6c52e0;    --dash-on-fill-work-1: #ffffff;    --dash-tint-work-1: #38374f;
     --dash-ink-work-2: #ff7b86;    --dash-fill-work-2: #d0283a;    --dash-on-fill-work-2: #ffffff;    --dash-tint-work-2: #482e34;
 
+    /* The hub (/dashboards) only: each card washes its own colour, from the space's ink over the surface. -ink is the
+       text and the hover edge, -a the strong corner of the wash, -s its faded end (contrast.test.ts holds every pair).
+       The three spaces use their own inks; the five accents are for projects, picked by their id. */
+    --hub-personal-ink: var(--dash-ink-personal); --hub-personal-a: #243b45;  --hub-personal-s: #1b262d;
+    --hub-work-1-ink: var(--dash-ink-work-1); --hub-work-1-a: #35344a;  --hub-work-1-s: #22232f;
+    --hub-work-2-ink: var(--dash-ink-work-2); --hub-work-2-a: #442c32;  --hub-work-2-s: #282025;
+    --hub-green-ink: #5fd1a0;            --hub-green-a: #243d37;  --hub-green-s: #1b2727;
+    --hub-amber-ink: #f5b83d;            --hub-amber-a: #423823;  --hub-amber-s: #272520;
+    --hub-pink-ink: #f58bc0;             --hub-pink-a: #422f3e;  --hub-pink-s: #27212a;
+    --hub-blue-ink: #8fb4ff;             --hub-blue-a: #2d374a;  --hub-blue-s: #1f242f;
+    --hub-slate-ink: #a9b4c6;            --hub-slate-a: #33373f;  --hub-slate-s: #21242b;
+    --hub-head-a: var(--hub-personal-a);  --hub-head-b: var(--hub-amber-a);
+
     /* Shape: three radii. */
     --dash-r-surface: 0.75rem;
     --dash-r-control: 0.5rem;
@@ -584,6 +597,19 @@
     --dash-ink-personal: #0b6780;  --dash-fill-personal: #0b6780;  --dash-on-fill-personal: #ffffff;  --dash-tint-personal: #e2edf0;
     --dash-ink-work-1: #5a3fc8;    --dash-fill-work-1: #5a3fc8;    --dash-on-fill-work-1: #ffffff;    --dash-tint-work-1: #ebe8f8;
     --dash-ink-work-2: #c4000f;    --dash-fill-work-2: #db0011;    --dash-on-fill-work-2: #ffffff;    --dash-tint-work-2: #f8e0e2;
+
+    /* The hub (/dashboards) only: each card washes its own colour, from the space's ink over the surface. -ink is the
+       text and the hover edge, -a the strong corner of the wash, -s its faded end (contrast.test.ts holds every pair).
+       The three spaces use their own inks; the five accents are for projects, picked by their id. */
+    --hub-personal-ink: var(--dash-ink-personal); --hub-personal-a: #ddeaed;  --hub-personal-s: #f3f7f9;
+    --hub-work-1-ink: var(--dash-ink-work-1); --hub-work-1-a: #e8e4f7;  --hub-work-1-s: #f7f5fc;
+    --hub-work-2-ink: var(--dash-ink-work-2); --hub-work-2-a: #f7dbdd;  --hub-work-2-s: #fcf2f3;
+    --hub-green-ink: #0a6b48;            --hub-green-a: #ddeae5;  --hub-green-s: #f3f8f6;
+    --hub-amber-ink: #8a5300;            --hub-amber-a: #efe7db;  --hub-amber-s: #f9f6f2;
+    --hub-pink-ink: #b4236a;             --hub-pink-a: #f5e0ea;  --hub-pink-s: #fbf4f8;
+    --hub-blue-ink: #1d4ed8;             --hub-blue-a: #dfe6fa;  --hub-blue-s: #f4f6fd;
+    --hub-slate-ink: #475569;            --hub-slate-a: #e5e7ea;  --hub-slate-s: #f6f7f8;
+    --hub-head-a: var(--hub-personal-a);  --hub-head-b: var(--hub-amber-a);
 }
 
 @media (pointer: coarse) {

@@ -276,12 +276,26 @@ const SHARED_PAIRS: Pair[] = [
   ]),
 ];
 
+/* The hub (/dashboards) is the one dashboards page with colour: each card washes its scheme's colour (a gradient from
+   -a to -s, both held), with the scheme's ink for its numbers and its "Next:" label, t1 for the name, t2 for the
+   rest (never t3: it does not hold on a dark tint) and the danger colour for an overdue count. The ink is also the
+   hover edge, so it must show against the page and its glows. The header card runs from the personal wash to the
+   amber one. */
+const HUB_SCHEMES = ['personal', 'work-1', 'work-2', 'green', 'amber', 'pink', 'blue', 'slate'];
+const HUB_PAIRS: Pair[] = [
+  ...HUB_SCHEMES.flatMap((scheme) => [
+    ...cross(['--dash-t1', '--dash-t2', '--dash-danger', `--hub-${scheme}-ink`], [[`--hub-${scheme}-a`], [`--hub-${scheme}-s`]], TEXT),
+    ...cross([`--hub-${scheme}-ink`], [...BACKS, ...DASH_SOLID], UI),
+  ]),
+  ...cross(['--dash-t1', '--dash-t2', '--hub-personal-ink', '--hub-amber-ink'], [['--hub-head-a'], ['--hub-head-b']], TEXT),
+];
+
 describe('dashboard palettes meet WCAG AA', () => {
   for (const theme of ['dark', 'light'] as const) {
     for (const space of [undefined, ...SPACES] as const) {
       it(`${theme} theme, ${space ?? 'neutral (hub and calendar)'}: every text and UI pair`, () => {
         const tokens = tokensFor(theme, space);
-        const pairs = [...DASH_PAIRS, ...(space === undefined ? SHARED_PAIRS : [])];
+        const pairs = [...DASH_PAIRS, ...(space === undefined ? [...SHARED_PAIRS, ...HUB_PAIRS] : [])];
         const failures = pairs
           .map(({ fg, bg, min }) => ({ fg, bg, min, got: ratio(paint(tokens, [fg]), paint(tokens, bg)) }))
           .filter(({ got, min }) => got < min)

@@ -1,4 +1,7 @@
-/* The space tile's shape, filled from the neutral tokens: on a page that belongs to no space --dash-fill is the ink. */
+/* The space tile's shape. On the hub the card's scheme colours it (--scheme-ink); on a page with no scheme it is
+   the neutral fill, so the project page's tile stays neutral. */
 .tile {
   composes: tile from '../SpaceTile/SpaceTile.module.css';
+  background: var(--scheme-ink, var(--dash-fill));
+  color: var(--dash-surface);
 }

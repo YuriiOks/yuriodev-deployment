@@ -21,6 +21,8 @@ export function pick(text: Localized, lang: Lang): string {
 /** Every fixed text of the dashboards' interface. Sample content lives in sampleData.ts. */
 export interface Strings {
   readonly navLabel: string;
+  /** The hub header's one-line total: '{n}' open tasks across the three spaces. */
+  readonly hubTotalOpen: string;
   readonly projectsTitle: string;
   readonly newProject: string;
   readonly projectName: string;
@@ -184,6 +186,7 @@ export interface Strings {
 export const STRINGS: Record<Lang, Strings> = {
   ru: {
     navLabel: 'Дашборды',
+    hubTotalOpen: 'Открыто задач: {n}',
     projectsTitle: 'Проекты',
     newProject: 'Новый проект',
     projectName: 'Название проекта',
@@ -344,6 +347,7 @@ export const STRINGS: Record<Lang, Strings> = {
   },
   en: {
     navLabel: 'Dashboards',
+    hubTotalOpen: 'Open tasks: {n}',
     projectsTitle: 'Projects',
     newProject: 'New project',
     projectName: 'Project name',

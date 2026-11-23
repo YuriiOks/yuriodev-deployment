@@ -17,7 +17,7 @@ export interface SpaceCardProps {
 }
 
 /**
- * One entrance card, and all of it is the link (the title's link is stretched over the card): the space's tile
+ * One entrance card (washed in its space's colour: `data-scheme`), and all of it is the link (the title's link is stretched over the card): the space's tile
  * and name, three plain counters, and what is next. Never a task. Open and priority are ink, zero is quiet,
  * only overdue above zero is danger (and says so in words).
  */
@@ -33,7 +33,7 @@ const SpaceCard: React.FC<SpaceCardProps> = ({ space, summary, next }) => {
   ];
 
   return (
-    <section aria-labelledby={titleId} className={styles.card} data-card={space}>
+    <section aria-labelledby={titleId} className={styles.card} data-card={space} data-scheme={space}>
       <div className={styles.head}>
         <SpaceTile space={space} />
         <h2 id={titleId} className={styles.name}>
@@ -53,7 +53,7 @@ const SpaceCard: React.FC<SpaceCardProps> = ({ space, summary, next }) => {
       <p className={styles.next}>
         {next ? (
           <>
-            {t.next}: {next.date && `${next.date} `}
+            <span className={styles.nextLabel}>{t.next}:</span> {next.date && `${next.date} `}
             <span className={styles.at}>{next.at}</span> {text(next.title)}
           </>
         ) : (

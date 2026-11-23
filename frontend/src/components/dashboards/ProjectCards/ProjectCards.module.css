@@ -86,7 +86,7 @@
   padding: var(--space-5);
   box-sizing: border-box;
   background: transparent;
-  border: 1px solid var(--dash-line);
+  border: 1px dashed var(--dash-edge);
   border-radius: var(--dash-r-surface);
   color: var(--dash-t2);
   font-family: var(--dash-font-ui);
@@ -112,6 +112,12 @@
 
 .newForm {
   gap: var(--space-3);
+}
+
+/* The new-project form stays neutral (no scheme): the plain surface, whatever the card class says. */
+.newForm {
+  --scheme-a: var(--dash-surface);
+  --scheme-s: var(--dash-surface);
 }
 
 .label {

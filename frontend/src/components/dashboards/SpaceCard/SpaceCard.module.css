@@ -1,6 +1,10 @@
-/* An entrance card: the content surface (glass, hairline, 12px radius); hovering lifts the edge to the
-   control edge. The whole card is the link: the title's anchor is stretched over it. */
+/* An entrance card, washed in its scheme's colour (the hub is the one dashboards page that wears colour, by
+   decision: --hub-<scheme>-ink / -a / -s in _variables.css, every pair held by contrast.test.ts). The whole card is
+   the link: the title's anchor is stretched over it; hovering or focusing it draws the edge in the scheme's ink. */
 .card {
+  --scheme-ink: var(--dash-t1);
+  --scheme-a: var(--dash-surface);
+  --scheme-s: var(--dash-surface);
   composes: glassDash from '../../../assets/styles/recipes.module.css';
   position: relative;
   display: flex;
@@ -8,18 +12,23 @@
   gap: var(--space-4);
   padding: var(--space-5);
   box-sizing: border-box;
+  background: linear-gradient(155deg, var(--scheme-a), var(--scheme-s));
+  border-color: color-mix(in srgb, var(--scheme-ink) 35%, transparent);
   border-radius: var(--dash-r-surface);
   transition: border-color 120ms;
 }
 
 @media (hover: hover) {
   .card:hover {
-    border-color: var(--dash-edge);
+    background: var(--scheme-a);
+    border-color: var(--scheme-ink);
   }
 }
 
 .card:focus-within {
-  outline: 2px solid var(--focus-ring);
+  background: var(--scheme-a);
+  border-color: var(--scheme-ink);
+  outline: 2px solid var(--scheme-ink);
   outline-offset: 2px;
 }
 
@@ -82,7 +91,7 @@
 }
 
 .number {
-  color: var(--dash-t1);
+  color: var(--scheme-ink);
   font-size: var(--dash-fs-stat);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -91,7 +100,7 @@
 }
 
 .zero {
-  color: var(--dash-t3);
+  color: var(--dash-t2);
 }
 
 .alarm {
@@ -121,4 +130,58 @@
   .stat {
     padding-inline: var(--space-4);
   }
+}
+
+/* The scheme maps to the hub tokens (the first three are the spaces', the rest are for projects). */
+.card[data-scheme="personal"] {
+  --scheme-ink: var(--hub-personal-ink);
+  --scheme-a: var(--hub-personal-a);
+  --scheme-s: var(--hub-personal-s);
+}
+
+.card[data-scheme="work-1"] {
+  --scheme-ink: var(--hub-work-1-ink);
+  --scheme-a: var(--hub-work-1-a);
+  --scheme-s: var(--hub-work-1-s);
+}
+
+.card[data-scheme="work-2"] {
+  --scheme-ink: var(--hub-work-2-ink);
+  --scheme-a: var(--hub-work-2-a);
+  --scheme-s: var(--hub-work-2-s);
+}
+
+.card[data-scheme="green"] {
+  --scheme-ink: var(--hub-green-ink);
+  --scheme-a: var(--hub-green-a);
+  --scheme-s: var(--hub-green-s);
+}
+
+.card[data-scheme="amber"] {
+  --scheme-ink: var(--hub-amber-ink);
+  --scheme-a: var(--hub-amber-a);
+  --scheme-s: var(--hub-amber-s);
+}
+
+.card[data-scheme="pink"] {
+  --scheme-ink: var(--hub-pink-ink);
+  --scheme-a: var(--hub-pink-a);
+  --scheme-s: var(--hub-pink-s);
+}
+
+.card[data-scheme="blue"] {
+  --scheme-ink: var(--hub-blue-ink);
+  --scheme-a: var(--hub-blue-a);
+  --scheme-s: var(--hub-blue-s);
+}
+
+.card[data-scheme="slate"] {
+  --scheme-ink: var(--hub-slate-ink);
+  --scheme-a: var(--hub-slate-a);
+  --scheme-s: var(--hub-slate-s);
+}
+
+.nextLabel {
+  color: var(--scheme-ink);
+  font-weight: 500;
 }

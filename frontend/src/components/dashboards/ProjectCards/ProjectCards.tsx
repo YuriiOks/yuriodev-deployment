@@ -7,6 +7,7 @@ import { ApiError } from '../../../services/dashboards/liveApi';
 import { cx } from '../../../utils/cx';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
+import { projectScheme } from '../../../services/dashboards/projectSchemes';
 import ProjectTile from '../ProjectTile/ProjectTile';
 import styles from './ProjectCards.module.css';
 
@@ -135,7 +136,7 @@ const ProjectCards: React.FC = () => {
             ];
             const titleId = `project-${project.id}-title`;
             return (
-              <section key={project.id} aria-labelledby={titleId} className={styles.card}>
+              <section key={project.id} aria-labelledby={titleId} className={styles.card} data-scheme={projectScheme(project.id)}>
                 <div className={styles.head}>
                   <ProjectTile name={project.name} />
                   <h3 id={titleId} className={styles.name}>

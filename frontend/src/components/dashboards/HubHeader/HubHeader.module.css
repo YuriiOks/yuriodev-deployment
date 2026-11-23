@@ -1,0 +1,80 @@
+/* The hub header: a card of its own, spanning the cards' width, in the site's palette: the personal wash (cyan)
+   running into the amber one (--hub-head-a to --hub-head-b, contrast.test.ts holds both ends). The hub is the one
+   dashboards page that wears colour (the owner's decision); the space pages and the calendar stay calm. */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  min-height: var(--dash-h-strip);
+  margin-top: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  box-sizing: border-box;
+  background: linear-gradient(100deg, var(--hub-head-a), var(--hub-head-b));
+  border: 1px solid var(--hub-personal-ink);
+  border-radius: var(--dash-r-surface);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+.header .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: var(--dash-lh-page);
+}
+
+.header .title::before,
+.header .title::after {
+  content: none;
+}
+
+.date {
+  margin: 0;
+  color: var(--hub-personal-ink);
+  font-size: var(--dash-fs-meta);
+  font-weight: 500;
+  line-height: var(--dash-lh-meta);
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+  color: var(--dash-t2);
+}
+
+.total,
+.next {
+  margin: 0;
+}
+
+.total {
+  color: var(--dash-t1);
+  font-weight: 500;
+}
+
+.nextLabel {
+  color: var(--hub-amber-ink);
+  font-weight: 500;
+}
+
+.at {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+}
+
+@media (max-width: 47.99rem) {
+  .totals {
+    align-items: flex-start;
+  }
+}

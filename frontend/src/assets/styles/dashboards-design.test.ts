@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 // The private dashboards' design rules (the "calm tool" brief), held in their own stylesheets so they cannot
 // drift back: three weights, no capitals, five type steps, the dashboards' interface face, spacing from one
-// scale, no coloured shadows, no gradients and glows outside the shell's page layer.
+// scale, no coloured shadows, no gradients and glows outside the shell's page layer. The one deliberate exception is
+// the hub (/dashboards): by the owner's decision its header and cards wear colour (a wash per space, five accents for
+// projects); that colour lives in --hub-* tokens that only the hub's own stylesheets may read, so the space pages and
+// the calendar stay calm.
 const all = import.meta.glob('/src/**/*.css', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const files = Object.entries(all).filter(
   ([file]) =>
@@ -90,5 +93,11 @@ describe('dashboards design rules', () => {
 
   it('keeps the glows to the shell: radial gradients appear nowhere else', () => {
     expect(find(/radial-gradient/, (file) => file.includes('DashboardShell.module.css'))).toEqual([]);
+  });
+
+  it('keeps the hub colour on the hub: --hub-* tokens are read only by the hub header and the cards', () => {
+    const hub = ['/HubHeader/', '/SpaceCard/', '/ProjectCards/'];
+    expect(find(/var\(--hub-/, (file) => hub.some((part) => file.includes(part)))).toEqual([]);
+    expect(find(/--scheme-/, (file) => hub.some((part) => file.includes(part)) || file.includes('/ProjectTile/'))).toEqual([]);
   });
 });

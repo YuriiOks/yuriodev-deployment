@@ -21,3 +21,12 @@ export function liveHero(next: SummaryNext, now: Date, t: Pick<Strings, 'monthsO
     sync: { ru: '', en: '' },
   };
 }
+
+/** The nearest of several next events: the earliest start, or null when none of them has one. */
+export function nearestNext(next: ReadonlyArray<SummaryNext | null>): SummaryNext | null {
+  let nearest: SummaryNext | null = null;
+  for (const candidate of next) {
+    if (candidate && (nearest === null || Date.parse(candidate.startsAt) < Date.parse(nearest.startsAt))) nearest = candidate;
+  }
+  return nearest;
+}
