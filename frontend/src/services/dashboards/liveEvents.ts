@@ -1,6 +1,6 @@
 import type { LiveEvent } from './liveApi';
 import { localDate, splitIso } from './liveTime';
-import type { CalEvent, Localized } from './types';
+import type { CalEvent, Localized, SpaceId } from './types';
 import { toMinutes } from './weekLayout';
 
 /** The note of an event another space shows only as busy time. */
@@ -13,20 +13,50 @@ const CANCELLED = /^cancel{1,2}ed:/i;
 /**
  * Leaves out what would only be noise on the grid: a meeting its organiser cancelled (the work calendar keeps it,
  * titled "Canceled: ..."), and a personal event that is a copy of a work meeting, which is one that starts and
- * ends at exactly the same moments as an event of a work space. The work event is the one that stays.
+ * ends at exactly the same moments as an event of a work space. The work event is the one that stays. A personal
+ * event whose title ends with a work space's name in brackets is that space's too (see `taggedSpace`).
  */
-export function withoutCopies(events: readonly LiveEvent[]): LiveEvent[] {
+export function withoutCopies(events: readonly LiveEvent[], names: SpaceTags = {}): LiveEvent[] {
   const kept = events.filter((event) => !CANCELLED.test(event.title));
+  const fed = new Set(kept.filter((event) => event.space !== 'personal').map((event) => event.space));
   const work = new Set(kept.filter((event) => event.space !== 'personal').map((event) => `${Date.parse(event.startsAt)}|${Date.parse(event.endsAt)}`));
-  return kept.filter((event) => event.space !== 'personal' || !work.has(`${Date.parse(event.startsAt)}|${Date.parse(event.endsAt)}`));
+  return kept.flatMap((event) => {
+    if (event.space !== 'personal') return [event];
+    if (work.has(`${Date.parse(event.startsAt)}|${Date.parse(event.endsAt)}`)) return [];
+    const tagged = taggedSpace(event.title, names);
+    if (!tagged) return [event];
+    // The work space's own calendar is the truth when it has one: the tagged personal entry is a copy, possibly a
+    // stale one. A work space with no calendar of its own gets the entry instead.
+    return fed.has(tagged) ? [] : [{ ...event, space: tagged }];
+  });
+}
+
+/** The server's names of the work spaces: a personal event titled "... (<name>)" belongs to that space. */
+export type SpaceTags = Readonly<Partial<Record<SpaceId, string>>>;
+
+function taggedSpace(title: string, names: SpaceTags): SpaceId | null {
+  const lower = title.trim().toLowerCase();
+  for (const space of ['work-1', 'work-2'] as const) {
+    const name = names[space]?.trim().toLowerCase();
+    if (name && lower.endsWith(`(${name})`)) return space;
+  }
+  return null;
+}
+
+/** The week grid's hours in live mode: the usual ones, started earlier when an event on screen begins before them. */
+export function hoursFor(events: readonly CalEvent[], usual: readonly string[]): string[] {
+  const first = Math.floor(toMinutes(usual[0]) / 60);
+  const earliest = events.reduce((hour, event) => Math.min(hour, Math.floor(toMinutes(event.start) / 60)), first);
+  const last = Math.floor(toMinutes(usual[usual.length - 1]) / 60);
+  return Array.from({ length: last - earliest + 1 }, (_, i) => `${String(earliest + i).padStart(2, '0')}:00`);
 }
 
 /**
  * The calendar's events from the API's: one block per event, on the local day it starts, ending at the end time
  * of that day (an event that runs past midnight ends at 23:59). An event whose times cannot be read is dropped.
  */
-export function toCalEvents(events: readonly LiveEvent[]): CalEvent[] {
-  return withoutCopies(events).flatMap((event) => {
+export function toCalEvents(events: readonly LiveEvent[], names: SpaceTags = {}): CalEvent[] {
+  return withoutCopies(events, names).flatMap((event) => {
     const start = splitIso(event.startsAt);
     const end = splitIso(event.endsAt);
     if (!start || !end) return [];
