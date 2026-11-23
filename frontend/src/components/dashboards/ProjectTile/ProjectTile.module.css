@@ -1,0 +1,4 @@
+/* The space tile's shape, filled from the neutral tokens: on a page that belongs to no space --dash-fill is the ink. */
+.tile {
+  composes: tile from '../SpaceTile/SpaceTile.module.css';
+}
