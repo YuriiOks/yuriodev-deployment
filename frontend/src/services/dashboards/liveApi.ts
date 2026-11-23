@@ -64,6 +64,8 @@ export interface LiveTask {
   readonly source: string;
   /** The task's page at its source (the pull request, the issue), when it has one. */
   readonly url: string | null;
+  /** Where a collected task stands at its source: a Linear state type, or GitHub's 'mine' / 'review'. */
+  readonly stage: string | null;
 }
 
 export interface TaskDraft {
@@ -169,6 +171,7 @@ export function parseTask(raw: unknown): LiveTask | null {
     createdAt: isDateTime(raw.created_at) ? raw.created_at : '',
     source: typeof raw.source === 'string' ? raw.source : 'manual',
     url: typeof raw.url === 'string' && raw.url.startsWith('https://') ? raw.url : null,
+    stage: typeof raw.stage === 'string' ? raw.stage : null,
   };
 }
 

@@ -29,6 +29,7 @@ interface LiveSpaceProps {
 /** The source tabs that list collected tasks, and the task source each one lists. */
 const COLLECTED: Partial<Record<TabId, string>> = { github: 'github', linear: 'linear' };
 const COLLECTED_SOURCES = new Set(Object.values(COLLECTED));
+const LINEAR_STAGES = new Set(['started', 'unstarted', 'triage', 'backlog']);
 
 /** The open groups in reading order, as one list (the area tab shows them without the overview's headings). */
 const openTasks = (groups: TaskGroups): LiveTask[] => [...groups.priority, ...groups.due, ...groups.week, ...groups.later, ...groups.undated];
@@ -53,6 +54,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const [selected, setSelected] = useState<TabId>('overview');
   const [area, setArea] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [showBacklog, setShowBacklog] = useState(false);
 
   const current = tabs.includes(selected) ? selected : 'overview';
   const areaList = space === 'personal' ? areas : null;
@@ -92,6 +94,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   let body: ReactNode;
   let split = false;
   let rows = 1;
+  let backlog: LiveTask[] = [];
   if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
     body = <NotConnected name={t.tabs[current]} />;
   } else if (tasks.status === 'loading') {
@@ -105,10 +108,20 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   } else if (collectedSource) {
     const open = openTasks(groups);
     if (current === 'github') {
-      // The collector titles a pull request waiting for this user's review "Review PR #n: ...", their own "PR #n: ...".
-      const reviews = open.filter((task) => task.title.startsWith('Review PR #'));
-      const mine = open.filter((task) => !task.title.startsWith('Review PR #'));
+      const reviews = open.filter((task) => task.stage === 'review');
+      const mine = open.filter((task) => task.stage !== 'review');
       body = [panel('github-mine', t.githubMine, mine, t.emptySource), panel('github-reviews', t.githubReviews, reviews, t.emptySource)];
+    } else if (current === 'linear') {
+      // By the issue's state type; the backlog waits behind its disclosure under the lists.
+      const of = (stage: string) => open.filter((task) => task.stage === stage);
+      const other = open.filter((task) => !LINEAR_STAGES.has(task.stage ?? ''));
+      backlog = of('backlog');
+      body = [
+        panel('linear-started', t.linearStarted, of('started'), t.emptySource),
+        panel('linear-todo', t.linearTodo, of('unstarted'), t.emptySource),
+        ...(of('triage').length ? [panel('linear-triage', t.linearTriage, of('triage'))] : []),
+        ...(other.length ? [panel('linear-other', t.linearOther, other)] : []),
+      ];
     } else {
       body = panel(current, t.tabs[current], open, t.emptySource);
     }
@@ -170,6 +183,14 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       >
         {body}
       </div>
+      {backlog.length > 0 && (
+        <div className={live.done}>
+          <button type="button" className={live.doneToggle} aria-expanded={showBacklog} onClick={() => setShowBacklog((open) => !open)}>
+            {fill(t.showBacklog, { n: backlog.length })}
+          </button>
+          {showBacklog && panel('linear-backlog', t.linearBacklog, backlog)}
+        </div>
+      )}
       {workingTab && tasks.status === 'ready' && groups.done.length > 0 && (
         <div className={live.done}>
           <button type="button" className={live.doneToggle} aria-expanded={showDone} onClick={() => setShowDone((open) => !open)}>
