@@ -89,10 +89,10 @@
   font-weight: 400;
 }
 
-/* Today: the week's filled t1 circle with the surface colour numeral. */
+/* Today: the week's filled circle (the skin's fill, its on-fill numeral). */
 .today .number {
-  background: var(--dash-t1);
-  color: var(--dash-surface);
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
 }
 
 .alert {
@@ -100,7 +100,7 @@
 }
 
 /* Events: the week's blocks at chip size. 20px high, an opaque tint of the space's ink, a 3px ink bar at the left, a 1px
-   surface-coloured outline that parts neighbours, the title (12px 500 t1) with an ellipsis and the start time (mono 12px
+   inner outline of the ink at 40%, the title (12px 500 t1) with an ellipsis and the start time (mono 12px
    t2) at the right. A conflict has the warn ring; a busy-only block (a Focus-time note) is hatched with the ink at 28%. */
 .rows {
   display: flex;
@@ -122,7 +122,7 @@
   box-shadow:
     inset 3px 0 0 var(--ink),
     var(--ring, 0 0 0 0 transparent),
-    0 0 0 1px var(--dash-surface);
+    inset 0 0 0 1px color-mix(in srgb, var(--ink) 40%, transparent);
   font-weight: 500;
 }
 
