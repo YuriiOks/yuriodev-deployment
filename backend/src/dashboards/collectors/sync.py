@@ -65,14 +65,14 @@ async def sync_items(
         session.add(_new_task(source, space, item, now))
         counts.created += 1
 
-    for ref, task in by_ref.items():
-        if ref not in wanted and task.status == "open":
+    for known, task in by_ref.items():
+        if known not in wanted and task.status == "open":
             task.status = "done"
             task.done_at = now
             task.updated_at = now
             counts.closed += 1
-    for ref, stone in tombstones.items():
-        if ref not in wanted:
+    for dropped, stone in tombstones.items():
+        if dropped not in wanted:
             await session.delete(stone)
 
     await session.commit()
