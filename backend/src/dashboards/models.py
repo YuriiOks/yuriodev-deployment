@@ -92,6 +92,22 @@ class Task(Base):
     )
 
 
+class Project(Base):
+    """A user-created project. Its tasks live in their own schema (`projects.schema_name`), never in
+    the tables above; this row is the registry: id, name, archived, and the version of the
+    schema it has been brought to."""
+
+    __tablename__ = "project"
+
+    id: Mapped[str] = mapped_column(String(31), primary_key=True)
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class CollectedTombstone(Base):
     """A collected task the user deleted. While the external item is unchanged (same
     fingerprint of title and url) the collector does not create the task again; the row is

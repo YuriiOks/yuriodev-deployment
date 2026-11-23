@@ -91,18 +91,19 @@ def _space_rank(space_id: str) -> int:
     return SPACE_IDS.index(space_id) if space_id in SPACE_IDS else len(SPACE_IDS)
 
 
-def _task_order() -> tuple[Any, ...]:
+def task_order(columns: Any = Task) -> tuple[Any, ...]:
     """Open tasks first (priority, then due date with no date last, then oldest first), then
-    done tasks, most recently finished first."""
-    is_open = Task.status == "open"
+    done tasks, most recently finished first. `columns` is the model or a table's `.c`, so the
+    per-project task tables sort exactly like the spaces' one."""
+    is_open = columns.status == "open"
     return (
-        (Task.status == "done").asc(),
-        case((is_open, Task.priority), else_=false()).desc(),
-        case((is_open, Task.due_date)).asc().nulls_last(),
-        case((is_open, Task.created_at)).asc(),
-        Task.done_at.desc().nulls_last(),
-        Task.created_at.asc(),
-        Task.id.asc(),
+        (columns.status == "done").asc(),
+        case((is_open, columns.priority), else_=false()).desc(),
+        case((is_open, columns.due_date)).asc().nulls_last(),
+        case((is_open, columns.created_at)).asc(),
+        columns.done_at.desc().nulls_last(),
+        columns.created_at.asc(),
+        columns.id.asc(),
     )
 
 
@@ -166,7 +167,7 @@ async def list_tasks(
     query = select(Task).where(Task.space_id == space)
     if status != "all":
         query = query.where(Task.status == status)
-    return (await session.scalars(query.order_by(*_task_order()))).all()
+    return (await session.scalars(query.order_by(*task_order()))).all()
 
 
 @guarded
@@ -197,16 +198,19 @@ async def create_task(
     return task
 
 
-def _set_status(task: Task, status: TaskStatus, now: datetime) -> None:
+def next_done_at(
+    current: str, done_at: datetime | None, status: TaskStatus, now: datetime
+) -> datetime | None:
     """`done_at` follows `status`: set when a task becomes done (kept if it already was),
     cleared when it is reopened."""
-    if status == "done":
-        if task.status != "done" or task.done_at is None:
-            task.done_at = now
-        task.status = "done"
-    else:
-        task.status = "open"
-        task.done_at = None
+    if status != "done":
+        return None
+    return now if current != "done" or done_at is None else done_at
+
+
+def _set_status(task: Task, status: TaskStatus, now: datetime) -> None:
+    task.done_at = next_done_at(task.status, task.done_at, status, now)
+    task.status = status
 
 
 @guarded
@@ -358,7 +362,7 @@ async def today(session: AsyncSession, space: str | None, now: datetime, zone: t
         Event.starts_at < window_end,
         Event.ends_at > window_start,
     )
-    tasks = (await session.scalars(task_query.order_by(*_task_order()))).all()
+    tasks = (await session.scalars(task_query.order_by(*task_order()))).all()
     events = (await session.scalars(event_query.order_by(Event.starts_at, Event.id))).all()
     groups: list[TodaySpace] = []
     for space_id in spaces:
