@@ -243,12 +243,14 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
             return _json({"projects": [p.model_dump(mode="json") for p in found]})
 
     @server.tool(structured_output=False)
-    async def add_project(name: str) -> str:
+    async def add_project(name: str, icon: str | None = None) -> str:
         """Create a project (1 to 40 characters). Its id is made from the name; use it as the
-        space argument of the task tools. Fails when a project with that id exists."""
-        data = _validated(ProjectCreate, {"name": name})
+        space argument of the task tools. icon is an optional key of a drawing the page knows
+        (lower-case letters, digits and hyphens, at most 24 characters). Fails when a project
+        with that id exists."""
+        data = _validated(ProjectCreate, {"name": name, "icon": icon})
         async with scope("add_project") as (session, now):
-            made = await project_service.create_project(session, data.name, now)
+            made = await project_service.create_project(session, data.name, now, data.icon)
             return _json(made.model_dump(mode="json"))
 
     @server.tool(structured_output=False)

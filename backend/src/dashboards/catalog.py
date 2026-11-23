@@ -37,6 +37,9 @@ PROJECT_ID_PATTERN = r"^[a-z0-9][a-z0-9-]{0,30}$"
 # Never a project id: the three spaces, and the one fixed page under /dashboards.
 RESERVED_PROJECT_IDS: frozenset[str] = frozenset({"personal", "work-1", "work-2", "calendar"})
 MAX_PROJECT_NAME = 40
+# A project's icon is a key into the frontend's drawings: the backend only checks its shape, so a
+# new drawing needs no backend change.
+PROJECT_ICON_PATTERN = r"^[a-z0-9-]{1,24}$"
 
 MAX_RANGE_DAYS = 62  # GET /events and the list_events tool: at most this many days, inclusive
 
