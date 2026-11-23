@@ -1,71 +1,44 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ApiError, createProject, fetchProjects, patchProject, type LiveProject } from '../services/dashboards/liveApi';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import type { ApiError, LiveProject } from '../services/dashboards/liveApi';
+import { addProject, changeProject, getProjectsSnapshot, loadProjects, refreshProjects, subscribeProjects } from '../services/dashboards/projectsStore';
+import { useDashboardMode } from './useDashboardMode';
 
 export interface Projects {
   readonly status: 'loading' | 'ready' | 'error';
-  /** Every project the server lists, archived ones included (the hub shows only the others). */
+  /** Every project the server lists, archived ones included (the hub and the bar show only the others). */
   readonly projects: readonly LiveProject[];
+  /** The projects that are not archived, in the server's order. */
+  readonly active: readonly LiveProject[];
   readonly reload: () => void;
   /** Creates a project; resolves to the new one, or the error (status 409 is a name clash). */
-  readonly create: (name: string) => Promise<LiveProject | ApiError>;
-  /** Renames or archives a project; resolves to null on success. */
-  readonly update: (id: string, patch: Partial<{ name: string; archived: boolean }>) => Promise<ApiError | null>;
+  readonly create: (name: string, icon?: string | null) => Promise<LiveProject | ApiError>;
+  /** Renames, re-icons or archives a project; resolves to null on success. */
+  readonly update: (id: string, patch: Partial<{ name: string; archived: boolean; icon: string | null }>) => Promise<ApiError | null>;
 }
 
-interface Loaded {
-  readonly token: number;
-  readonly ok: boolean;
-  readonly projects: readonly LiveProject[];
-}
+const NONE: readonly LiveProject[] = [];
 
-const asError = (error: unknown): ApiError => (error instanceof ApiError ? error : new ApiError('network', 0, 'network'));
-
-/** The user's projects (GET /projects), asked for on mount and on `reload`, with the two writes the pages need. */
-export function useProjects(): Projects {
-  const [token, setToken] = useState(0);
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+/**
+ * The shared projects list (services/dashboards/projectsStore.ts), live data only: on the sample data there are no
+ * projects and nothing is asked. `fresh` asks again on mount (the hub: its counters move as tasks change); the bar
+ * only needs the list to exist.
+ */
+export function useProjects({ fresh = false }: { fresh?: boolean } = {}): Projects {
+  const { mode } = useDashboardMode();
+  const snapshot = useSyncExternalStore(subscribeProjects, getProjectsSnapshot, getProjectsSnapshot);
+  const live = mode === 'live';
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetchProjects(controller.signal).then(
-      (projects) => {
-        if (!controller.signal.aborted) setLoaded({ token, ok: true, projects });
-      },
-      () => {
-        if (!controller.signal.aborted) setLoaded({ token, ok: false, projects: [] });
-      },
-    );
-    return () => controller.abort();
-  }, [token]);
+    if (!live) return;
+    if (fresh) void refreshProjects();
+    else loadProjects();
+  }, [live, fresh]);
 
-  const create = useCallback(async (name: string) => {
-    try {
-      const project = await createProject(name);
-      setLoaded((previous) => (previous ? { ...previous, ok: true, projects: [...previous.projects, project] } : previous));
-      return project;
-    } catch (error) {
-      return asError(error);
-    }
-  }, []);
+  const reload = useCallback(() => void refreshProjects(), []);
+  const create = useCallback((name: string, icon?: string | null) => addProject(name, icon ?? null), []);
+  const update = useCallback((id: string, patch: Partial<{ name: string; archived: boolean; icon: string | null }>) => changeProject(id, patch), []);
 
-  const update = useCallback(async (id: string, patch: Partial<{ name: string; archived: boolean }>) => {
-    try {
-      const project = await patchProject(id, patch);
-      setLoaded((previous) =>
-        previous ? { ...previous, projects: previous.projects.map((existing) => (existing.id === id ? { ...existing, ...project } : existing)) } : previous,
-      );
-      return null;
-    } catch (error) {
-      return asError(error);
-    }
-  }, []);
-
-  const current = loaded && loaded.token === token ? loaded : null;
-  return {
-    status: current ? (current.ok ? 'ready' : 'error') : 'loading',
-    projects: current ? current.projects : [],
-    reload: () => setToken((value) => value + 1),
-    create,
-    update,
-  };
+  if (!live) return { status: 'ready', projects: NONE, active: NONE, reload, create, update };
+  const status = snapshot.status === 'ready' ? 'ready' : snapshot.status === 'error' ? 'error' : 'loading';
+  return { status, projects: snapshot.projects, active: snapshot.projects.filter((project) => !project.archived), reload, create, update };
 }

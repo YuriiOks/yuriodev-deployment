@@ -1,4 +1,0 @@
-/* A ghost icon button (assets/styles/dashboard-controls.module.css). */
-.toggle {
-  composes: iconButton from '../../../assets/styles/dashboard-controls.module.css';
-}

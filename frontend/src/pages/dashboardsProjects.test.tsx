@@ -125,6 +125,52 @@ describe('the Projects section of the hub', () => {
     expect(within(section).getByRole('button', { name: 'Новый проект' })).toBeInTheDocument();
   });
 
+  it('picks an icon in the new-project form (after the name): the key goes with the create, and the card\'s tile shows it', async () => {
+    const api = setup();
+    const user = userEvent.setup();
+    renderAt('/dashboards');
+    const section = await within(main()).findByRole('region', { name: 'Проекты' });
+    await user.click(await within(section).findByRole('button', { name: 'Новый проект' }));
+    const form = within(within(section).getByRole('form', { name: 'Новый проект' }));
+    await user.type(form.getByLabelText('Название проекта'), 'Court case');
+    const group = form.getByRole('group', { name: 'Значок проекта' });
+    // "No icon" is the first choice and the current one; each icon is a radio with its name.
+    expect(within(group).getAllByRole('radio').length).toBeGreaterThanOrEqual(17);
+    expect(within(group).getByRole('radio', { name: 'Без значка' })).toBeChecked();
+    await user.click(within(group).getByRole('radio', { name: 'Весы' }));
+    expect(within(group).getByRole('radio', { name: 'Весы' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Без значка' })).not.toBeChecked();
+    await user.click(form.getByRole('button', { name: 'Создать' }));
+    await waitFor(() => expect(api.callsTo('POST', '/projects')).toHaveLength(1));
+    expect(api.callsTo('POST', '/projects')[0].body).toEqual({ name: 'Court case', icon: 'scales' });
+    const card = await within(section).findByRole('region', { name: 'Court case' });
+    expect(card.querySelector('svg[data-icon="scales"]')).not.toBeNull();
+  });
+
+  it('is reachable by keyboard: Tab enters the grid and the arrow keys move the choice', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt('/dashboards');
+    const section = await within(main()).findByRole('region', { name: 'Проекты' });
+    await user.click(await within(section).findByRole('button', { name: 'Новый проект' }));
+    const form = within(within(section).getByRole('form', { name: 'Новый проект' }));
+    await user.tab();
+    expect(form.getByRole('radio', { name: 'Без значка' })).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(form.getByRole('radio', { name: 'Весы' })).toBeChecked();
+  });
+
+  it('shows a project\'s letter on its tile when it has no icon or an icon we do not draw', async () => {
+    setup({ projects: [{ id: 'garden', name: 'Garden' }, { id: 'side-project', name: 'Side project', icon: 'from-the-future' }] });
+    renderAt('/dashboards');
+    const section = await within(main()).findByRole('region', { name: 'Проекты' });
+    for (const [name, letter] of [['Garden', 'G'], ['Side project', 'S']]) {
+      const card = await within(section).findByRole('region', { name });
+      expect(card.querySelector('svg')).toBeNull();
+      expect(card.querySelector('[aria-hidden="true"]')).toHaveTextContent(letter);
+    }
+  });
+
   it('says a clashing name clashes (409), keeps the form and the text, and refuses an empty name', async () => {
     const api = setup();
     const user = userEvent.setup();
@@ -281,6 +327,40 @@ describe('a project page', () => {
     expect(api.callsTo('PATCH', '/projects/garden')[0].body).toEqual({ name: 'Allotment' });
     expect(await within(main()).findByRole('heading', { level: 1, name: 'Allotment' })).toBeInTheDocument();
     await waitFor(() => expect(document.title).toBe('Allotment | Yurii Oksamytnyi'));
+  });
+
+  it('picks an icon next to Rename: the page\'s tile and the bar follow, and "no icon" clears it with null', async () => {
+    const api = setup({ projects: [{ id: 'garden', name: 'Garden', icon: 'leaf' }, SIDE] });
+    const user = userEvent.setup();
+    renderAt('/dashboards/projects/garden');
+    const head = (await within(main()).findByRole('heading', { level: 1, name: 'Garden' })).parentElement as HTMLElement;
+    expect(head.querySelector('svg[data-icon="leaf"]')).not.toBeNull();
+    const button = within(main()).getByRole('button', { name: 'Значок' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await user.click(button);
+    const group = within(main()).getByRole('group', { name: 'Значок проекта' });
+    expect(within(group).getByRole('radio', { name: 'Лист' })).toBeChecked();
+    await user.click(within(group).getByRole('radio', { name: 'Ракета' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/projects/garden')[0]?.body).toEqual({ icon: 'rocket' }));
+    await waitFor(() => expect(head.querySelector('svg[data-icon="rocket"]')).not.toBeNull());
+    const nav = within(main()).getByRole('navigation', { name: 'Дашборды' });
+    expect(within(nav).getByRole('link', { name: 'Garden' }).querySelector('svg[data-icon="rocket"]')).not.toBeNull();
+    await waitFor(() => expect(within(main()).queryByRole('group', { name: 'Значок проекта' })).toBeNull());
+    await user.click(within(main()).getByRole('button', { name: 'Значок' }));
+    await user.click(within(main()).getByRole('radio', { name: 'Без значка' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/projects/garden')[1]?.body).toEqual({ icon: null }));
+    await waitFor(() => expect(head.querySelector('svg')).toBeNull());
+    expect(head).toHaveTextContent('G');
+  });
+
+  it('keeps the picker open with a line when saving the icon fails', async () => {
+    setup({ fail: ['patchProject'] });
+    const user = userEvent.setup();
+    renderAt('/dashboards/projects/garden');
+    await user.click(await within(main()).findByRole('button', { name: 'Значок' }));
+    await user.click(within(main()).getByRole('radio', { name: 'Ракета' }));
+    expect(await within(main()).findByText('Не удалось сохранить значок')).toBeInTheDocument();
+    expect(within(main()).getByRole('group', { name: 'Значок проекта' })).toBeInTheDocument();
   });
 
   it('keeps the rename form with an error when it fails, and Escape leaves the name as it was', async () => {

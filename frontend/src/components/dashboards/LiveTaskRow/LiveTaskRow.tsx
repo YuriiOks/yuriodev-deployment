@@ -4,6 +4,7 @@ import { dateLabel } from '../../../services/dashboards/calendarLabels';
 import type { ApiError, LiveArea, LiveTask, TaskPatch } from '../../../services/dashboards/liveApi';
 import { dueTone } from '../../../services/dashboards/taskGroups';
 import { cx } from '../../../utils/cx';
+import AreaIcon from '../AreaIcon/AreaIcon';
 import DashIcon from '../DashIcon/DashIcon';
 import InlineError from '../InlineError/InlineError';
 import rowStyles from '../PanelRow/PanelRow.module.css';
@@ -61,7 +62,12 @@ const LiveTaskRow: React.FC<LiveTaskRowProps> = ({ task, today, areas, failed, o
       </span>
       {(area || due) && (
         <span className={rowStyles.meta}>
-          {area && <span>{text({ ru: area.nameRu, en: area.nameEn })}</span>}
+          {area && (
+            <span className={styles.areaLabel}>
+              <AreaIcon id={area.id} size={14} />
+              {text({ ru: area.nameRu, en: area.nameEn })}
+            </span>
+          )}
           {due && (
             <span className={rowStyles.due} data-tone={tone}>
               {tone === 'danger' && <DashIcon name="alert" size={14} />}

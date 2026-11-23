@@ -33,3 +33,10 @@ li[data-editing="true"]:hover::before,
 li[data-editing="true"]:hover + li::before {
   visibility: visible;
 }
+
+/* The area label on a row: its mark, then its name. */
+.areaLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

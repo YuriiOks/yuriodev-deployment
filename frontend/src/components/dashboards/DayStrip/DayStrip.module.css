@@ -40,8 +40,8 @@
 
 /* Today: the neutral filled circle, as everywhere on the calendar. */
 .today .number {
-  background: var(--dash-t1);
-  color: var(--dash-surface);
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
 }
 
 /* The selected day: t1 and a 2px underline. */
@@ -54,7 +54,7 @@
   position: absolute;
   inset: auto var(--space-2) 0;
   height: 2px;
-  background: var(--dash-t1);
+  background: var(--dash-heading);
 }
 
 /* A 4px dot under a day that has events; warn when one of them conflicts. */

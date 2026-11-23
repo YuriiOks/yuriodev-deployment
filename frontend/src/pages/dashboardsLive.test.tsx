@@ -748,3 +748,89 @@ describe('the space tiles', () => {
   });
 });
 
+
+describe('a work space on real data: the collected overview and tabs', () => {
+  const collected = () => [
+    task('work-1', 'Fix the cache', { source: 'github', stage: 'review', priority: false }),
+    task('work-1', 'My open PR', { source: 'github', stage: 'mine' }),
+    task('work-1', 'Build the thing', { source: 'linear', stage: 'started' }),
+    task('work-1', 'Do the thing', { source: 'linear', stage: 'unstarted' }),
+    task('work-1', 'Someday', { source: 'linear', stage: 'backlog' }),
+    task('work-1', 'Call the bank', { priority: true }),
+    task('work-1', 'Water the plant'),
+  ];
+  const panelNames = () => within(screen.getByRole('tabpanel')).getAllByRole('region').map((region) => region.getAttribute('aria-labelledby') && document.getElementById(region.getAttribute('aria-labelledby') as string)?.textContent);
+
+  it('puts Priority first and full width, then meetings beside the reviews, then in progress beside the notes', async () => {
+    setup({ tasks: collected() });
+    renderAt('/dashboards/work-1');
+    await within(main()).findByRole('region', { name: /Ждут моего ревью/ });
+    expect(panelNames().map((name) => name?.replace(/\s*\d+$/, ''))).toEqual([
+      'Приоритет',
+      'Встречи сегодня · календарь',
+      'Ждут моего ревью · GitHub',
+      'В работе · Linear',
+      'Мои заметки и задачи',
+    ]);
+    const panels = screen.getByRole('tabpanel');
+    expect(panels).toHaveAttribute('data-split', 'even');
+    expect(panels).toHaveAttribute('data-wide-first', 'true');
+  });
+
+  it('keeps a one-line Priority panel with its empty text when nothing is prioritised', async () => {
+    setup({ tasks: collected().filter((entry) => !entry.priority) });
+    renderAt('/dashboards/work-1');
+    const priority = await within(main()).findByRole('region', { name: 'Приоритет' });
+    expect(priority.querySelectorAll('li')).toHaveLength(0);
+    expect(priority).toHaveTextContent(/\S/);
+    expect(panelNames()[0]).toMatch(/^Приоритет/);
+  });
+
+  it('shows the two GitHub lists side by side as equal halves, each in its own panel', async () => {
+    setup({ tasks: collected() });
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(await within(main()).findByRole('tab', { name: /GitHub/ }));
+    const panels = screen.getByRole('tabpanel');
+    expect(panels).toHaveAttribute('data-split', 'even');
+    expect(panels).not.toHaveAttribute('data-wide-first');
+    expect(within(panels).getAllByRole('region')).toHaveLength(2);
+    expect(within(within(panels).getByRole('region', { name: /Мои PR/ })).getByText('My open PR')).toBeInTheDocument();
+    expect(within(within(panels).getByRole('region', { name: /Ждут моего ревью/ })).getByText('Fix the cache')).toBeInTheDocument();
+  });
+
+  it('shows Linear In progress beside Todo, with the backlog disclosure outside the columns', async () => {
+    setup({ tasks: collected() });
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(await within(main()).findByRole('tab', { name: /Linear/ }));
+    const panels = screen.getByRole('tabpanel');
+    expect(panels).toHaveAttribute('data-split', 'even');
+    expect(within(panels).getAllByRole('region')).toHaveLength(2);
+    expect(within(panels).queryByText('Someday')).toBeNull();
+    expect(within(main()).getByRole('button', { name: /Бэклог/ }).closest('[role="tabpanel"]')).toBeNull();
+  });
+});
+
+describe('the life areas get an icon each', () => {
+  it('marks every filter row (All areas, each area, No area) and each task row that shows an area, decoratively', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt('/dashboards/personal');
+    await within(main()).findByRole('region', { name: 'Приоритет' });
+    await user.click(within(main()).getByRole('tab', { name: 'Сферы' }));
+    const filter = within(main()).getByRole('region', { name: 'Фильтр по сфере' });
+    const mark = (name: RegExp) => within(filter).getByRole('button', { name }).querySelector('svg');
+    expect(mark(/^Все сферы/)).toHaveAttribute('data-icon', 'stack');
+    expect(mark(/^Деньги/)).toHaveAttribute('data-icon', 'wallet');
+    expect(mark(/^Здоровье и спорт/)).toHaveAttribute('data-icon', 'heart-pulse');
+    expect(mark(/^Романтические/)).toHaveAttribute('data-icon', 'heart');
+    expect(mark(/^Без сферы/)).toHaveAttribute('data-icon', 'dashed-circle');
+    for (const svg of Array.from(filter.querySelectorAll('svg'))) expect(svg).toHaveAttribute('aria-hidden', 'true');
+    // The names stay the labels (the icon adds no text to them).
+    expect(within(filter).getByRole('button', { name: /^Деньги/ })).toHaveAccessibleName(/^Деньги/);
+    // A task row that shows its area carries the area's mark before the name.
+    const label = within(main()).getAllByText('Деньги').map((node) => node.closest('span')).find((node) => node?.querySelector('svg[data-icon="wallet"]'));
+    expect(label).toBeTruthy();
+  });
+});

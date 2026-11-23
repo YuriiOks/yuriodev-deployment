@@ -1,7 +1,16 @@
-/* An entrance card: the content surface (glass, hairline, 12px radius); hovering lifts the edge to the
-   control edge. The whole card is the link: the title's anchor is stretched over it. */
+/* An entrance card: at rest the shared neutral glass (the page's skin: its surface and border), with the scheme's colour in
+   the tile, the name, the "Next:" label and the stat chips (a soft tint, a hairline, the number in the ink). On hover,
+   keyboard focus and press the card's own scheme comes in: ONE flat tint (--hub-<scheme>-h, then -p when pressed; no
+   gradient), a border in the ink and the chips one step up (-c to -ch), over a short transition (none with reduced motion). A touch screen has no hover and stays at rest. Every pair
+   in both states is held by contrast.test.ts. The whole card is the link: the title's anchor is stretched over it
+   (one real link, one tab stop). */
 .card {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
+  --scheme-ink: var(--dash-accent);
+  --scheme-h: var(--dash-chip);
+  --scheme-p: var(--dash-chip);
+  --scheme-c: var(--dash-chip);
+  --scheme-ch: var(--dash-chip);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -9,18 +18,47 @@
   padding: var(--space-5);
   box-sizing: border-box;
   border-radius: var(--dash-r-surface);
-  transition: border-color 120ms;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
 }
 
 @media (hover: hover) {
   .card:hover {
-    border-color: var(--dash-edge);
+    background: var(--scheme-h);
+    border-color: var(--scheme-ink);
+  }
+
+  .card:hover .stat {
+    background: var(--scheme-ch);
   }
 }
 
-.card:focus-within {
-  outline: 2px solid var(--focus-ring);
+.card:has(.link:focus-visible) {
+  background: var(--scheme-h);
+  border-color: var(--scheme-ink);
+  outline: 2px solid var(--scheme-ink);
   outline-offset: 2px;
+}
+
+.card:has(.link:focus-visible) .stat {
+  background: var(--scheme-ch);
+}
+
+.card:active {
+  background: var(--scheme-p);
+  border-color: var(--scheme-ink);
+}
+
+.card:active .stat {
+  background: var(--scheme-ch);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .stat {
+    transition: none;
+  }
 }
 
 .head {
@@ -29,13 +67,15 @@
   gap: var(--space-3);
 }
 
-/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
+/* global.css gives every h2 an underline, spacing and position: relative: all cleared (the name has no '# '), the position
+   so the link's stretched ::after is sized by the card and not by the heading. */
 .card .name {
+  position: static;
   margin: 0;
   padding: 0;
-  font-size: var(--dash-fs-title);
-  font-weight: 600;
-  line-height: var(--dash-lh-title);
+  font-size: var(--dash-fs-page);
+  font-weight: 700;
+  line-height: var(--dash-lh-page);
 }
 
 .card .name::before,
@@ -44,7 +84,7 @@
 }
 
 .link {
-  color: var(--dash-t1);
+  color: var(--scheme-ink);
   text-decoration: none;
 }
 
@@ -59,9 +99,12 @@
   outline: none;
 }
 
-/* Three stats side by side, a 24px gap and a hairline between them. */
+/* Three stats in three cells of exactly equal width, each a chip with a hairline (the mockup's), the number and its
+   label centred in the cell. */
 .stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -70,28 +113,28 @@
 .stat {
   display: flex;
   flex-direction: column;
-  padding-inline: var(--space-5);
-}
-
-.stat:first-child {
-  padding-left: 0;
-}
-
-.stat + .stat {
-  border-left: 1px solid var(--dash-line);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-1);
+  background: var(--scheme-c);
+  border: 1px solid color-mix(in srgb, var(--scheme-ink) 28%, transparent);
+  border-radius: var(--dash-r-control);
+  text-align: center;
+  transition: background-color 150ms;
 }
 
 .number {
-  color: var(--dash-t1);
+  color: var(--scheme-ink);
   font-size: var(--dash-fs-stat);
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 700;
   line-height: var(--dash-lh-stat);
 }
 
 .zero {
-  color: var(--dash-t3);
+  color: var(--dash-t2);
 }
 
 .alarm {
@@ -106,7 +149,7 @@
 
 .next {
   margin: 0;
-  color: var(--dash-t2);
+  color: var(--dash-t1);
 }
 
 .at {
@@ -117,8 +160,43 @@
   .card {
     padding: var(--space-4);
   }
+}
 
-  .stat {
-    padding-inline: var(--space-4);
-  }
+/* The scheme maps to the hub tokens: the three spaces' own, and the one project scheme (Anthropic's: clay on warm ivory or
+   warm near-black, with its own text and chip colours). */
+.card[data-scheme="personal"] {
+  --scheme-ink: var(--hub-personal-ink);
+  --scheme-h: var(--hub-personal-h);
+  --scheme-p: var(--hub-personal-p);
+  --scheme-c: var(--hub-personal-c);
+  --scheme-ch: var(--hub-personal-ch);
+}
+
+.card[data-scheme="work-1"] {
+  --scheme-ink: var(--hub-work-1-ink);
+  --scheme-h: var(--hub-work-1-h);
+  --scheme-p: var(--hub-work-1-p);
+  --scheme-c: var(--hub-work-1-c);
+  --scheme-ch: var(--hub-work-1-ch);
+}
+
+.card[data-scheme="work-2"] {
+  --scheme-ink: var(--hub-work-2-ink);
+  --scheme-h: var(--hub-work-2-h);
+  --scheme-p: var(--hub-work-2-p);
+  --scheme-c: var(--hub-work-2-c);
+  --scheme-ch: var(--hub-work-2-ch);
+}
+
+.card[data-scheme="project"] {
+  --scheme-ink: var(--hub-project-ink);
+  --scheme-h: var(--hub-project-h);
+  --scheme-p: var(--hub-project-p);
+  --scheme-c: var(--hub-project-c);
+  --scheme-ch: var(--hub-project-ch);
+}
+
+.nextLabel {
+  color: var(--scheme-ink);
+  font-weight: 700;
 }

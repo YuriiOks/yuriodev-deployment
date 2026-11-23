@@ -1,6 +1,6 @@
-/* One row: 40px, one line, a hairline between rows, no border, fill or radius of its own; the pointer
-   brings up a chip plate with the control radius. Grid: an optional 24px lead column, the title, the meta
-   group, the action. A narrow panel (under 32rem wide) puts the meta group under the title. */
+/* One row: one line, a rounded plate on hover (the chip), the priority panel's rows tinted and edged in the page's
+   cyan; a hairline between rows. Grid: an optional 24px lead column, the title, the meta group, the action. A narrow
+   panel (under 32rem wide) puts the meta group under the title. A due date is a small bordered pill in its tone. */
 .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -8,7 +8,9 @@
   align-items: center;
   column-gap: var(--space-3);
   min-height: var(--dash-h-row);
+  margin-bottom: var(--space-1);
   padding: 0 var(--space-2);
+  border: 1px solid transparent;
   border-radius: var(--dash-r-control);
   list-style: none;
 }
@@ -18,27 +20,20 @@
   grid-template-areas: 'lead title meta action';
 }
 
-/* The hairline between rows lives on the top edge of every row but the first. */
-.row + .row {
-  position: relative;
+/* The priority panel's rows: the cyan tint and edge (the mockup's prioBg and prioBd). */
+[data-emphasis="true"] .row {
+  background: var(--dash-prio-bg);
+  border-color: var(--dash-prio-edge);
 }
 
-.row + .row::before {
-  content: '';
-  position: absolute;
-  inset: 0 var(--space-2) auto;
-  height: 1px;
-  background: var(--dash-line);
+[data-emphasis="true"] .row[data-done="true"] {
+  background: transparent;
+  border-color: transparent;
 }
 
 @media (hover: hover) {
   .row:hover {
     background: var(--dash-chip);
-  }
-
-  .row:hover::before,
-  .row:hover + .row::before {
-    visibility: hidden;
   }
 
   .task:hover {
@@ -65,7 +60,7 @@
   cursor: pointer;
 }
 
-/* The native input fills a 44px hit area around the 16px box and is invisible. */
+/* The native input fills a 44px hit area around the box and is invisible. */
 .input {
   position: absolute;
   inset: -0.625rem;
@@ -76,15 +71,16 @@
   cursor: pointer;
 }
 
+/* The box: 18px, 6px radius, a 1.5px cyan border; ticked it is the page's fill. */
 .box {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1rem;
-  height: 1rem;
+  width: 1.125rem;
+  height: 1.125rem;
   box-sizing: border-box;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-edge);
+  background: var(--dash-well);
+  border: 1.5px solid var(--dash-accent);
   border-radius: var(--dash-r-tag);
   color: var(--dash-on-fill);
 }
@@ -123,16 +119,17 @@
   white-space: nowrap;
 }
 
-/* A done task: struck through and dimmed to the secondary ink. */
+/* A done task: struck through and dimmed. */
 .done {
-  color: var(--dash-t2);
+  color: var(--dash-t3);
   text-decoration: line-through;
 }
 
-/* A reference is data (mono) and a link: t1 and underlined, never coloured. */
+/* A reference is data and a link: the page's cyan, semibold, underlined (a link is not told by colour alone). */
 .ref {
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  color: var(--dash-t1);
+  color: var(--dash-accent);
+  font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 0.25rem;
 }
@@ -142,36 +139,44 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-3);
-  color: var(--dash-t2);
+  gap: var(--space-2);
+  color: var(--dash-t3);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
   white-space: nowrap;
 }
 
-/* A status in words: 500 weight, t2, or danger with the CI icon in front of the row. */
+/* A status in words: bold t2, or the danger colour with the CI icon in front of the row. */
 .status {
-  font-weight: 500;
+  color: var(--dash-t2);
+  font-weight: 700;
 }
 
 .status[data-tone="danger"] {
   color: var(--dash-danger);
 }
 
+/* The due date: a small pill on the well, its border and text in its tone (danger, warn, or quiet). */
 .due {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  padding: 0 var(--space-2);
+  background: var(--dash-well);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t2);
+  font-weight: 700;
 }
 
 .due[data-tone="warn"] {
+  border-color: var(--dash-warn);
   color: var(--dash-warn);
-  font-weight: 500;
 }
 
 .due[data-tone="danger"] {
+  border-color: var(--dash-danger);
   color: var(--dash-danger);
-  font-weight: 500;
 }
 
 /* A secondary button, text only, as wide as its word. */
@@ -214,14 +219,8 @@
 
   .meta {
     justify-content: flex-start;
-    gap: 0;
-  }
-
-  .meta > * + *::before {
-    content: '\00b7';
-    margin-inline: var(--space-2);
-    color: var(--dash-t3);
-    font-weight: 400;
+    gap: var(--space-2);
+    flex-wrap: wrap;
   }
 }
 

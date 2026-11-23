@@ -5,17 +5,21 @@
   border-radius: var(--dash-r-surface);
 }
 
-/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
+/* global.css gives every h2 an underline and spacing: both cleared; the '# ' mark stays, in the page's cyan. */
 .panel .title {
   margin: 0;
   padding: 0;
-  color: var(--dash-t1);
+  color: var(--dash-heading);
   font-size: var(--dash-fs-title);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--dash-lh-title);
 }
 
-.panel .title::before,
+.panel .title::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
 .panel .title::after {
   content: none;
 }

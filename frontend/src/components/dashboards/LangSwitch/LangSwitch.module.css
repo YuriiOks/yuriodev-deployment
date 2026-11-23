@@ -1,12 +1,7 @@
-/* The segmented-control system (assets/styles/dashboard-controls.module.css). */
+/* RU and EN in the site header's own control style (Header.module.css .navControl): two 40px bordered buttons, the
+   language in use marked as the site marks its current page (accent text and an underline). */
 .group {
-  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
-}
-
-.option {
-  composes: option from '../../../assets/styles/dashboard-controls.module.css';
-}
-
-.on {
-  composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }

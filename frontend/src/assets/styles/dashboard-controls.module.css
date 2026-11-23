@@ -1,20 +1,21 @@
-/* The dashboards' controls, one system. Components reach them with
+/* The dashboards' controls, one system, in the platform's look (the mockup's). Components reach them with
      composes: segment from '<relative path>/assets/styles/dashboard-controls.module.css';
    (and option, optionOn, optionSquare, button, buttonPrimary, buttonSecondary, buttonGhost, iconButton).
-   A segmented control (the RU/EN switch, Week / Month, previous / Today / next): a chip track with an 8px
-   radius, 2px of padding and 32px of height; the selected segment is the surface with a 1px edge and t1,
-   the others t2. It is neutral in every space. A button is 32px high, 8px radius, 14px 500, in one of three
-   variants: primary (the space's fill; one per view), secondary (a chip fill, no border) and ghost (no
-   fill). Every control has a 120ms colour transition, a one-step-darker :active, a disabled state and the
-   global focus ring. On a coarse pointer the controls are 44px. */
+   A segmented control (the RU/EN switch, Week / Month, previous / Today / next): a pill track with a hairline
+   border, the selected segment filled with the page's cyan (or its space's fill) and the ink on it. A button is
+   40px high with the control radius, 13px 700, in one of three variants: primary (the page's fill with a soft
+   coloured glow), secondary (a well fill and a hairline border) and ghost (no fill). Every control has a 120ms
+   colour transition, a one-step-darker :active, a disabled state and the global focus ring. On a coarse pointer
+   the controls are 44px. */
 .segment {
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
-  padding: 0.125rem;
+  padding: 0.1875rem;
   box-sizing: border-box;
   background: var(--dash-chip);
-  border-radius: var(--dash-r-control);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
 }
 
 .option,
@@ -24,40 +25,41 @@
   justify-content: center;
   gap: var(--space-2);
   height: var(--dash-h-control);
-  min-width: 2rem;
+  min-width: 2.5rem;
   padding: 0 var(--space-3);
   box-sizing: border-box;
   border: 1px solid transparent;
-  border-radius: calc(var(--dash-r-control) - 0.125rem);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--dash-t2);
   font-family: var(--dash-font-ui);
   font-size: var(--dash-fs-ui);
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
   transition:
     background-color 120ms,
-    color 120ms;
+    color 120ms,
+    border-color 120ms;
 }
 
-/* The track is 2px of padding around a 28px segment on a fine pointer, so the whole control is 32px. */
+/* The track is 3px of padding around a 32px segment on a fine pointer, so the whole control is 40px. */
 .segment .option {
-  height: calc(var(--dash-h-control) - 0.25rem);
+  height: calc(var(--dash-h-control) - 0.5rem);
 }
 
 .optionSquare {
-  width: calc(var(--dash-h-control) - 0.25rem);
+  width: calc(var(--dash-h-control) - 0.5rem);
   min-width: 0;
   padding: 0;
 }
 
+/* The selected segment: the page's fill and its ink. */
 .optionOn {
-  background: var(--dash-surface);
-  border-color: var(--dash-edge);
-  color: var(--dash-t1);
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
 }
 
 .option:disabled,
@@ -74,11 +76,13 @@
 
 .buttonPrimary {
   background: var(--dash-fill);
+  box-shadow: var(--dash-glow-shadow);
   color: var(--dash-on-fill);
 }
 
 .buttonSecondary {
-  background: var(--dash-chip);
+  background: var(--dash-well);
+  border-color: var(--dash-border);
   color: var(--dash-t1);
 }
 
@@ -86,7 +90,7 @@
   color: var(--dash-t1);
 }
 
-/* A square ghost button holding one icon (the theme toggle). */
+/* A round ghost button holding one icon (the theme toggle), with the segment's hairline. */
 .iconButton {
   display: inline-flex;
   align-items: center;
@@ -94,14 +98,15 @@
   width: var(--dash-h-control);
   height: var(--dash-h-control);
   padding: 0;
-  border: 0;
-  border-radius: var(--dash-r-control);
-  background: transparent;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
   color: var(--dash-t1);
   cursor: pointer;
   transition:
     background-color 120ms,
-    color 120ms;
+    color 120ms,
+    border-color 120ms;
 }
 
 @media (hover: hover) {
@@ -112,11 +117,12 @@
   .buttonSecondary:hover,
   .buttonGhost:hover,
   .iconButton:hover {
+    border-color: var(--dash-edge);
     background: var(--dash-chip);
   }
 
   .buttonPrimary:hover {
-    filter: brightness(1.06);
+    filter: brightness(1.08);
   }
 }
 
@@ -131,10 +137,9 @@
   filter: brightness(0.92);
 }
 
-/* Fingers: 44px targets, a 40px-high control inside a 44px track-less hit area. */
+/* Fingers: 44px targets. */
 @media (pointer: coarse) {
   .segment .option {
-    height: calc(var(--dash-h-control) - 0.25rem);
     min-width: 2.75rem;
   }
 

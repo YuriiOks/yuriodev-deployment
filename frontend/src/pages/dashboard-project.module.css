@@ -8,19 +8,22 @@
   min-height: var(--dash-h-strip);
 }
 
-/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+/* The h1: bold in the heading colour, led by the cyan '# '; global.css's other h1 decoration is cleared. */
 .head .name {
   margin: 0;
   padding: 0;
-  color: var(--dash-t1);
+  color: var(--dash-heading);
   font-size: var(--dash-fs-page);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
   line-height: var(--dash-lh-page);
   overflow-wrap: anywhere;
 }
 
-.head .name::before,
+.head .name::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
 .head .name::after {
   content: none;
 }
@@ -83,13 +86,17 @@
 .missing h1 {
   margin: 0;
   padding: 0;
-  color: var(--dash-t1);
+  color: var(--dash-heading);
   font-size: var(--dash-fs-title);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--dash-lh-title);
 }
 
-.missing h1::before,
+.missing h1::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
 .missing h1::after {
   content: none;
 }
@@ -102,4 +109,9 @@
 .back {
   composes: button buttonSecondary from '../assets/styles/dashboard-controls.module.css';
   margin-top: var(--space-2);
+}
+
+/* The icon picker, opened from the Icon button, under the head. */
+.picker {
+  padding: var(--space-3) 0;
 }

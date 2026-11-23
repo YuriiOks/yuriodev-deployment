@@ -1,5 +1,5 @@
 /* One row on a laptop: the range (the h1, 20px), previous / Today / next, then at the right the legend, the
-   conflict count (only above zero), the working-days switch and Week / Month. Everything is 32px high. Below
+   conflict count (only above zero), the working-days switch and Week / Month. Everything is 40px high. Below
    64rem it wraps into two rows; a phone's two rows are the range with the steps, then the rest. The controls are
    the shared system in assets/styles/dashboard-controls.module.css. */
 .toolbar {
@@ -10,18 +10,21 @@
   min-height: var(--dash-h-strip);
 }
 
-/* global.css gives every h1 a '# ', an underline and spacing: all cleared. */
+/* The h1: bold in the heading colour, led by the cyan '# ' (the site's title mark); global.css's other h1 decoration is cleared. */
 .toolbar .title {
   margin: 0;
   padding: 0;
-  color: var(--dash-t1);
+  color: var(--dash-heading);
   font-size: var(--dash-fs-page);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
   line-height: var(--dash-lh-page);
 }
 
-.toolbar .title::before,
+.toolbar .title::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
 .toolbar .title::after {
   content: none;
 }

@@ -77,7 +77,7 @@
 .day {
   padding: 0 0 var(--space-2);
   border-bottom: 1px solid var(--dash-line);
-  font-weight: 500;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -105,8 +105,8 @@
 }
 
 .today .number {
-  background: var(--dash-t1);
-  color: var(--dash-surface);
+  background: var(--dash-fill);
+  color: var(--dash-on-fill);
 }
 
 /* The hour labels (data: mono), each in the middle of its hour's row. */
@@ -177,7 +177,7 @@
 
 /* An event: placed by start time (top), as tall as it lasts (height), at its indent (--level steps of 1rem)
    and in its slot of the remaining width. An opaque tint of the space's ink, a 3px bar of the ink at the left,
-   no border, a 1px surface-coloured outline that parts neighbours. The title comes first (12px 500 t1, two
+   a hairline of the ink at 40% (the mockup's event border). The title comes first (12px 500 t1, two
    lines, three from 90 minutes), the time under it (mono 12px t2). A block under 45 minutes is one line: the
    title, then its start. Its note (a Focus-time line) is in the tooltip and the screen-reader text. */
 .event {
@@ -199,7 +199,7 @@
   box-shadow:
     inset 3px 0 0 var(--ink),
     var(--ring, 0 0 0 0 transparent),
-    0 0 0 1px var(--dash-surface);
+    inset 0 0 0 1px color-mix(in srgb, var(--ink) 40%, transparent);
   color: var(--dash-t1);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);

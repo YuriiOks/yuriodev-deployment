@@ -1,3 +1,4 @@
+import AreaIcon from '../components/dashboards/AreaIcon/AreaIcon';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
@@ -106,7 +107,8 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   );
 
   let body: ReactNode;
-  let split = false;
+  let split: 'main' | 'even' | false = false;
+  let wideFirst = false;
   let rows = 1;
   let backlog: LiveTask[] = [];
   if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
@@ -124,12 +126,14 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     if (current === 'github') {
       const reviews = open.filter((task) => task.stage === 'review');
       const mine = open.filter((task) => task.stage !== 'review');
+      split = 'even';
       body = [panel('github-mine', t.githubMine, mine, t.emptySource), panel('github-reviews', t.githubReviews, reviews, t.emptySource)];
     } else if (current === 'linear') {
       // By the issue's state type; the backlog waits behind its disclosure under the lists.
       const of = (stage: string) => open.filter((task) => task.stage === stage);
       const other = open.filter((task) => !LINEAR_STAGES.has(task.stage ?? ''));
       backlog = of('backlog');
+      split = 'even';
       body = [
         panel('linear-started', t.linearStarted, of('started'), t.emptySource),
         panel('linear-todo', t.linearTodo, of('unstarted'), t.emptySource),
@@ -140,8 +144,10 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       body = panel(current, t.tabs[current], open, t.emptySource);
     }
   } else if (current === 'overview' && hasCollected) {
-    // "Waiting for me": today's meetings, the reviews asked of this user, the issues in progress, then the
-    // priority and hand-written tasks. Each collected list names its source and leads to its tab.
+    // "Waiting for me": the priority first (full width), then today's meetings beside the reviews asked of this user,
+    // the issues in progress beside the hand-written tasks. Each collected list names its source and leads to its tab.
+    split = 'even';
+    wideFirst = true;
     const open = tasks.tasks.filter((task) => task.status === 'open');
     const reviews = open.filter((task) => task.source === 'github' && task.stage === 'review');
     const started = open.filter((task) => task.source === 'linear' && task.stage === 'started');
@@ -164,6 +170,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     );
     const rest = [...groups.due, ...groups.week, ...groups.later, ...groups.undated];
     body = [
+      panel('priority', t.groupPriority, groups.priority, t.emptyPriority),
       <section key="today" aria-labelledby={`${space}-today-title`} className={panelStyles.panel}>
         <div className={panelStyles.head}>
           <h2 id={`${space}-today-title`} className={panelStyles.title}>
@@ -189,7 +196,6 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       </section>,
       short('overview-reviews', t.overviewReviews, reviews, 'github'),
       short('overview-started', t.overviewStarted, started, 'linear'),
-      panel('priority', t.groupPriority, groups.priority, t.emptyPriority),
       ...(rest.length ? [panel('own', t.overviewOwn, rest)] : []),
     ];
   } else if (current === 'overview') {
@@ -200,27 +206,30 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       ...(groups.later.length ? [panel('later', t.groupLater, groups.later)] : []),
       ...(groups.undated.length ? [panel('undated', t.groupNoDate, groups.undated)] : []),
     ];
-    split = panels.length > 1;
+    split = panels.length > 1 ? 'main' : false;
     rows = Math.max(panels.length - 1, 1);
     body = panels;
   } else {
     const counts = areaCounts(tasks.tasks, areaList ?? []);
     const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
     const chosen = area === null ? t.allAreas : area === '' ? t.noArea : text(areaName(areaList ?? [], area));
-    split = true;
+    split = 'main';
     body = [
       panel('area-tasks', chosen, openTasks(groups), tasks.tasks.length === 0 ? t.emptyTasks : t.emptyPriority),
       <section key="filter" aria-label={t.areaFilter} className={live.filter}>
         <h2 className={live.filterHead}>{t.areaFilter}</h2>
         <ul className={live.areas}>
           {[
-            { id: null, label: t.allAreas, count: total },
-            ...(areaList ?? []).map((a) => ({ id: a.id, label: text({ ru: a.nameRu, en: a.nameEn }), count: counts.get(a.id) ?? 0 })),
-            { id: '', label: t.noArea, count: counts.get('') ?? 0 },
+            { id: null, label: t.allAreas, count: total, mark: <AreaIcon name="stack" /> },
+            ...(areaList ?? []).map((a) => ({ id: a.id, label: text({ ru: a.nameRu, en: a.nameEn }), count: counts.get(a.id) ?? 0, mark: <AreaIcon id={a.id} /> })),
+            { id: '', label: t.noArea, count: counts.get('') ?? 0, mark: <AreaIcon name="dashed-circle" /> },
           ].map((entry) => (
             <li key={entry.id ?? 'all'}>
               <button type="button" className={live.area} aria-pressed={area === entry.id} onClick={() => setArea(entry.id)}>
-                <span>{entry.label}</span>
+                <span className={live.areaName}>
+                  {entry.mark}
+                  {entry.label}
+                </span>
                 <span className={live.areaCount} data-zero={entry.count === 0 ? 'true' : undefined}>
                   {entry.count}
                 </span>
@@ -245,7 +254,8 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
         id={`${space}-panel`}
         aria-labelledby={`${space}-tab-${current}`}
         className={styles.panels}
-        data-split={split ? 'true' : undefined}
+        data-split={split ? (split === 'main' ? 'true' : split) : undefined}
+        data-wide-first={wideFirst ? 'true' : undefined}
         style={{ '--rows': rows } as CSSProperties}
       >
         {body}

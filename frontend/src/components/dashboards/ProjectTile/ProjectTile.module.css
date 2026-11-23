@@ -1,4 +1,7 @@
-/* The space tile's shape, filled from the neutral tokens: on a page that belongs to no space --dash-fill is the ink. */
+/* The space tile's shape (36px, SpaceTile.module.css) in the project scheme: the brand clay (--hub-project-clay) with the
+   warm black (--hub-project-on) on it, a pair held by contrast.test.ts. SpaceTile reads --tile-bg and --tile-ink. */
 .tile {
   composes: tile from '../SpaceTile/SpaceTile.module.css';
+  --tile-bg: var(--hub-project-clay);
+  --tile-ink: var(--hub-project-on);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveEvent } from './liveApi';
 import { FOCUS_NOTE, clampToHours, hoursFor, rangeOf, toCalEvents, withoutCopies } from './liveEvents';
-import { liveHero, nextAtLabel } from './liveLabels';
+import { liveHero, nearestNext, nextAtLabel } from './liveLabels';
 import { localDate, localTime, minutesUntil, splitIso, toOffsetIso } from './liveTime';
 import { STRINGS } from './strings';
 import type { CalEvent } from './types';
@@ -141,5 +141,16 @@ describe('the strip and the entrance for a real event', () => {
     const hero = liveHero({ title: 'Stand-up', startsAt: local('2026-11-23', '09:47') }, now, STRINGS.en);
     expect(hero).toMatchObject({ at: '09:47', title: { en: 'Stand-up' }, minutesLeft: 47, day: [] });
     expect(hero.join).toBeUndefined();
+  });
+});
+
+describe('nearestNext', () => {
+  it('is the earliest start, compared as moments (not as text), and null when there is none', () => {
+    const early = { title: 'Early', startsAt: '2026-11-23T10:00:00+02:00' };
+    const late = { title: 'Late', startsAt: '2026-11-23T09:30:00+00:00' };
+    // 10:00+02:00 is 08:00 UTC, before 09:30 UTC, although it sorts after it as text.
+    expect(nearestNext([late, null, early])).toBe(early);
+    expect(nearestNext([null, null])).toBeNull();
+    expect(nearestNext([])).toBeNull();
   });
 });

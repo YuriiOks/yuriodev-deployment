@@ -1,57 +1,41 @@
-/* The bar: sticky, full width, 48px, the one glass surface of the dashboards (recipes.module.css
-   .glassBar, a denser veil over the page's glows) with a hairline under it, no radius. Its content sits in
-   the page's column. The pages are text links: t2, t1 on hover, the current one t1 with a 2px underline in the
-   space's colour that sits on the bar's bottom edge. */
+/* The bar is the site's header (components/layout/Header: the prompt, the 40px bordered controls, the underlined
+   current page, all from its own stylesheet and tokens) made sticky and given the dashboards' pages. The same glass
+   recipe as the site's header, the same height and bottom border, the same side padding. One row from a laptop up;
+   below 48rem the prompt is the short one and the pages scroll sideways. */
 .bar {
-  composes: glassBar from '../../../assets/styles/recipes.module.css';
+  composes: glass from '../../../assets/styles/recipes.module.css';
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  height: var(--dash-h-bar);
+  height: var(--header-h);
   box-sizing: border-box;
+  padding: 0 var(--space-4);
+  font-family: var(--font-mono);
+  border-width: 0 0 2px;
+  border-bottom: 2px solid var(--header-border-bottom-color);
 }
 
 .inner {
   display: flex;
-  align-items: stretch;
-  gap: var(--space-3);
+  align-items: center;
+  gap: var(--space-4);
   height: 100%;
-  /* Always the wide cap (the calendar's), whatever the page's own column: the bar never moves between pages. */
-  max-width: 96rem;
-  margin-inline: auto;
-  padding-inline: var(--space-4);
-  box-sizing: border-box;
 }
 
-@media (min-width: 48rem) {
-  .inner {
-    padding-inline: var(--space-5);
+@media (min-width: 64rem) {
+  .bar {
+    padding: 0 var(--space-6);
   }
 }
 
-.brand {
-  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  display: inline-flex;
-  align-items: center;
-  color: var(--dash-t1);
-  font-size: var(--dash-fs-ui);
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.divider {
-  align-self: center;
-  width: 1px;
-  height: 1.25rem;
-  margin-inline: var(--space-1);
-  background: var(--dash-line);
-}
-
+/* The pages: the site's pills in a row that scrolls sideways when it must. */
 .nav {
   display: flex;
   flex: 1 1 auto;
-  gap: var(--space-4);
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
+  padding: var(--space-1) 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -60,53 +44,84 @@
   display: none;
 }
 
-.link {
-  position: relative;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  color: var(--dash-t2);
-  font-size: var(--dash-fs-ui);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color 120ms;
-}
-
-.link.active {
-  color: var(--dash-t1);
-}
-
-.link.active::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 2px;
-  background: var(--dash-accent);
-}
-
-@media (hover: hover) {
-  .link:hover {
-    color: var(--dash-t1);
-  }
-}
-
+/* The portfolio link, the language switch and the theme button, together at the right. */
 .tools {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;
 }
 
-/* Wide enough for all of it: the pages sit next to the brand, the switches at the end. */
-@media (min-width: 64rem) {
-  .nav {
-    flex: 0 1 auto;
+/* The prompt keeps its width (the short one on a phone, the site's own rule) and the pages give way to it. */
+.inner > .prompt {
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+
+/* A phone: the portfolio link is an arrow (its label is aria-label), so the prompt and the pages have the room. */
+@media (max-width: 29.99rem) {
+  .inner {
+    gap: var(--space-2);
+  }
+
+  .portfolioText {
+    display: none;
   }
 }
 
-@media (forced-colors: active) {
-  .link.active::after {
-    background: Highlight;
+/* Every pill carries a mark in a 24px box: a space's or a project's tile (36px tiles scaled down by their custom
+   properties: a 6px radius, a 12px letter, a 16px drawing), or a line icon centred in it, so the labels start at one
+   x whatever the mark. The pills are the site's, with the mark and the label side by side. */
+.nav a {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.mark {
+  --tile-size: 1.5rem;
+  --tile-radius: var(--dash-r-tag);
+  --tile-font: var(--dash-fs-meta);
+  --tile-glyph: 1rem;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* The thin line between the fixed pages and the user's projects. */
+.divider {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 1.5rem;
+  margin-inline: var(--space-1);
+  background: var(--header-border-bottom-color);
+}
+
+/* With projects in the row there is no room at laptop widths for everything: below 100rem the prompt is the short one
+   (as on a phone) and the portfolio link is its arrow, so the pages and a few projects fit; the rest scroll sideways. */
+@media (max-width: 99.99rem) {
+  .bar[data-projects] .full {
+    display: none;
   }
+
+  .bar[data-projects] .short {
+    display: inline;
+  }
+
+  .bar[data-projects] .portfolioText {
+    display: none;
+  }
+}
+
+/* The row's right end fades out while there is more to scroll to. */
+.nav[data-more="true"] {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
 }

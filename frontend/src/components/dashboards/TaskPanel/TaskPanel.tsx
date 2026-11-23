@@ -27,7 +27,7 @@ export interface TaskPanelProps {
 const TaskPanel: React.FC<TaskPanelProps> = ({ id, title, tasks, today, areas, failed, empty, total, more, onToggle, onSave, onDelete }) => {
   const titleId = `panel-${id}-title`;
   return (
-    <section aria-labelledby={titleId} className={styles.panel}>
+    <section aria-labelledby={titleId} className={styles.panel} data-emphasis={id === 'priority' ? 'true' : undefined}>
       <div className={styles.head}>
         <h2 id={titleId} className={styles.title}>
           {title}

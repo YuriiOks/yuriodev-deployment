@@ -15,17 +15,21 @@
   border-radius: var(--dash-r-surface);
 }
 
-/* global.css gives every h2 a '# ', an underline and spacing: all cleared. */
+/* global.css gives every h2 an underline and spacing: both cleared; the '# ' mark stays, in the page's cyan. */
 .filter .filterHead {
   margin: 0;
   padding: var(--space-3) var(--space-4) var(--space-2);
-  color: var(--dash-t1);
+  color: var(--dash-heading);
   font-size: var(--dash-fs-title);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--dash-lh-title);
 }
 
-.filter .filterHead::before,
+.filter .filterHead::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
 .filter .filterHead::after {
   content: none;
 }
@@ -85,4 +89,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* A filter row's name with its area mark before it. */
+.areaName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }

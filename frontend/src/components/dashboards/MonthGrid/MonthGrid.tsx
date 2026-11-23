@@ -25,11 +25,12 @@ export interface MonthGridProps {
 const MAX_ROWS = 3;
 
 /**
- * A month as a grid of weeks, Monday first. Each day is a button (a 44px-plus target) named by its date and its
- * number of events. A day of the month lists its events as rows (a 6px dot in the space's colour, the title with
- * an ellipsis, the start time at the right), three at most, then "+N"; the conflict mark is a warn triangle beside
- * the number. A neighbouring month's days are quieter still: grey numerals and up to three dots, no rows. Today's
- * number is a filled neutral circle; weekends take the week view's tint. A phone shows dots for every day.
+ * A month as a grid of weeks, Monday first, in the week view's design (WeekGrid.module.css): the same glass frame, header row,
+ * hairlines, weekend tint and today's filled number. Each day is a button (a 44px-plus target) named by its date and its
+ * number of events. A day of the month lists its events as the week's blocks at chip size (an opaque tint of the space's
+ * colour with a 3px ink bar at the left, the title with an ellipsis and the start time at the right, a warn ring for a
+ * conflict, hatching for a busy-only one), three at most, then "+N" (the day opens in the week view). A neighbouring
+ * month's days are quieter: grey numerals and up to three dots. A phone shows dots for every day.
  */
 const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, conflicts, onPickDay, workdaysOnly = false }) => {
   const { t, text } = useDashboardLang();
@@ -81,8 +82,13 @@ const MonthGrid: React.FC<MonthGridProps> = ({ year, month, today, events, confl
                       {inMonth && (
                         <span className={styles.rows}>
                           {day.slice(0, MAX_ROWS).map((event) => (
-                            <span key={event.id} className={styles.row} data-for={event.space}>
-                              <span aria-hidden="true" className={styles.dotMark} />
+                            <span
+                              key={event.id}
+                              className={styles.event}
+                              data-for={event.space}
+                              data-conflict={conflicts.ids.has(event.id) ? 'true' : undefined}
+                              data-note={event.note ? 'true' : undefined}
+                            >
                               <span className={styles.title}>{text(event.title)}</span>
                               <span className={styles.time}>{event.start}</span>
                             </span>

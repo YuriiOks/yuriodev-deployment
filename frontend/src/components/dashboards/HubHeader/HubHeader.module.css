@@ -1,0 +1,82 @@
+/* The hub header: a glass card of its own with the site's cyan border, one flat personal-cyan tint
+   (--hub-head-a, contrast.test.ts holds it). */
+.header {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  min-height: var(--dash-h-strip);
+  padding: var(--space-4) var(--space-5);
+  box-sizing: border-box;
+  background: var(--hub-head-a);
+  border-color: color-mix(in srgb, var(--hub-personal-ink) 45%, transparent);
+  border-radius: var(--dash-r-surface);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The h1: bold amber, led by the cyan '# ' (the site's title mark); global.css's other h1 decoration is cleared. */
+.header .title {
+  margin: 0;
+  padding: 0;
+  color: var(--hub-amber-ink);
+  font-size: var(--dash-fs-page);
+  font-weight: 700;
+  line-height: var(--dash-lh-page);
+}
+
+.header .title::before {
+  content: '# ';
+  color: var(--hub-personal-ink);
+}
+
+.header .title::after {
+  content: none;
+}
+
+.date {
+  margin: 0;
+  color: var(--hub-personal-ink);
+  font-size: var(--dash-fs-meta);
+  font-weight: 700;
+  line-height: var(--dash-lh-meta);
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+  color: var(--dash-t2);
+}
+
+.total,
+.next {
+  margin: 0;
+}
+
+.total {
+  color: var(--dash-t1);
+  font-weight: 700;
+}
+
+.nextLabel {
+  color: var(--hub-amber-ink);
+  font-weight: 700;
+}
+
+.at {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+}
+
+@media (max-width: 47.99rem) {
+  .totals {
+    align-items: flex-start;
+  }
+}
