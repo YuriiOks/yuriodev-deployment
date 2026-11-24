@@ -51,7 +51,7 @@ const LiveTaskRow: React.FC<LiveTaskRowProps> = ({ task, today, areas, failed, o
           {task.priority && <span className="sr-only">{t.priorityRow}</span>}
         </label>
       </span>
-      <span id={titleId} className={cx(rowStyles.title, done && rowStyles.done)} title={task.title}>
+      <span id={titleId} className={cx(rowStyles.title, styles.wrap, done && rowStyles.done)} title={task.title}>
         {task.url ? (
           <a className={styles.link} href={task.url} target="_blank" rel="noreferrer">
             {task.title}
