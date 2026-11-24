@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
+import { parseBootstrap } from '../services/dashboards/liveApi';
 import { primeBootstrap, resetBootstrap } from '../services/dashboards/bootstrapStore';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
@@ -545,7 +546,7 @@ describe('the Money page: where it lives', () => {
     sessionStorage.setItem('appLoaded', 'true');
     localStorage.clear();
     resetStorageFallback();
-    primeBootstrap(null);
+    primeBootstrap(parseBootstrap({ enabled: false }));
     renderAt('/dashboards/personal');
     expect(within(main()).queryByRole('link', { name: /Деньги/ })).toBeNull();
   });

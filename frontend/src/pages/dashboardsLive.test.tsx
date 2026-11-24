@@ -60,34 +60,45 @@ describe('the switch between real data and the sample data', () => {
     expect(api.calls.filter((call) => call.path === '/bootstrap')).toHaveLength(1);
   });
 
-  it('keeps the sample data when the bootstrap says disabled', async () => {
+  it('runs the labelled demo on the sample data when the bootstrap says disabled (no database configured)', async () => {
     const api = setup({ enabled: false });
     renderAt('/dashboards/personal');
     expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
     expect(api.calls.map((call) => call.path)).toEqual(['/bootstrap']);
-    // Every sample tab is still there, with its counter.
+    // Every sample tab is still there, with its counter, and the page says it is a demo.
     expect(within(main()).getByRole('tab', { name: /^Почта/ })).toHaveTextContent('8');
+    expect(within(main()).getByRole('note')).toHaveTextContent('Демо: примерные данные');
   });
 
-  it.each([
-    ['a failing answer', { fail: ['bootstrap'] } as FakeApiOptions],
-  ])('keeps the sample data on %s', async (_name, options) => {
-    setup(options);
-    renderAt('/dashboards/personal');
-    expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
+  it('never shows the sample data when the answer fails: a plain "cannot reach the server" block with a retry', async () => {
+    setup({ fail: ['bootstrap'] });
+    renderAt('/dashboards');
+    const block = await within(main()).findByRole('alert');
+    expect(block).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).queryByRole('note')).toBeNull();
+    for (const sample of ['Gym session', 'Тренировка', 'Оплатить счёт за электричество']) expect(within(main()).queryByText(sample)).toBeNull();
+    expect(within(main()).queryByRole('region', { name: 'Личное' })).toBeNull();
+    expect(within(block).getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
   });
 
-  it('keeps the sample data on a network error and on a non-JSON answer', async () => {
+  it('says the same on a network error and on a non-JSON answer, and recovers with the retry', async () => {
     setup();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
     const first = renderAt('/dashboards/personal');
-    expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
+    expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).queryByText('Оплатить счёт за электричество')).toBeNull();
     first.unmount();
 
     resetBootstrap();
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('<html>nginx</html>', { status: 200 }))));
     renderAt('/dashboards/work-1');
-    expect(await within(main()).findByText('Ревью #123: пример изменения')).toBeInTheDocument();
+    expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).queryByText('Ревью #123: пример изменения')).toBeNull();
+
+    vi.unstubAllGlobals();
+    installFakeApi();
+    await userEvent.setup().click(within(main()).getByRole('button', { name: 'Повторить' }));
+    expect(await within(main()).findByText('Review the pull request')).toBeInTheDocument();
   });
 
   it('shows a quiet placeholder, not the sample data, while the answer is on its way', async () => {
@@ -897,5 +908,85 @@ describe('the personal overview fills the page', () => {
     // On real data the Payments tab is the Money page: a link in its place.
     expect(within(tabs).queryByRole('tab', { name: /Платежи/ })).toBeNull();
     expect(within(tabs).getByRole('link', { name: /Деньги/ })).toHaveAttribute('href', '/dashboards/personal/money');
+  });
+});
+
+describe('the GitHub and Linear tabs use the source fields', () => {
+  const gh = (title: string, stage: string, extra: Record<string, unknown> = {}) => task('work-1', title, { source: 'github', stage, ...extra });
+  const li = (title: string, stage: string, extra: Record<string, unknown> = {}) => task('work-1', title, { source: 'linear', stage, ...extra });
+  const rowTitles = (panel: HTMLElement) => within(panel).getAllByRole('listitem').map((row) => row.querySelector('[title]')?.getAttribute('title'));
+
+  it('keeps the server\'s order on a collected tab (no regrouping by date), and shows a draft with its word', async () => {
+    setup({
+      tasks: [
+        gh('Later one', 'mine', { due_date: dayOffset(30) }),
+        gh('Undated draft', 'mine', { draft: true }),
+        gh('Due today', 'mine', { due_date: dayOffset(0) }),
+      ],
+    });
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(await within(main()).findByRole('tab', { name: /GitHub/ }));
+    const mine = within(main()).getByRole('region', { name: 'Мои PR' });
+    expect(rowTitles(mine)).toEqual(['Later one', 'Undated draft', 'Due today']);
+    const draft = within(mine).getAllByRole('listitem')[1];
+    expect(draft).toHaveTextContent('черновик');
+    expect(within(mine).getAllByRole('listitem')[0]).not.toHaveTextContent('черновик');
+  });
+
+  it('puts the reviewed-by-me pull requests behind a disclosure, out of "mine" and out of the overview\'s reviews', async () => {
+    setup({ tasks: [gh('Mine', 'mine'), gh('To review', 'review'), gh('Done reviewing', 'reviewed'), gh('Also reviewed', 'reviewed')] });
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    const overviewReviews = await within(main()).findByRole('region', { name: /Ждут моего ревью/ });
+    expect(within(overviewReviews).getByText('To review')).toBeInTheDocument();
+    expect(within(overviewReviews).queryByText('Done reviewing')).toBeNull();
+    await user.click(within(main()).getByRole('tab', { name: /GitHub/ }));
+    const mine = within(main()).getByRole('region', { name: 'Мои PR' });
+    expect(within(mine).getByText('Mine')).toBeInTheDocument();
+    expect(within(mine).queryByText('Done reviewing')).toBeNull();
+    expect(within(main()).queryByRole('region', { name: 'Просмотрено мной, ещё открыто' })).toBeNull();
+    const toggle = within(main()).getByRole('button', { name: 'Просмотрено мной: 2' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    const reviewed = within(main()).getByRole('region', { name: 'Просмотрено мной, ещё открыто' });
+    expect(rowTitles(reviewed)).toEqual(['Done reviewing', 'Also reviewed']);
+  });
+
+  it('has no disclosure when nothing is reviewed', async () => {
+    setup({ tasks: [gh('Mine', 'mine')] });
+    renderAt('/dashboards/work-1');
+    await userEvent.setup().click(await within(main()).findByRole('tab', { name: /GitHub/ }));
+    expect(within(main()).queryByRole('button', { name: /Просмотрено мной/ })).toBeNull();
+  });
+
+  it('marks urgent and high Linear issues with an arrow and a word, leaves the others bare, and keeps the server\'s order', async () => {
+    setup({
+      tasks: [
+        li('Low first', 'started', { source_priority: 'low' }),
+        li('Urgent second', 'started', { source_priority: 'urgent' }),
+        li('High third', 'started', { source_priority: 'high' }),
+        li('Medium fourth', 'started', { source_priority: 'medium' }),
+        li('No priority', 'started', { source_priority: 'none' }),
+        li('Unknown', 'started', { source_priority: 'sideways' }),
+        gh('Not linear', 'mine', { source_priority: 'urgent' }),
+      ],
+    });
+    const user = userEvent.setup();
+    renderAt('/dashboards/work-1');
+    await user.click(await within(main()).findByRole('tab', { name: /Linear/ }));
+    const started = within(main()).getByRole('region', { name: 'В работе' });
+    expect(rowTitles(started)).toEqual(['Low first', 'Urgent second', 'High third', 'Medium fourth', 'No priority', 'Unknown']);
+    const rows = within(started).getAllByRole('listitem');
+    expect(rows[1]).toHaveTextContent('срочно');
+    expect(rows[1].querySelector('svg[data-icon="arrow-up-right"]')).not.toBeNull();
+    expect(rows[2]).toHaveTextContent('высокий');
+    for (const index of [0, 3, 4, 5]) {
+      expect(rows[index]).not.toHaveTextContent(/срочно|высокий/);
+      expect(rows[index].querySelector('svg[data-icon="arrow-up-right"]')).toBeNull();
+    }
+    // A pull request carries no Linear mark whatever its priority field says.
+    await user.click(within(main()).getByRole('tab', { name: /GitHub/ }));
+    expect(within(main()).queryByText('срочно')).toBeNull();
   });
 });

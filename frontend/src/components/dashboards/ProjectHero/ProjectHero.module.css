@@ -1,0 +1,68 @@
+/* A project page's strip: the space strip's own classes (the glass, the border, the tile, the quiet name, the one big line, the
+   heading-colour aside), with its own grid: tile, name, the counts, the next due date, and the actions at the end. A tablet
+   keeps one row; a phone stacks it (tile, name, then the counts and the date, then the actions). */
+.strip {
+  composes: strip from '../SpaceHero/SpaceHero.module.css';
+}
+
+.strip[aria-label] {
+  grid-template-columns: auto auto minmax(0, max-content) auto minmax(0, 1fr) auto;
+  grid-template-areas: 'tile name facts aside . actions';
+}
+
+.tile {
+  composes: tile from '../SpaceHero/SpaceHero.module.css';
+}
+
+.name {
+  composes: name from '../SpaceHero/SpaceHero.module.css';
+}
+
+.facts {
+  composes: event from '../SpaceHero/SpaceHero.module.css';
+}
+
+.strip .facts {
+  grid-area: facts;
+}
+
+.aside {
+  composes: left from '../SpaceHero/SpaceHero.module.css';
+}
+
+.strip .aside {
+  grid-area: aside;
+  font-weight: 400;
+}
+
+.rename {
+  grid-column: 2 / 6;
+  min-width: 0;
+}
+
+.actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+@media (max-width: 47.99rem) {
+  .strip[aria-label] {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'tile name'
+      'facts facts'
+      'aside aside'
+      'actions actions';
+  }
+
+  .rename {
+    grid-column: 2 / -1;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+}

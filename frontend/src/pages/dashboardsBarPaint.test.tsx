@@ -113,13 +113,28 @@ describe('the bar paints once, in its final layout', () => {
     expect(localStorage.getItem(KEY)).toBeNull();
   });
 
-  it('keeps the kept state when the answer fails (a network error is not "disabled")', async () => {
+  it('on a failed answer keeps the kept pills, marked as remembered, with the unreachable block in the page; the kept state stays', async () => {
     fresh();
     remember();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
     renderAt('/dashboards');
-    await within(nav()).findByRole('link', { name: 'Работа 1' });
+    expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).getByRole('alert')).toHaveTextContent('из последнего сеанса');
+    expect(within(nav()).getByRole('link', { name: 'Acme Corp' })).toBeInTheDocument();
+    expect(within(nav()).getByRole('link', { name: 'Garden' })).toBeInTheDocument();
+    expect(nav().closest('[data-stale="true"]')).not.toBeNull();
     expect(localStorage.getItem(KEY)).not.toBeNull();
+  });
+
+  it('on a failed answer with nothing kept shows no pills and no bundled names', async () => {
+    fresh();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
+    renderAt('/dashboards');
+    expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(within(nav()).queryAllByRole('link')).toHaveLength(0);
+    expect(nav().querySelectorAll('[data-skeleton]')).toHaveLength(0);
+    expect(within(main()).queryByText('Работа 1')).toBeNull();
+    expect(main().closest('[data-stale]')).toBeNull();
   });
 
   it('writes the project list into the kept state once it is loaded', async () => {

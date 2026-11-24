@@ -3,8 +3,9 @@ import { fetchBootstrap, type Bootstrap, type LiveProjectRef } from './liveApi';
 
 /*
  * Whether the dashboards run on the API or on the bundled sample data, decided once per page load: the first
- * dashboards page asks GET /bootstrap, everything after reads the answer. `enabled: true` is real data; `false`,
- * a network error, a non-2xx answer or a non-JSON body is the sample data, exactly as before the API existed.
+ * dashboards page asks GET /bootstrap, everything after reads the answer. `enabled: true` is real data; `enabled: false` is a
+ * server with no database, which is the labelled demo on the bundled sample data; a network error, a non-2xx answer or a
+ * non-JSON body (a null answer) is an unreachable server, never the sample data.
  */
 
 export type BootstrapStatus = 'idle' | 'loading' | 'ready';
@@ -54,7 +55,13 @@ export function ensureBootstrap(): void {
   });
 }
 
-/** Sets the answer without asking (tests and the test setup: `null` is "no answer", the sample data). */
+/** Asks again after a failed answer (the retry button): the page shows its loading state meanwhile. */
+export function retryBootstrap(): void {
+  resetBootstrap();
+  ensureBootstrap();
+}
+
+/** Sets the answer without asking (tests and the test setup: `null` is a failed answer, an `enabled: false` bootstrap is the demo). */
 export function primeBootstrap(bootstrap: Bootstrap | null): void {
   inflight?.abort();
   inflight = null;

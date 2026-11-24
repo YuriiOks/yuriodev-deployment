@@ -221,6 +221,33 @@ describe('a project page', () => {
     expect(within(main()).queryByText('Сегодня')).toBeNull();
   });
 
+  it('has the space pages\' strip: the tile, the name, the open and overdue counts, the next due date and the actions', async () => {
+    setup();
+    renderAt('/dashboards/projects/garden');
+    const strip = await within(main()).findByRole('region', { name: 'Garden' });
+    expect(within(strip).getByRole('heading', { level: 1, name: 'Garden' })).toBeInTheDocument();
+    // Four open tasks (the done one is not counted), one of them overdue; the nearest date ahead is today's.
+    expect(strip).toHaveTextContent(/4\s*открыто · 1\s*просрочено/);
+    expect(strip).toHaveTextContent(/ближайший срок/);
+    expect(strip.querySelector('[aria-hidden="true"]')).toHaveTextContent('G');
+    for (const name of ['Переименовать', 'Значок', 'В архив']) expect(within(strip).getByRole('button', { name })).toBeInTheDocument();
+  });
+
+  it('marks exactly one pill in the bar as the current page, a project\'s own, whatever has focus or hover', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt('/dashboards/projects/garden');
+    await within(main()).findByRole('heading', { level: 1, name: 'Garden' });
+    const nav = within(main()).getByRole('navigation', { name: 'Дашборды' });
+    // Focus another pill (what a Tab to Calendar does): it is focused, it is not current.
+    await user.tab();
+    const current = within(nav).getAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveTextContent('Garden');
+    await user.hover(within(nav).getByRole('link', { name: 'Календарь' }));
+    expect(within(nav).getAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);
+  });
+
   it('groups the project\'s tasks: Priority, due, later, no date, and Done behind its disclosure', async () => {
     setup();
     renderAt('/dashboards/projects/garden');

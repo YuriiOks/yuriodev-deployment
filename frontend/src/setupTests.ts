@@ -3,6 +3,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { clearBarCache } from './services/dashboards/barCache';
 import { primeBootstrap } from './services/dashboards/bootstrapStore';
+import { parseBootstrap } from './services/dashboards/liveApi';
 import { resetProjects } from './services/dashboards/projectsStore';
 
 // Unmount React trees mounted by tests between each test.
@@ -14,7 +15,8 @@ afterEach(() => {
 // data (as if the bootstrap answered "disabled"), and the live tests prime their own answer.
 beforeEach(() => {
   clearBarCache();
-  primeBootstrap(null);
+  // The demo: a server that answers `enabled: false` (no database), which runs the bundled sample data.
+  primeBootstrap(parseBootstrap({ enabled: false }));
   resetProjects();
 });
 

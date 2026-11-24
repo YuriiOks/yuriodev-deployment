@@ -6,9 +6,12 @@ import { getProjectsSnapshot, subscribeProjects } from '../services/dashboards/p
 export interface BarData {
   /**
    * `placeholder`: nothing is known yet and nothing was kept from the last visit, so the bar holds quiet fixed-size blocks;
-   * `live`: real data (from the answer, or, until it comes, from the last visit); `sample`: the bundled names.
+   * `live`: real data (from the answer, or, until it comes, from the last visit); `sample`: the bundled names (a server that
+   * says it has no database); `unreachable`: the server did not answer and nothing was kept, so no pills at all.
    */
-  readonly phase: 'placeholder' | 'live' | 'sample';
+  readonly phase: 'placeholder' | 'live' | 'sample' | 'unreachable';
+  /** The server did not answer: what is shown is the last visit's state, kept in this browser. */
+  readonly stale?: boolean;
   /** The projects that are not archived, with their icons: the answer's list, refined by the shared list once it is loaded. */
   readonly projects: readonly LiveProjectRef[];
 }
@@ -25,6 +28,10 @@ export function useBarData(): BarData {
   const store = useSyncExternalStore(subscribeProjects, getProjectsSnapshot, getProjectsSnapshot);
   if (snapshot.status === 'ready') {
     const bootstrap = snapshot.bootstrap?.enabled ? snapshot.bootstrap : null;
+    if (snapshot.bootstrap === null) {
+      const kept = getBarSeed();
+      return kept ? { phase: 'live', projects: kept.projects, stale: true } : { phase: 'unreachable', projects: NONE };
+    }
     if (!bootstrap) return { phase: 'sample', projects: NONE };
     if (store.status === 'ready') {
       return { phase: 'live', projects: store.projects.filter((project) => !project.archived).map(({ id, name, icon }) => ({ id, name, icon })) };
