@@ -34,6 +34,26 @@ const oneOf = <T extends string>(list: readonly T[], value: unknown): T | null =
 export const iconUrl = (value: unknown): string | null => (typeof value === 'string' && value.length <= 500 && ICON_URL.test(value) ? value : null);
 const color = (value: unknown): string | null => (typeof value === 'string' && COLOR.test(value) ? value : null);
 
+/** What the owner's own list says about a payment: on track, ended by its schedule (the last date or count is behind it), or not to be worked out. Null for a payment switched off. */
+export const SCHEDULE_STATES = ['on_track', 'ended_by_schedule', 'unknown'] as const;
+export type ScheduleState = (typeof SCHEDULE_STATES)[number];
+
+/** What the bank's own lines say about a payment whose paying account is collected: the last match, and how many of the last `checked` (up to three) due dates had one. */
+export interface Evidence {
+  readonly lastMatchedOn: string | null;
+  readonly lastMatchedAmount: number | null;
+  readonly matchedOfLast: number;
+  readonly checked: number;
+}
+
+function parseEvidence(raw: unknown): Evidence | null {
+  if (!isObject(raw)) return null;
+  const matched = int(raw.matched_of_last);
+  const checked = int(raw.checked);
+  if (matched === null || checked === null) return null;
+  return { lastMatchedOn: date(raw.last_matched_on), lastMatchedAmount: int(raw.last_matched_amount), matchedOfLast: matched, checked };
+}
+
 export interface Recurring {
   readonly id: string;
   readonly name: string;
@@ -50,7 +70,15 @@ export interface Recurring {
   readonly isActive: boolean;
   readonly isInstallment: boolean;
   readonly totalInstallments: number | null;
+  /** Confirmed by the bank's own lines (or by the owner's word). */
   readonly completedInstallments: number | null;
+  /** Passed by the schedule only, never seen in a line. */
+  readonly assumedInstallments: number;
+  /** Confirmed plus assumed, at most the total. */
+  readonly scheduledInstallments: number | null;
+  readonly scheduleState: ScheduleState | null;
+  /** Null when no account of ours pays it: nothing about it is checked against a bank. */
+  readonly evidence: Evidence | null;
   readonly totalOwed: number | null;
   readonly remainingBalance: number | null;
   readonly creditor: string | null;
@@ -90,6 +118,10 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
     isInstallment: raw.is_installment === true,
     totalInstallments: int(raw.total_installments),
     completedInstallments: int(raw.completed_installments),
+    assumedInstallments: int(raw.assumed_installments) ?? 0,
+    scheduledInstallments: int(raw.scheduled_installments),
+    scheduleState: oneOf(SCHEDULE_STATES, raw.schedule_state),
+    evidence: parseEvidence(raw.evidence),
     totalOwed: int(raw.total_owed),
     remainingBalance: int(raw.remaining_balance),
     creditor: text(raw.creditor),

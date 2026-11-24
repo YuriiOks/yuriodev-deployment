@@ -548,3 +548,70 @@
   color: var(--dash-t2);
   font-weight: 400;
 }
+
+/* How far a payment is verified, in words (the mark's icon is a second cue, never the only one). */
+.truth {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.truth[data-truth="confirmed"] {
+  color: var(--dash-t1);
+  font-weight: 700;
+}
+
+/* Plans its own schedule has finished, apart and collapsed. */
+.ended {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.endedHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.endedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.endedRow {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-surface);
+}
+
+/* How much of what is due is verified. */
+.dueSplit {
+  display: flex;
+  flex-basis: 100%;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  list-style: none;
+}
+
+.dueSplit [data-truth="confirmed"] {
+  color: var(--dash-t1);
+  font-weight: 700;
+}

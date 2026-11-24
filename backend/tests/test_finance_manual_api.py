@@ -670,7 +670,7 @@ async def test_the_providers_come_with_names_colours_and_how_they_are_entered(
     assert by_id["lloyds"]["colors"] == {"background": "#006a4d", "foreground": "#ffffff"}
     assert (by_id["monzo"]["entry"], by_id["barclays"]["entry"]) == ("api", "manual")
     assert by_id["barclays"]["name"] == "Joint Barclays"  # the owner's name wins
-    assert by_id["barclays"]["colors"]["background"] == "#00395d"  # but the brand's colours stay
+    assert by_id["barclays"]["colors"]["background"] == "#00aeef"  # but the brand's colours stay
     assert by_id["personal-bank"]["name"] == "My Bank"
     assert by_id["personal-bank"]["entry"] == "manual"
     assert by_id["personal-bank"]["colors"] == {"background": "#14233c", "foreground": "#ffffff"}

@@ -1122,8 +1122,12 @@ MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set
 provider with a connection: `{id, name, colors: {background, foreground}, logo, entry: "api" |
 "manual"}`. The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,
 Starling Bank, Wise) have a name and a brand colour pair in code (`finance/brands.py`), each with
-a WCAG AA contrast of at least 4.5 (a test checks it); a bank not in the list takes the display
-name and colours (`brand_bg`/`brand_fg`, the same contrast rule) of its connection, else its id
+a contrast of at least 3:1, the WCAG floor for large text (on a card the only text is the name and
+a big bold amount; a test checks it), with the brand's own signature colour as the background and
+the ink chosen for contrast (Monzo coral with white, Starling mint-teal with dark purple, Wise lime
+with dark green, Revolut white with near-black, Barclays cyan with navy since white on cyan is
+2.5:1); a bank not in the list takes the display
+name and colours (`brand_bg`/`brand_fg`, the same 3:1 rule) of its connection, else its id
 and a neutral pair. Logos stay in `DASHBOARDS_PROVIDER_LOGOS`.
 
 Display currency and rates. Stored amounts are never converted: they stay integers in minor units

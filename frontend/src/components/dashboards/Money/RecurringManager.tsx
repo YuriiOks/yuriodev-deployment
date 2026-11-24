@@ -9,6 +9,7 @@ import { createRecurring, FREQUENCIES, RECURRING_KINDS, refusal, updateRecurring
 import Amount from './Amount';
 import { dayLabel } from './labels';
 import RecurringIcon from './RecurringIcon';
+import TruthMark from './TruthMark';
 import { frequencyLabel } from './recurringLabels';
 import styles from './Recurring.module.css';
 
@@ -212,9 +213,10 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
             {!row.isActive && <span className={styles.badge}> · {r.inactive}</span>}
           </strong>
           <span className={styles.note}>
-            {[r.kinds[row.kind], frequencyLabel(row, r), row.nextDate ? dayLabel(row.nextDate, lang) : ''].filter(Boolean).join(' · ')}
+            {[r.kinds[row.kind], frequencyLabel(row, r), row.scheduleState === 'ended_by_schedule' ? r.endedMark : row.nextDate ? dayLabel(row.nextDate, lang) : ''].filter(Boolean).join(' · ')}
           </span>
           <span className={styles.note}>{account ? fill(r.paidFrom, { account: account.name }) : row.paymentMethod ?? r.notLinked}</span>
+          <TruthMark evidence={row.evidence} />
         </span>
         <strong className={styles.dueAmount}>
           <Amount amount={row.amount} currency={row.currency} display={row.display} mode={mode} />

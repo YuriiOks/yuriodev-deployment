@@ -37,6 +37,8 @@ export interface ManualStrings {
   readonly uploadRefused: string;
   readonly uploadFailed: string;
   readonly close: string;
+  readonly editAccount: string;
+  readonly saveAccount: string;
   readonly addBank: string;
   readonly addAccount: string;
   readonly fBank: string;
@@ -108,6 +110,8 @@ export const MANUAL_RU: ManualStrings = {
   uploadRefused: 'Файл не принят: {why}',
   uploadFailed: 'Не удалось загрузить файл. Повторите.',
   close: 'Закрыть',
+  editAccount: 'Изменить счёт',
+  saveAccount: 'Сохранить счёт',
   addBank: 'Добавить банк',
   addAccount: 'Добавить счёт',
   fBank: 'Банк',
@@ -179,6 +183,8 @@ export const MANUAL_EN: ManualStrings = {
   uploadRefused: 'The file was refused: {why}',
   uploadFailed: 'Could not upload the file. Try again.',
   close: 'Close',
+  editAccount: 'Edit account',
+  saveAccount: 'Save account',
   addBank: 'Add a bank',
   addAccount: 'Add an account',
   fBank: 'Bank',
