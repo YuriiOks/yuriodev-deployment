@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatMinor } from './money';
 import { providerName, reconnectPath } from '../../components/dashboards/Money/providers';
 
-const plain = (text: string) => text.replace(/[\s  ]/g, ' ');
+const plain = (text: string) => text.replace(/[\s\u00a0\u202f]/g, ' ');
 
 describe('formatMinor', () => {
   it('turns minor units into the currency\'s own major units, with its decimals', () => {

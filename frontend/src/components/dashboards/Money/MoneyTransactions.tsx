@@ -7,7 +7,7 @@ import { useTransactions } from '../../../hooks/useFinance';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import ProjectIcon from '../ProjectIcon/ProjectIcon';
-import { whenLabel } from './MoneyAccounts';
+import { whenLabel } from './labels';
 import styles from './Money.module.css';
 
 const SEARCH_DELAY_MS = 300;
