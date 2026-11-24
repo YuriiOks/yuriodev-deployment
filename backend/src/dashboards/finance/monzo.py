@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.http import UpstreamError, get_json_capped
 from src.dashboards.finance.base import AccountData, ProviderDefaults, TransactionData
+from src.dashboards.finance.categories import categorize
 from src.dashboards.finance.monzo_auth import (
     API_URL,
     TokenView,
@@ -44,7 +45,15 @@ from src.dashboards.finance.monzo_auth import (
     token_view,
     usable_token,
 )
-from src.dashboards.finance.parsing import bad, iso_code, parse_time, safe_id, text, whole
+from src.dashboards.finance.parsing import (
+    bad,
+    iso_code,
+    last4,
+    parse_time,
+    safe_id,
+    text,
+    whole,
+)
 
 PAGE = 100
 MAX_WINDOW_PAGES = 60  # a 90-day window of more than 6000 transactions is refused, not guessed
@@ -57,6 +66,10 @@ POLL_BUDGET = 60.0  # seconds of waiting per tick; with the requests it stays un
 POLL_LIMIT = 90.0  # real seconds of asking per tick (the manager gives a run 120)
 TRANSIENT = ("timeout", "connect", "http_5xx")
 ACCOUNT_LABELS = {"uk_retail": "Current account", "uk_retail_joint": "Joint account"}
+# A neutral sub-type for the page, from the account's type: two accounts of the same kind are
+# told apart by this, the last four digits of the account number (when the answer has it) and the
+# opening date, never by the holder's name.
+TYPE_LABELS = {"uk_retail": "Personal", "uk_retail_joint": "Joint"}
 
 
 class MonzoProvider(ProviderDefaults):
@@ -159,7 +172,7 @@ class MonzoProvider(ProviderDefaults):
             pots = await self._get(
                 client, view.access_token, "/pots", {"current_account_id": row_id}
             )
-            for pot in parse_pots(pots):
+            for pot in parse_pots(pots, row_id):
                 if pot.external_id not in seen:
                     seen.add(pot.external_id)
                     accounts.append(pot)
@@ -231,8 +244,44 @@ def parse_account_rows(body: Any, kind: str) -> dict[str, dict[str, Any]]:
         row_id = safe_id(row.get("id"))
         if row.get("closed") is True:
             continue
-        found[row_id] = {"type": kind, "created": row.get("created")}
+        found[row_id] = {
+            "type": text(row.get("type"), 32) or kind,
+            "created": row.get("created"),
+            "account_number": row.get("account_number"),
+            "overdraft": overdraft_of(row),
+        }
     return found
+
+
+def overdraft_of(*sources: Any) -> int | None:
+    """An agreed overdraft limit (minor units) when an answer carries one: not in the
+    documentation, so looked for under the names it is seen with and never required."""
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        value = source.get("overdraft_limit")
+        nested = source.get("overdraft")
+        if isinstance(nested, dict):
+            value = nested.get("limit", value)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            return value
+    return None
+
+
+def monzo_kind(account_type: str) -> str:
+    lowered = account_type.lower()
+    if "business" in lowered:
+        return "business"
+    if "flex" in lowered or "credit" in lowered:
+        return "credit_card"
+    if "saving" in lowered:
+        return "savings"
+    return "current"
+
+
+def type_label(account_type: str) -> str:
+    known = TYPE_LABELS.get(account_type)
+    return known or account_type.removeprefix("uk_").replace("_", " ").title()[:60]
 
 
 def opened(value: object) -> datetime | None:
@@ -247,19 +296,26 @@ def parse_current(row_id: str, row: dict[str, Any], balance: Any) -> AccountData
         raise bad()
     currency = iso_code(balance.get("currency"))
     kind = row["type"]
+    account_kind = monzo_kind(kind)
+    overdraft = row.get("overdraft")
+    if overdraft is None:
+        overdraft = overdraft_of(balance)
     return AccountData(
         external_id=row_id,
         name=f"{ACCOUNT_LABELS.get(kind, 'Account')} {currency}",
         type=kind,
         currency=currency,
-        mask_last4=None,
+        mask_last4=last4(row.get("account_number")),
         balance=whole(balance.get("balance")),  # without the pots: they are accounts too
         credit_limit=0,
         opened_at=opened(row.get("created")),
+        kind=account_kind,
+        overdraft_limit=overdraft if account_kind == "current" else None,
+        label=type_label(kind),
     )
 
 
-def parse_pots(body: Any) -> list[AccountData]:
+def parse_pots(body: Any, parent: str | None = None) -> list[AccountData]:
     rows = body.get("pots") if isinstance(body, dict) else None
     if not isinstance(rows, list):
         raise bad()
@@ -280,9 +336,22 @@ def parse_pots(body: Any) -> list[AccountData]:
                 balance=whole(row.get("balance")),
                 credit_limit=0,
                 opened_at=opened(row.get("created")),
+                kind="pot",
+                parent_external_id=parent,
+                goal_amount=goal_of(row),
+                label="Pot",
             )
         )
     return pots
+
+
+def goal_of(row: dict[str, Any]) -> int | None:
+    """A pot's goal in minor units when the answer has one (not in the documentation)."""
+    for name in ("goal_amount", "target_amount"):
+        value = row.get(name)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            return value
+    return None
 
 
 def parse_transactions(body: Any, account_currency: str) -> list[TransactionData]:
@@ -327,19 +396,23 @@ def parse_transaction(row: Any, account_currency: str) -> TransactionData:
     ):
         original_amount, original_currency = local_amount, iso_code(local_currency)
     after = row.get("account_balance")
+    amount = whole(row.get("amount"))
+    code = text(category, 16)
+    internal = is_pot_transfer(row)
     return TransactionData(
         external_id=safe_id(row.get("id")),
         booked_at=booked,
-        amount=whole(row.get("amount")),
+        amount=amount,
         currency=account_currency,
         original_amount=original_amount,
         original_currency=original_currency,
         description=text(row.get("description"), 500) or "",
         counterparty=name,
-        category_code=text(category, 16),
+        category_code=code,
         balance_after=None if after is None else whole(after),
         pending=settled is None and not declined,
-        internal_transfer=is_pot_transfer(row),
+        internal_transfer=internal,
         declined=declined,
         settled_at=settled,
+        category=categorize("monzo", code, amount, internal),
     )

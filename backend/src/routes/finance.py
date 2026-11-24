@@ -12,16 +12,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import RedirectResponse
-from pydantic import SecretStr
+from pydantic import BaseModel, ConfigDict, SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.config import Settings
 from src.core.errors import AppError
 from src.core.http import UpstreamError
 from src.dashboards.finance import monzo_auth, service
+from src.dashboards.finance.categories import Category
 from src.dashboards.finance.schemas import (
     AccountOut,
     AccountsOut,
+    CategoriesOut,
     ConnectionOut,
     FinanceSummaryOut,
     TransactionOut,
@@ -58,15 +60,46 @@ async def transactions(
     max_amount: Annotated[int | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=service.MAX_LIMIT)] = service.DEFAULT_LIMIT,
     cursor: Annotated[str | None, Query(max_length=200)] = None,
+    category: Annotated[Category | None, Query()] = None,
 ) -> TransactionsOut:
     """Newest first, of one account or all. `from` and `to` are days (both included) in the
-    configured time zone; amounts are minor units, signed (money out is negative)."""
-    flt = service.TransactionFilter(account, start, end, q, min_amount, max_amount)
+    configured time zone; amounts are minor units, signed (money out is negative); `category`
+    is the effective one (the owner's override, else the normalised one)."""
+    flt = service.TransactionFilter(account, start, end, q, min_amount, max_amount, category)
     rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)
     return TransactionsOut(
-        transactions=[TransactionOut.model_validate(row) for row in rows],
+        transactions=[TransactionOut.from_row(row) for row in rows],
         next_cursor=next_cursor,
     )
+
+
+class TransactionPatch(BaseModel):
+    """The only thing a page may change about a transaction: its category (null clears it)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: Category | None
+
+
+@router.patch("/transactions/{transaction_id}")
+async def set_transaction_category(
+    transaction_id: UUID, body: TransactionPatch, session: SessionDep
+) -> TransactionOut:
+    """The owner's category for one transaction; a note on our copy only, kept on re-import."""
+    row = await service.set_category(session, transaction_id, body.category)
+    return TransactionOut.from_row(row)
+
+
+@router.get("/categories")
+async def categories(
+    session: SessionDep,
+    clock: ClockDep,
+    zone: ZoneDep,
+    month: Annotated[str | None, Query(max_length=7)] = None,
+) -> CategoriesOut:
+    """Money out per currency and category for `month` (YYYY-MM, default this month) with the
+    month before beside it; internal transfers and declined payments are left out."""
+    return await service.categories_report(session, month, clock(), zone)
 
 
 @router.get("/summary")

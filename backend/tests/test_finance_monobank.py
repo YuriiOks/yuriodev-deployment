@@ -233,3 +233,39 @@ async def test_a_counterparty_that_is_one_of_the_owners_own_accounts_is_an_inter
         "tx-3": False,
     }
     assert own_iban not in repr(found)  # the counterparty's IBAN is compared, never kept
+
+
+def test_a_card_with_a_credit_limit_is_a_credit_card_a_fop_is_business_and_a_jar_is_savings():
+    black = parse_account(mono_account())
+    credit = parse_account(mono_account("acc-credit", kind="platinum", credit=7_000_000))
+    fop = parse_account(mono_account("acc-fop", kind="fop", pan=None))
+    (jar,) = parse_accounts(
+        {"accounts": [], "jars": [{"id": "jar-1", "currencyCode": 980, "balance": 5}]}
+    )
+
+    assert (black.kind, black.label) == ("current", "Black")
+    assert (credit.kind, credit.label) == ("credit_card", "Platinum")
+    assert (fop.kind, fop.label) == ("business", "Business")
+    assert (jar.kind, jar.label) == ("savings", "Jar")
+    assert (black.overdraft_limit, black.parent_external_id) == (None, None)
+
+
+def test_a_card_payment_gets_its_category_from_the_merchant_code_and_keeps_the_code():
+    shop = parse_item(mono_item("tx-1", ts(2026, 11, 20), -45_000, mcc=5411), "UAH")
+    cafe = parse_item(mono_item("tx-2", ts(2026, 11, 20), -45_000, mcc=5812), "UAH")
+    salary = parse_item(mono_item("tx-3", ts(2026, 11, 20), 100_000, mcc=0), "UAH")
+    unknown = parse_item(mono_item("tx-4", ts(2026, 11, 20), -100, mcc=5999), "UAH")
+
+    assert (shop.category, shop.category_code) == ("groceries", "5411")
+    assert cafe.category == "eating_out"
+    assert salary.category == "income"
+    assert unknown.category == "other"
+
+
+def test_a_move_between_own_accounts_is_a_transfer_not_spending():
+    own = frozenset({"UA213220010000026207301234567"})
+    row = mono_item("tx-1", ts(2026, 11, 20), -45_000, mcc=5411, counter_iban=next(iter(own)))
+
+    item = parse_item(row, "UAH", own)
+
+    assert (item.internal_transfer, item.category) == (True, "transfers")

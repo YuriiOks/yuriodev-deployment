@@ -29,6 +29,12 @@ ACCOUNT_FIELDS = {
     "opened_at",
     "history_from",
     "archived",
+    "kind",
+    "label",
+    "parent_id",
+    "goal_amount",
+    "overdraft_limit",
+    "available_minor",
 }
 TRANSACTION_FIELDS = {
     "id",
@@ -46,6 +52,8 @@ TRANSACTION_FIELDS = {
     "internal_transfer",
     "declined",
     "settled_at",
+    "category",
+    "category_overridden",
 }
 
 
@@ -114,6 +122,8 @@ async def test_accounts_carry_balances_in_minor_units_and_the_state_of_the_link(
     assert first["mask_last4"] == "1234"
     assert first["own_balance_minor"] == 750_000  # the stored balance minus the credit limit
     assert first["history_from"] == "2026-10-31T23:30:00Z"  # its oldest transaction
+    assert (first["kind"], first["overdraft_limit"], first["parent_id"]) == ("current", None, None)
+    assert first["available_minor"] == 1_250_000  # no overdraft known: the balance as it is
     assert first["opened_at"] is None
     assert [a["archived"] for a in body["accounts"]] == [False, False, True]  # open ones first
     (link,) = body["connections"]
@@ -266,8 +276,8 @@ async def test_the_summary_totals_each_currency_and_this_months_movement(
     body = response.json()
     assert body["month"] == "2026-11"
     assert body["as_of"] == "2026-11-22T12:00:00Z"
-    # Open accounts only in the balance; every November transaction in the movement, the archived
-    # account's included; 31 October is last month's.
+    # Open accounts only in the balance; every November transaction in the movement except moves
+    # between the owner's own accounts and declined payments; 31 October is last month's.
     assert body["currencies"] == [
         {
             "currency": "EUR",
@@ -282,7 +292,7 @@ async def test_the_summary_totals_each_currency_and_this_months_movement(
             "accounts": 1,
             "balance": 1_250_000,
             "own_balance": 750_000,
-            "spent": 45_000 + 12_000 + 500 + 300,
+            "spent": 45_000 + 12_000 + 500,  # not the 300 moved between own accounts
             "received": 1_000_000,
         },
     ]

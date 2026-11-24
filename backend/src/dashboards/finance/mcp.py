@@ -1,4 +1,5 @@
-"""The finance tools of the MCP endpoint: read-only, compact JSON text like the other tools.
+"""The finance tools of the MCP endpoint: compact JSON text like the other tools. Read-only
+towards the banks; the one write is the owner's category for a transaction, a note on our copy.
 
 Amounts are integers in minor units (1250 is 12.50) next to an ISO 4217 code, signed: money out is
 negative. Registered by `src.dashboards.mcp_server.build_mcp_server`, which owns the session and
@@ -70,26 +71,51 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
         max_amount: int | None = None,
         limit: int = service.DEFAULT_LIMIT,
         cursor: str | None = None,
+        category: str | None = None,
     ) -> str:
         """Search transactions, newest first. query is a case-insensitive text found in the
         description or the counterparty; account is an account id from finance_accounts;
         from_date and to_date are YYYY-MM-DD (both days included); min_amount and max_amount
         are signed minor units (money out is negative, so max_amount=-5000 finds payments of 50
-        or more). limit is 1 to 200; pass the returned next_cursor to get the next page."""
+        or more). category is one of the fixed set (see finance_categories). limit is 1 to 200; pass
+        the returned next_cursor to get the next page."""
         try:
             account_id = uuid.UUID(account) if account else None
         except ValueError:
             raise ToolError("Invalid account id") from None
         flt = service.TransactionFilter(
-            account_id, from_date, to_date, query, min_amount, max_amount
+            account_id, from_date, to_date, query, min_amount, max_amount, category
         )
         async with scope("finance_transactions") as (session, _):
             rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)
             return _json(
                 {
                     "transactions": [
-                        TransactionOut.model_validate(r).model_dump(mode="json") for r in rows
+                        TransactionOut.from_row(r).model_dump(mode="json") for r in rows
                     ],
                     "next_cursor": next_cursor,
                 }
             )
+
+    @server.tool(structured_output=False)
+    async def finance_categories(month: str | None = None) -> str:
+        """Money out per currency and category for a month (YYYY-MM, default this month) with the
+        month before beside it, in minor units. Transfers between the owner's own accounts and
+        pots, declined payments and money in are left out. The categories: housing_utilities,
+        groceries, eating_out, transport, subscriptions, health, shopping, entertainment, debt,
+        income, transfers, cash, other."""
+        async with scope("finance_categories") as (session, now):
+            report = await service.categories_report(session, month, now, zone)
+            return _json(report.model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def finance_set_category(id: str, category: str | None = None) -> str:
+        """Set the owner's category for one transaction (an id from finance_transactions), or
+        clear it by passing no category. It changes our copy only, nothing is sent to a bank."""
+        try:
+            transaction_id = uuid.UUID(id)
+        except ValueError:
+            raise ToolError("Invalid transaction id") from None
+        async with scope("finance_set_category") as (session, _):
+            row = await service.set_category(session, transaction_id, category)
+            return _json(TransactionOut.from_row(row).model_dump(mode="json"))

@@ -10,7 +10,12 @@ from tests.finance_support import ACC_A, NEWEST_FIRST, seed
 
 pytestmark = pytest.mark.anyio
 
-READ_ONLY = {"finance_accounts", "finance_balances", "finance_transactions"}
+READ_ONLY = {
+    "finance_accounts",
+    "finance_balances",
+    "finance_transactions",
+    "finance_categories",
+}
 
 
 async def call(mcp, tool, **arguments):
@@ -28,13 +33,13 @@ def ids(body):
     return [int(row["id"].rsplit("-", 1)[1], 16) for row in body["transactions"]]
 
 
-async def test_the_finance_tools_are_three_and_none_of_them_writes(db_url, make_dashboards_app):
+async def test_the_finance_tools_only_read_but_one_notes_a_category(db_url, make_dashboards_app):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH), Client(app.state.mcp) as mcp:
         listed = await mcp.list_tools()
 
     finance = {tool.name for tool in listed.tools if "finance" in tool.name}
-    assert finance == READ_ONLY
+    assert finance == READ_ONLY | {"finance_set_category"}  # the one write: a note on our copy
 
 
 async def test_accounts_and_balances(db_url, make_dashboards_app):

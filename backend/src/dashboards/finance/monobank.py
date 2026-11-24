@@ -32,7 +32,8 @@ from pydantic import SecretStr
 
 from src.core.http import get_json_capped
 from src.dashboards.finance.base import AccountData, ProviderDefaults, TransactionData
-from src.dashboards.finance.parsing import bad, safe_id, text, whole
+from src.dashboards.finance.categories import categorize
+from src.dashboards.finance.parsing import bad, last4, safe_id, text, whole
 
 BASE_URL = "https://api.monobank.ua"
 MAX_PAGE = 500
@@ -86,6 +87,16 @@ CURRENCIES = {
 }
 UNKNOWN_CURRENCY = "XXX"
 
+# A neutral sub-type for the page (the card's tier), never anything of the holder's.
+TIER_LABELS = {
+    "black": "Black",
+    "white": "White",
+    "platinum": "Platinum",
+    "iron": "Iron",
+    "yellow": "Yellow",
+    "fop": "Business",
+    "eAid": "eAid",
+}
 ACCOUNT_LABELS = {
     "black": "Black card",
     "white": "White card",
@@ -140,13 +151,6 @@ def currency_code(value: object) -> str:
     return CURRENCIES.get(value, UNKNOWN_CURRENCY) if isinstance(value, int) else UNKNOWN_CURRENCY
 
 
-def last4(value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    tail = value[-4:]
-    return tail if len(tail) == 4 and tail.isascii() and tail.isdigit() else None
-
-
 def parse_accounts(body: Any) -> list[AccountData]:
     rows = body.get("accounts") if isinstance(body, dict) else None
     jars = body.get("jars", []) if isinstance(body, dict) else None
@@ -168,6 +172,8 @@ def parse_jar(row: Any) -> AccountData:
         mask_last4=None,
         balance=whole(row.get("balance")),
         credit_limit=0,
+        kind="savings",
+        label="Jar",
     )
 
 
@@ -191,6 +197,8 @@ def parse_account(row: Any) -> AccountData:
         mask = last4(row.get("iban"))
     label = ACCOUNT_LABELS.get(kind or "", "Account")
     credit = row.get("creditLimit")
+    limit = 0 if credit is None else whole(credit)
+    account_kind = "business" if kind == "fop" else "credit_card" if limit > 0 else "current"
     return AccountData(
         external_id=external_id,
         name=f"{label} {currency}",
@@ -198,7 +206,9 @@ def parse_account(row: Any) -> AccountData:
         currency=currency,
         mask_last4=mask,
         balance=whole(row.get("balance")),
-        credit_limit=0 if credit is None else whole(credit),
+        credit_limit=limit,
+        kind=account_kind,
+        label=TIER_LABELS.get(kind or ""),
     )
 
 
@@ -230,19 +240,23 @@ def parse_item(
     mcc = row.get("mcc")
     balance = row.get("balance")
     counter_iban = row.get("counterIban")
+    amount = whole(row.get("amount"))
+    code = str(mcc) if isinstance(mcc, int) and not isinstance(mcc, bool) else None
+    # The counterparty's IBAN is only ever compared, never stored. Monobank sends it for business
+    # accounts only, so a transfer between two personal cards is not recognised.
+    internal = isinstance(counter_iban, str) and counter_iban in own
     return TransactionData(
         external_id=external_id,
         booked_at=datetime.fromtimestamp(seconds, UTC),
-        amount=whole(row.get("amount")),
+        amount=amount,
         currency=account_currency,
         original_amount=original_amount,
         original_currency=original_currency,
         description=text(row.get("description"), MAX_DESCRIPTION) or "",
         counterparty=text(row.get("counterName"), MAX_COUNTERPARTY),
-        category_code=str(mcc) if isinstance(mcc, int) and not isinstance(mcc, bool) else None,
+        category_code=code,
         balance_after=None if balance is None else whole(balance),
         pending=row.get("hold") is True,
-        # The counterparty's IBAN is only ever compared, never stored. Monobank sends it for
-        # business accounts only, so a transfer between two personal cards is not recognised.
-        internal_transfer=isinstance(counter_iban, str) and counter_iban in own,
+        internal_transfer=internal,
+        category=categorize("monobank", code, amount, internal),
     )

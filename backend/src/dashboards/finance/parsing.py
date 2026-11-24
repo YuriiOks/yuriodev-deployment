@@ -40,6 +40,14 @@ def safe_id(value: object) -> str:
     return value
 
 
+def last4(value: object) -> str | None:
+    """The last four digits of a number, or None: only these are ever kept of a card or account."""
+    if not isinstance(value, str):
+        return None
+    tail = value[-4:]
+    return tail if len(tail) == 4 and tail.isascii() and tail.isdigit() else None
+
+
 def iso_code(value: object) -> str:
     """An ISO 4217 alpha code: three capital letters."""
     if isinstance(value, str) and re.fullmatch(r"[A-Z]{3}", value):

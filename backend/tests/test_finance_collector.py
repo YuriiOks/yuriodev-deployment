@@ -412,3 +412,44 @@ async def test_the_finance_loop_takes_its_own_lock_and_idle_ticks_log_quietly(
         (logging.DEBUG, 0),
     ]
     assert not [r for r in caplog.records if getattr(r, "event", "") == "collectors.skipped"]
+
+
+async def test_kinds_and_categories_are_stored_and_an_owner_override_survives_a_reimport(
+    db_url, make_dashboards_app, clock
+):
+    shop = mono_item("tx-1", ts(2026, 11, 20), -45_000, "Corner Shop", mcc=5411)
+    accounts = [
+        mono_account(BLACK, kind="platinum", credit=7_000_000),
+        mono_account("acc-fop", kind="fop", pan=None),
+    ]
+    fake = FakeMonobank(accounts, {BLACK: [shop]})
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as http, client_for(fake) as client:
+        sessions = app.state.dashboards.sessions
+        finance = collector(0)
+        await drive(finance, client, sessions, clock, 4)
+        kinds = await scalar(
+            db_url,
+            "SELECT string_agg(external_id || '=' || kind, ',' ORDER BY external_id) "
+            "FROM finance.account",
+        )
+        first = await scalar(db_url, "SELECT category FROM finance.transaction")
+        listed = (await http.get("/api/dashboards/v1/finance/transactions")).json()
+        row_id = listed["transactions"][0]["id"]
+        await http.patch(
+            f"/api/dashboards/v1/finance/transactions/{row_id}", json={"category": "health"}
+        )
+        # The bank sends the same payment again, changed (it settled for another amount).
+        settled = mono_item("tx-1", ts(2026, 11, 20), -45_500, "Corner Shop", mcc=5411)
+        fake.statements[BLACK] = [settled]
+        clock.now += timedelta(minutes=25)
+        await drive(finance, client, sessions, clock, 3)
+        after = (await http.get("/api/dashboards/v1/finance/transactions")).json()["transactions"]
+
+    assert kinds == "acc-black-uah=credit_card,acc-fop=business"
+    assert first == "groceries"
+    assert (after[0]["amount"], after[0]["category"], after[0]["category_overridden"]) == (
+        -45_500,
+        "health",
+        True,
+    )
