@@ -197,9 +197,7 @@ async def test_an_address_literal_inside_the_network_is_refused_without_a_lookup
     async with client_for(handler) as client:
         for url in ("https://10.0.0.1/a.png", "https://[::ffff:10.0.0.1]/a.png"):
             with pytest.raises(UpstreamError):
-                await get_public(
-                    client, url, resolver=resolver, max_bytes=10, accepts=is_image
-                )
+                await get_public(client, url, resolver=resolver, max_bytes=10, accepts=is_image)
 
     assert (seen, called) == ([], [])
 

@@ -196,7 +196,7 @@ def manifest_candidates(raw: bytes, base: str) -> list[str]:
     """The addresses of a web manifest's icons, the largest first."""
     try:
         icons = json.loads(raw.decode("utf-8", "replace")).get("icons", [])
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return []
     found: list[tuple[int, str]] = []
     for icon in icons if isinstance(icons, list) else []:
@@ -233,8 +233,10 @@ async def _home(
             moved = exc.headers.get("location") if exc.status in (301, 302, 307, 308) else None
             target = urljoin(url, moved) if moved else None
             next_host = urlsplit(target).hostname if target else None
-            if next_host and urlsplit(url).hostname and _same_site(
-                urlsplit(url).hostname or "", next_host.lower()
+            if (
+                next_host
+                and urlsplit(url).hostname
+                and _same_site(urlsplit(url).hostname or "", next_host.lower())
             ):
                 url = f"https://{next_host.lower()}/"
                 continue
