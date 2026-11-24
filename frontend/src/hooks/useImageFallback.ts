@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * the browser keep them for a day, so nothing here ever adds a cache-busting parameter: after the first success a reload costs nothing.
  */
 const MAX_ACTIVE = 6;
+/** How close to the visible part of the page a picture has to be before it is asked for. */
+const NEAR_PX = 300;
 let active = 0;
 const waiting: (() => void)[] = [];
 
@@ -64,6 +66,12 @@ export function useImageFallback(address: string | null | undefined): { failed: 
   // Near the screen: nothing is asked for before it is about to be seen.
   useEffect(() => {
     if (near || !element) return undefined;
+    // Already within reach (measured now), or about to be (watched).
+    const box = element.getBoundingClientRect();
+    if (box.top < window.innerHeight + NEAR_PX && box.bottom > -NEAR_PX) {
+      setNear(true);
+      return undefined;
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -71,7 +79,7 @@ export function useImageFallback(address: string | null | undefined): { failed: 
           observer.disconnect();
         }
       },
-      { rootMargin: '300px' },
+      { rootMargin: `${NEAR_PX}px` },
     );
     observer.observe(element);
     return () => observer.disconnect();
