@@ -9,13 +9,16 @@ from datetime import date
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.core.config import Settings
 from src.core.errors import AppError
+from src.core.http import build_http_client
 from src.dashboards.finance import recurring_service as service
 from src.dashboards.finance.fx import Display
+from src.dashboards.finance.icons import fill_in_background
 from src.dashboards.finance.rawbody import require_file_type
 from src.dashboards.finance.recurring import (
     MAX_CSV_BYTES,
@@ -69,12 +72,31 @@ async def list_recurring(
     )
 
 
+def icons_later(background: BackgroundTasks, request: Request, settings: Settings) -> None:
+    """After the answer is sent, fetch the icons that are waiting (a few, a short deadline each).
+    The write never waits for another site."""
+    state = request.app.state
+    background.add_task(
+        fill_in_background,
+        state.dashboards.sessions,
+        lambda: build_http_client(settings, state.icon_transport),
+        state.icon_resolver,
+    )
+
+
 @router.post("/recurring", status_code=201)
 async def create_recurring(
-    body: RecurringIn, session: SessionDep, settings: SettingsDep, clock: ClockDep, zone: ZoneDep
+    body: RecurringIn,
+    request: Request,
+    background: BackgroundTasks,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
+    zone: ZoneDep,
 ) -> RecurringOut:
     today = _today(clock, zone)
     row = await service.create_recurring(session, body, clock(), today)
+    icons_later(background, request, settings)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, today)
 
@@ -94,7 +116,13 @@ def _answer(result: ImportOut, clean: bool) -> Response:
 
 @router.post("/recurring/bulk", response_model=ImportOut)
 async def bulk_recurring(
-    body: BulkIn, session: SessionDep, settings: SettingsDep, clock: ClockDep, zone: ZoneDep
+    body: BulkIn,
+    request: Request,
+    background: BackgroundTasks,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
+    zone: ZoneDep,
 ) -> Response:
     """Create many payments in one go (at most 500), all or nothing: with any error nothing is
     written and the answer lists every row's problems. A row with an `external_ref` that already
@@ -112,12 +140,14 @@ async def bulk_recurring(
         body.on_conflict,
         body.dry_run,
     )
+    icons_later(background, request, settings)
     return _answer(result, clean)
 
 
 @router.post("/recurring/import", response_model=ImportOut)
 async def import_recurring(
     request: Request,
+    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -128,7 +158,7 @@ async def import_recurring(
     """Import a CSV file (the request body, UTF-8, a header row, at most 500 rows and 1 MiB).
     Columns: name, amount (a decimal such as 12.99), currency, frequency, frequency_interval,
     start_date, next_payment_date (YYYY-MM-DD), payment_type, payment_mode, category, notes,
-    is_active, payment_method, reminder_days, icon_url, color, auto_renew, is_installment,
+    is_active, payment_method, reminder_days, icon_url, website, color, auto_renew, is_installment,
     total_installments, completed_installments, total_owed, remaining_balance, creditor,
     target_amount, current_saved, recipient; also kind, match_text and external_ref. Other
     columns are ignored and named in the answer. All or nothing, like `bulk`."""
@@ -155,7 +185,26 @@ async def import_recurring(
         on_conflict,
         dry_run,
     )
+    icons_later(background, request, settings)
     return _answer(result, clean)
+
+
+@router.post("/recurring/{recurring_id}/icon/refresh")
+async def refresh_icon(
+    recurring_id: UUID,
+    request: Request,
+    background: BackgroundTasks,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
+    zone: ZoneDep,
+) -> RecurringOut:
+    """Look for the payment's icon again (its `icon_url`, else its website's own icon): it goes
+    back to `pending` and is fetched after this answer. Nothing else about the payment changes."""
+    row = await service.reset_icon(session, recurring_id, clock(), zone)
+    icons_later(background, request, settings)
+    display = await _display(session, settings, clock)
+    return RecurringOut.from_row(row, display, _today(clock, zone))
 
 
 @router.get("/recurring/{recurring_id}")
@@ -175,6 +224,8 @@ async def get_recurring(
 async def update_recurring(
     recurring_id: UUID,
     body: RecurringPatch,
+    request: Request,
+    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -182,6 +233,7 @@ async def update_recurring(
 ) -> RecurringOut:
     """Change the fields sent; `null` clears a field that may be empty."""
     row = await service.update_recurring(session, recurring_id, body, clock())
+    icons_later(background, request, settings)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, _today(clock, zone))
 

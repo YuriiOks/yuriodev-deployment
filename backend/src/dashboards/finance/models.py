@@ -297,6 +297,7 @@ class Recurring(FinanceBase):
     # The image the server fetched from icon_url (a data URI) and the URL that was for.
     icon_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     icon_checked_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     is_installment: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     total_installments: Mapped[int | None] = mapped_column(Integer, nullable=True)

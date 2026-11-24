@@ -198,7 +198,8 @@ def register(
         housing, service, one_time), frequency (once, daily, weekly, monthly, yearly),
         frequency_interval, start_date and next_payment_date (YYYY-MM-DD), account_id (an id from
         finance_accounts), payment_method (free text), notes, reminder_days, match_text (what its
-        bank text contains), icon_url (https), color (#rrggbb), is_active, and for debts
+        bank text contains), icon_url (https) or website (a host such as example.com: its own icon
+        is fetched), color (#rrggbb), is_active, and for debts
         is_installment, total_installments, completed_installments, total_owed,
         remaining_balance, creditor."""
         try:

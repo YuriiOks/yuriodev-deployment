@@ -248,6 +248,21 @@ async def update_recurring(
 
 
 @guarded
+async def reset_icon(
+    session: AsyncSession, recurring_id: uuid.UUID, now: datetime, zone: tzinfo
+) -> Recurring:
+    """Forget what was fetched for the payment's icon, so it is looked for again."""
+    row = await session.get(Recurring, recurring_id, with_for_update=True)
+    if row is None:
+        raise _not_found()
+    row.icon_data = None
+    row.icon_checked_url = None
+    row.updated_at = now
+    await session.commit()
+    return row
+
+
+@guarded
 async def delete_recurring(session: AsyncSession, recurring_id: uuid.UUID) -> None:
     row = await session.get(Recurring, recurring_id)
     if row is None:
@@ -678,7 +693,6 @@ async def _occurrences(
             converted=display.converted(row.currency),
             account_id=row.account_id,
             payment_method=row.payment_method,
-            icon_url=row.icon_url,
             icon_data=shown_icon(row),
             color=row.color,
             covered=covered,

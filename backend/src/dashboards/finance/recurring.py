@@ -7,6 +7,7 @@ The owner enters these by hand (or loads them from a file once); nothing here ta
 import calendar
 import csv
 import io
+import ipaddress
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -17,6 +18,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from src.core.http import public_host
 from src.dashboards.finance.fx import exponent
 
 Kind = Literal["subscription", "debt", "utility", "insurance", "housing", "service", "one_time"]
@@ -104,6 +106,23 @@ def safe_icon_url(value: str) -> bool:
     return parts.scheme == "https" and bool(host) and parts.username is None and not parts.password
 
 
+def normal_website(value: str) -> str | None:
+    """A bare host or an https URL as a lower-case host (IDNA), else None: a public-looking name
+    with a dot, no credentials, no port but 443, and not an IP address."""
+    text = value.strip()
+    if "://" not in text:
+        text = "https://" + text
+    checked = public_host(text)
+    if checked is None:
+        return None
+    host = checked[0]
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return host if len(host) <= 253 else None
+    return None  # an address is not a website
+
+
 def normal_color(value: str) -> str | None:
     """`#rgb` or `#rrggbb` as lower-case `#rrggbb`, else None."""
     if not COLOR.fullmatch(value):
@@ -123,6 +142,16 @@ class _Checks(BaseModel):
         if value is not None and not safe_icon_url(value):
             raise ValueError("icon_url must be a plain https URL")
         return value
+
+    @field_validator("website", check_fields=False)
+    @classmethod
+    def check_website(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        host = normal_website(value)
+        if host is None:
+            raise ValueError("website must be a public host name such as example.com")
+        return host
 
     @field_validator("color", check_fields=False)
     @classmethod
@@ -166,6 +195,7 @@ class RecurringIn(_Checks):
     match_text: str | None = Field(default=None, max_length=80)
     reminder_days: int | None = Field(default=None, strict=True, ge=0, le=90)
     icon_url: str | None = None
+    website: str | None = None
     color: str | None = None
     is_installment: bool = False
     total_installments: Count | None = None
@@ -212,6 +242,7 @@ class RecurringPatch(_Checks):
     match_text: str | None = Field(default=None, max_length=80)
     reminder_days: int | None = Field(default=None, strict=True, ge=0, le=90)
     icon_url: str | None = None
+    website: str | None = None
     color: str | None = None
     is_installment: bool | None = None
     total_installments: Count | None = None
@@ -447,6 +478,7 @@ KNOWN_COLUMNS = frozenset(
         "payment_method",
         "reminder_days",
         "icon_url",
+        "website",
         "color",
         "auto_renew",
         "is_installment",
@@ -481,6 +513,7 @@ TEXT_COLUMNS = (
     "recipient",
     "match_text",
     "icon_url",
+    "website",
     "color",
     "external_ref",
 )

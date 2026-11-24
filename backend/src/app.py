@@ -19,6 +19,7 @@ from src.core.clock import Clock, utc_now
 from src.core.config import Settings, get_settings
 from src.core.errors import install_exception_handlers
 from src.core.logging import configure_logging
+from src.core.http import resolve_host
 from src.core.middleware import RequestContextMiddleware
 from src.dashboards.collectors.manager import (
     FINANCE_LOCK_KEY,
@@ -201,6 +202,9 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.finance_collectors = None  # the finance loop, set by the lifespan
     app.state.finance_http = None  # its HTTP client, for the consent routes
     app.state.collector_transport = None
+    # Seams for the icon fetch after a write (tests give a fake transport and a fake resolver).
+    app.state.icon_transport = None
+    app.state.icon_resolver = resolve_host
     app.state.finance_sleep = asyncio.sleep  # a test seam: the pauses between provider requests
 
     # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503
