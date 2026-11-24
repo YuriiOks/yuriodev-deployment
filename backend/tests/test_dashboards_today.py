@@ -64,6 +64,10 @@ def titles(items):
     return [item["subject"]["name"] for item in items]
 
 
+def names(items):
+    return [item.subject.name for item in items]
+
+
 # ---- the pure rules ---------------------------------------------------------------------------
 
 
@@ -81,7 +85,7 @@ def test_the_personal_queue_is_overdue_then_today_then_priority_then_soon():
 
     queue, total = personal_queue(tasks, TODAY, NOW)
 
-    assert titles(queue) == ["Late", "Later", "Today"]  # three at most, in that order
+    assert names(queue) == ["Late", "Later", "Today"]  # three at most, in that order
     assert total == 5  # Late, Later, Today, Priority and Soon qualify: only three are shown
     assert [i.facts["reason"] for i in queue] == ["overdue", "overdue", "due_today"]
     assert queue[0].facts["days_overdue"] == 5
@@ -92,7 +96,7 @@ def test_a_task_counts_once_under_the_first_rule_that_takes_it():
 
     queue, total = personal_queue(tasks, TODAY, NOW)
 
-    assert (titles(queue), total) == (["Both"], 1)
+    assert (names(queue), total) == (["Both"], 1)
     assert queue[0].facts["reason"] == "due_today"
 
 
@@ -106,7 +110,7 @@ def test_work_2_takes_only_its_priority_tasks_and_those_due_today():
 
     queue, total = work2_queue(tasks, TODAY, NOW)
 
-    assert (titles(queue), total) == (["Today", "Key"], 2)
+    assert (names(queue), total) == (["Today", "Key"], 2)
 
 
 def pr(title, hours, **extra):
@@ -140,7 +144,7 @@ def test_work_1_puts_the_longest_waiting_review_first_then_stuck_urgent_issues()
 
     queue, total = work1_queue(tasks, TODAY, NOW)
 
-    assert titles(queue) == ["Old review", "New review", "Stuck urgent"]
+    assert names(queue) == ["Old review", "New review", "Stuck urgent"]
     assert total == 5  # two reviews, two stuck issues (urgent first), one priority task
     assert [i.kind for i in queue] == ["pull_request", "pull_request", "issue"]
     assert queue[0].primary == "open_external"
