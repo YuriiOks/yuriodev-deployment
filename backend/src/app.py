@@ -32,7 +32,7 @@ from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.projects import upgrade_projects
 from src.dashboards.runtime import DashboardsRuntime
 from src.feed.service import FeedService
-from src.routes import dashboards, finance, health, posts, projects
+from src.routes import dashboards, finance, finance_recurring, health, posts, projects
 
 logger = logging.getLogger("yuriodev.app")
 
@@ -209,6 +209,7 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.include_router(dashboards.router)
     app.include_router(projects.router)
     app.include_router(finance.router)
+    app.include_router(finance_recurring.router)
     if settings.dashboards_enabled:
         _add_mcp(app)
     if docs:
