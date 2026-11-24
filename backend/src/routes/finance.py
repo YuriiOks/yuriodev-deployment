@@ -20,14 +20,20 @@ from src.core.errors import AppError
 from src.core.http import UpstreamError
 from src.dashboards.finance import monzo_auth, service
 from src.dashboards.finance.categories import Category
+from src.dashboards.finance.logos import VARIANTS
 from src.dashboards.finance.schemas import (
     AccountOut,
     AccountsOut,
     CategoriesOut,
     ConnectionOut,
+    DisplayOut,
     FinanceSummaryOut,
+    LogoOut,
+    ProviderOut,
+    ProvidersOut,
     TransactionOut,
     TransactionsOut,
+    display_fields,
 )
 from src.dashboards.runtime import get_runtime, unavailable
 from src.dashboards.service import guarded
@@ -39,12 +45,15 @@ DASHBOARDS_PAGE = "/dashboards"  # where the browser lands after the consent, wi
 
 
 @router.get("/accounts")
-async def accounts(session: SessionDep) -> AccountsOut:
-    """The accounts with their balances (open ones first) and the state of each bank link."""
+async def accounts(session: SessionDep, settings: SettingsDep, clock: ClockDep) -> AccountsOut:
+    """The accounts with their balances (open ones first), each also in the display currency at
+    the latest rate, and the state of each bank link."""
+    display = await service.display_for(session, settings.finance_display_currency, clock())
     found, links, oldest = await service.list_accounts(session)
     return AccountsOut(
-        accounts=[AccountOut.from_row(item, oldest.get(item.id)) for item in found],
+        accounts=[AccountOut.from_row(item, oldest.get(item.id), display) for item in found],
         connections=[ConnectionOut.model_validate(item) for item in links],
+        display=DisplayOut(**display_fields(display, {item.currency for item in found})),
     )
 
 
@@ -52,6 +61,8 @@ async def accounts(session: SessionDep) -> AccountsOut:
 async def transactions(
     session: SessionDep,
     zone: ZoneDep,
+    settings: SettingsDep,
+    clock: ClockDep,
     account: Annotated[UUID | None, Query()] = None,
     start: Annotated[date | None, Query(alias="from")] = None,
     end: Annotated[date | None, Query(alias="to")] = None,
@@ -67,9 +78,11 @@ async def transactions(
     is the effective one (the owner's override, else the normalised one)."""
     flt = service.TransactionFilter(account, start, end, q, min_amount, max_amount, category)
     rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)
+    display = await service.display_for(session, settings.finance_display_currency, clock())
     return TransactionsOut(
-        transactions=[TransactionOut.from_row(row) for row in rows],
+        transactions=[TransactionOut.from_row(row, display) for row in rows],
         next_cursor=next_cursor,
+        display=DisplayOut(**display_fields(display, {row.currency for row in rows})),
     )
 
 
@@ -83,11 +96,16 @@ class TransactionPatch(BaseModel):
 
 @router.patch("/transactions/{transaction_id}")
 async def set_transaction_category(
-    transaction_id: UUID, body: TransactionPatch, session: SessionDep
+    transaction_id: UUID,
+    body: TransactionPatch,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
 ) -> TransactionOut:
     """The owner's category for one transaction; a note on our copy only, kept on re-import."""
     row = await service.set_category(session, transaction_id, body.category)
-    return TransactionOut.from_row(row)
+    display = await service.display_for(session, settings.finance_display_currency, clock())
+    return TransactionOut.from_row(row, display)
 
 
 @router.get("/categories")
@@ -95,17 +113,39 @@ async def categories(
     session: SessionDep,
     clock: ClockDep,
     zone: ZoneDep,
+    settings: SettingsDep,
     month: Annotated[str | None, Query(max_length=7)] = None,
 ) -> CategoriesOut:
     """Money out per currency and category for `month` (YYYY-MM, default this month) with the
-    month before beside it; internal transfers and declined payments are left out."""
-    return await service.categories_report(session, month, clock(), zone)
+    month before beside it, and all of it in the display currency; internal transfers and
+    declined payments are left out."""
+    display = await service.display_for(session, settings.finance_display_currency, clock())
+    return await service.categories_report(session, month, clock(), zone, display)
+
+
+@router.get("/providers")
+async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
+    """How each bank is shown: its logo from DASHBOARDS_PROVIDER_LOGOS (every id with one, and
+    every provider that has accounts, a missing logo being null). Fetch it once: the data URIs are
+    big and the accounts answer deliberately does not repeat them."""
+    logos = settings.provider_logos
+    names = set(logos) | set(await service.provider_ids(session))
+    return ProvidersOut(
+        providers=[
+            ProviderOut(id=name, logo=LogoOut(**{v: logos.get(name, {}).get(v) for v in VARIANTS}))
+            for name in sorted(names)
+        ]
+    )
 
 
 @router.get("/summary")
-async def summary(session: SessionDep, clock: ClockDep, zone: ZoneDep) -> FinanceSummaryOut:
-    """Per currency: the total balance, and money spent and received this month."""
-    return await service.summary(session, clock(), zone)
+async def summary(
+    session: SessionDep, clock: ClockDep, zone: ZoneDep, settings: SettingsDep
+) -> FinanceSummaryOut:
+    """Per currency: the total balance, and money spent and received this month, and one grand
+    total in the display currency."""
+    display = await service.display_for(session, settings.finance_display_currency, clock())
+    return await service.summary(session, clock(), zone, display)
 
 
 def monzo_setup(settings: Settings) -> tuple[SecretStr, SecretStr, str]:

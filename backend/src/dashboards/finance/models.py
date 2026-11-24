@@ -10,6 +10,7 @@ plus an ISO 4217 alpha code; there is no float column.
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     MetaData,
+    Numeric,
     SmallInteger,
     String,
     Text,
@@ -141,6 +143,20 @@ class Transaction(FinanceBase):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class FxRate(FinanceBase):
+    """The latest rate of a currency against hryvnia (`quote`): units of `quote` per one `base`.
+    One row per currency, replaced on every refresh; `as_of` is the source's own time."""
+
+    __tablename__ = "fx_rate"
+
+    base: Mapped[str] = mapped_column(String(3), primary_key=True)
+    quote: Mapped[str] = mapped_column(String(3), primary_key=True)
+    rate: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False)
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(String(24), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class MonzoToken(FinanceBase):
