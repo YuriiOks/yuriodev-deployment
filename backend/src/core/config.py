@@ -21,7 +21,7 @@ from src.dashboards.catalog import (
     MAX_ICON_LENGTH,
     MAX_SPACE_NAME,
 )
-from src.dashboards.finance.logos import parse_provider_logos
+from src.dashboards.finance.logos import dropped_logos, parse_logo_options, parse_provider_logos
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
@@ -193,6 +193,38 @@ class Settings(BaseSettings):
         ):
             for provider, variants in parse_provider_logos(raw).items():
                 merged.setdefault(provider, {}).update(variants)
+        return merged
+
+    @property
+    def provider_logos_dropped(self) -> dict[str, dict[str, str]]:
+        """The variants of the same settings that were dropped, with the reason, unless another
+        part of the settings supplied a valid one for the same provider and variant."""
+        kept = self.provider_logos
+        dropped: dict[str, dict[str, str]] = {}
+        for raw in (
+            self.dashboards_provider_logos,
+            self.dashboards_provider_logos_2,
+            self.dashboards_provider_logos_3,
+            read_text_file(self.dashboards_provider_logos_file),
+        ):
+            for provider, variants in dropped_logos(raw).items():
+                for name, why in variants.items():
+                    if name not in kept.get(provider, {}):
+                        dropped.setdefault(provider, {})[name] = why
+        return dropped
+
+    @property
+    def provider_logo_options(self) -> dict[str, dict[str, float | bool]]:
+        """The `scale` and `mono` of each provider in the same settings, merged like the logos."""
+        merged: dict[str, dict[str, float | bool]] = {}
+        for raw in (
+            self.dashboards_provider_logos,
+            self.dashboards_provider_logos_2,
+            self.dashboards_provider_logos_3,
+            read_text_file(self.dashboards_provider_logos_file),
+        ):
+            for provider, found in parse_logo_options(raw).items():
+                merged.setdefault(provider, {}).update(found)
         return merged
 
     @property

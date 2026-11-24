@@ -22,13 +22,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.dashboards.finance import manual, recurring_service, service
 from src.dashboards.finance.manual import AccountIn, BalanceIn, ConnectionIn, ManualAccountPatch
 from src.dashboards.finance.recurring import RecurringIn, RecurringPatch
-from src.dashboards.finance.recurring_schemas import RecurringOut
+from src.dashboards.finance.recurring_schemas import RecurringOut, debt_total
 from src.dashboards.finance.schemas import (
     AccountOut,
     ConnectionOut,
     DisplayOut,
     TransactionOut,
     display_fields,
+    provider_totals,
 )
 
 type Scope = Callable[[str], AbstractAsyncContextManager[tuple[AsyncSession, datetime]]]
@@ -57,15 +58,16 @@ def register(
             display = await service.display_for(session, display_currency, now)
             accounts, links, oldest = await service.list_accounts(session)
             shown = DisplayOut(**display_fields(display, {a.currency for a in accounts}))
+            shown_accounts = [AccountOut.from_row(a, oldest.get(a.id), display) for a in accounts]
             return _json(
                 {
                     "display": shown.model_dump(mode="json"),
-                    "accounts": [
-                        AccountOut.from_row(a, oldest.get(a.id), display).model_dump(mode="json")
-                        for a in accounts
-                    ],
+                    "accounts": [a.model_dump(mode="json") for a in shown_accounts],
                     "connections": [
                         ConnectionOut.from_row(c, now).model_dump(mode="json") for c in links
+                    ],
+                    "providers": [
+                        t.model_dump(mode="json") for t in provider_totals(shown_accounts)
                     ],
                 }
             )
@@ -187,6 +189,7 @@ def register(
             return _json(
                 {
                     "display": shown.model_dump(mode="json"),
+                    "debts": debt_total(listed).model_dump(mode="json"),
                     "recurring": [item.model_dump(mode="json") for item in listed],
                 }
             )

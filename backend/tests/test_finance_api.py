@@ -38,6 +38,7 @@ ACCOUNT_FIELDS = {
     "overdraft_limit_source",
     "overdraft_limit_bank",
     "available_minor",
+    "used_percent",
     "display_balance_minor",
     "display_own_balance_minor",
     "display_available_minor",

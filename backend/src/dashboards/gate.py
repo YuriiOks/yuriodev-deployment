@@ -3,7 +3,8 @@
 A pure-ASGI middleware, so it runs before request parsing and one implementation covers the REST
 routes and the MCP endpoint. For every request under those paths it:
 
-1. adds `Cache-Control: no-store` to the response, whoever produces it;
+1. adds `Cache-Control: no-store` to the response, whoever produces it (a provider logo keeps
+   the `Cache-Control` it sets: private, with an ETag);
 2. answers 503 `dashboards_disabled` when DATABASE_URL is not set (the bootstrap route is
    the exception: it reports `enabled: false` itself, without authentication);
 3. answers 401 `unauthorized` unless the caller is authenticated: either
@@ -22,6 +23,7 @@ routes and the MCP endpoint. For every request under those paths it:
 
 import hashlib
 import hmac
+import re
 from urllib.parse import urlsplit
 
 from pydantic import SecretStr
@@ -36,6 +38,9 @@ BOOTSTRAP_PATH = "/api/dashboards/v1/bootstrap"
 MCP_PATH = "/api/mcp"
 _GATED = ("/api/dashboards", MCP_PATH)
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+# A logo image keeps its own `Cache-Control` (private, max-age) so the browser need not fetch it
+# again on every visit; everything else under the gate is no-store.
+LOGO_PATH = re.compile(r"/api/dashboards/v1/finance/providers/[^/]+/logo/[^/]+")
 
 
 def covers(path: str) -> bool:
@@ -88,12 +93,18 @@ class DashboardsGate:
             await self.app(scope, receive, send)
             return
 
+        path = str(scope["path"])
+        keeps_own_cache = LOGO_PATH.fullmatch(path) is not None and scope["method"] == "GET"
+
         async def send_no_store(message: Message) -> None:
             if message["type"] == "http.response.start":
-                MutableHeaders(scope=message)["Cache-Control"] = "no-store"
+                headers = MutableHeaders(scope=message)
+                if keeps_own_cache:  # a logo says how long it may be kept (private, max-age)
+                    headers.setdefault("Cache-Control", "no-store")
+                else:
+                    headers["Cache-Control"] = "no-store"
             await send(message)
 
-        path = str(scope["path"])
         settings = self.settings
         if not settings.dashboards_enabled and path != BOOTSTRAP_PATH:
             response = error_response(503, "dashboards_disabled", "Dashboards are not enabled")

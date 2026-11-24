@@ -36,6 +36,7 @@ from src.dashboards.finance.recurring_schemas import (
     RecurringListOut,
     RecurringOut,
     UpcomingOut,
+    debt_total,
 )
 from src.dashboards.finance.schemas import DisplayOut, display_fields
 from src.dashboards.finance.service import display_for
@@ -66,8 +67,10 @@ async def list_recurring(
     currency at the latest rate."""
     display = await _display(session, settings, clock)
     rows = await service.list_recurring(session, clock(), zone, active, kind)
+    listed = [RecurringOut.from_row(row, display, _today(clock, zone)) for row in rows]
     return RecurringListOut(
-        recurring=[RecurringOut.from_row(row, display, _today(clock, zone)) for row in rows],
+        recurring=listed,
+        debts=debt_total(listed),
         display=DisplayOut(**display_fields(display, {row.currency for row in rows})),
     )
 
