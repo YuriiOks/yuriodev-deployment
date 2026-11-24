@@ -568,7 +568,7 @@
 .stickyTools {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-raised);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -624,7 +624,7 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 3;
+  z-index: var(--z-decor);
   display: flex;
   flex-direction: column;
   min-width: 10rem;
