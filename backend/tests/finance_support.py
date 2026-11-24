@@ -8,13 +8,14 @@ would. Every request is recorded in `calls`.
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import httpx
 from pydantic import SecretStr
 
 from src.dashboards.finance.base import FinanceCollector
-from src.dashboards.finance.models import Account, Connection, Transaction
+from src.dashboards.finance.models import Account, Connection, FxRate, Transaction
 from src.dashboards.finance.monobank import MonobankProvider
 from tests.collectors_support import json_response
 from tests.dashboards_support import FakeClock
@@ -87,6 +88,11 @@ def mono_item(
     return row
 
 
+def rate_row(code: int, **fields: Any) -> dict[str, Any]:
+    """One entry of Monobank's public rates: `code` quoted in hryvnia (980)."""
+    return {"currencyCodeA": code, "currencyCodeB": 980, "date": 1_795_508_173, **fields}
+
+
 class FakeMonobank:
     """The transport handler. `accounts` and `statements` can be changed between requests;
     `failures` holds answers to give (one per statement request, `None` for a normal one)."""
@@ -101,11 +107,16 @@ class FakeMonobank:
         self.client_info_failures: list[httpx.Response] = []
         self.key = MONO_KEY
         self.headers_seen: list[dict[str, str]] = []
+        self.rate_calls = 0
+        self.rates = [rate_row(840, rateBuy=40.0, rateSell=41.0), rate_row(826, rateCross=50.5)]
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.headers_seen.append(dict(request.headers))
         if request.url.host != "api.monobank.ua":
             return json_response({"errorDescription": "wrong host"}, 404)
+        if request.url.path == "/bank/currency":  # public: no key, and not one of `calls`
+            self.rate_calls += 1
+            return json_response(self.rates)
         if request.headers.get("x-token") != self.key:
             return json_response({"errorDescription": "Unknown 'X-Token'"}, 403)
         parts = request.url.path.strip("/").split("/")
@@ -248,3 +259,37 @@ async def seed(app: Any) -> None:
 
 
 NEWEST_FIRST = [1002, 1001, 1007, 1006, 1003, 1008, 1004, 1005]  # transaction ids
+
+UAH_PER_UNIT = {"GBP": Decimal(50), "EUR": Decimal("43.75"), "USD": Decimal(40)}
+
+
+async def seed_rates(app: Any, as_of: datetime | None = None, **per_unit: Decimal | None) -> None:
+    """The latest rates in hryvnia per unit (round ones: GBP 50, EUR 43.75, USD 40), as of NOW;
+    `EUR=None` leaves a currency out, `EUR=Decimal(...)` changes it."""
+    rates = {**UAH_PER_UNIT, **per_unit}
+    async with app.state.dashboards.sessions() as session, session.begin():
+        for base, rate in rates.items():
+            if rate is not None:
+                session.add(
+                    FxRate(
+                        base=base,
+                        quote="UAH",
+                        rate=rate,
+                        as_of=as_of or NOW,
+                        source="monobank",
+                        fetched_at=NOW,
+                    )
+                )
+
+
+def money(value):
+    """What a figure is without its display companions: the older tests' view of an answer."""
+    if isinstance(value, dict):
+        return {
+            key: money(item)
+            for key, item in value.items()
+            if not key.startswith("display") and key != "converted"
+        }
+    if isinstance(value, list):
+        return [money(v) for v in value]
+    return value

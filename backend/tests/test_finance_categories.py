@@ -8,7 +8,7 @@ from mcp import Client
 from src.dashboards.finance.categories import CATEGORIES, categorize
 from src.dashboards.finance.maintenance import fill_categories
 from tests.dashboards_support import AUTH, execute, running, scalar
-from tests.finance_support import seed
+from tests.finance_support import money, seed
 
 pytestmark = pytest.mark.anyio
 
@@ -124,7 +124,7 @@ async def test_the_month_report_per_currency_with_the_month_before(db_url, make_
         october = await client.get(f"{BASE}/categories", params={"month": "2026-10"})
         empty = await client.get(f"{BASE}/categories", params={"month": "2024-01"})
 
-    assert november.json() == {
+    assert money(november.json()) == {
         "month": "2026-11",
         "previous_month": "2026-10",
         "currencies": [
@@ -149,7 +149,7 @@ async def test_the_month_report_per_currency_with_the_month_before(db_url, make_
         ],
     }
     assert october.json()["month"] == "2026-10"
-    assert october.json()["currencies"] == [
+    assert money(october.json()["currencies"]) == [
         {
             "currency": "UAH",
             "spent": 7_000,

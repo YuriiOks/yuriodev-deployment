@@ -92,7 +92,9 @@ def _validated[M: BaseModel](model: type[M], fields: dict[str, Any]) -> M:
         raise ToolError(INVALID_ARGUMENTS) from None
 
 
-def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -> MCPServer[Any]:
+def build_mcp_server(
+    get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo, display_currency: str = "GBP"
+) -> MCPServer[Any]:
     """The server with its fifteen tools, and its streamable-HTTP session manager created
     (stateless, JSON answers). `get_runtime` is read per call: the runtime only exists once the
     app runs."""
@@ -288,7 +290,7 @@ def build_mcp_server(get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo) -
             await service.delete_event(session, id)
             return _json({"deleted": id})
 
-    finance_mcp.register(server, scope, zone)
+    finance_mcp.register(server, scope, zone, display_currency)
 
     # The SDK builds its session manager together with the Starlette app. Only the manager is
     # used (`McpEndpoint`), so the app itself is dropped.
