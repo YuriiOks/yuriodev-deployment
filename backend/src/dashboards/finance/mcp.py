@@ -19,7 +19,13 @@ from mcp.server.mcpserver.exceptions import ToolError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dashboards.finance import service
-from src.dashboards.finance.schemas import AccountOut, ConnectionOut, TransactionOut
+from src.dashboards.finance.schemas import (
+    AccountOut,
+    ConnectionOut,
+    DisplayOut,
+    TransactionOut,
+    display_fields,
+)
 
 type Scope = Callable[[str], AbstractAsyncContextManager[tuple[AsyncSession, datetime]]]
 
@@ -34,17 +40,22 @@ def _json(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
 
 
-def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
+def register(
+    server: MCPServer[Any], scope: Scope, zone: ZoneInfo, display_currency: str = "GBP"
+) -> None:
     @server.tool(structured_output=False)
     async def finance_accounts() -> str:
         """List the bank accounts with their balance (minor units), currency, last four digits,
         and the status of each bank link (ok, needs_reconsent or paused)."""
-        async with scope("finance_accounts") as (session, _):
+        async with scope("finance_accounts") as (session, now):
+            display = await service.display_for(session, display_currency, now)
             accounts, links, oldest = await service.list_accounts(session)
+            shown = DisplayOut(**display_fields(display, {a.currency for a in accounts}))
             return _json(
                 {
+                    "display": shown.model_dump(mode="json"),
                     "accounts": [
-                        AccountOut.from_row(a, oldest.get(a.id)).model_dump(mode="json")
+                        AccountOut.from_row(a, oldest.get(a.id), display).model_dump(mode="json")
                         for a in accounts
                     ],
                     "connections": [
@@ -58,7 +69,8 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
         """Per currency: the total balance of the open accounts and the money spent and received
         this month (in the configured time zone), all in minor units."""
         async with scope("finance_balances") as (session, now):
-            summary = await service.summary(session, now, zone)
+            display = await service.display_for(session, display_currency, now)
+            summary = await service.summary(session, now, zone, display)
             return _json(summary.model_dump(mode="json"))
 
     @server.tool(structured_output=False)
@@ -86,12 +98,16 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
         flt = service.TransactionFilter(
             account_id, from_date, to_date, query, min_amount, max_amount, category
         )
-        async with scope("finance_transactions") as (session, _):
+        async with scope("finance_transactions") as (session, now):
             rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)
+            display = await service.display_for(session, display_currency, now)
             return _json(
                 {
+                    "display": DisplayOut(
+                        **display_fields(display, {r.currency for r in rows})
+                    ).model_dump(mode="json"),
                     "transactions": [
-                        TransactionOut.from_row(r).model_dump(mode="json") for r in rows
+                        TransactionOut.from_row(r, display).model_dump(mode="json") for r in rows
                     ],
                     "next_cursor": next_cursor,
                 }
@@ -105,7 +121,8 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
         groceries, eating_out, transport, subscriptions, health, shopping, entertainment, debt,
         income, transfers, cash, other."""
         async with scope("finance_categories") as (session, now):
-            report = await service.categories_report(session, month, now, zone)
+            display = await service.display_for(session, display_currency, now)
+            report = await service.categories_report(session, month, now, zone, display)
             return _json(report.model_dump(mode="json"))
 
     @server.tool(structured_output=False)
@@ -116,6 +133,7 @@ def register(server: MCPServer[Any], scope: Scope, zone: ZoneInfo) -> None:
             transaction_id = uuid.UUID(id)
         except ValueError:
             raise ToolError("Invalid transaction id") from None
-        async with scope("finance_set_category") as (session, _):
+        async with scope("finance_set_category") as (session, now):
             row = await service.set_category(session, transaction_id, category)
-            return _json(TransactionOut.from_row(row).model_dump(mode="json"))
+            display = await service.display_for(session, display_currency, now)
+            return _json(TransactionOut.from_row(row, display).model_dump(mode="json"))

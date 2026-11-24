@@ -14,13 +14,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
 from src.dashboards.finance.categories import CATEGORIES
+from src.dashboards.finance.fx import Display, load_rates
 from src.dashboards.finance.models import Account, Connection, Transaction
 from src.dashboards.finance.schemas import (
     CategoriesOut,
     CategorySpend,
     CurrencyCategories,
+    CategoriesDisplay,
     CurrencySummary,
+    DisplayCategory,
     FinanceSummaryOut,
+    SummaryDisplay,
+    display_fields,
 )
 from src.dashboards.service import guarded
 
@@ -102,6 +107,12 @@ async def list_accounts(
 
 
 @guarded
+async def provider_ids(session: AsyncSession) -> list[str]:
+    """The providers that have at least one account."""
+    return list((await session.scalars(select(Account.provider).distinct())).all())
+
+
+@guarded
 async def list_transactions(
     session: AsyncSession,
     flt: TransactionFilter,
@@ -150,8 +161,17 @@ async def list_transactions(
 
 
 @guarded
-async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> FinanceSummaryOut:
-    """Per currency: the balances of the open accounts and this month's money out and in."""
+async def display_for(session: AsyncSession, currency: str, now: datetime) -> Display:
+    """The display currency with the rates as they are at `now`."""
+    return Display(currency, await load_rates(session, now))
+
+
+@guarded
+async def summary(
+    session: AsyncSession, now: datetime, zone: tzinfo, display: Display
+) -> FinanceSummaryOut:
+    """Per currency: the balances of the open accounts and this month's money out and in, and the
+    grand total in the display currency (the converted parts, each converted once, added)."""
     local = now.astimezone(zone)
     first = date(local.year, local.month, 1)
     following = date(local.year + local.month // 12, local.month % 12 + 1, 1)
@@ -189,10 +209,13 @@ async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> Finance
         entry = by_currency.setdefault(currency, [0, 0, 0, 0, 0])
         entry[3], entry[4] = int(spent), int(got)
     as_of = min((row[4] for row in balances), default=None)
-    return FinanceSummaryOut(
-        month=f"{first.year:04d}-{first.month:02d}",
-        as_of=as_of,
-        currencies=[
+    lines: list[CurrencySummary] = []
+    totals = [0, 0, 0, 0]  # the converted parts that have a rate, added
+    for currency, (n, balance, own, spent, got) in sorted(by_currency.items()):
+        parts = [display.convert(figure, currency) for figure in (balance, own, spent, got)]
+        for index, part in enumerate(parts):
+            totals[index] += part or 0
+        lines.append(
             CurrencySummary(
                 currency=currency,
                 accounts=n,
@@ -200,9 +223,26 @@ async def summary(session: AsyncSession, now: datetime, zone: tzinfo) -> Finance
                 own_balance=own,
                 spent=spent,
                 received=got,
+                display_balance=parts[0],
+                display_own_balance=parts[1],
+                display_spent=parts[2],
+                display_received=parts[3],
+                converted=display.converted(currency),
             )
-            for currency, (n, balance, own, spent, got) in sorted(by_currency.items())
-        ],
+        )
+    shown = display_fields(display, by_currency)
+    return FinanceSummaryOut(
+        month=f"{first.year:04d}-{first.month:02d}",
+        as_of=as_of,
+        currencies=lines,
+        display=SummaryDisplay(
+            **shown,
+            complete=not shown["missing"],
+            balance=totals[0],
+            own_balance=totals[1],
+            spent=totals[2],
+            received=totals[3],
+        ),
     )
 
 
@@ -230,7 +270,7 @@ def month_bounds(month: str | None, now: datetime, zone: tzinfo) -> tuple[date, 
 
 @guarded
 async def categories_report(
-    session: AsyncSession, month: str | None, now: datetime, zone: tzinfo
+    session: AsyncSession, month: str | None, now: datetime, zone: tzinfo, display: Display
 ) -> CategoriesOut:
     """Money out per currency and category for a month and the one before. Left out: transfers
     between the owner's own accounts and pots, declined payments, and money in."""
@@ -257,27 +297,61 @@ async def categories_report(
             .group_by(Transaction.currency, category)
         )
     ).all()
-    grouped: dict[str, list[CategorySpend]] = {}
+    grouped: dict[str, list[tuple[str, int, int]]] = {}
     for currency, name, spent, previous in rows:
         if int(spent) or int(previous):
-            grouped.setdefault(currency, []).append(
-                CategorySpend(category=name, spent=int(spent), previous=int(previous))
-            )
+            grouped.setdefault(currency, []).append((name, int(spent), int(previous)))
     currencies = []
+    merged: dict[str, list[int]] = {}  # per category in the display currency: spent, previous
     for currency in sorted(grouped):
-        lines = sorted(grouped[currency], key=lambda line: (-line.spent, line.category))
+        lines = []
+        ordered = sorted(grouped[currency], key=lambda line: (-line[1], line[0]))
+        for name, spent, previous in ordered:
+            shown_spent = display.convert(spent, currency)
+            shown_previous = display.convert(previous, currency)
+            lines.append(
+                CategorySpend(
+                    category=name,
+                    spent=spent,
+                    previous=previous,
+                    display_spent=shown_spent,
+                    display_previous=shown_previous,
+                )
+            )
+            if shown_spent is not None and shown_previous is not None:
+                entry = merged.setdefault(name, [0, 0])
+                entry[0] += shown_spent
+                entry[1] += shown_previous
+        has_rate = display.convert(0, currency) is not None
         currencies.append(
             CurrencyCategories(
                 currency=currency,
                 spent=sum(line.spent for line in lines),
                 previous_spent=sum(line.previous for line in lines),
                 categories=lines,
+                display_spent=sum(line.display_spent or 0 for line in lines) if has_rate else None,
+                display_previous_spent=(
+                    sum(line.display_previous or 0 for line in lines) if has_rate else None
+                ),
+                converted=display.converted(currency),
             )
         )
+    shown = display_fields(display, grouped)
+    ranked = sorted(merged.items(), key=lambda item: (-item[1][0], item[0]))
     return CategoriesOut(
         month=f"{first.year:04d}-{first.month:02d}",
         previous_month=f"{before.year:04d}-{before.month:02d}",
         currencies=currencies,
+        display=CategoriesDisplay(
+            **shown,
+            complete=not shown["missing"],
+            spent=sum(spent for spent, _ in merged.values()),
+            previous_spent=sum(previous for _, previous in merged.values()),
+            categories=[
+                DisplayCategory(category=name, spent=spent, previous=previous)
+                for name, (spent, previous) in ranked
+            ],
+        ),
     )
 
 

@@ -8,7 +8,7 @@ import pytest
 
 from src.app import create_app
 from tests.dashboards_support import AUTH, CRED, running
-from tests.finance_support import ACC_A, ACC_B, NEWEST_FIRST, seed
+from tests.finance_support import ACC_A, ACC_B, NEWEST_FIRST, money, seed
 
 pytestmark = pytest.mark.anyio
 
@@ -35,6 +35,10 @@ ACCOUNT_FIELDS = {
     "goal_amount",
     "overdraft_limit",
     "available_minor",
+    "display_balance_minor",
+    "display_own_balance_minor",
+    "display_available_minor",
+    "converted",
 }
 TRANSACTION_FIELDS = {
     "id",
@@ -54,6 +58,8 @@ TRANSACTION_FIELDS = {
     "settled_at",
     "category",
     "category_overridden",
+    "display_amount_minor",
+    "converted",
 }
 
 
@@ -272,13 +278,13 @@ async def test_the_summary_totals_each_currency_and_this_months_movement(
         await seed(app)
         response = await client.get(f"{BASE}/summary")
 
-    assert empty.json() == {"month": "2026-11", "as_of": None, "currencies": []}
+    assert money(empty.json()) == {"month": "2026-11", "as_of": None, "currencies": []}
     body = response.json()
     assert body["month"] == "2026-11"
     assert body["as_of"] == "2026-11-22T12:00:00Z"
     # Open accounts only in the balance; every November transaction in the movement except moves
     # between the owner's own accounts and declined payments; 31 October is last month's.
-    assert body["currencies"] == [
+    assert money(body["currencies"]) == [
         {
             "currency": "EUR",
             "accounts": 1,

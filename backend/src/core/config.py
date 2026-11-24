@@ -20,6 +20,7 @@ from src.dashboards.catalog import (
     MAX_ICON_LENGTH,
     MAX_SPACE_NAME,
 )
+from src.dashboards.finance.logos import parse_provider_logos
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
@@ -101,6 +102,10 @@ class Settings(BaseSettings):
     # (png, svg, ico, webp, at most 48 KiB each), so real logos can live in the untracked secrets
     # file. Text like the names, read through `space_icons`, never a startup error.
     dashboards_space_icons: str | None = None
+    # Bank logos for the Money page, a JSON object `{"<provider id>": {"on_light": "<data URI>",
+    # "on_dark": "<data URI>"}}` in the secrets file (src/dashboards/finance/logos.py has the
+    # rules). Text, read through `provider_logos`, never a startup error.
+    dashboards_provider_logos: str | None = None
 
     # Collectors (src/dashboards/collectors/): background pollers that turn outside work items
     # into tasks. They run only with the dashboards API on (DATABASE_URL) and each one only when
@@ -136,6 +141,8 @@ class Settings(BaseSettings):
     # Seconds between finance collector ticks; each tick makes at most one provider request, and
     # never two within the provider's own minimum gap, whatever this is set to.
     finance_poll_interval_seconds: int = Field(90, ge=60, le=3600)
+    # The currency the Money page shows every amount in (beside the original, at the latest rate).
+    finance_display_currency: str = Field("GBP", pattern=r"^[A-Z]{3}$")
     # Monzo: the OAuth client registered in Monzo's developer portal (a confidential one, so it
     # gets a refresh token). Both in the secrets file; unset means no Monzo.
     monzo_client_id: SecretStr | None = None
@@ -160,6 +167,11 @@ class Settings(BaseSettings):
         """The valid icons from DASHBOARDS_SPACE_ICONS: known space ids, an allowed image data
         URI with a valid base64 payload, at most 48 KiB. Anything else is dropped per key."""
         return parse_space_icons(self.dashboards_space_icons)
+
+    @property
+    def provider_logos(self) -> dict[str, dict[str, str]]:
+        """The valid logos of DASHBOARDS_PROVIDER_LOGOS, dropped one by one when invalid."""
+        return parse_provider_logos(self.dashboards_provider_logos)
 
     @property
     def collectors_enabled(self) -> bool:
