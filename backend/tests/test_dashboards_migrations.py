@@ -469,7 +469,7 @@ def upgrade_to(url, revision):
 
 
 async def test_csv_references_lose_their_row_numbers_and_every_payment_gets_its_day(empty_db_url):
-    await run_in_thread(upgrade_to, empty_db_url, "dashboards_0017")
+    await asyncio.to_thread(upgrade_to, empty_db_url, "dashboards_0017")
     base = (
         "INSERT INTO finance.recurring (id, name, kind, amount, currency, frequency, "
         "external_ref, start_date, next_payment_date) "

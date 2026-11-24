@@ -462,7 +462,7 @@ def test_references_name_the_row_by_its_name_and_not_its_position():
     first = {i.amount: i.external_ref for _, i in parse_csv(one)[0]}
     second = {i.amount: i.external_ref for _, i in parse_csv(shifted)[0]}
 
-    assert first == {1: "csv:acme:gbp:1", 2: "csv:acme:gbp:2", 3: "csv:beta:gbp:1"}
+    assert first == {100: "csv:acme:gbp:1", 200: "csv:acme:gbp:2", 300: "csv:beta:gbp:1"}
     assert second == first  # rows moved and a blank line added: the same references
 
 
