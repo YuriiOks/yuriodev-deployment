@@ -1,3 +1,4 @@
 # Hashes of names that must not be written anywhere in this repository (see scripts/check-reserved-names.py).
 # Format: <length>:<sha256 of the name lower-cased, letters and digits only>. Never add a name in plain text.
 4:ce749e840dcada0f9196edd49327ae5b3ab16f1d0405e72c1cb7d62b04538a42
+5:fd9a1c203cdb966b9f5f7be84b8a7376def932661cb796f65c23b0220fe5a5d1
