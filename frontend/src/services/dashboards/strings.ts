@@ -1,6 +1,7 @@
 import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
 import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
+import { MANUAL_EN, MANUAL_RU, type ManualStrings } from './manualStrings';
 import { RECURRING_EN, RECURRING_RU, type RecurringStrings } from './recurringStrings';
 
 /** The page a document title is for. */
@@ -133,6 +134,7 @@ export interface Strings {
   /** The Money page of the personal space (read-only, from the finance API). */
   readonly money: {
     readonly rec: RecurringStrings;
+    readonly manual: ManualStrings;
     readonly navLink: string;
     readonly title: string;
     readonly back: string;
@@ -419,6 +421,7 @@ export const STRINGS: Record<Lang, Strings> = {
     titles: { hub: 'Дашборды', personal: 'Личное', 'work-1': 'Работа 1', 'work-2': 'Работа 2', calendar: 'Календарь', money: 'Деньги' },
     money: {
       rec: RECURRING_RU,
+      manual: MANUAL_RU,
       navLink: 'Деньги',
       title: 'Деньги',
       back: 'К личному',
@@ -719,6 +722,7 @@ export const STRINGS: Record<Lang, Strings> = {
     titles: { hub: 'Dashboards', personal: 'Personal', 'work-1': 'Work 1', 'work-2': 'Work 2', calendar: 'Calendar', money: 'Money' },
     money: {
       rec: RECURRING_EN,
+      manual: MANUAL_EN,
       navLink: 'Money',
       title: 'Money',
       back: 'Back to Personal',

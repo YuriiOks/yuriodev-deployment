@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ApiError } from './liveApi';
 import { iconUrl, parseAttention, parseRecurring, parseRecurringList, parseUpcoming, refusal } from './recurringApi';
 
 const row = (extra: Record<string, unknown> = {}) => ({ id: 'r-1', name: 'Streaming', kind: 'subscription', amount: 999, currency: 'GBP', frequency: 'monthly', frequency_interval: 1, ...extra });
@@ -55,9 +56,11 @@ describe('the recurring payments parsers', () => {
   });
 
   it('passes on the server\'s refusal words and nothing generic', () => {
-    expect(refusal(new Error('amount must be positive'))).toBe('amount must be positive');
-    expect(refusal(new Error('HTTP 500'))).toBeNull();
-    expect(refusal(new Error('network'))).toBeNull();
+    expect(refusal(new ApiError('validation_error', 422, 'amount must be positive'))).toBe('amount must be positive');
+    expect(refusal(new ApiError('http', 422, 'HTTP 422'))).toBeNull();
+    expect(refusal(new ApiError('internal_error', 500, 'boom'))).toBeNull();
+    expect(refusal(new ApiError('network', 0, 'network'))).toBeNull();
+    expect(refusal(new Error('amount must be positive'))).toBeNull();
     expect(refusal('nope')).toBeNull();
   });
 });

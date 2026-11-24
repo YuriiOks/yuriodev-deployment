@@ -23,12 +23,15 @@ export type ApiErrorCode = 'network' | 'timeout' | 'bad_response' | 'http';
 export class ApiError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode | string;
+  /** The parsed JSON body of an error answer (a refused upload lists every bad line in it), or null. */
+  readonly body: unknown;
 
-  constructor(code: ApiErrorCode | string, status: number, message: string) {
+  constructor(code: ApiErrorCode | string, status: number, message: string, body: unknown = null) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -336,12 +339,14 @@ export function parseSummary(body: unknown): LiveSummary | null {
 interface RequestOptions {
   readonly method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   readonly body?: unknown;
+  /** A file or other raw payload sent as it is (the JSON `body` is then not used). */
+  readonly raw?: { readonly data: ArrayBuffer; readonly contentType: string };
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
 }
 
 /** One JSON request: resolves with the parsed body (null for 204), rejects with an ApiError. */
-export async function request(path: string, { method = 'GET', body, signal, timeoutMs = API_TIMEOUT_MS }: RequestOptions = {}): Promise<unknown> {
+export async function request(path: string, { method = 'GET', body, raw, signal, timeoutMs = API_TIMEOUT_MS }: RequestOptions = {}): Promise<unknown> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) throw new ApiError('network', 0, 'aborted');
@@ -356,9 +361,9 @@ export async function request(path: string, { method = 'GET', body, signal, time
     try {
       response = await fetch(`${API_BASE}${path}`, {
         method,
-        headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+        headers: raw ? { Accept: 'application/json', 'Content-Type': raw.contentType } : body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: raw ? raw.data : body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
     } catch {
@@ -367,8 +372,10 @@ export async function request(path: string, { method = 'GET', body, signal, time
     if (!response.ok) {
       let code = 'http';
       let message = `HTTP ${response.status}`;
+      let details: unknown = null;
       try {
         const error: unknown = await response.json();
+        details = error;
         if (isObject(error)) {
           if (typeof error.error === 'string') code = error.error;
           if (typeof error.message === 'string') message = error.message;
@@ -376,7 +383,7 @@ export async function request(path: string, { method = 'GET', body, signal, time
       } catch {
         // An error page that is not JSON: keep the generic code.
       }
-      throw new ApiError(code, response.status, message);
+      throw new ApiError(code, response.status, message, details);
     }
     if (response.status === 204) return null;
     try {

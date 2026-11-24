@@ -5,10 +5,11 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
+import type { ProviderLogo } from '../../../services/dashboards/financeApi';
 import { dismissAttention, markPaid, restoreAttention, snoozeAttention, type Attention, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
 import DashIcon from '../DashIcon/DashIcon';
 import { dayLabel } from './labels';
-import { providerName, reconnectPath } from './providers';
+import { bankLabel, reconnectPath } from './providers';
 import { amountText, dueWhen } from './recurringLabels';
 import styles from './Recurring.module.css';
 
@@ -20,6 +21,8 @@ export interface MoneyAttentionProps {
   data: Attention;
   recurring: readonly Recurring[];
   accounts: readonly FinanceAccount[];
+  /** The banks' names as the server gives them. */
+  logos: Readonly<Record<string, ProviderLogo>>;
   mode: MoneyDisplay;
   showHidden: boolean;
   onToggleHidden: () => void;
@@ -29,11 +32,11 @@ export interface MoneyAttentionProps {
 }
 
 /** The item's subject: the payment, the account or the bank it is about. */
-function useSubject(item: AttentionItem, recurring: readonly Recurring[], accounts: readonly FinanceAccount[]) {
+function useSubject(item: AttentionItem, recurring: readonly Recurring[], accounts: readonly FinanceAccount[], logos: Readonly<Record<string, ProviderLogo>>) {
   const payment = item.subjectType === 'recurring' ? recurring.find((row) => row.id === item.subjectId) : undefined;
   const account = item.subjectType === 'account' ? accounts.find((row) => row.id === item.subjectId) : undefined;
   const provider = account?.provider ?? (typeof item.facts.provider === 'string' ? item.facts.provider : null);
-  return { payment, account, provider, name: payment?.name ?? account?.name ?? (provider ? providerName(provider) : item.title) };
+  return { payment, account, provider, name: payment?.name ?? account?.name ?? (provider ? bankLabel(provider, logos[provider]) : item.title) };
 }
 
 /** The facts behind an item as one plain sentence in the page's language; the server's English title only when a fact is missing. */
@@ -68,14 +71,18 @@ function useSentence(item: AttentionItem, name: string, mode: MoneyDisplay): str
       return own === null ? item.title : fill(r.sentence.overdraft, { name, over: own });
     case 'reconsent':
       return fill(r.sentence.reconsent, { bank: name });
+    case 'stale_statement': {
+      const days = num(f.days_old);
+      return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.sentence.stale_statement, { bank: name, days, date: dayLabel(f.as_of, lang) });
+    }
   }
 }
 
-const AttentionCard: React.FC<Omit<MoneyAttentionProps, 'data' | 'showHidden' | 'onToggleHidden'> & { item: AttentionItem }> = ({ item, recurring, accounts, mode, onChanged, onOpenBank }) => {
+const AttentionCard: React.FC<Omit<MoneyAttentionProps, 'data' | 'showHidden' | 'onToggleHidden'> & { item: AttentionItem }> = ({ item, recurring, accounts, logos, mode, onChanged, onOpenBank }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const r = m.rec;
-  const subject = useSubject(item, recurring, accounts);
+  const subject = useSubject(item, recurring, accounts, logos);
   const sentence = useSentence(item, subject.name, mode);
   const [days, setDays] = useState<number>(7);
   const [busy, setBusy] = useState(false);
@@ -124,7 +131,7 @@ const AttentionCard: React.FC<Omit<MoneyAttentionProps, 'data' | 'showHidden' | 
                   {r.openPayment}
                 </Link>
               )}
-              {(item.kind === 'credit_high' || item.kind === 'overdraft' || (item.kind === 'reconsent' && !reconnect)) && provider && (
+              {(item.kind === 'credit_high' || item.kind === 'overdraft' || item.kind === 'stale_statement' || (item.kind === 'reconsent' && !reconnect)) && provider && (
                 <a className={styles.primary} href="#money-wallet-title" onClick={() => onOpenBank(provider)}>
                   {r.openBank}
                 </a>
