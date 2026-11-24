@@ -89,6 +89,9 @@ class Account(FinanceBase):
     )
     goal_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     overdraft_limit: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # The owner's own figure (migration `dashboards_0013`), written by no collector: it wins over
+    # whatever the bank sends.
+    overdraft_limit_override: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     label: Mapped[str | None] = mapped_column(String(60), nullable=True)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     synced_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

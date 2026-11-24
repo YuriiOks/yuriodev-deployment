@@ -32,6 +32,7 @@ from src.dashboards.service import guarded
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
 MAX_TEXT = 100
+MAX_OVERDRAFT = 10**12  # minor units: far above any real limit, below bigint
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,29 @@ async def list_accounts(
         )
     ).all()
     return accounts, connections, {account_id: moment for account_id, moment in oldest}
+
+
+@guarded
+async def set_overdraft(
+    session: AsyncSession, account_id: uuid.UUID, limit: int | None
+) -> tuple[Account, datetime | None]:
+    """The owner's overdraft limit of an account in minor units (None clears it, back to what the
+    bank sends). Nothing is sent to a bank, and no collector ever writes this column."""
+    if limit is not None and not 0 <= limit <= MAX_OVERDRAFT:
+        raise invalid("Invalid overdraft limit")
+    row = await session.get(Account, account_id)
+    if row is None:
+        raise AppError(404, "not_found", "Account not found")
+    if row.kind == "pot":
+        raise invalid("A pot has no overdraft")
+    row.overdraft_limit_override = limit
+    await session.commit()
+    oldest = await session.scalar(
+        select(func.min(Transaction.booked_at)).where(
+            Transaction.account_id == account_id, Transaction.declined.is_(False)
+        )
+    )
+    return row, oldest
 
 
 @guarded

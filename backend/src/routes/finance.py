@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict, SecretStr
+from pydantic import BaseModel, ConfigDict, SecretStr, StrictInt
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.config import Settings
@@ -55,6 +55,29 @@ async def accounts(session: SessionDep, settings: SettingsDep, clock: ClockDep) 
         connections=[ConnectionOut.model_validate(item) for item in links],
         display=DisplayOut(**display_fields(display, {item.currency for item in found})),
     )
+
+
+class AccountPatch(BaseModel):
+    """What the owner may set on an account: his overdraft limit (null clears it)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    overdraft_limit: StrictInt | None
+
+
+@router.patch("/accounts/{account_id}")
+async def set_account_overdraft(
+    account_id: UUID,
+    body: AccountPatch,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
+) -> AccountOut:
+    """The owner's overdraft limit for one account, in minor units. It wins over a limit the bank
+    sends (`overdraft_limit_bank` keeps showing that one) and no collector overwrites it."""
+    row, oldest = await service.set_overdraft(session, account_id, body.overdraft_limit)
+    display = await service.display_for(session, settings.finance_display_currency, clock())
+    return AccountOut.from_row(row, oldest, display)
 
 
 @router.get("/transactions")

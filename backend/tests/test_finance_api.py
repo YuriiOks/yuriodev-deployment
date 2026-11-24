@@ -34,6 +34,8 @@ ACCOUNT_FIELDS = {
     "parent_id",
     "goal_amount",
     "overdraft_limit",
+    "overdraft_limit_source",
+    "overdraft_limit_bank",
     "available_minor",
     "display_balance_minor",
     "display_own_balance_minor",

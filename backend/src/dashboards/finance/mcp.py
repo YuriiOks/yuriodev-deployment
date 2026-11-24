@@ -114,6 +114,20 @@ def register(
             )
 
     @server.tool(structured_output=False)
+    async def finance_set_overdraft(account: str, limit_minor: int | None = None) -> str:
+        """Set the owner's overdraft limit of an account (an id from finance_accounts) in minor
+        units (1000 is 10.00), or clear it by passing no limit. It wins over a limit the bank
+        sends and no collector overwrites it; nothing is sent to a bank."""
+        try:
+            account_id = uuid.UUID(account)
+        except ValueError:
+            raise ToolError("Invalid account id") from None
+        async with scope("finance_set_overdraft") as (session, now):
+            row, oldest = await service.set_overdraft(session, account_id, limit_minor)
+            display = await service.display_for(session, display_currency, now)
+            return _json(AccountOut.from_row(row, oldest, display).model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
     async def finance_categories(month: str | None = None) -> str:
         """Money out per currency and category for a month (YYYY-MM, default this month) with the
         month before beside it, in minor units. Transfers between the owner's own accounts and

@@ -944,6 +944,14 @@ the month before beside it. You can change one transaction's category
 copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
 categories existed are categorised when the backend next starts.
 
+Overdraft limit you set yourself. Monzo sends no overdraft limit, so set it by hand:
+`PATCH /api/dashboards/v1/finance/accounts/{id}` with `{"overdraft_limit": 100000}` (minor units,
+0 or more; `null` clears it), or the MCP tool `finance_set_overdraft(account, limit_minor)`. Your
+figure is kept in its own column that no collector writes, so a refresh never overwrites it, and it
+wins over a limit the bank sends (you set it on purpose; the bank's own figure stays visible as
+`overdraft_limit_bank`, and `overdraft_limit_source` says `owner`, `bank` or null for the one in
+force). `overdraft_limit` and `available_minor` use the one in force. A pot has no overdraft.
+
 Display currency and rates. Stored amounts are never converted: they stay integers in minor units
 of their own currency. `FINANCE_DISPLAY_CURRENCY` (default `GBP`, three capital letters) is the
 currency the Money page also shows every amount in, beside the original and never instead of it:
