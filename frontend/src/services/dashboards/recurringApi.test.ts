@@ -15,6 +15,14 @@ describe('the recurring payments parsers', () => {
     expect(parseRecurringList({})).toBeNull();
   });
 
+  it('reads the schedule state and the evidence the bank\'s own lines give, and treats a row without them as unchecked', () => {
+    const verified = parseRecurring(row({ is_installment: true, total_installments: 12, completed_installments: 3, assumed_installments: 7, scheduled_installments: 10, schedule_state: 'on_track', evidence: { last_matched_on: '2026-11-02', last_matched_amount: 999, matched_of_last: 2, checked: 3 } }));
+    expect(verified).toMatchObject({ assumedInstallments: 7, scheduledInstallments: 10, scheduleState: 'on_track', evidence: { lastMatchedOn: '2026-11-02', lastMatchedAmount: 999, matchedOfLast: 2, checked: 3 } });
+    expect(parseRecurring(row({ schedule_state: 'ended_by_schedule', evidence: null }))).toMatchObject({ scheduleState: 'ended_by_schedule', evidence: null });
+    expect(parseRecurring(row({ schedule_state: 'sometime', evidence: { matched_of_last: 'x', checked: 3 } }))).toMatchObject({ scheduleState: null, evidence: null, assumedInstallments: 0, scheduledInstallments: null });
+    expect(parseRecurring(row())).toMatchObject({ scheduleState: null, evidence: null });
+  });
+
   it('reads the converted figures against the display currency of the answer', () => {
     const parsed = parseRecurringList({ recurring: [row({ currency: 'USD', display_amount: 790, converted: true, remaining_balance: 5000, display_remaining_balance: 3950 })], display: { currency: 'GBP', rates: {}, missing: [] } });
     expect(parsed?.recurring[0]).toMatchObject({ display: { amount: 790, currency: 'GBP' }, displayRemaining: { amount: 3950, currency: 'GBP' }, converted: true });

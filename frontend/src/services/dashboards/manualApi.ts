@@ -116,3 +116,14 @@ export interface ManualAccountBody {
 export async function createManualAccount(body: ManualAccountBody): Promise<void> {
   await request('/finance/manual/accounts', { method: 'POST', body });
 }
+
+/** What an account entered by hand can have changed: its name, its type (a current account becomes a card only together with a limit above zero) and a card's limit. */
+export interface ManualAccountPatch {
+  readonly name?: string;
+  readonly kind?: ManualAccountKind;
+  readonly credit_limit?: number;
+}
+
+export async function updateManualAccount(accountId: string, body: ManualAccountPatch): Promise<void> {
+  await request(`/finance/accounts/${encodeURIComponent(accountId)}`, { method: 'PATCH', body });
+}

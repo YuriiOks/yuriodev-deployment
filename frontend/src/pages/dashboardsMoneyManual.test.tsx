@@ -158,6 +158,28 @@ describe('the Money page: a bank entered by hand', () => {
     expect(api.callsTo('POST', '/finance/manual/accounts/h-card/balance')[0].body).toEqual({ owed: 12000 });
   });
 
+  it('edits the type and the limit of an account entered by hand: "this is a credit card" needs a limit, and only what changed is sent', async () => {
+    const api = setup();
+    const user = await openHandBank();
+    const account = opened().getByText('Current account').closest('li') as HTMLElement;
+    await user.click(within(account).getByRole('button', { name: 'Edit account' }));
+    const form = within(within(account).getByRole('form', { name: 'Edit account: Current account' }));
+    // Nothing changed: nothing is sent.
+    await user.click(form.getByRole('button', { name: 'Save account' }));
+    expect(api.callsTo('PATCH', '/finance/accounts/h-main')).toHaveLength(0);
+    await user.click(within(account).getByRole('button', { name: 'Edit account' }));
+    const again = within(within(account).getByRole('form', { name: 'Edit account: Current account' }));
+    await user.selectOptions(again.getByLabelText('Type'), 'credit_card');
+    // A card needs a limit above zero.
+    await user.click(again.getByRole('button', { name: 'Save account' }));
+    expect(await again.findByRole('alert')).toHaveTextContent('Enter a limit above zero');
+    expect(api.callsTo('PATCH', '/finance/accounts/h-main')).toHaveLength(0);
+    await user.type(again.getByLabelText('Credit limit'), '3000');
+    await user.click(again.getByRole('button', { name: 'Save account' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/accounts/h-main')).toHaveLength(1));
+    expect(api.callsTo('PATCH', '/finance/accounts/h-main')[0].body).toEqual({ kind: 'credit_card', credit_limit: 300000 });
+  });
+
   it('checks a statement first (nothing saved, the totals to compare), then imports it and asks for the data again', async () => {
     const api = setup();
     const user = await openHandBank();
