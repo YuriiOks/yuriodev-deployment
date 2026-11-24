@@ -21,6 +21,8 @@ function renderAt(path: string) {
 
 const main = () => screen.getByRole('main');
 const PATH = '/dashboards/personal/money';
+/** Every section on one page (the Today view is the default). */
+const ALL = `${PATH}?view=all`;
 
 const acct = (id: string, name: string, balance: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -151,7 +153,7 @@ const cardOf = (panel: ReturnType<typeof within>, key: string) => panel.getAllBy
 describe('the Money page: the row of attention cards', () => {
   it('is not rendered when nothing is active, and the Attention view then says so', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await within(main()).findByRole('region', { name: 'Wallet' });
     await waitFor(() => expect(within(main()).queryByRole('region', { name: 'Upcoming payments' })).not.toBeNull());
     expect(within(main()).queryByRole('region', { name: 'Needs attention' })).toBeNull();
@@ -159,7 +161,7 @@ describe('the Money page: the row of attention cards', () => {
 
   it('is one row of small cards in the server\'s severity order, with a label first and "All 12" last, every card one button with its subject, fact and severity in words', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await attentionPanel();
     expect(panel.getByText('Needs attention · 12')).toBeInTheDocument();
     const cards = panel.getAllByRole('button').filter((button) => button.getAttribute('data-key'));
@@ -190,7 +192,7 @@ describe('the Money page: the row of attention cards', () => {
   it('has arrow buttons at its ends, and the arrow keys move between the cards', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await attentionPanel();
     // Present at both ends (hidden by style while there is nothing to scroll to: jsdom has no layout, so both edges count as reached).
     expect(panel.getByLabelText('Scroll left')).toBeInTheDocument();
@@ -205,7 +207,7 @@ describe('the Money page: the row of attention cards', () => {
 
   it('tells severity in a word on every card and never leaves the row with a count of zero', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await attentionPanel();
     const card = cardOf(panel, 'o1');
     expect(within(card).getByText('Note')).toBeInTheDocument();
@@ -215,28 +217,37 @@ describe('the Money page: the row of attention cards', () => {
 
   it('falls back to the server\'s title on a card when a fact is missing', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k', ['recurring', 'r-2'], { title: 'The fallback title', amount: 2500, currency: 'GBP' })] } });
-    renderAt(PATH);
+    renderAt(ALL);
     expect(await (await attentionPanel()).findByText('The fallback title')).toBeInTheDocument();
   });
 });
 
 describe('the Money page: the sections switch', () => {
-  it('offers Overview, Attention (with its count) and Recurring payments, the current one marked, and switches the view', async () => {
+  it('offers Today, Wallet, Payments, Spending and Transactions, Today first and current, and switches the view', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
     renderAt(PATH);
-    const nav = within(await within(main()).findByRole('navigation', { name: 'Money sections' }));
-    expect(nav.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
-    const attentionTab = nav.getByRole('link', { name: /^Attention/ });
-    expect(attentionTab).toHaveTextContent('12');
-    await user.click(attentionTab);
-    expect(await within(main()).findByRole('heading', { level: 2, name: 'Needs attention' })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /^Attention/ })).toHaveAttribute('aria-current', 'page');
+    // The tabs move with the view, so they are looked up afresh each time.
+    const nav = () => within(screen.getByRole('navigation', { name: 'Money sections' }));
+    await within(main()).findByRole('navigation', { name: 'Money sections' });
+    expect(nav().getAllByRole('link').map((link) => link.textContent)).toEqual(['Today', 'Wallet', 'Payments', 'Spending', 'Transactions']);
+    expect(nav().getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+    // Today does not carry the other sections.
     expect(within(main()).queryByRole('region', { name: 'Wallet' })).toBeNull();
-    await user.click(nav.getByRole('link', { name: 'Recurring payments' }));
-    expect(await within(main()).findByRole('region', { name: 'Recurring payments' })).toBeInTheDocument();
-    await user.click(nav.getByRole('link', { name: 'Overview' }));
+    await user.click(nav().getByRole('link', { name: 'Wallet' }));
     expect(await within(main()).findByRole('region', { name: 'Wallet' })).toBeInTheDocument();
+    expect(within(main()).queryByRole('region', { name: 'Spend by category' })).toBeNull();
+    await user.click(nav().getByRole('link', { name: 'Payments' }));
+    expect(await within(main()).findByRole('region', { name: 'Upcoming payments' })).toBeInTheDocument();
+    await user.click(nav().getByRole('link', { name: 'Spending' }));
+    expect(await within(main()).findByRole('region', { name: 'Spend by category' })).toBeInTheDocument();
+    await user.click(nav().getByRole('link', { name: 'Transactions' }));
+    expect(await within(main()).findByRole('region', { name: 'Transactions' })).toBeInTheDocument();
+    await user.click(nav().getByRole('link', { name: 'Today' }));
+    expect(await within(main()).findByRole('heading', { level: 3, name: /First this/ })).toBeInTheDocument();
+    // The whole attention list and the payments list are reached from Today's queue and from Payments.
+    await user.click(within(main()).getByRole('link', { name: 'All 12' }));
+    expect(await within(main()).findByRole('heading', { level: 2, name: 'Needs attention' })).toBeInTheDocument();
   });
 
   it('keeps a quiet "N hidden" link when nothing is active but something is hidden', async () => {
@@ -250,7 +261,7 @@ describe('the Money page: the sections switch', () => {
   it('reaches the whole list from "All 12"', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(await (await attentionPanel()).findByRole('link', { name: 'All 12' }));
     expect(await within(main()).findByRole('group', { name: /^Past the overdraft/ })).toBeInTheDocument();
   });
@@ -262,7 +273,7 @@ describe('the Money page: an attention item in detail', () => {
   it('opens from a card as a dialog with the sentence, the facts as a definition list with a link to what it concerns, and the actions as buttons', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k1'));
     const dialog = dialogOf('Streaming');
     expect(dialog.getByText('Streaming is due tomorrow (£9.99) and the paying account is short by £2.50.')).toBeInTheDocument();
@@ -278,7 +289,7 @@ describe('the Money page: an attention item in detail', () => {
   it('shows an amount in pounds with the original beside it when the server converted it', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 500, currency: 'USD', display_amount: 395, converted: true, facts: { days_overdue: 3, last_paid_on: '2026-10-24' } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k2'));
     const dialog = dialogOf('Gym');
     expect(dialog.getByText('≈ £3.95')).toBeInTheDocument();
@@ -289,7 +300,7 @@ describe('the Money page: an attention item in detail', () => {
   it('closes on Escape, giving the focus back to the card, and keeps Tab inside while open', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const card = cardOf(await attentionPanel(), 'k1');
     await user.click(card);
     const dialog = screen.getByRole('dialog', { name: 'Streaming' });
@@ -308,7 +319,7 @@ describe('the Money page: an attention item in detail', () => {
   it('closes from its Close button', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k1'));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -317,7 +328,7 @@ describe('the Money page: an attention item in detail', () => {
   it('moves on to the next item after an action and closes when none is left', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: [item('due_not_covered', 'k1', ['recurring', 'r-1'], { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }), item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await attentionPanel();
     await user.click(cardOf(panel, 'k1'));
     await user.click(dialogOf('Streaming').getByRole('button', { name: '3 d' }));
@@ -334,7 +345,7 @@ describe('the Money page: an attention item in detail', () => {
   it('marks a payment paid from the sheet and moves to the next item', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: [item('due_not_covered', 'k1', ['recurring', 'r-1'], { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }), item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k1'));
     await user.click(dialogOf('Streaming').getByRole('button', { name: 'Mark paid' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-1/paid')).toHaveLength(1));
@@ -350,7 +361,7 @@ describe('the Money page: an attention item in detail', () => {
   ])('tells the %s item in one plain sentence in the sheet', async (key, name, sentence) => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), key));
     expect(dialogOf(name).getByText(sentence)).toBeInTheDocument();
   });
@@ -358,7 +369,7 @@ describe('the Money page: an attention item in detail', () => {
   it('dismisses an item from the sheet', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k2'));
     await user.click(dialogOf('Gym').getByRole('button', { name: 'Dismiss' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/attention/dismiss')[0]?.body).toEqual({ key: 'k2' }));
@@ -368,7 +379,7 @@ describe('the Money page: an attention item in detail', () => {
   it('accepts the charged amount of a changed payment', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: [item('amount_changed', 'c1', ['recurring', 'r-3'], { amount: 1250, currency: 'GBP', facts: { recorded_amount: 1000, charged_amount: 1250, difference: 250, paid_on: '2026-11-20' } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'c1'));
     const dialog = dialogOf('Phone plan');
     expect(dialog.getAllByRole('term').map((term) => term.textContent)).toEqual(['Concerns', 'Priority', 'Amount', 'Recorded', 'Charged', 'Difference', 'Charged on']);
@@ -379,7 +390,7 @@ describe('the Money page: an attention item in detail', () => {
   it('sets the overdraft limit of an overdrawn account from the sheet', async () => {
     const api = setup({ finance: { attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'o1'));
     const dialog = dialogOf('Everyday');
     expect(dialog.getByText('Everyday is overdrawn by £25.00; no overdraft limit is set.')).toBeInTheDocument();
@@ -392,7 +403,7 @@ describe('the Money page: an attention item in detail', () => {
   it('offers the action that fits each kind: open the bank for a card near its limit, upload a statement for old data, reconnect for a link', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await attentionPanel();
     await user.click(cardOf(panel, 'k4'));
     expect(dialogOf('Plastic card').getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
@@ -409,7 +420,7 @@ describe('the Money page: an attention item in detail', () => {
   it('says so when an action fails and stays open', async () => {
     setup({ fail: ['attentionWrite'], finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k2'));
     await user.click(dialogOf('Gym').getByRole('button', { name: 'Dismiss' }));
     expect(await dialogOf('Gym').findByRole('alert')).toHaveTextContent('That did not work');
@@ -622,7 +633,7 @@ describe('the Money page: upcoming payments', () => {
   it('groups the payments by day, names what pays each and whether it is covered in words, and gives the totals the server added up', async () => {
     setup({ finance: { upcoming: upcoming() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByRole('heading', { level: 3, name: 'Today' })).toBeInTheDocument();
     expect(panel.getByRole('heading', { level: 3, name: 'Tomorrow' })).toBeInTheDocument();
@@ -652,7 +663,7 @@ describe('the Money page: upcoming payments', () => {
   it('shows the inlined picture with no referrer (never an http address), hides it when it fails to load, and falls back to a tile in its colour', async () => {
     setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_url: 'http://icons.example.com/x.png' })] } } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     await user.click(await panel.findByRole('button', { name: 'Show all 5' }));
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
@@ -671,7 +682,7 @@ describe('the Money page: upcoming payments', () => {
   it('switches between 14 and 30 days and asks the server for the new window', async () => {
     const api = setup({ finance: { upcoming: upcoming() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByRole('button', { name: '14 days' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(panel.getByRole('button', { name: '30 days' }));
@@ -682,14 +693,14 @@ describe('the Money page: upcoming payments', () => {
 
   it('says plainly when nothing is due', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByText('Nothing is due in the next 14 days.')).toBeInTheDocument();
   });
 
   it('has its own error state with a retry', async () => {
     const api = setup({ fail: ['financeUpcoming'] });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByRole('alert')).toHaveTextContent('Could not load the upcoming payments.');
     api.fail.delete('financeUpcoming');
@@ -711,7 +722,7 @@ describe('the Money page: debts and installments', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     // Collapsed to one summary row: how many and how much is left.
     expect(panel.getByText(/^2 · £700\.00 remaining/)).toBeInTheDocument();
@@ -733,7 +744,7 @@ describe('the Money page: debts and installments', () => {
 
   it('is not on the page when there are no debts', async () => {
     setup({ finance: { recurring: [rec('r-1', 'Streaming')] } });
-    renderAt(PATH);
+    renderAt(ALL);
     await within(main()).findByRole('region', { name: 'Wallet' });
     // Shown while the payments load, gone once they were read and there are no debts.
     await waitFor(() => expect(within(main()).queryByRole('region', { name: 'Debts and installments' })).toBeNull());
@@ -752,7 +763,7 @@ describe('the Money page: managing recurring payments', () => {
   it('is reached from "All recurring payments" and lists the active ones with their account or method, searchable and filterable by kind, with the inactive ones on request', async () => {
     setup({ finance: { recurring: rows() } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(await screen.findByRole('link', { name: 'All recurring payments' }));
     const panel = await managerPanel();
     const names = () => panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-payment')).map((row) => row.querySelector('strong')?.textContent);
@@ -781,7 +792,7 @@ describe('the Money page: managing recurring payments', () => {
     expect(names().some((name) => name?.startsWith('Old magazine'))).toBe(true);
     expect(panel.getByText('· inactive')).toBeInTheDocument();
     await user.click(panel.getByRole('link', { name: 'Back to Money' }));
-    expect(await within(main()).findByRole('region', { name: 'Wallet' })).toBeInTheDocument();
+    expect(await within(main()).findByRole('region', { name: /First this/ })).toBeInTheDocument();
   });
 
   it('edits the account, the amount, the next date and the match text, sending only what changed', async () => {
@@ -884,7 +895,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     expect(panel.getByText(/^1 · £450\.00 remaining/)).toBeInTheDocument();
     await user.click(panel.getAllByRole('button', { name: 'Show' })[0]);
@@ -911,7 +922,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     await user.click(panel.getByRole('button', { name: 'Show' }));
     expect(panel.getByRole('listitem')).toHaveTextContent('by schedule 4 of 12 · none confirmed by the bank');
@@ -957,7 +968,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     await panel.findByText('Streaming');
     expect(panel.queryByText('Finished plan')).toBeNull();
@@ -986,7 +997,7 @@ describe('the Money page: debts in detail', () => {
   it('draws installment progress in two parts: what the bank confirmed, and what the schedule alone adds', async () => {
     setup({ finance: { recurring: [debt('d-1', 'Sofa installments', { is_installment: true, total_installments: 12, completed_installments: 3, assumed_installments: 7, scheduled_installments: 10, scheduled_remaining_balance: 10000, remaining_balance: 45000 })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await openDebts(user);
     const parts = Array.from(panel.getByRole('listitem').querySelectorAll('[aria-hidden="true"] > div'));
     expect(parts.map((part) => (part as HTMLElement).style.width)).toEqual(['25%', '58%']);
@@ -1005,7 +1016,7 @@ describe('the Money page: debts in detail', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await openDebts(user);
     // 8 installments left at £50.00 = £400.00, an estimate; plus £250.00; the third debt has no figure.
     expect(panel.getByText(/^3 · ≈ £650\.00 remaining · 2 of 3 with a known balance/)).toBeInTheDocument();
@@ -1026,7 +1037,7 @@ describe('the Money page: debts in detail', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await openDebts(user);
     const fill = (name: string) => (panel.getByText(name).closest('li') as HTMLElement).querySelector('[aria-hidden="true"] > div') as HTMLElement | null;
     expect(fill('Nearly done')?.style.width).toBe('99%');
@@ -1044,7 +1055,7 @@ describe('the Money page: debts in detail', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await openDebts(user);
     expect(panel.getByText('≈ £592.50 of £790.00 repaid')).toBeInTheDocument();
   });
@@ -1059,7 +1070,7 @@ describe('the Money page: debts in detail', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await openDebts(user);
     const late = panel.getByText('Late loan').closest('li') as HTMLElement;
     expect(late).toHaveTextContent('Was due Jan 1, 2020 · £50.00');
@@ -1074,7 +1085,7 @@ describe('the Money page: debts in detail', () => {
   it('has its own loading and error state with a retry, so a failure does not look like having no debts', async () => {
     const api = setup({ fail: ['financeRecurring'] });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     expect(await panel.findByRole('alert')).toHaveTextContent('Could not load the debts.');
     api.fail.delete('financeRecurring');
@@ -1085,7 +1096,7 @@ describe('the Money page: debts in detail', () => {
   it('remembers whether the cards are open, keeps them in the page while closed, and puts the next payment in the summary', async () => {
     setup({ finance: { recurring: [debt('d-1', 'Later loan', { next_payment_date: '2099-03-05', remaining_balance: 10000 }), debt('d-2', 'Sooner loan', { next_payment_date: '2099-02-01', amount: 7000, remaining_balance: 20000 })] } });
     const user = userEvent.setup();
-    const first = renderAt(PATH);
+    const first = renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     expect(await panel.findByText(/next: Feb 1, 2099 · £70\.00/)).toBeInTheDocument();
     // Closed: the list is there but hidden.
@@ -1094,7 +1105,7 @@ describe('the Money page: debts in detail', () => {
     await user.click(panel.getByRole('button', { name: 'Show' }));
     expect(localStorage.getItem('dashboards-money-debts-open')).toBe('true');
     first.unmount();
-    renderAt(PATH);
+    renderAt(ALL);
     const again = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     expect(await again.findByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true');
     expect(again.getAllByRole('listitem')).toHaveLength(2);

@@ -23,6 +23,8 @@ function renderAt(path: string) {
 
 const main = () => screen.getByRole('main');
 const PATH = '/dashboards/personal/money';
+/** Every section on one page (the Today view is the default). */
+const ALL = `${PATH}?view=all`;
 
 const account = (extra: Record<string, unknown> = {}) => ({
   id: 'a-current',
@@ -118,7 +120,7 @@ describe('the Money page: marking a payment paid', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k1'));
     const dialog = within(await screen.findByRole('dialog', { name: 'Streaming' }));
     await user.click(dialog.getByRole('button', { name: 'Mark paid' }));
@@ -140,7 +142,7 @@ describe('the Money page: attention items that name their own subject', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await attentionPanel();
     expect(cardOf(panel, 'k1')).toHaveTextContent('Acme Bank');
     expect(cardOf(panel, 'k1')).toHaveTextContent('not read for 30 h');
@@ -160,7 +162,7 @@ describe('the Money page: attention items that name their own subject', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await user.click(cardOf(await attentionPanel(), 'k2'));
     const dialog = within(await screen.findByRole('dialog', { name: 'Hand Bank' }));
     expect(dialog.getByText('No data yet for Hand Bank: set a balance or upload a statement.')).toBeInTheDocument();
@@ -184,7 +186,7 @@ describe('the Money page: upcoming payments that are already late', () => {
         },
       },
     });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     const headings = (await panel.findAllByRole('heading', { level: 3 })).map((heading) => heading.textContent);
     expect(headings).toEqual(['Overdue since Nov 20', 'Today']);
@@ -220,7 +222,7 @@ describe('the Money page: spend by category, month to date', () => {
 
   it('compares the month so far with the month before up to the same day, and keeps the full month for a month that is over', async () => {
     setup({ finance: { categories: categories('2026-10-24') } });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     // £100 against £200 by the same day last month: 50% less, not 75% less than the whole of it.
     expect(await panel.findByText(/50% less than October by Oct 24, 2026/)).toBeInTheDocument();
@@ -230,7 +232,7 @@ describe('the Money page: spend by category, month to date', () => {
 
   it('falls back to the whole month before when the answer has no month-to-date figure', async () => {
     setup({ finance: { categories: categories(null) } });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     expect(await panel.findByText(/75% less than October/)).toBeInTheDocument();
     expect(panel.getByText(/was £400\.00/)).toBeInTheDocument();
@@ -246,7 +248,7 @@ describe('the Money page: when the data was read', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const sub = (await screen.findByRole('heading', { level: 1 })).parentElement as HTMLElement;
     await waitFor(() => expect(sub).toHaveTextContent(/updated Nov 24/));
     expect(sub).not.toHaveTextContent(/updated Nov 20/);
@@ -278,7 +280,7 @@ describe('the Money page: loading, error and refresh states', () => {
   it('says so when what needs attention cannot be read, and when the totals cannot, each with a retry', async () => {
     const api = setup({ fail: ['financeAttention', 'financeSummary'] });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     expect(await screen.findByText('Could not load what needs attention.')).toBeInTheDocument();
     expect(await screen.findByText("Could not load the month's totals and the grand total.")).toBeInTheDocument();
     api.fail.delete('financeAttention');
@@ -294,7 +296,7 @@ describe('the Money page: loading, error and refresh states', () => {
   it('keeps the 14 or 30 days choice when the upcoming payments fail, and dims the list while it is for the other window', async () => {
     const api = setup({ fail: ['financeUpcoming'] });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByRole('alert')).toBeInTheDocument();
     // The window can be changed out of the failure.
@@ -305,7 +307,7 @@ describe('the Money page: loading, error and refresh states', () => {
 
   it('asks again for the payments and attention when a tab that was hidden comes back after a while', async () => {
     const api = setup({ finance: { recurring: [payment('r-1', 'Streaming')] } });
-    renderAt(PATH);
+    renderAt(ALL);
     await within(main()).findByRole('region', { name: 'Upcoming payments' });
     await waitFor(() => expect(api.callsTo('GET', '/finance/attention').length).toBeGreaterThan(0));
     const before = api.callsTo('GET', '/finance/attention').length;
@@ -392,7 +394,7 @@ describe('the Money page: what the backend added after the audit', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const wallet = within(await within(main()).findByRole('region', { name: 'Wallet' }));
     await user.click(await wallet.findByRole('button', { name: /Acme Bank/ }));
     for (const link of await wallet.findAllByRole('link', { name: 'Reconnect' })) expect(link).toHaveAttribute('href', '/api/dashboards/v1/finance/acme/connect');
@@ -417,7 +419,7 @@ describe('the Money page: what the backend added after the audit', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     const dayOnly = (await panel.findByText('Corner Cafe')).closest('li') as HTMLElement;
     expect(dayOnly).toHaveTextContent(/Nov 20, 2026/);

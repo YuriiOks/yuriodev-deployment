@@ -32,6 +32,7 @@ from src.core.clock import Clock
 from src.core.errors import AppError, error_response
 from src.dashboards import projects as project_service
 from src.dashboards import service
+from src.dashboards import today as page_today
 from src.dashboards.catalog import SPACE_IDS, TaskStatus, TaskStatusFilter
 from src.dashboards.finance import mcp as finance_mcp
 from src.dashboards.runtime import DashboardsRuntime, session_scope, unavailable
@@ -222,11 +223,17 @@ def build_mcp_server(
             return _json({"deleted": id})
 
     @server.tool(structured_output=False)
-    async def today(space: str | None = None) -> str:
+    async def today(space: str | None = None, scope_name: str | None = None) -> str:
         """What needs attention now: open priority tasks plus open tasks due today or overdue,
         and today's events (day in the configured time zone). One space, or all three, each
-        listed separately. A project's id as space gives that project's tasks (no events)."""
+        listed separately. A project's id as space gives that project's tasks (no events).
+        With `scope_name` (personal, work-1, work-2 or money) instead: the page's whole Today
+        view as data (headline facts, the queue of up to three decisions, what is coming soon,
+        two stats, a breakdown with an insight, today's rows)."""
         async with scope("today") as (session, now):
+            if scope_name is not None:
+                page = await page_today.build(session, scope_name, now, zone, display_currency)
+                return _json(page.model_dump(mode="json"))
             if space is not None and space not in SPACE_IDS:
                 day = now.astimezone(zone).date()
                 try:

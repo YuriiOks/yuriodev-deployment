@@ -2,9 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
+import { type MoneyView } from './moneyViews';
 import styles from './Attention.module.css';
-
-export type MoneyView = 'overview' | 'attention' | 'recurring';
 
 export interface MoneyViewSwitchProps {
   view: MoneyView;
@@ -14,28 +13,31 @@ export interface MoneyViewSwitchProps {
   hidden: number;
 }
 
-/** The sections of the Money page as a tab-like switch: Overview, Attention (with its count) and Recurring payments. */
+/** The sections of the Money page as pills: Today, Wallet, Payments, Spending and Transactions. The payments list belongs to Payments. */
 const MoneyViewSwitch: React.FC<MoneyViewSwitchProps> = ({ view, attention, hidden }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
-  const tabs: { id: MoneyView; to: string; label: string; count?: number }[] = [
-    { id: 'overview', to: '?', label: r.viewOverview },
-    { id: 'attention', to: '?view=attention', label: r.viewAttention, count: attention },
-    { id: 'recurring', to: '?view=recurring', label: r.viewRecurring },
+  const td = t.money.today;
+  const tabs: { id: MoneyView; to: string; label: string }[] = [
+    { id: 'today', to: '?', label: td.tabs.today },
+    { id: 'wallet', to: '?view=wallet', label: td.tabs.wallet },
+    { id: 'payments', to: '?view=payments', label: td.tabs.payments },
+    { id: 'spending', to: '?view=spending', label: td.tabs.spending },
+    { id: 'transactions', to: '?view=transactions', label: td.tabs.transactions },
   ];
+  const current = view === 'recurring' ? 'payments' : view;
   return (
-    <nav aria-label={r.viewsLabel} className={styles.views}>
+    <nav aria-label={td.navLabel} className={styles.views}>
       <ul className={styles.tabs}>
         {tabs.map((tab) => (
           <li key={tab.id}>
-            <Link className={styles.tab} to={tab.to} aria-current={view === tab.id ? 'page' : undefined}>
+            <Link className={styles.tab} to={tab.to} aria-current={current === tab.id ? 'page' : undefined}>
               {tab.label}
-              {tab.count !== undefined && tab.count > 0 && <span className={styles.tabCount}>{tab.count}</span>}
             </Link>
           </li>
         ))}
       </ul>
-      {attention === 0 && hidden > 0 && view === 'overview' && (
+      {attention === 0 && hidden > 0 && view === 'today' && (
         <Link className={styles.hiddenLink} to="?view=attention">
           {fill(r.hiddenCount, { n: hidden })}
         </Link>
