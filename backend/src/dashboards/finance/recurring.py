@@ -49,6 +49,7 @@ SYNONYMS: dict[str, tuple[Frequency, int]] = {
     "fortnightly": ("weekly", 2),
     "monthly": ("monthly", 1),
     "month": ("monthly", 1),
+    "custom": ("monthly", 1),  # the owner's own word: every `frequency_interval` months
     "quarterly": ("monthly", 3),
     "semiannual": ("monthly", 6),
     "semi-annual": ("monthly", 6),
@@ -414,7 +415,11 @@ def cell_minor(field: str, text: str, currency: str) -> int:
 def cell_frequency(text: str, interval: int | None) -> tuple[Frequency, int]:
     found = SYNONYMS.get(text.lower())
     if found is None:
-        raise CellError("frequency", "unknown frequency")
+        raise CellError(
+            "frequency",
+            "unknown frequency: use daily, weekly, monthly, quarterly, yearly, one-time, or "
+            "custom with frequency_interval in months",
+        )
     return found[0], found[1] * (interval or 1)
 
 

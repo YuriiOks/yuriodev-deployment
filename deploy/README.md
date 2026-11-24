@@ -934,11 +934,18 @@ never the holder's name), `available_minor` (the balance plus the overdraft; a c
 balance already counts its limit), and, when the bank says so, `overdraft_limit`; a pot has its
 current account (`parent_id`) and `goal_amount` when Monzo's answer has one. Two Monzo accounts of
 one type differ by `label`, the last four digits of the account number and `opened_at`. Every
-transaction has one of 13 categories (housing_utilities, groceries, eating_out, transport,
-subscriptions, health, shopping, entertainment, debt, income, transfers, cash, other), worked out
-from Monzo's own category or a card payment's merchant code (the raw code stays in
-`category_code`); a transfer between your own accounts and pots is always `transfers` and is never
-spending. `GET /finance/categories?month=YYYY-MM` gives money out per currency and category with
+transaction has one of 14 categories (housing_utilities, groceries, eating_out, transport,
+subscriptions, health, shopping, entertainment, debt, income, transfers, transfers_out, cash,
+other), worked out from Monzo's own category or a card payment's merchant code (the raw code stays
+in `category_code`); a transfer between your own accounts and pots is always `transfers` and is
+never spending. Money sent to another person (a money-transfer code, MCC 4829 or 6538-6540, money
+out) is `transfers_out` and is spending; the same code with money in is `income`. Monobank does
+not say that a card-to-card move is between your own cards, so the two legs are paired (equal and
+opposite amounts in one currency, on two different accounts, within 2 minutes, both money-transfer
+lines, each the only candidate of the other; two lookalike sends and one receipt are paired with
+nothing), at startup for everything stored and after every refresh for the last 7 days; both
+legs become internal (`transfers`, out of spend and income). A line once internal stays so when its
+window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM` gives money out per currency and category with
 the month before beside it. You can change one transaction's category
 (`PATCH /finance/transactions/{id}`, or the MCP tool `finance_set_category`); that is a note on our
 copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
@@ -973,7 +980,8 @@ all or nothing: any error writes nothing and the 422 answer lists every row's pr
 /recurring/import` (the body is a UTF-8 CSV file with a header row, at most 500 rows and 1 MiB,
 `?on_conflict=`, `?dry_run=true`). The CSV columns are the ones of your older project: `name`,
 `amount` (a decimal such as 12.99; never more decimals than the currency has), `currency`,
-`frequency` (monthly, weekly, daily, yearly, quarterly, fortnightly, annually, one-time...),
+`frequency` (monthly, weekly, daily, yearly, quarterly, fortnightly, annually, one-time, and
+`custom`: every `frequency_interval` months),
 `frequency_interval`, `start_date`, `next_payment_date` (YYYY-MM-DD), `payment_type` (its word
 decides `kind`: subscription, loan/debt, bill/utility, insurance, rent/mortgage/housing,
 one-time, else service; the word itself is kept), `payment_mode`, `category`, `notes`, `is_active`,
@@ -1012,7 +1020,7 @@ when a currency has no rate).
 `GET /attention` (`?include_hidden=true`): `due_not_covered` (due within `reminder_days`, default
 2, and not covered), `missed_payment` (past its date with no matching transaction, only when we
 collect the paying account), `amount_changed` (the matched charge differs from the recorded
-amount by more than 1%), `credit_high` (a credit card above 90% of its limit), `overdraft` (a
+amount by more than 1%, for a charge paid in the last 60 days), `credit_high` (a credit card above 90% of its limit), `overdraft` (a
 current or business account past its overdraft in force), `reconsent` (a connection that needs
 approving again). A manual statement older than 30 days comes with manual banks. Each item has a
 stable `key` (it names the occasion: a new due date, month or charge is a new item), `kind`,
@@ -1067,6 +1075,8 @@ them against the bank's own statement with `dry_run` first. `apply_balance` sets
 balance from the file's newest balance unless a newer one is already set (`balance_applied`);
 a credit card's balance is set by its own endpoint. Imported lines get the category `income` or
 `other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again).
+MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set_manual_balance`,
+`finance_update_manual_account` (archive with `archived: true`).
 `GET /finance/providers` now returns for every built-in brand, every id with a logo and every
 provider with a connection: `{id, name, colors: {background, foreground}, logo, entry: "api" |
 "manual"}`. The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,

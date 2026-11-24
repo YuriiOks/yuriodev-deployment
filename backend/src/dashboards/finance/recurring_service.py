@@ -70,6 +70,7 @@ MAX_SNOOZE_DAYS = 90
 STATE_KEEP = timedelta(days=90)
 CATCH_UP_LIMIT = 24  # occurrences handled for one payment in one pass
 CREDIT_HIGH_PERCENT = 90
+FRESH_DAYS = 60  # a charge found while catching up on old dates is not news
 ORDER = (
     "due_not_covered",
     "missed_payment",
@@ -591,9 +592,11 @@ async def _conditions(
                 )
             )
         charged = row.last_charged_amount
+        recent = row.last_paid_on is not None and (today - row.last_paid_on).days <= FRESH_DAYS
         if (
             charged is not None
             and row.last_transaction_id is not None
+            and recent
             and amount_differs(row.amount, charged)
         ):
             items.append(

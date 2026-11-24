@@ -217,6 +217,8 @@ def test_cadence_words_become_a_frequency_and_an_interval():
         "D,1,GBP,Annually,",
         "E,1,GBP,one-time,",
         "F,1,GBP,weekly,3",
+        "G,1,GBP,custom,6",
+        "H,1,GBP,custom,",
     ]
 
     inputs, errors, _ = parse_csv("\n".join(rows))
@@ -229,6 +231,8 @@ def test_cadence_words_become_a_frequency_and_an_interval():
         ("yearly", 1),
         ("once", 1),
         ("weekly", 3),
+        ("monthly", 6),
+        ("monthly", 1),
     ]
 
 

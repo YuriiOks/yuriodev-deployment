@@ -1040,3 +1040,17 @@ async def test_every_new_route_needs_the_token(db_url, make_dashboards_app):
         answers = [(await client.request(m, f"{BASE}{p}")).status_code for m, p in calls]
 
     assert answers == [401] * len(calls)
+
+
+async def test_a_charge_found_only_while_catching_up_on_old_dates_is_not_an_amount_change(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await pay(client, "Bakery Example", 10_000, "2026-11-20")
+        await listed(client)  # rolls it: the charge of 12 000 is found
+        await execute(db_url, "UPDATE finance.recurring SET last_paid_on = '2026-08-01'")
+        body = await attention(client)
+
+    assert body["items"] == []

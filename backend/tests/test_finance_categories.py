@@ -15,7 +15,7 @@ pytestmark = pytest.mark.anyio
 BASE = "/api/dashboards/v1/finance"
 
 
-def test_the_set_is_the_agreed_thirteen():
+def test_the_set_is_the_agreed_fourteen():
     assert CATEGORIES == (
         "housing_utilities",
         "groceries",
@@ -28,6 +28,7 @@ def test_the_set_is_the_agreed_thirteen():
         "debt",
         "income",
         "transfers",
+        "transfers_out",
         "cash",
         "other",
     )
@@ -68,7 +69,8 @@ def test_the_set_is_the_agreed_thirteen():
         ("5200", "shopping"),
         ("6011", "cash"),
         ("6012", "debt"),
-        ("4829", "transfers"),
+        ("4829", "transfers_out"),  # money sent to someone: spending
+        ("6538", "transfers_out"),
         ("5999", "other"),
         ("0", "other"),
         ("abc", "other"),
@@ -104,6 +106,12 @@ def test_a_card_payment_is_sorted_by_its_merchant_category_code(code, expected):
 )
 def test_monzos_own_category_decides(code, amount, expected):
     assert categorize("monzo", code, amount, False) == expected
+
+
+@pytest.mark.parametrize("code", ["4829", "6538", "6539", "6540"])
+def test_money_arriving_by_a_transfer_code_is_income_not_spending(code):
+    assert categorize("monobank", code, 5_000, False) == "income"
+    assert categorize("monobank", code, -5_000, False) == "transfers_out"
 
 
 @pytest.mark.parametrize("provider", ["monzo", "monobank", "sample"])

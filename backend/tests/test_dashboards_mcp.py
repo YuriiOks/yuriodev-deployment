@@ -36,6 +36,10 @@ TOOLS = {
     "finance_update_recurring",
     "finance_upcoming",
     "finance_attention",
+    "finance_add_manual_connection",
+    "finance_add_manual_account",
+    "finance_set_manual_balance",
+    "finance_update_manual_account",
 }
 
 
