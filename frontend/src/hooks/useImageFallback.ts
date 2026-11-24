@@ -16,6 +16,8 @@ let active = 0;
 const waiting: (() => void)[] = [];
 
 function pump(): void {
+  // A clock that went backwards (a test's, a changed time) must not hold the queue for the length of the jump.
+  if (lastGrant > Date.now()) lastGrant = 0;
   while (active < MAX_ACTIVE && waiting.length > 0) {
     const wait = lastGrant + MIN_GAP_MS - Date.now();
     if (wait > 0) {
