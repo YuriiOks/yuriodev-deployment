@@ -36,13 +36,15 @@ describe('finance parsers', () => {
       connections: [
         { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' },
         { provider: 'globex-bank', status: 'needs_reconsent', last_ok_at: null },
+        { provider: 'hand-bank', status: 'ok', last_ok_at: '2026-11-01T00:00:00Z', manual: true, display_name: 'Hand Bank' },
         { provider: 'x', status: 'on fire' },
         { status: 'ok' },
       ],
     });
     expect(parsed?.connections).toEqual([
-      { provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z' },
-      { provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null },
+      { provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z', manual: false, displayName: null },
+      { provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null, manual: false, displayName: null },
+      { provider: 'hand-bank', status: 'ok', lastOkAt: '2026-11-01T00:00:00Z', manual: true, displayName: 'Hand Bank' },
     ]);
     expect(parseAccounts({ nope: [] })).toBeNull();
     expect(parseAccounts(null)).toBeNull();
@@ -104,13 +106,18 @@ describe('finance parsers', () => {
           { id: 'four', logo: { on_light: null, on_dark: null } },
           { logo: { on_light: png } },
           { id: 'five' },
+          { id: 'hand', name: 'Hand Bank', colors: { background: '#AA2244', foreground: '#ffffff' }, logo: { on_light: null, on_dark: null, mark: null }, entry: 'manual' },
+          { id: 'badcolors', name: 'Odd', colors: { background: 'red', foreground: '#ffffff' }, entry: 'sideways' },
         ],
       }),
     ).toEqual({
-      one: { onLight: svg, onDark: png, mark: null },
-      two: { onLight: null, onDark: svg, mark: png },
-      six: { onLight: null, onDark: null, mark: png },
-      seven: { onLight: png, onDark: null, mark: null },
+      one: { onLight: svg, onDark: png, mark: null, name: null, colors: null, entry: null },
+      two: { onLight: null, onDark: svg, mark: png, name: null, colors: null, entry: null },
+      six: { onLight: null, onDark: null, mark: png, name: null, colors: null, entry: null },
+      seven: { onLight: png, onDark: null, mark: null, name: null, colors: null, entry: null },
+      // A bank with only a name, colours and an entry kind (no logo files) is kept; a colour that is not #rrggbb is dropped with its pair.
+      hand: { onLight: null, onDark: null, mark: null, name: 'Hand Bank', colors: { background: '#aa2244', foreground: '#ffffff' }, entry: 'manual' },
+      badcolors: { onLight: null, onDark: null, mark: null, name: 'Odd', colors: null, entry: null },
     });
     expect(parseProviders({ providers: [] })).toEqual({});
     expect(parseProviders({})).toBeNull();

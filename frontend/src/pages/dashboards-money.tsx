@@ -60,6 +60,14 @@ const DashboardsMoney = () => {
     upcoming.reload();
     recurring.reload();
   };
+  // A bank entered by hand changed (a balance set, a statement imported): the accounts, the totals, what needs attention and the transactions are asked again.
+  const [txKey, setTxKey] = useState(0);
+  const dataChanged = () => {
+    accounts.reload();
+    summary.reload();
+    changed();
+    setTxKey((n) => n + 1);
+  };
   const debts = recurring.value ? debtsOf(recurring.value.recurring) : [];
   // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
   const [mode, setMode] = useState<MoneyDisplay>(readMoneyDisplay);
@@ -112,7 +120,7 @@ const DashboardsMoney = () => {
           ) : (
             <>
           {attention.value && (
-            <MoneyAttention data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onOpenBank={setSelected} />
+            <MoneyAttention data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onOpenBank={setSelected} />
           )}
           <section aria-labelledby="money-wallet-title" className={money.panel}>
             <div className={money.head}>
@@ -123,7 +131,7 @@ const DashboardsMoney = () => {
             </div>
             {accounts.status === 'loading' && <LoadingBlock rows={4} />}
             {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
-            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} logos={logos} onSelect={setSelected} />}
+            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} logos={logos} onSelect={setSelected} onChanged={dataChanged} />}
           </section>
           <section aria-labelledby="money-upcoming-title" className={money.panel}>
             <div className={money.head}>
@@ -161,7 +169,7 @@ const DashboardsMoney = () => {
                 {m.transactionsTitle}
               </h2>
             </div>
-            <MoneyTransactions banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
+            <MoneyTransactions key={txKey} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
             </>
           )}

@@ -74,6 +74,10 @@ describe('parseMinor', () => {
     expect(parseMinor('-3', 'GBP')).toBeNull();
     expect(parseMinor('abc', 'GBP')).toBeNull();
     expect(parseMinor('', 'GBP')).toBeNull();
+    // A balance may be below nothing, or nothing.
+    expect(parseMinor('-12.50', 'GBP', { signed: true })).toBe(-1250);
+    expect(parseMinor('0', 'GBP', { signed: true })).toBe(0);
+    expect(parseMinor('-', 'GBP', { signed: true })).toBeNull();
   });
 
   it('writes minor units back as the text an input takes', () => {

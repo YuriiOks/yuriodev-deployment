@@ -1,3 +1,10 @@
+import type { ProviderLogo } from '../../../services/dashboards/financeApi';
+
+/** A bank's name for the page: the server's name for it when it sends one, else its id made readable. */
+export function bankLabel(id: string, info?: Pick<ProviderLogo, 'name'> | null): string {
+  return info?.name ?? providerName(id);
+}
+
 /** A provider's name as the page shows it: its id with the separators as spaces and a capital ("some-bank" is "Some bank"). */
 export function providerName(id: string): string {
   const words = id.replace(/[-_]+/g, ' ').trim();

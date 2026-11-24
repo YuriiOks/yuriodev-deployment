@@ -1,5 +1,5 @@
 import { converted, currency, int, isObject, parseDisplayInfo, text, type Converted, type DisplayInfo } from './financeApi';
-import { request } from './liveApi';
+import { ApiError, request } from './liveApi';
 
 /*
  * Recurring payments, what is coming up and what needs attention (GET|POST|PATCH /api/dashboards/v1/finance/recurring, /upcoming,
@@ -13,7 +13,7 @@ export type RecurringKind = (typeof RECURRING_KINDS)[number];
 export const FREQUENCIES = ['once', 'daily', 'weekly', 'monthly', 'yearly'] as const;
 export type Frequency = (typeof FREQUENCIES)[number];
 
-export const ATTENTION_KINDS = ['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'reconsent'] as const;
+export const ATTENTION_KINDS = ['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'reconsent', 'stale_statement'] as const;
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -340,8 +340,7 @@ export async function updateRecurring(id: string, body: RecurringBody): Promise<
   return parsed;
 }
 
-/** What the server said when it refused a change (its message is plain English about the field), or null. */
+/** What the server said when it refused a change as a mistake of the request (a 4xx: its message is plain English about the field), or null: a server failure or a lost connection is told in the page's own words. */
 export function refusal(error: unknown): string | null {
-  const message = error instanceof Error ? error.message : '';
-  return message && !/^HTTP \d+$/.test(message) && message !== 'network' && message !== 'timeout' ? message : null;
+  return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.message && !/^HTTP \d+$/.test(error.message) ? error.message : null;
 }
