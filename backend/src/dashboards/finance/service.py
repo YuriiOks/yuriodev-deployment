@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 
-from sqlalchemy import case, func, literal_column, select, tuple_
+from sqlalchemy import case, func, literal_column, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
+from src.dashboards.finance.brands import Brand
 from src.dashboards.finance.categories import CATEGORIES
 from src.dashboards.finance.fx import Display, load_rates
 from src.dashboards.finance.models import Account, Connection, Transaction
@@ -130,10 +131,50 @@ async def set_overdraft(
     return row, oldest
 
 
+@dataclass(frozen=True)
+class Style:
+    """How the owner named and coloured one provider on his connection."""
+
+    name: str | None
+    colors: Brand | None
+
+
+@guarded
+async def connection_styles(session: AsyncSession) -> dict[str, Style]:
+    """Per provider, the display name and colours of its oldest connection that has any."""
+    rows = (
+        await session.scalars(
+            select(Connection)
+            .where(or_(Connection.display_name.is_not(None), Connection.brand_bg.is_not(None)))
+            .order_by(Connection.created_at.desc(), Connection.id.desc())
+        )
+    ).all()
+    styles: dict[str, Style] = {}
+    for link in rows:  # newest first, so the oldest wins
+        pair = Brand("", link.brand_bg, link.brand_fg) if link.brand_bg and link.brand_fg else None
+        styles[link.provider] = Style(link.display_name, pair)
+    return styles
+
+
+@guarded
+async def account_with_history(
+    session: AsyncSession, account_id: uuid.UUID
+) -> tuple[Account, datetime | None]:
+    row = await session.get(Account, account_id)
+    if row is None:
+        raise AppError(404, "not_found", "Account not found")
+    oldest = await session.scalar(
+        select(func.min(Transaction.booked_at)).where(
+            Transaction.account_id == account_id, Transaction.declined.is_(False)
+        )
+    )
+    return row, oldest
+
+
 @guarded
 async def provider_ids(session: AsyncSession) -> list[str]:
-    """The providers that have at least one account."""
-    return list((await session.scalars(select(Account.provider).distinct())).all())
+    """The providers that have at least one connection (an API's, or one entered by hand)."""
+    return list((await session.scalars(select(Connection.provider).distinct())).all())
 
 
 @guarded

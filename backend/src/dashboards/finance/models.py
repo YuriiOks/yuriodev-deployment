@@ -45,7 +45,14 @@ class Connection(FinanceBase):
     """One link to a provider (one token, one consent). `status` is for the page to show."""
 
     __tablename__ = "connection"
-    __table_args__ = (UniqueConstraint("provider", "ref", name="uq_connection_provider_ref"),)
+    __table_args__ = (
+        UniqueConstraint("provider", "ref", name="uq_connection_provider_ref"),
+        CheckConstraint(
+            "(brand_bg IS NULL) = (brand_fg IS NULL) AND "
+            "(brand_bg IS NULL OR (brand_bg ~ '^#[0-9a-f]{6}$' AND brand_fg ~ '^#[0-9a-f]{6}$'))",
+            name="ck_connection_brand",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -56,6 +63,12 @@ class Connection(FinanceBase):
     )
     last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Entered by hand (migration `dashboards_0015`): no collector reads it, `last_ok_at` is the
+    # date its newest data is as of, and the owner may name it and colour it himself.
+    manual: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    display_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    brand_bg: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    brand_fg: Mapped[str | None] = mapped_column(String(7), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -127,7 +127,9 @@ class ConnectionOut(BaseModel):
     provider: str
     status: str
     status_changed_at: datetime | None
-    last_ok_at: datetime | None
+    last_ok_at: datetime | None  # for a manual connection: the date its newest data is as of
+    manual: bool  # entered by hand: no collector reads it
+    display_name: str | None
 
 
 class AccountsOut(BaseModel):
@@ -274,19 +276,32 @@ class CategoriesOut(BaseModel):
 
 class LogoOut(BaseModel):
     """A bank's logo as data URIs, for an `<img>`: `on_light` for a light card, `on_dark` for a
-    dark one; either may be null."""
+    dark one, `mark` the square icon for small places; each may be null."""
 
     model_config = _RESPONSE
 
     on_light: str | None
     on_dark: str | None
+    mark: str | None
+
+
+class ColorsOut(BaseModel):
+    """A brand colour and the text colour on it (WCAG AA contrast, at least 4.5)."""
+
+    model_config = _RESPONSE
+
+    background: str
+    foreground: str
 
 
 class ProviderOut(BaseModel):
     model_config = _RESPONSE
 
     id: str
+    name: str  # the owner's name for it, else the built-in brand's, else the id
+    colors: ColorsOut
     logo: LogoOut
+    entry: Literal["api", "manual"]  # connected through its API, or entered by hand
 
 
 class ProvidersOut(BaseModel):

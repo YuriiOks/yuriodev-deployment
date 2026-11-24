@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0014"
+    assert version == "dashboards_0015"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -411,3 +411,25 @@ async def test_recurring_payments_and_attention_state_are_checked_by_the_databas
         )
 
     assert columns == 36
+
+
+async def test_a_manual_connection_has_its_own_flag_and_a_colour_pair(empty_db_url):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_LINK)
+
+    default = await scalar(empty_db_url, "SELECT manual FROM finance.connection")
+    for statement in (
+        "UPDATE finance.connection SET brand_bg = '#003087'",
+        "UPDATE finance.connection SET brand_fg = '#ffffff'",
+        "UPDATE finance.connection SET brand_bg = '#003087', brand_fg = 'white'",
+        "UPDATE finance.connection SET brand_bg = '#ABCDEF', brand_fg = '#ffffff'",
+    ):
+        with pytest.raises(IntegrityError):
+            await execute(empty_db_url, statement)
+    await execute(
+        empty_db_url,
+        "UPDATE finance.connection SET manual = true, display_name = 'My Bank', "
+        "brand_bg = '#003087', brand_fg = '#ffffff'",
+    )
+
+    assert default is False
