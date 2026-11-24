@@ -94,8 +94,12 @@ def test_clean_svg_features_are_kept():
 def test_the_setting_gives_valid_variants_per_provider_and_drops_the_rest():
     raw = json.dumps(
         {
-            "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG},
-            "monobank": {"on_dark": GOOD_SVG, "on_light": "data:text/plain;base64,AAAA"},
+            "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_PNG},
+            "monobank": {
+                "on_dark": GOOD_SVG,
+                "on_light": "data:text/plain;base64,AAAA",
+                "mark": "data:text/plain;base64,AAAA",
+            },
             "neutral-bank": {"on_light": GOOD_PNG},
             "Bad Id": {"on_light": GOOD_PNG},
             "x" * 33: {"on_light": GOOD_PNG},
@@ -109,7 +113,7 @@ def test_the_setting_gives_valid_variants_per_provider_and_drops_the_rest():
     logos = parse_provider_logos(raw)
 
     assert logos == {
-        "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG},
+        "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_PNG},
         "monobank": {"on_dark": GOOD_SVG},
         "neutral-bank": {"on_light": GOOD_PNG},
         "extra-key": {"on_light": GOOD_PNG},
@@ -136,7 +140,7 @@ async def test_the_providers_answer_has_every_logo_and_every_provider_with_accou
 ):
     raw = json.dumps(
         {
-            "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG},
+            "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG},
             "neutral-bank": {"on_dark": GOOD_PNG},
         }
     )
@@ -149,14 +153,14 @@ async def test_the_providers_answer_has_every_logo_and_every_provider_with_accou
             "/api/dashboards/v1/finance/providers", headers={"X-Dashboards-Token": "nope"}
         )
 
-    assert before.json() == {
-        "providers": [
-            {"id": "monzo", "logo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG}},
-            {"id": "neutral-bank", "logo": {"on_light": None, "on_dark": GOOD_PNG}},
-        ]
-    }
-    assert [p["id"] for p in after.json()["providers"]] == ["monzo", "neutral-bank", "sample"]
-    assert after.json()["providers"][2]["logo"] == {"on_light": None, "on_dark": None}
+    first = {p["id"]: p for p in before.json()["providers"]}
+    second = {p["id"]: p for p in after.json()["providers"]}
+    assert first["monzo"]["logo"] == {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG}
+    assert first["neutral-bank"]["logo"] == {"on_light": None, "on_dark": GOOD_PNG, "mark": None}
+    assert (first["monzo"]["entry"], first["neutral-bank"]["entry"]) == ("api", "manual")
+    assert "sample" not in first
+    assert second["sample"]["logo"] == {"on_light": None, "on_dark": None, "mark": None}
+    assert [p["id"] for p in after.json()["providers"]] == sorted(second)  # in order of id
     assert anonymous.status_code == 401
 
 

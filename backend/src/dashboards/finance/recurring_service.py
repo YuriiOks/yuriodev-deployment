@@ -77,7 +77,9 @@ ORDER = (
     "credit_high",
     "overdraft",
     "reconsent",
+    "stale_statement",
 )
+STATEMENT_STALE_AFTER = timedelta(days=30)
 
 
 def _not_found() -> AppError:
@@ -663,6 +665,28 @@ async def _conditions(
                 {"provider": link.provider, "since": str(since) if since else None},
             )
         )
+    open_links = {account.connection_id for account in accounts}
+    manual_links = (
+        await session.scalars(select(Connection).where(Connection.manual.is_(True)))
+    ).all()
+    for link in manual_links:
+        stale = link.last_ok_at is None or now - link.last_ok_at > STATEMENT_STALE_AFTER
+        if link.id in open_links and stale:
+            since = link.last_ok_at.astimezone(zone).date() if link.last_ok_at else None
+            items.append(
+                _item(
+                    display,
+                    f"stale_statement:{link.id}:{since}",
+                    "stale_statement",
+                    f"The data of {link.display_name or link.provider} is more than 30 days old",
+                    ("connection", link.id),
+                    {
+                        "provider": link.provider,
+                        "as_of": str(since) if since else None,
+                        "days_old": (today - since).days if since else None,
+                    },
+                )
+            )
     items.sort(key=lambda i: (ORDER.index(i.kind), i.due_date or date.max, i.key))
     return items
 

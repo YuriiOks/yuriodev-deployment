@@ -14,7 +14,13 @@ from src.dashboards.finance.schemas import DisplayOut
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
 
 AttentionKind = Literal[
-    "due_not_covered", "missed_payment", "amount_changed", "credit_high", "overdraft", "reconsent"
+    "due_not_covered",
+    "missed_payment",
+    "amount_changed",
+    "credit_high",
+    "overdraft",
+    "reconsent",
+    "stale_statement",
 ]
 ItemState = Literal["active", "snoozed", "dismissed"]
 Fact = str | int | bool | None
