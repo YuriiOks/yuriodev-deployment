@@ -226,7 +226,7 @@ async def test_the_owner_can_override_a_category_and_clear_it(db_url, make_dashb
     assert (changed.json()["category"], changed.json()["category_overridden"]) == ("health", True)
     assert [r["description"] for r in listed.json()["transactions"]] == ["Corner Cafe"]
     uah = next(c for c in report.json()["currencies"] if c["currency"] == "UAH")
-    assert {"category": "health", "spent": 45_000, "previous": 0} in uah["categories"]
+    assert {"category": "health", "spent": 45_000, "previous": 0} in money(uah["categories"])
     assert (cleared.json()["category"], cleared.json()["category_overridden"]) == (
         "eating_out",
         False,

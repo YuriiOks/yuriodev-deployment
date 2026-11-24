@@ -38,7 +38,7 @@ async def test_without_a_token_there_is_no_collector_and_no_outbound_call(
     assert app.state.finance_collectors is None
     assert app.state.collectors is None
     assert seen == []
-    assert accounts.json() == {"accounts": [], "connections": []}
+    assert (accounts.json()["accounts"], accounts.json()["connections"]) == ([], [])
 
 
 async def test_a_token_starts_the_collector_and_the_first_tick_lists_the_accounts(
@@ -55,7 +55,7 @@ async def test_a_token_starts_the_collector_and_the_first_tick_lists_the_account
         await asyncio.wait_for(manager.ticked.wait(), timeout=30)
         accounts = await client.get(f"{BASE}/accounts")
 
-    assert manager.describe() == ["monobank"]
+    assert manager.describe() == ["monobank", "fx"]  # the rates come with a bank collector
     assert app.state.collectors is None  # the task collectors have no credential
     assert fake.calls == [("client-info",)]
     (account,) = accounts.json()["accounts"]
