@@ -835,3 +835,19 @@
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
 }
+
+/* A bank's square icon from the server, in the place of the letter tile: it carries its own colours, so no tile of ours around it. */
+.bankIcon {
+  display: inline-flex;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--dash-r-tag);
+  overflow: hidden;
+}
+
+.bankIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
