@@ -24,3 +24,15 @@ export function readWorkdaysOnly(): boolean {
 export function writeWorkdaysOnly(on: boolean): void {
   writeStorage('local', WORKDAYS_STORAGE_KEY, on ? 'true' : 'false');
 }
+
+/** localStorage key of the Debts panel being open. */
+export const DEBTS_OPEN_KEY = 'dashboards-money-debts-open';
+
+/** Whether the debts' cards are open (the panel starts as one summary row). */
+export function readDebtsOpen(): boolean {
+  return readStorage('local', DEBTS_OPEN_KEY) === 'true';
+}
+
+export function writeDebtsOpen(open: boolean): void {
+  writeStorage('local', DEBTS_OPEN_KEY, open ? 'true' : 'false');
+}

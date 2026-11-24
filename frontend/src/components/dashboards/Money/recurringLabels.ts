@@ -2,6 +2,7 @@ import type { Converted } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { fill } from '../../../services/dashboards/calendarLabels';
+import { momentOf } from './labels';
 import type { Recurring } from '../../../services/dashboards/recurringApi';
 import type { RecurringStrings } from '../../../services/dashboards/recurringStrings';
 
@@ -27,7 +28,7 @@ export function frequencyLabel(row: Pick<Recurring, 'frequency' | 'frequencyInte
 export function dayHeading(iso: string, daysUntil: number, lang: string, r: RecurringStrings): string {
   if (daysUntil <= 0) return r.today;
   if (daysUntil === 1) return r.tomorrow;
-  return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${iso}T12:00:00`));
+  return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(momentOf(iso));
 }
 
 /** The debts and installment plans among the payments (active ones), the soonest next payment first. */
@@ -45,16 +46,50 @@ export function endedOf(recurring: readonly Recurring[], debts: boolean): Recurr
 /** The windows the upcoming payments can be asked for, in days. */
 export const WINDOWS = [14, 30] as const;
 
-/** What is still owed across the debts, as one figure per currency (in pounds mode the converted figure where the server has one, marked "≈"). */
-export function remainingTotals(rows: readonly Recurring[], mode: MoneyDisplay): { amount: number; currency: string; approx: boolean }[] {
+/** The local calendar day, as "YYYY-MM-DD" (what a payment's date is compared with). */
+export function todayIso(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+export interface Remaining {
+  readonly amount: number;
+  readonly display: Converted | null;
+  /** Worked out here (the installments left times the amount), not a balance on record. */
+  readonly estimate: boolean;
+}
+
+/** What is left of a debt: the balance on record, else the installments left times the amount (marked as an estimate), else nothing is known. */
+export function remainingOf(row: Recurring): Remaining | null {
+  if (row.remainingBalance !== null) return { amount: row.remainingBalance, display: row.displayRemaining, estimate: false };
+  if (row.totalInstallments && row.totalInstallments > 0) return { amount: Math.max(row.totalInstallments - (row.completedInstallments ?? 0), 0) * row.amount, display: null, estimate: true };
+  return null;
+}
+
+export interface RemainingSummary {
+  readonly totals: { amount: number; currency: string; approx: boolean }[];
+  /** How many of the debts have a figure (a balance on record or worked out). */
+  readonly known: number;
+  /** A figure in the total was worked out, not recorded. */
+  readonly estimate: boolean;
+}
+
+/** What is still owed across the debts, one figure per currency (in pounds mode the converted figure where the server gave one, marked "≈"), and how many debts it covers. */
+export function remainingSummary(rows: readonly Recurring[], mode: MoneyDisplay): RemainingSummary {
   const totals = new Map<string, { amount: number; approx: boolean }>();
+  let known = 0;
+  let estimate = false;
   for (const row of rows) {
-    if (row.remainingBalance === null) continue;
-    const useDisplay = mode === 'base' && row.displayRemaining !== null && row.displayRemaining.currency !== row.currency;
-    const code = useDisplay && row.displayRemaining ? row.displayRemaining.currency : row.currency;
-    const amount = useDisplay && row.displayRemaining ? row.displayRemaining.amount : row.remainingBalance;
+    const left = remainingOf(row);
+    if (!left) continue;
+    known += 1;
+    estimate = estimate || left.estimate;
+    const useDisplay = mode === 'base' && left.display !== null && left.display.currency !== row.currency;
+    const code = useDisplay && left.display ? left.display.currency : row.currency;
+    const amount = useDisplay && left.display ? left.display.amount : left.amount;
     const entry = totals.get(code) ?? { amount: 0, approx: false };
     totals.set(code, { amount: entry.amount + amount, approx: entry.approx || useDisplay });
   }
-  return [...totals.entries()].map(([currency, entry]) => ({ currency, ...entry }));
+  return { totals: [...totals.entries()].map(([currency, entry]) => ({ currency, ...entry })), known, estimate };
 }

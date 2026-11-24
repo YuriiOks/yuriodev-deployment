@@ -26,6 +26,7 @@ export interface RecurringStrings {
   readonly debtsSummary: string;
   readonly debtsShow: string;
   readonly debtsHide: string;
+  readonly debtsFailed: string;
   readonly setLimit: string;
   readonly fLimit: string;
   readonly saveLimit: string;
@@ -70,6 +71,14 @@ export interface RecurringStrings {
   readonly viewOverview: string;
   readonly viewAttention: string;
   readonly viewRecurring: string;
+  readonly estimateMark: string;
+  readonly scheduledRemaining: string;
+  readonly debtsKnown: string;
+  readonly debtsNextSoonest: string;
+  readonly wasDue: string;
+  readonly seenOf: string;
+  readonly scheduleUnclear: string;
+  readonly aboveOriginal: string;
   readonly truth: {
     readonly confirmed: string;
     readonly confirmedOn: string;
@@ -203,6 +212,7 @@ export const RECURRING_RU: RecurringStrings = {
   debtsSummary: '{n} · осталось {amount}',
   debtsShow: 'Показать',
   debtsHide: 'Свернуть',
+  debtsFailed: 'Не удалось загрузить долги.',
   setLimit: 'Задать лимит',
   fLimit: 'Лимит овердрафта ({currency})',
   saveLimit: 'Сохранить лимит',
@@ -256,6 +266,14 @@ export const RECURRING_RU: RecurringStrings = {
   viewOverview: 'Обзор',
   viewAttention: 'Внимание',
   viewRecurring: 'Регулярные платежи',
+  estimateMark: 'оценка',
+  scheduledRemaining: 'по графику около {amount} (оценка)',
+  debtsKnown: 'с известным остатком: {known} из {n}',
+  debtsNextSoonest: 'ближайший: {date} · {amount}',
+  wasDue: 'Срок был {date}',
+  seenOf: 'в банке видно: {m} из последних {c}',
+  scheduleUnclear: 'график неясен',
+  aboveOriginal: 'остаток больше первоначальной суммы',
   truth: {
     confirmed: 'подтверждено банком',
     confirmedOn: 'подтверждено банком · последний {date}',
@@ -389,6 +407,7 @@ export const RECURRING_EN: RecurringStrings = {
   debtsSummary: '{n} · {amount} remaining',
   debtsShow: 'Show',
   debtsHide: 'Collapse',
+  debtsFailed: 'Could not load the debts.',
   setLimit: 'Set limit',
   fLimit: 'Overdraft limit ({currency})',
   saveLimit: 'Save limit',
@@ -442,6 +461,14 @@ export const RECURRING_EN: RecurringStrings = {
   viewOverview: 'Overview',
   viewAttention: 'Attention',
   viewRecurring: 'Recurring payments',
+  estimateMark: 'estimate',
+  scheduledRemaining: 'by schedule about {amount} (estimate)',
+  debtsKnown: '{known} of {n} with a known balance',
+  debtsNextSoonest: 'next: {date} · {amount}',
+  wasDue: 'Was due {date}',
+  seenOf: 'seen in the bank: {m} of the last {c}',
+  scheduleUnclear: 'schedule unclear',
+  aboveOriginal: 'balance above the original amount',
   truth: {
     confirmed: 'confirmed by the bank',
     confirmedOn: 'confirmed by the bank · last {date}',
