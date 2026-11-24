@@ -33,16 +33,17 @@ describe('the picture loader', () => {
     hooks.forEach(attach);
     act(() => void vi.advanceTimersByTime(1000));
     expect(hooks.map((hook) => hook.result.current.ready)).toEqual([true, true, false, false, false]);
+    // A turn given back is handed on at once when the gap since the last one has passed...
     act(() => hooks[0].result.current.onLoad());
-    act(() => void vi.advanceTimersByTime(50));
-    // The next one has to wait for its 100 ms gap.
-    expect(hooks[2].result.current.ready).toBe(false);
-    act(() => void vi.advanceTimersByTime(100));
     expect(hooks[2].result.current.ready).toBe(true);
-    expect(hooks[3].result.current.ready).toBe(false);
+    // ...and a turn right after it waits for its 100 ms.
     act(() => hooks[1].result.current.onError());
-    act(() => void vi.advanceTimersByTime(200));
+    expect(hooks[3].result.current.ready).toBe(false);
+    act(() => void vi.advanceTimersByTime(50));
+    expect(hooks[3].result.current.ready).toBe(false);
+    act(() => void vi.advanceTimersByTime(100));
     expect(hooks[3].result.current.ready).toBe(true);
+    expect(hooks[4].result.current.ready).toBe(false);
     const inline = renderHook(() => useImageFallback('data:image/png;base64,AAAA'));
     attach(inline);
     expect(inline.result.current.ready).toBe(true);
