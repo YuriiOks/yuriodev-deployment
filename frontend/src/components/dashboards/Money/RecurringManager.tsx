@@ -301,25 +301,16 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
             {!row.isActive && <span className={styles.badge}> · {r.inactive}</span>}
           </strong>
           <span className={styles.note}>
-            {[r.kinds[row.kind], frequencyLabel(row, r), row.scheduleState === 'ended_by_schedule' ? r.endedMark : row.nextDate ? dayLabel(row.nextDate, lang) : ''].filter(Boolean).join(' · ')}
+            {[r.kinds[row.kind], frequencyLabel(row, r), account ? fill(r.paidFrom, { account: account.name }) : row.paymentMethod ?? r.notLinked].filter(Boolean).join(' · ')}
           </span>
-          <span className={styles.note}>{account ? fill(r.paidFrom, { account: account.name }) : row.paymentMethod ?? r.notLinked}</span>
           <TruthMark evidence={row.evidence} />
         </span>
+        <span className={styles.managedNext}>{row.scheduleState === 'ended_by_schedule' ? r.endedMark : row.nextDate ? dayLabel(row.nextDate, lang) : ''}</span>
         <strong className={styles.dueAmount}>
           <Amount amount={row.amount} currency={row.currency} display={row.display} mode={mode} />
         </strong>
+        {!editing && <RowMenu name={row.name} active={row.isActive} busy={busy} onEdit={onEdit} onToggle={toggle} />}
       </div>
-      {!editing && (
-        <div className={styles.actions}>
-          <button type="button" className={styles.secondary} onClick={onEdit}>
-            {r.edit}
-          </button>
-          <button type="button" className={styles.ghost} disabled={busy} onClick={toggle}>
-            {row.isActive ? r.deactivate : r.activate}
-          </button>
-        </div>
-      )}
       {failed && (
         <p role="alert" className={styles.error}>
           {r.actionFailed}
@@ -327,6 +318,54 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
       )}
       {editing && <PaymentForm initial={row} accounts={accounts} accountsReady={accountsReady} onDone={onDone} onIconRefreshed={onChanged} />}
     </li>
+  );
+};
+
+/** The row-end menu: Edit and Deactivate (or Activate). Escape and a click outside close it, and focus goes back to its button. */
+const RowMenu: React.FC<{ name: string; active: boolean; busy: boolean; onEdit: () => void; onToggle: () => void }> = ({ name, active, busy, onEdit, onToggle }) => {
+  const { t } = useDashboardLang();
+  const r = t.money.rec;
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (event: MouseEvent) => {
+      if (wrap.current && !wrap.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
+  }, [open]);
+  const choose = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+  return (
+    <span
+      ref={wrap}
+      className={styles.menuWrap}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          event.stopPropagation();
+          setOpen(false);
+          button.current?.focus();
+        }
+      }}
+    >
+      <button ref={button} type="button" className={styles.menuButton} aria-haspopup="menu" aria-expanded={open} aria-label={fill(r.rowActions, { name })} onClick={() => setOpen((on) => !on)}>
+        <span aria-hidden="true">...</span>
+      </button>
+      {open && (
+        <div role="menu" className={styles.menu}>
+          <button type="button" role="menuitem" className={styles.menuItem} onClick={() => choose(onEdit)}>
+            {r.edit}
+          </button>
+          <button type="button" role="menuitem" className={styles.menuItem} disabled={busy} onClick={() => choose(onToggle)}>
+            {active ? r.deactivate : r.activate}
+          </button>
+        </div>
+      )}
+    </span>
   );
 };
 
@@ -352,6 +391,8 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, acc
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<RecurringKind | ''>('');
   const [showInactive, setShowInactive] = useState(false);
+  const [sort, setSort] = useState<'next' | 'name'>('next');
+  const sortId = useId();
   const [editing, setEditing] = useState<string | 'new' | null>(editId);
   const needle = q.trim().toLowerCase();
   const editedInactive = rows.some((row) => row.id === editing && !row.isActive);
@@ -361,6 +402,15 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, acc
       (!kind || row.kind === kind) &&
       (!needle || [row.name, row.matchText, row.creditor, row.paymentMethod].some((text) => text?.toLowerCase().includes(needle))),
   );
+  // One row per payment, by its next date (those with none, and the switched off, last) or by name.
+  const ordered = [...shown].sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name);
+    // The switched off and the plans their own schedule has finished go last.
+    const rank = (row: Recurring) => (row.isActive && row.scheduleState !== 'ended_by_schedule' ? 0 : 1);
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    if (a.nextDate !== b.nextDate) return a.nextDate === null ? 1 : b.nextDate === null ? -1 : a.nextDate.localeCompare(b.nextDate);
+    return a.name.localeCompare(b.name);
+  });
   const done = (saved: boolean) => {
     setEditing(null);
     if (saved) onChanged();
@@ -377,6 +427,7 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, acc
       </div>
       {accountsStatus === 'error' && <InlineError message={t.money.accountsFailed} onRetry={onRetryAccounts} />}
       {editing === 'new' && <PaymentForm initial={null} accounts={accounts} accountsReady={accountsReady} onDone={done} />}
+      <div className={styles.stickyTools}>
       <div className={styles.fields}>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={searchId}>
@@ -397,12 +448,22 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, acc
             ))}
           </select>
         </div>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={sortId}>
+            {r.sortLabel}
+          </label>
+          <select id={sortId} className={styles.select} value={sort} onChange={(event) => setSort(event.target.value as 'next' | 'name')}>
+            <option value="next">{r.sortNext}</option>
+            <option value="name">{r.sortName}</option>
+          </select>
+        </div>
         <label className={styles.check}>
           <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
           <span>{r.showInactive}</span>
         </label>
       </div>
       <p className={styles.note}>{fill(r.paymentCount, { n: shown.length })}</p>
+      </div>
       {shown.length === 0 ? (
         rows.length === 0 ? (
           <p className={styles.none}>{r.noneYet}</p>
@@ -425,7 +486,7 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, acc
         )
       ) : (
         <ul className={styles.managedList}>
-          {shown.map((row) => (
+          {ordered.map((row) => (
             <ManagerRow key={row.id} row={row} accounts={accounts} accountsReady={accountsReady} mode={mode} editing={editing === row.id} onEdit={() => setEditing(row.id)} onChanged={onChanged} onDone={done} />
           ))}
         </ul>

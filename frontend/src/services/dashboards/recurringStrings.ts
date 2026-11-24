@@ -155,6 +155,10 @@ export interface RecurringStrings {
   readonly save: string;
   readonly cancel: string;
   readonly deactivate: string;
+  readonly rowActions: string;
+  readonly sortLabel: string;
+  readonly sortNext: string;
+  readonly sortName: string;
   readonly activate: string;
   readonly inactive: string;
   readonly noMatches: string;
@@ -371,6 +375,10 @@ export const RECURRING_RU: RecurringStrings = {
   save: 'Сохранить',
   cancel: 'Отмена',
   deactivate: 'Отключить',
+  rowActions: 'Действия: {name}',
+  sortLabel: 'Порядок',
+  sortNext: 'По дате платежа',
+  sortName: 'По названию',
   activate: 'Включить',
   inactive: 'неактивен',
   noMatches: 'Ничего не найдено.',
@@ -597,6 +605,10 @@ export const RECURRING_EN: RecurringStrings = {
   save: 'Save',
   cancel: 'Cancel',
   deactivate: 'Deactivate',
+  rowActions: 'Actions: {name}',
+  sortLabel: 'Sort',
+  sortNext: 'By next date',
+  sortName: 'By name',
   activate: 'Activate',
   inactive: 'inactive',
   noMatches: 'Nothing matches.',

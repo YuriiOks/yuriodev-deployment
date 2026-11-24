@@ -20,6 +20,9 @@ drawing) and keeps it as a data URI in `recurring.icon_data`. The raw address is
   skipped for the next one. Only the start of the home page is read (its head holds the links).
 - Why a fetch failed is kept in `icon_error` (not_public, timeout, blocked_status_403, too_large,
   not_an_image, unsafe_svg, bitmap_ico, no_icon_found, ...): never a URL or a header.
+- One `IconWorker` task does all of this, one payment at a time, with a deadline for each and a
+  pause between; no database connection is held while a site is asked, and a failure records
+  `icon_error` and when to look again (`icon_retry_at`: hours, not minutes).
 - The owner may set an icon by hand (`POST /recurring/{id}/icon`, `icon_manual`): it wins over
   the website and is left alone by the fetcher until `refresh` clears it.
 - `icon_checked_url` remembers which source (the URL, or `site:<host>`) the stored data (or the
@@ -28,21 +31,24 @@ drawing) and keeps it as a data URI in `recurring.icon_data`. The raw address is
   pending, ok or failed.
 """
 
+import asyncio
 import base64
+import contextlib
 import json
 import logging
 import uuid
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from sqlalchemy import func, literal, select, update
+from sqlalchemy import func, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.core.http import Resolver, UpstreamError, get_public, resolve_host
+from src.core.config import Settings
+from src.core.http import Resolver, UpstreamError, build_http_client, get_public, resolve_host
 from src.dashboards.finance.logos import PNG, PNG_SIGNATURE, SVG, valid_logo
 from src.dashboards.finance.models import Recurring
 
@@ -70,7 +76,11 @@ JSON_HEADERS = {
     "User-Agent": BROWSER_AGENT,
     "Accept": "application/manifest+json,application/json;q=0.9,*/*;q=0.5",
 }
-PER_TICK = 5
+PER_DRAIN = 5  # payments per round of work
+IDLE_SECONDS = 600.0  # the worker looks for due retries at least this often
+PAUSE_SECONDS = 3.0  # between two payments
+PAYMENT_DEADLINE_SECONDS = 12.0  # all the requests for one payment together
+CLAIM_FOR = timedelta(minutes=10)  # a claimed payment is not taken again for this long
 SITE = "site:"
 HEAD_ICON = {"apple-touch-icon", "apple-touch-icon-precomposed"}
 
@@ -307,10 +317,12 @@ async def discover_icon(
     if isinstance(home, str):
         errors.append(home)
         base = f"https://{host}/"
+        budget = MAX_REQUESTS
     else:
         base = home[1]
         candidates, manifest = page_candidates(home[0], base)
-    budget = MAX_REQUESTS - (0 if isinstance(home, str) else 1)
+        budget = MAX_REQUESTS - 1
+    del home  # the page is not kept while the icons are fetched
     tried: set[str] = set()
 
     async def attempt(url: str) -> str | None:
@@ -359,75 +371,134 @@ async def resolve_source(
     return await fetch_icon(client, source, resolver)
 
 
-async def fill_pending(
-    client: httpx.AsyncClient,
-    sessions: async_sessionmaker[AsyncSession],
-    resolver: Resolver = resolve_host,
-    limit: int = PER_TICK,
-) -> dict[str, int]:
-    """Fetch the icons of up to `limit` payments whose source has not been looked at (a payment
-    whose icon the owner set by hand is left alone). A failure keeps the row, stores no icon and
-    records why in `icon_error`."""
-    async with sessions() as session:
-        waiting = await _waiting(session, limit)
-    stored = failed = 0
-    for row_id, source in waiting:
-        icon, error = await resolve_source(client, source, resolver)
-        async with sessions() as session, session.begin():
-            await session.execute(
-                update(Recurring)
-                .where(Recurring.id == row_id, _source() == source)
-                .values(icon_data=icon, icon_checked_url=source, icon_error=error)
-            )
-        stored += icon is not None
-        failed += icon is None
-    return {"icons": stored, "refused": failed}
+def backoff_for(error: str) -> timedelta:
+    """How long before a failed source is looked at again: a refusal or a missing icon is
+    unlikely to change within hours; a timeout or a server error may."""
+    if error in {"timeout", "connect_failed", "status_429", "blocked_status_429"} or (
+        error.startswith("status_5")
+    ):
+        return timedelta(hours=3)
+    return timedelta(hours=24)
 
 
 def _source() -> Any:
     return func.coalesce(Recurring.icon_url, literal(SITE) + Recurring.website)
 
 
-async def _waiting(session: AsyncSession, limit: int) -> list[tuple[uuid.UUID, str]]:
-    source = _source()
-    rows = await session.execute(
-        select(Recurring.id, source)
-        .where(
-            source.is_not(None),
-            Recurring.icon_manual.is_(False),
-            Recurring.icon_checked_url.is_distinct_from(source),
-        )
-        .order_by(Recurring.updated_at)
-        .limit(limit)
-    )
-    return [(row_id, text) for row_id, text in rows if text is not None]
+class IconWorker:
+    """The one place icons are fetched: a single task, one payment at a time, a total deadline per
+    payment, a pause between payments, a pending row claimed before its fetch.
 
+    No database connection or transaction is open while a site is being asked: a claim is one
+    short transaction, a result another. Writes only mark a payment pending and `wake()` the
+    worker (a flag, no work); nothing waits for a site inside a request or a collector loop. A
+    failure stores why (`icon_error`) and when to look again (`icon_retry_at`)."""
 
-class IconCollector:
-    """Under the finance loop (so only when a bank collector runs, like the rates): a safety net
-    for what the background fetch after a write did not get to."""
-
-    name = "icons"
-
-    async def collect(
+    def __init__(
         self,
-        client: httpx.AsyncClient,
-        sessions: async_sessionmaker[AsyncSession],
-        now: datetime,
-    ) -> dict[str, int]:
-        return await fill_pending(client, sessions)
+        settings: Settings,
+        sessions: Callable[[], async_sessionmaker[AsyncSession]],
+        transport: Callable[[], httpx.AsyncBaseTransport | None],
+        resolver: Callable[[], Resolver],
+        clock: Callable[[], datetime],
+        pause: float = PAUSE_SECONDS,
+    ) -> None:
+        self._settings = settings
+        self._sessions = sessions
+        self._transport = transport
+        self._resolver = resolver
+        self._clock = clock
+        self._pause = pause
+        self._wake = asyncio.Event()
 
+    def wake(self) -> None:
+        self._wake.set()
 
-async def fill_in_background(
-    sessions: async_sessionmaker[AsyncSession],
-    client_for: Callable[[], Any],
-    resolver: Resolver = resolve_host,
-) -> None:
-    """Run after a write has been answered: a few pending icons, under a short deadline. Never
-    raises (a failure is logged by class only)."""
-    try:
-        async with client_for() as client:
-            await fill_pending(client, sessions, resolver)
-    except Exception as exc:  # a background task: nothing may escape, nothing is quoted
-        extra = {"event": "finance.icons", "error": type(exc).__name__}
-        logger.warning("icon fetch failed", extra=extra)
+    async def run_forever(self) -> None:
+        while True:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._wake.wait(), IDLE_SECONDS)
+            self._wake.clear()
+            try:
+                await self.drain()
+            except Exception as exc:  # the database may not be ready: try again next time
+                extra = {"event": "finance.icons", "error": type(exc).__name__}
+                logger.warning("icon worker failed", extra=extra)
+
+    async def drain(self, limit: int = PER_DRAIN) -> dict[str, int]:
+        """Work through what is pending, at most `limit` payments, one after another."""
+        stored = failed = 0
+        async with build_http_client(self._settings, self._transport()) as client:
+            for index in range(limit):
+                claimed = await self._claim()
+                if claimed is None:
+                    break
+                if index:
+                    await asyncio.sleep(self._pause)
+                row_id, source = claimed
+                icon, error = await self._fetch(client, source)
+                await self._store(row_id, source, icon, error)
+                stored += icon is not None
+                failed += icon is None
+        return {"icons": stored, "refused": failed}
+
+    async def _fetch(self, client: httpx.AsyncClient, source: str) -> tuple[str | None, str | None]:
+        try:
+            async with asyncio.timeout(PAYMENT_DEADLINE_SECONDS):
+                return await resolve_source(client, source, self._resolver())
+        except TimeoutError:
+            return None, "timeout"
+        except Exception as exc:  # whatever it was, the row says so and waits
+            logger.warning(
+                "icon fetch error", extra={"event": "finance.icons", "error": type(exc).__name__}
+            )
+            return None, "fetch_error"
+
+    async def _claim(self) -> tuple[uuid.UUID, str] | None:
+        """The oldest payment whose icon is due, marked (retry in ten minutes) so nothing else
+        takes it, in one short transaction."""
+        now = self._clock()
+        source = _source()
+        due = or_(Recurring.icon_retry_at.is_(None), Recurring.icon_retry_at <= now)
+        async with self._sessions()() as session, session.begin():
+            found = (
+                await session.execute(
+                    select(Recurring.id, source)
+                    .where(
+                        source.is_not(None),
+                        Recurring.icon_manual.is_(False),
+                        due,
+                        or_(
+                            Recurring.icon_checked_url.is_distinct_from(source),
+                            Recurring.icon_data.is_(None),
+                        ),
+                    )
+                    .order_by(Recurring.updated_at)
+                    .limit(1)
+                    .with_for_update(skip_locked=True, of=Recurring)
+                )
+            ).first()
+            if found is None or found[1] is None:
+                return None
+            await session.execute(
+                update(Recurring)
+                .where(Recurring.id == found[0])
+                .values(icon_retry_at=now + CLAIM_FOR)
+            )
+            return found[0], str(found[1])
+
+    async def _store(
+        self, row_id: uuid.UUID, source: str, icon: str | None, error: str | None
+    ) -> None:
+        retry = None if icon is not None else self._clock() + backoff_for(error or "")
+        async with self._sessions()() as session, session.begin():
+            await session.execute(
+                update(Recurring)
+                .where(Recurring.id == row_id, _source() == source)
+                .values(
+                    icon_data=icon,
+                    icon_checked_url=source,
+                    icon_error=None if icon is not None else (error or "fetch_error"),
+                    icon_retry_at=retry,
+                )
+            )

@@ -366,7 +366,8 @@ describe('the Money page: what the backend added after the audit', () => {
     const gym = panel.getByText('Gym').closest('li') as HTMLElement;
     expect(gym.querySelector('img')).toBeNull();
     expect(gym).toHaveTextContent('G');
-    await user.click(within(streaming).getByRole('button', { name: /Edit/ }));
+    await user.click(within(streaming).getByRole('button', { name: /^Actions: / }));
+    await user.click(within(streaming).getByRole('menuitem', { name: 'Edit' }));
     expect(panel.getByLabelText('Website')).toHaveValue('streaming.example.com');
     await user.click(panel.getByRole('button', { name: 'Refresh icon' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-1/icon/refresh')).toHaveLength(1));
@@ -443,15 +444,16 @@ describe('the Money page: payment icons by address and uploads', () => {
 
   it('says why a fetch failed next to "Refresh icon", and uploads an icon by hand (PNG or SVG), saying a refusal in words', async () => {
     const api = setup({ finance: { recurring: [payment('r-1', 'Streaming', { icon_url: null, icon_state: 'failed', icon_error: 'timeout', website: 'streaming.example.com' })] } });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ applyAccept: false });
     renderAt(`${PATH}?view=recurring`);
     const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
     const row = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
-    await user.click(within(row).getByRole('button', { name: 'Edit' }));
+    await user.click(within(row).getByRole('button', { name: /^Actions: / }));
+    await user.click(within(row).getByRole('menuitem', { name: 'Edit' }));
     expect(panel.getByText(/No icon found: the site did not answer in time/)).toBeInTheDocument();
     const input = panel.getByLabelText('Upload icon', { selector: 'input' }) as HTMLInputElement;
     // A file of a type the server refuses: its refusal is told in words.
-    await user.upload(input, new File(['x'], 'icon.gif', { type: 'image/gif' }), { applyAccept: false });
+    await user.upload(input, new File(['x'], 'icon.gif', { type: 'image/gif' }));
     expect(await panel.findByText('Send a PNG or SVG file.')).toBeInTheDocument();
     await user.upload(input, new File([new Uint8Array([137, 80, 78, 71])], 'icon.png', { type: 'image/png' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-1/icon').length).toBe(2));
@@ -459,3 +461,29 @@ describe('the Money page: payment icons by address and uploads', () => {
   });
 });
 
+describe('the Money page: the recurring list is dense', () => {
+  it('is one row per payment ordered by its next date, with Edit and Deactivate in a row-end menu that Escape closes', async () => {
+    setup({
+      finance: {
+        recurring: [payment('r-1', 'Later', { next_payment_date: '2026-12-20' }), payment('r-2', 'Sooner', { next_payment_date: '2026-12-02' }), payment('r-3', 'No date', { next_payment_date: null, frequency: 'once', start_date: null, is_active: true })],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    const names = () => panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-payment')).map((row) => row.querySelector('strong')?.textContent);
+    await waitFor(() => expect(names()).toEqual(['Sooner', 'Later', 'No date']));
+    await user.selectOptions(panel.getByLabelText('Sort'), 'name');
+    expect(names()).toEqual(['Later', 'No date', 'Sooner']);
+    // The buttons are in the menu, not on the row.
+    const row = panel.getByText('Sooner').closest('li') as HTMLElement;
+    expect(within(row).queryByRole('button', { name: 'Edit' })).toBeNull();
+    const opener = within(row).getByRole('button', { name: 'Actions: Sooner' });
+    await user.click(opener);
+    expect(opener).toHaveAttribute('aria-expanded', 'true');
+    expect(within(row).getByRole('menuitem', { name: 'Deactivate' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(within(row).queryByRole('menu')).toBeNull();
+    expect(opener).toHaveFocus();
+  });
+});

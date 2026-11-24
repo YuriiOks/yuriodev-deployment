@@ -259,6 +259,7 @@ async def reset_icon(
     row.icon_data = None
     row.icon_checked_url = None
     row.icon_error = None
+    row.icon_retry_at = None  # asked for now, whatever a refusal earlier said
     row.icon_manual = False  # an icon set by hand is given up: the fetcher looks again
     row.updated_at = now
     await session.commit()

@@ -120,10 +120,9 @@ async def test_a_payment_is_created_read_listed_and_shown_in_the_display_currenc
 
     assert made.status_code == 201
     assert set(body) == OUTPUT_FIELDS
-    assert body["icon_state"] == "pending"  # fetched after the answer: this site has no icon
-    later = {**body, "icon_state": "failed", "icon_error": "status_404"}
-    assert read == later
-    assert everything["recurring"] == [later]
+    assert body["icon_state"] == "pending"  # the icon worker has not run: nothing waited for it
+    assert read == body
+    assert everything["recurring"] == [body]
     assert (body["amount"], body["currency"], body["kind"]) == (50_000, "UAH", "debt")
     assert (body["frequency"], body["frequency_interval"]) == ("monthly", 1)
     assert body["color"] == "#ffaa00"  # normalised
