@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.routing import Route
 
 from src.core.clock import Clock, utc_now
@@ -25,6 +26,7 @@ from src.dashboards.collectors.manager import (
     build_collectors,
     build_finance_collectors,
 )
+from src.dashboards.finance.maintenance import fill_categories
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.projects import upgrade_projects
@@ -89,6 +91,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("app stopped", extra={"event": "app.stop"})
 
 
+async def after_migrate(sessions: async_sessionmaker[AsyncSession]) -> None:
+    """What runs once the schema is at head: the projects' schemas, the categories still missing."""
+    await upgrade_projects(sessions)
+    await fill_categories(sessions)
+
+
 async def _start_dashboards(
     app: FastAPI, settings: Settings, stack: contextlib.AsyncExitStack
 ) -> list[asyncio.Task[None]]:
@@ -105,7 +113,7 @@ async def _start_dashboards(
         return []
     try:
         url = settings.database_url.get_secret_value()
-        runtime = DashboardsRuntime(url, after_migrate=upgrade_projects)
+        runtime = DashboardsRuntime(url, after_migrate=after_migrate)
     except Exception as exc:
         extra = {"event": "dashboards.misconfigured", "error": type(exc).__name__}
         logger.error("dashboards database url rejected", extra=extra)

@@ -928,6 +928,22 @@ cursor-paged, `from` and `to` are days in `DASHBOARDS_TIMEZONE`) and `/summary` 
 balance, spent and received this month; moves between your own accounts count on both sides),
 and the MCP tools `finance_accounts`, `finance_balances` and `finance_transactions`.
 
+Accounts and categories (what the Money page shows). Every account has a `kind` (`current`,
+`credit_card`, `savings`, `pot`, `business`), a neutral `label` (a card tier, "Personal"/"Joint";
+never the holder's name), `available_minor` (the balance plus the overdraft; a credit card's
+balance already counts its limit), and, when the bank says so, `overdraft_limit`; a pot has its
+current account (`parent_id`) and `goal_amount` when Monzo's answer has one. Two Monzo accounts of
+one type differ by `label`, the last four digits of the account number and `opened_at`. Every
+transaction has one of 13 categories (housing_utilities, groceries, eating_out, transport,
+subscriptions, health, shopping, entertainment, debt, income, transfers, cash, other), worked out
+from Monzo's own category or a card payment's merchant code (the raw code stays in
+`category_code`); a transfer between your own accounts and pots is always `transfers` and is never
+spending. `GET /finance/categories?month=YYYY-MM` gives money out per currency and category with
+the month before beside it. You can change one transaction's category
+(`PATCH /finance/transactions/{id}`, or the MCP tool `finance_set_category`); that is a note on our
+copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
+categories existed are categorised when the backend next starts.
+
 Other banks later (a bank's own API with short-lived tokens, an Open Banking aggregator with
 expiring consents): add a provider that returns the neutral account and transaction shapes
 (`backend/src/dashboards/finance/base.py`); its auth or consent state lives in tables of its own
