@@ -149,6 +149,7 @@ def db_url(migrated_db_url: str) -> str:
         "DELETE FROM finance.monzo_token",
         "DELETE FROM finance.monzo_oauth_state",
         "DELETE FROM finance.connection",
+        "DELETE FROM queue_day",
         "DELETE FROM task",
         "DELETE FROM task_tombstone",
         "DELETE FROM event",
