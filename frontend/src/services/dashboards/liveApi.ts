@@ -96,9 +96,19 @@ export interface LiveTask {
   readonly source: string;
   /** The task's page at its source (the pull request, the issue), when it has one. */
   readonly url: string | null;
-  /** Where a collected task stands at its source: a Linear state type, or GitHub's 'mine' / 'review'. */
+  /** Where a collected task stands at its source: a Linear state type, or GitHub's 'mine' / 'review' / 'reviewed'. */
   readonly stage: string | null;
+  /** A Linear issue's own priority (urgent and high get a mark on the row); null for any other task. */
+  readonly sourcePriority: SourcePriority | null;
+  /** When the task last changed at its source. */
+  readonly sourceUpdatedAt: string | null;
+  /** A draft pull request. */
+  readonly draft: boolean;
 }
+
+export type SourcePriority = 'urgent' | 'high' | 'medium' | 'low' | 'none';
+
+const SOURCE_PRIORITIES: readonly SourcePriority[] = ['urgent', 'high', 'medium', 'low', 'none'];
 
 export interface TaskDraft {
   readonly title: string;
@@ -259,6 +269,9 @@ export function parseTask(raw: unknown): LiveTask | null {
     source: typeof raw.source === 'string' ? raw.source : 'manual',
     url: typeof raw.url === 'string' && raw.url.startsWith('https://') ? raw.url : null,
     stage: typeof raw.stage === 'string' ? raw.stage : null,
+    sourcePriority: SOURCE_PRIORITIES.find((candidate) => candidate === raw.source_priority) ?? null,
+    sourceUpdatedAt: isDateTime(raw.source_updated_at) ? raw.source_updated_at : null,
+    draft: raw.draft === true,
   };
 }
 

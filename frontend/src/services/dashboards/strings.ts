@@ -180,6 +180,11 @@ export interface Strings {
   readonly spacesTitle: string;
   readonly noProjects: string;
   readonly nextDue: string;
+  readonly githubReviewed: string;
+  readonly showReviewed: string;
+  readonly draftMark: string;
+  readonly priorityUrgent: string;
+  readonly priorityHigh: string;
   readonly navAll: string;
   readonly navCalendar: string;
   readonly langLabel: string;
@@ -416,6 +421,11 @@ export const STRINGS: Record<Lang, Strings> = {
     spacesTitle: 'Пространства',
     noProjects: 'Проектов пока нет.',
     nextDue: 'ближайший срок {date}',
+    githubReviewed: 'Просмотрено мной, ещё открыто',
+    showReviewed: 'Просмотрено мной: {n}',
+    draftMark: 'черновик',
+    priorityUrgent: 'срочно',
+    priorityHigh: 'высокий',
     navAll: 'Все',
     navCalendar: 'Календарь',
     langLabel: 'Язык',
@@ -653,6 +663,11 @@ export const STRINGS: Record<Lang, Strings> = {
     spacesTitle: 'Spaces',
     noProjects: 'No projects yet.',
     nextDue: 'next due {date}',
+    githubReviewed: 'Reviewed by me, still open',
+    showReviewed: 'Reviewed by me: {n}',
+    draftMark: 'draft',
+    priorityUrgent: 'urgent',
+    priorityHigh: 'high',
     navAll: 'All',
     navCalendar: 'Calendar',
     langLabel: 'Language',
