@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0009"
+    assert version == "dashboards_0010"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -287,3 +287,24 @@ async def test_monzo_keeps_its_auth_state_in_tables_of_its_own(empty_db_url):
     )
     assert shared == 0  # no token of any provider in a shared table
     assert extras == "account.opened_at,transaction.declined,transaction.settled_at"
+
+
+async def test_collected_tasks_carry_the_sources_priority_time_and_draft_flag(empty_db_url):
+    await migrate(empty_db_url)
+
+    columns = await scalar(
+        empty_db_url,
+        "SELECT string_agg(column_name || ':' || is_nullable, ',' ORDER BY column_name) "
+        "FROM information_schema.columns WHERE table_name = 'task' AND table_schema = 'public' "
+        "AND column_name IN ('source_priority', 'source_updated_at', 'draft')",
+    )
+    await execute(empty_db_url, NEW_TASK)
+    default = await scalar(empty_db_url, "SELECT draft FROM task")
+    for level in ("urgent", "high", "medium", "low", "none"):
+        statement = "UPDATE task SET source_priority = 'LEVEL'".replace("LEVEL", level)
+        await execute(empty_db_url, statement)
+    with pytest.raises(IntegrityError):
+        await execute(empty_db_url, "UPDATE task SET source_priority = 'critical'")
+
+    assert columns == "draft:NO,source_priority:YES,source_updated_at:YES"
+    assert default is False

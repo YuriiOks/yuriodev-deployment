@@ -22,6 +22,7 @@ from src.core.errors import AppError
 from src.dashboards.catalog import (
     COLLECTED_SOURCES,
     MAX_RANGE_DAYS,
+    SOURCE_PRIORITIES,
     SPACE_IDS,
     TaskStatus,
     TaskStatusFilter,
@@ -96,9 +97,24 @@ def task_order(columns: Any = Task) -> tuple[Any, ...]:
     done tasks, most recently finished first. `columns` is the model or a table's `.c`, so the
     per-project task tables sort exactly like the spaces' one."""
     is_open = columns.status == "open"
+    # Collected tasks: the source's priority (urgent first, none last, a manual task after them
+    # all), then what changed most recently; a table without those columns (a project's) skips it.
+    # Manual tasks tie on both keys, so their order is the one it always was.
+    collected: tuple[Any, ...] = ()
+    if hasattr(columns, "source_priority"):
+        rank = case(
+            {level: index for index, level in enumerate(SOURCE_PRIORITIES, start=1)},
+            value=columns.source_priority,
+            else_=len(SOURCE_PRIORITIES) + 1,
+        )
+        collected = (
+            case((is_open, rank), else_=0).asc(),
+            case((is_open, columns.source_updated_at)).desc().nulls_last(),
+        )
     return (
         (columns.status == "done").asc(),
         case((is_open, columns.priority), else_=false()).desc(),
+        *collected,
         case((is_open, columns.due_date)).asc().nulls_last(),
         case((is_open, columns.created_at)).asc(),
         columns.done_at.desc().nulls_last(),
@@ -190,6 +206,9 @@ async def create_task(
         source_ref=None,
         url=None,
         stage=None,
+        source_priority=None,
+        source_updated_at=None,
+        draft=False,
         created_at=now,
         updated_at=now,
     )

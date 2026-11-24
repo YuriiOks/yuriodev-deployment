@@ -5,11 +5,13 @@ One GraphQL query over the viewer's assigned issues, paged by cursor.
     external id   the issue's id (stable when an issue moves between teams)
     title         "<IDENTIFIER>: <title>"
     due date      the issue's own, applied when the task is first created
+    priority      Linear's own, as `source_priority`: urgent, high, medium, low or none
+                  (never the user's Priority flag), and `updatedAt` as `source_updated_at`
 
 A GraphQL `errors` answer, or more pages than we read, fails the whole fetch.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -22,6 +24,8 @@ from src.dashboards.collectors.sync import TaskCollector
 # The open workflow state types: the filter excludes completed, canceled and duplicate (an issue
 # marked as a duplicate of another is closed), so anything else is unknown to us and gets no stage.
 STATE_TYPES = ("started", "unstarted", "backlog", "triage")
+# Linear's priority numbers: 0 is "no priority", 1 the most urgent. Anything else is unknown.
+PRIORITIES = {0: "none", 1: "urgent", 2: "high", 3: "medium", 4: "low"}
 GRAPHQL_URL = "https://api.linear.app/graphql"
 # `first` is 100: the largest page Linear serves.
 QUERY = """
@@ -32,7 +36,7 @@ query Open($after: String) {
       after: $after
       filter: { state: { type: { nin: ["completed", "canceled", "duplicate"] } } }
     ) {
-      nodes { id identifier title url dueDate priority state { name type } }
+      nodes { id identifier title url dueDate priority updatedAt state { name type } }
       pageInfo { hasNextPage endCursor }
     }
   }
@@ -97,7 +101,25 @@ def _item(node: Any) -> ExternalItem:
         url=safe_url(node.get("url")),
         due_date=_due(node.get("dueDate")),
         stage=_stage(node.get("state")),
+        priority=_priority(node.get("priority")),
+        updated_at=_when(node.get("updatedAt")),
     )
+
+
+def _priority(value: object) -> str | None:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return PRIORITIES.get(value)
+    return None
+
+
+def _when(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return moment if moment.tzinfo is not None else None
 
 
 def _due(value: object) -> date | None:

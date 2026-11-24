@@ -267,8 +267,12 @@ async def test_the_loop_waits_for_the_schema(db_url, make_dashboards_app, clock)
 def upstream(request: httpx.Request) -> httpx.Response:
     """Canned answers for both services, by host."""
     if request.url.host == "api.github.com":
-        author = "author:@me" in request.url.params["q"]
-        return search_page([pr(11, "Mine")] if author else [pr(12, "Theirs")])
+        if request.url.path == "/user/teams":
+            return json_response([])
+        query = request.url.params["q"]
+        if "reviewed-by" in query:
+            return search_page([])
+        return search_page([pr(11, "Mine")] if "author:@me" in query else [pr(12, "Theirs")])
     if request.url.host == "api.linear.app":
         return issues_page([issue(5, "Assigned", due="2026-12-24")])
     return json_response({}, 404)
