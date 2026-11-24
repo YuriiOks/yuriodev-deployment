@@ -313,9 +313,7 @@ def work1_queue(tasks: Sequence[Task], today: date, now: datetime) -> tuple[list
     return [_task_item(t, why, today, now) for t, why in ranked[:QUEUE_MAX]], len(ranked)
 
 
-def dated_soon(
-    tasks: Sequence[Task], skip: set[str], today: date, now: datetime
-) -> list[SoonItem]:
+def dated_soon(tasks: Sequence[Task], skip: set[str], today: date, now: datetime) -> list[SoonItem]:
     """The next dated open tasks that are not already in the queue."""
     found = sorted(
         (
@@ -432,9 +430,7 @@ def _event_row(event: Event) -> TodayRow:
     )
 
 
-def _space_stats(
-    tasks: Sequence[Task], today: date, closed: tuple[int, int]
-) -> list[Stat]:
+def _space_stats(tasks: Sequence[Task], today: date, closed: tuple[int, int]) -> list[Stat]:
     open_count = len(tasks)
     dated = sum(1 for t in tasks if t.due_date is not None)
     first = Stat(
@@ -565,7 +561,9 @@ def _work1_breakdown(tasks: Sequence[Task], now: datetime) -> Breakdown:
     waiting = [
         t
         for t in tasks
-        if t.source == "github" and t.stage == "mine" and not t.draft
+        if t.source == "github"
+        and t.stage == "mine"
+        and not t.draft
         and t.source_updated_at is not None
         and now - t.source_updated_at >= timedelta(days=1)
     ]
@@ -776,9 +774,7 @@ async def _confirmed_amount(session: AsyncSession, upcoming: Any) -> int:
             )
         )
     )
-    return sum(
-        i.display_amount or 0 for i in upcoming.items if i.recurring_id in matched
-    )
+    return sum(i.display_amount or 0 for i in upcoming.items if i.recurring_id in matched)
 
 
 def _connection_rows(
@@ -792,9 +788,7 @@ def _connection_rows(
     rows: list[TodayRow] = []
     for link in links:
         since = link.last_ok_at or link.created_at
-        stale = (
-            not link.manual and link.status == "ok" and now - since > API_STALE_AFTER
-        )
+        stale = not link.manual and link.status == "ok" and now - since > API_STALE_AFTER
         rows.append(
             TodayRow(
                 kind="connection",

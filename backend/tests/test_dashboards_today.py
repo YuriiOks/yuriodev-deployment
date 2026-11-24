@@ -244,9 +244,7 @@ async def test_work_1_counts_reviews_and_issues_by_stage(db_url, make_dashboards
     assert [r["subject"]["name"] for r in body["today"]] == ["Standup"]
 
 
-async def test_work_2_is_manual_and_shows_the_week_in_meeting_minutes(
-    db_url, make_dashboards_app
-):
+async def test_work_2_is_manual_and_shows_the_week_in_meeting_minutes(db_url, make_dashboards_app):
     monday = datetime(2026, 11, 16, 10, 0, tzinfo=UTC)
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
