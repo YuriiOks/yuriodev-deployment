@@ -1675,7 +1675,8 @@ async def test_a_payment_is_missed_only_after_its_grace_and_when_the_data_reache
         raised = await attention(client)
 
     assert on_sunday["items"] == []
-    assert data_too_old["items"] == []  # nothing was read after the grace: not "missed"
+    # Nothing was read after the grace: not "missed", the page is told the data is old instead.
+    assert [i["kind"] for i in data_too_old["items"]] == ["stale_connection"]
     (item,) = raised["items"]
     assert (item["kind"], item["subject_name"], item["facts"]["data_as_of"]) == (
         "missed_payment",
