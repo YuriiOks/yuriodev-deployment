@@ -204,7 +204,8 @@ const DashboardsMoney = () => {
         </>
       )}
       {live && sheet && sheetItem && (
-        <AttentionSheet item={sheetItem} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} opener={sheet.opener} onClose={() => setSheet(null)} onActed={acted} onOpenBank={setSelected} />
+        <AttentionSheet item={sheetItem} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} opener={sheet.opener} onClose={() => setSheet(null)} onActed={acted} onRefresh={changed}
+              onRefresh={changed} onOpenBank={setSelected} />
       )}
     </>
   );

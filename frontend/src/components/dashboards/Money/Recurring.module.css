@@ -356,6 +356,11 @@
   line-height: var(--dash-lh-ui);
 }
 
+.due[data-overdue="true"] {
+  border-inline-start: 0.1875rem solid var(--dash-warn);
+  padding-inline-start: var(--space-2);
+}
+
 .dayHead::before,
 .dayHead::after {
   content: none;

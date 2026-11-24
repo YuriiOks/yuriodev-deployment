@@ -61,6 +61,8 @@ export interface RecurringStrings {
     readonly since: string;
     readonly asOf: string;
     readonly daysOld: string;
+    readonly hoursOld: string;
+    readonly dataAsOf: string;
     readonly none: string;
   };
   readonly acceptCharged: string;
@@ -99,6 +101,9 @@ export interface RecurringStrings {
   readonly snoozedUntil: string;
   readonly dismissed: string;
   readonly actionFailed: string;
+  readonly alreadyMoved: string;
+  readonly noDataSentence: string;
+  readonly noDataFact: string;
   readonly upcomingTitle: string;
   readonly upcomingFailed: string;
   readonly upcomingNone: string;
@@ -111,6 +116,9 @@ export interface RecurringStrings {
   readonly everyN: string;
   readonly covered: string;
   readonly short: string;
+  readonly shortTotal: string;
+  readonly overdue: string;
+  readonly overdueSince: string;
   readonly notCovered: string;
   readonly coverUnknown: string;
   readonly paidFrom: string;
@@ -175,9 +183,10 @@ export const RECURRING_RU: RecurringStrings = {
     overdrawn: '{name}: в минусе на {over}, лимит овердрафта не задан.',
     reconsent: 'Подключение {bank} нужно подтвердить заново.',
     stale_statement: 'Данные {bank} устарели: последние на {date} ({days} дн. назад).',
+    stale_connection: 'Баланс {bank} не обновлялся {hours} ч (последнее чтение {date}).',
   },
   sentenceShort: '{name}: срок {when} ({amount}), счёта для оплаты не хватает на всё.',
-  groupTitle: { overdraft: 'Овердрафт', overdrawn: 'В минусе, лимит не задан', due_not_covered: 'Скоро платёж, денег не хватит', missed_payment: 'Пропущенные платежи', reconsent: 'Нужно подтвердить подключение', credit_high: 'Карты у лимита', stale_statement: 'Устаревшие данные', amount_changed: 'Изменилась сумма' },
+  groupTitle: { overdraft: 'Овердрафт', overdrawn: 'В минусе, лимит не задан', due_not_covered: 'Скоро платёж, денег не хватит', missed_payment: 'Пропущенные платежи', reconsent: 'Нужно подтвердить подключение', credit_high: 'Карты у лимита', stale_statement: 'Устаревшие данные', stale_connection: 'Банк давно не читался', amount_changed: 'Изменилась сумма' },
   fact: {
     due_not_covered: '{amount} {when} · не хватает {short}',
     missed_payment: '{amount} · просрочка {days} дн.',
@@ -187,6 +196,7 @@ export const RECURRING_RU: RecurringStrings = {
     overdrawn: 'в минусе на {over} · лимит не задан',
     reconsent: 'подтвердите доступ заново',
     stale_statement: 'на {date} · {days} дн. назад',
+    stale_connection: 'не читался {hours} ч',
   },
   accept: 'Принять',
   more: 'Ещё: {name}',
@@ -222,6 +232,7 @@ export const RECURRING_RU: RecurringStrings = {
     overdrawn: 'в минусе, лимит не задан',
     reconsent: 'подтвердите доступ заново',
     stale_statement: 'на {date}, {days} дн. назад',
+    stale_connection: 'не читался {hours} ч',
   },
   sheetClose: 'Закрыть',
   sheetLabel: 'Подробности: {name}',
@@ -247,6 +258,8 @@ export const RECURRING_RU: RecurringStrings = {
     since: 'С',
     asOf: 'Данные на',
     daysOld: 'Дней назад',
+    hoursOld: 'Часов без чтения',
+    dataAsOf: 'Данные банка на',
     none: 'не задан',
   },
   acceptCharged: 'Принять списанную сумму',
@@ -285,6 +298,9 @@ export const RECURRING_RU: RecurringStrings = {
   snoozedUntil: 'отложено до {date}',
   dismissed: 'скрыто',
   actionFailed: 'Не получилось. Повторите.',
+  alreadyMoved: 'Платёж уже изменился: данные обновлены, проверьте ещё раз.',
+  noDataSentence: 'По {bank} данных ещё нет: задайте баланс или загрузите выписку.',
+  noDataFact: 'данных ещё нет',
   upcomingTitle: 'Ближайшие платежи',
   upcomingFailed: 'Не удалось загрузить ближайшие платежи.',
   upcomingNone: 'В ближайшие {days} дн. платежей нет.',
@@ -297,6 +313,9 @@ export const RECURRING_RU: RecurringStrings = {
   everyN: '{label}, каждые {n}',
   covered: 'хватает',
   short: 'не хватает {amount}',
+  shortTotal: 'на счёте с учётом других платежей не хватает {amount}',
+  overdue: 'Просрочено',
+  overdueSince: 'Просрочено с {date}',
   notCovered: 'не хватает средств',
   coverUnknown: 'неизвестно, хватит ли',
   paidFrom: 'со счёта {account}',
@@ -361,9 +380,10 @@ export const RECURRING_EN: RecurringStrings = {
     overdrawn: '{name} is overdrawn by {over}; no overdraft limit is set.',
     reconsent: 'The {bank} connection needs to be approved again.',
     stale_statement: 'The data of {bank} is out of date: the newest is from {date} ({days} d ago).',
+    stale_connection: 'The balances of {bank} have not been read for {hours} h (last read {date}).',
   },
   sentenceShort: '{name} is due {when} ({amount}) and the paying account cannot cover all of it.',
-  groupTitle: { overdraft: 'Past the overdraft', overdrawn: 'Overdrawn, no limit set', due_not_covered: 'Due soon, not covered', missed_payment: 'Missed payments', reconsent: 'Connection to approve', credit_high: 'Cards near the limit', stale_statement: 'Out-of-date data', amount_changed: 'Amount changed' },
+  groupTitle: { overdraft: 'Past the overdraft', overdrawn: 'Overdrawn, no limit set', due_not_covered: 'Due soon, not covered', missed_payment: 'Missed payments', reconsent: 'Connection to approve', credit_high: 'Cards near the limit', stale_statement: 'Out-of-date data', stale_connection: 'Bank not read lately', amount_changed: 'Amount changed' },
   fact: {
     due_not_covered: '{amount} {when} · short {short}',
     missed_payment: '{amount} · {days} d overdue',
@@ -373,6 +393,7 @@ export const RECURRING_EN: RecurringStrings = {
     overdrawn: '{over} overdrawn · no limit set',
     reconsent: 'approve access again',
     stale_statement: 'as of {date} · {days} d old',
+    stale_connection: 'not read for {hours} h',
   },
   accept: 'Accept',
   more: 'More: {name}',
@@ -408,6 +429,7 @@ export const RECURRING_EN: RecurringStrings = {
     overdrawn: 'overdrawn, no limit set',
     reconsent: 'approve access again',
     stale_statement: 'as of {date}, {days} d old',
+    stale_connection: 'not read for {hours} h',
   },
   sheetClose: 'Close',
   sheetLabel: 'Details: {name}',
@@ -433,6 +455,8 @@ export const RECURRING_EN: RecurringStrings = {
     since: 'Since',
     asOf: 'Data as of',
     daysOld: 'Days old',
+    hoursOld: 'Hours without a read',
+    dataAsOf: 'Bank data as of',
     none: 'none set',
   },
   acceptCharged: 'Accept the charged amount',
@@ -471,6 +495,9 @@ export const RECURRING_EN: RecurringStrings = {
   snoozedUntil: 'snoozed until {date}',
   dismissed: 'dismissed',
   actionFailed: 'That did not work. Try again.',
+  alreadyMoved: 'The payment has already changed: the data was refreshed, check it again.',
+  noDataSentence: 'No data yet for {bank}: set a balance or upload a statement.',
+  noDataFact: 'no data yet',
   upcomingTitle: 'Upcoming payments',
   upcomingFailed: 'Could not load the upcoming payments.',
   upcomingNone: 'Nothing is due in the next {days} days.',
@@ -483,6 +510,9 @@ export const RECURRING_EN: RecurringStrings = {
   everyN: '{label}, every {n}',
   covered: 'covered',
   short: 'short by {amount}',
+  shortTotal: 'the account is short {amount} in all, counting earlier payments',
+  overdue: 'Overdue',
+  overdueSince: 'Overdue since {date}',
   notCovered: 'not covered',
   coverUnknown: 'cover unknown',
   paidFrom: 'from {account}',

@@ -24,8 +24,10 @@ export function frequencyLabel(row: Pick<Recurring, 'frequency' | 'frequencyInte
 }
 
 /** A day's heading in a list of upcoming payments: Today, Tomorrow, then the date. */
-export function dayHeading(iso: string, daysUntil: number, lang: string, r: RecurringStrings): string {
-  if (daysUntil <= 0) return r.today;
+export function dayHeading(iso: string, daysUntil: number, lang: string, r: RecurringStrings, overdue = false): string {
+  // Already due and not seen paid: it is late, not "today" (the server lists it first, with a negative day count).
+  if (overdue || daysUntil < 0) return fill(r.overdueSince, { date: new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short' }).format(momentOf(iso)) });
+  if (daysUntil === 0) return r.today;
   if (daysUntil === 1) return r.tomorrow;
   return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${iso}T12:00:00`));
 }
