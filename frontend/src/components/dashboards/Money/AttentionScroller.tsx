@@ -65,7 +65,8 @@ const AttentionScroller: React.FC<AttentionScrollerProps> = ({ items, allHref, o
   const measure = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
-    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 });
+    const next = { start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 };
+    setEdge((previous) => (previous.start === next.start && previous.end === next.end ? previous : next));
   }, []);
   useEffect(() => {
     measure();
