@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { pagePath } from '../../../data/site';
+import { useToday } from '../../../hooks/useToday';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { grandTotal, shownTotals } from '../../../services/dashboards/display';
 import type { FinanceAccount, FinanceAccounts, FinanceCategories, FinanceSummary, ProviderLogo } from '../../../services/dashboards/financeApi';
@@ -89,7 +91,7 @@ const SoonRow: React.FC<{ item: UpcomingItem; mode: MoneyDisplay; onChanged: () 
     }
   };
   const when = item.overdue ? `${td.overdueChip} · ${dayLabel(item.dueDate, lang)}` : item.daysUntil <= 1 ? dueWhen(item.daysUntil, r) : dayLabel(item.dueDate, lang);
-  return <TodaySoonRow item={{ key: `${item.recurringId}-${item.dueDate}`, name: item.name, chips: [amountText(item.amount, item.currency, item.display, mode, lang), when], action: { label: td.paid, onClick: () => void paid(), busy }, late: item.overdue }} />;
+  return <TodaySoonRow item={{ key: `${item.recurringId}-${item.dueDate}`, icon: <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} />, name: item.name, chips: [amountText(item.amount, item.currency, item.display, mode, lang), when], action: { label: td.paid, onClick: () => void paid(), busy }, late: item.overdue }} />;
 };
 
 /** How long ago a moment was, in the page's language ("5 minutes ago"). */
@@ -115,6 +117,8 @@ export interface MoneyTodayProps extends Context {
   onOpenSheet: (item: AttentionItem, trigger: HTMLElement | null) => void;
   /** The attention, payments and upcoming lists are asked again. */
   onChanged: () => Promise<void>;
+  /** How fresh the data is, Refresh and the display switch: quiet controls at the far right of the header row. */
+  controls: React.ReactNode;
 }
 
 /**
@@ -123,7 +127,7 @@ export interface MoneyTodayProps extends Context {
  * the same day last month; due in the next two weeks and how much of it the bank confirmed), where the money went with its finding, and the
  * banks with how fresh each one's data is. Everything is the server's data; nothing is invented.
  */
-const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, summary, bankData, failed, onOpenSheet, onChanged, ...context }) => {
+const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, summary, bankData, failed, onOpenSheet, onChanged, controls, ...context }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const td = m.today;
@@ -185,11 +189,17 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
   const stamp = (iso: string | null | undefined) => (iso ? Date.parse(iso) : 0);
   const freshest = [...banks].sort((a, b) => stamp(a.connection?.lastOkAt) - stamp(b.connection?.lastOkAt)).slice(0, 3);
   const hour = new Date().getHours();
+  // The banks as the server orders them (the ones that need a look first); without its answer, from the accounts.
+  const serverToday = useToday('money', true);
+  const connectionRows = (serverToday.value?.today ?? []).filter((row) => row.kind === 'connection');
 
   return (
     <TodayLayout
       mark="£"
       place={m.title}
+      placeIsHeading
+      markTo={{ to: pagePath('dashboards-personal'), label: m.back }}
+      controls={controls}
       nav={nav}
       hello={td.greeting[partOfDay(hour)]}
       summary={parts.join(' ')}
@@ -219,14 +229,27 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
         <>
           {failed && <p role="alert">{td.failed}</p>}
           <SideCard title={td.banksTitle} linkLabel={td.banksLink} linkTo="?view=wallet">
-            {freshest.length === 0 ? (
+            {connectionRows.length > 0 ? (
+              connectionRows.map((row) => {
+                const f = row.facts;
+                const provider = typeof f.provider === 'string' ? f.provider : '';
+                const lastOk = typeof f.last_ok_at === 'string' ? f.last_ok_at : null;
+                const look = f.stale === true || (typeof f.status === 'string' && f.status !== 'ok');
+                const balances = Array.isArray(f.balances) ? (f.balances as { currency?: unknown; amount?: unknown }[]) : [];
+                const lead = balances.find((balance) => typeof balance.currency === 'string' && typeof balance.amount === 'number');
+                const base = f.manual === true ? (lastOk ? fill(td.bank.byHand, { date: dayLabel(lastOk, lang) }) : td.bank.never) : lastOk ? fill(td.bank.updated, { when: ago(lastOk, lang) }) : td.bank.never;
+                const amount = lead ? formatMinor(lead.amount as number, lead.currency as string, lang) : '';
+                const name = row.subject.name ?? bankLabel(provider, context.logos[provider]);
+                return <SideRow key={row.subject.id ?? provider} icon={<BankMark provider={provider} logo={context.logos[provider]} />} when={look ? `${td.bank.look} · ${base}` : base} what={`${name}${amount ? ` · ${amount}` : ''}`} />;
+              })
+            ) : freshest.length === 0 ? (
               <p>{td.banksEmpty}</p>
             ) : (
               freshest.map((bank) => {
                 const lead = shownTotals(bank.accounts, mode)[0];
                 const when = bank.connection?.manual ? (bank.connection.lastOkAt ? fill(td.bank.byHand, { date: dayLabel(bank.connection.lastOkAt, lang) }) : td.bank.never) : bank.connection?.lastOkAt ? fill(td.bank.updated, { when: ago(bank.connection.lastOkAt, lang) }) : td.bank.never;
                 const amount = lead ? `${lead.approx ? '≈ ' : ''}${formatMinor(lead.amount, lead.currency, lang)}` : '';
-                return <SideRow key={bank.provider} when={when} what={`${bankLabel(bank.provider, context.logos[bank.provider])}${amount ? ` · ${amount}` : ''}`} />;
+                return <SideRow key={bank.provider} icon={<BankMark provider={bank.provider} logo={context.logos[bank.provider]} />} when={when} what={`${bankLabel(bank.provider, context.logos[bank.provider])}${amount ? ` · ${amount}` : ''}`} />;
               })
             )}
           </SideCard>

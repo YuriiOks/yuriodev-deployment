@@ -31,6 +31,20 @@
   font-weight: 700;
 }
 
+.markLink {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+/* The controls sit at the far right of the header row. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-left: auto;
+}
+
 .place {
   margin: 0;
   padding: 0;
@@ -156,8 +170,10 @@
 /* The decisions of the queue: a card each, with exactly two actions. */
 .card {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
-  display: flex;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-4);
   border-radius: var(--dash-r-card);
 }
@@ -173,7 +189,16 @@
 .cardIcon {
   display: inline-flex;
   flex: none;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+/* Every mark is the same 40px tile, whatever it is (a bank's mark, a payment's picture, a letter). */
+.cardIcon > span {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .cardBody {
@@ -195,9 +220,17 @@
 
 .cardActions {
   display: flex;
-  flex-wrap: wrap;
+  grid-column: 1 / -1;
   gap: var(--space-2);
   margin-top: var(--space-1);
+}
+
+/* The two actions share one line at the bottom of the card. */
+.cardActions > * {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
 }
 
 .action {
@@ -233,6 +266,7 @@
 }
 
 .soonMain {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -371,11 +405,24 @@
 
 .sideRow {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-3);
   padding: var(--space-2) 0;
   border-top: 1px solid var(--dash-line);
   color: var(--dash-t1);
+}
+
+.sideText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sideIcon,
+.soonIcon {
+  display: inline-flex;
+  flex: none;
 }
 
 .sideWhen {

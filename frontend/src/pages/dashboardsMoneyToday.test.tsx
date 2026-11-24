@@ -266,4 +266,46 @@ describe('the Money page: Today', () => {
     expect(await within(main()).findByRole('heading', { level: 2, name: /(Доброе утро|Добрый день|Добрый вечер)/ })).toBeInTheDocument();
     expect(within(main()).getByRole('heading', { level: 3, name: /Сначала это/ })).toBeInTheDocument();
   });
+
+  it('has one header row: the mark (the way back), the name as the page\'s heading, the tabs, and the quiet controls at the far right; no separate box and no "Back to" link', async () => {
+    setup();
+    renderAt(PATH);
+    const heading = await within(main()).findByRole('heading', { level: 1, name: 'Money' });
+    const row = heading.closest('header') as HTMLElement;
+    expect(within(row).getByRole('link', { name: 'Back to Personal' })).toBeInTheDocument();
+    expect(within(row).getByRole('navigation', { name: 'Money sections' })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+    expect(within(row).getByText(/updated Nov 24/)).toBeInTheDocument();
+    expect(within(main()).queryByText('Back to Personal')).toBeNull();
+  });
+
+  it('lists the banks as the server\'s today rows say, those that need a look first, each with its mark and how fresh its data is', async () => {
+    const row = (name: string, provider: string, extra: Record<string, unknown>) => ({ kind: 'connection', starts_at: null, ends_at: null, subject: { type: 'connection', id: `c-${provider}`, name }, facts: { provider, manual: false, status: 'ok', last_ok_at: new Date(Date.now() - 4 * 60000).toISOString(), stale: false, balances: [{ currency: 'GBP', amount: 25000 }], ...extra } });
+    setup({
+      today: {
+        money: {
+          scope: 'money',
+          date: '2026-11-24',
+          generated_at: '2026-11-24T08:00:00Z',
+          summary: { code: 'money', facts: {} },
+          queue: [],
+          queue_total: 0,
+          soon: [],
+          stats: [],
+          breakdown: { code: 'spent_by_category', rows: [], insight: null },
+          today: [row('Globex', 'globex-bank', { status: 'needs_reconsent', stale: false }), row('Acme Bank', 'acme-bank', {})],
+          assistant: { enabled: false },
+        },
+      },
+    });
+    renderAt(PATH);
+    const banks = within(await within(main()).findByRole('region', { name: 'Banks today' }));
+    await waitFor(() => expect(banks.getAllByText(/·/).length).toBeGreaterThan(0));
+    const rows = banks.getAllByText(/Globex|Acme Bank/).map((entry) => entry.textContent);
+    expect(rows[0]).toContain('Globex');
+    expect(rows[1]).toContain('Acme Bank · £250.00');
+    expect(banks.getByText(/needs a look/)).toBeInTheDocument();
+    expect(banks.getByText(/updated 4 minutes ago/)).toBeInTheDocument();
+  });
 });
+

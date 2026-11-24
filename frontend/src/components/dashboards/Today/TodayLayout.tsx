@@ -29,6 +29,8 @@ export interface TodayQueueItem {
 
 export interface TodaySoonItem {
   readonly key: string;
+  /** The payment's picture or colour tile. */
+  readonly icon?: React.ReactNode;
   readonly name: string;
   readonly chips: readonly string[];
   readonly action: TodayAction;
@@ -59,6 +61,10 @@ export interface TodayProps {
   readonly placeIsHeading?: boolean;
   /** The section tabs (the caller's own nav). */
   readonly nav: React.ReactNode;
+  /** Quiet controls at the far right of the same row (when the data was read, Refresh, a display switch). */
+  readonly controls?: React.ReactNode;
+  /** Where the mark leads (the page above: the way back, so no "Back to" link is needed). */
+  readonly markTo?: { readonly to: string; readonly label: string };
   readonly hello: string;
   /** The one sentence that says what matters now. */
   readonly summary: string;
@@ -115,16 +121,25 @@ const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'q
  * at a time) and a short "due soon" list. Middle: two big figures and one breakdown that ends in a finding. Right: the caller's own cards.
  * Presentational only: it is given everything it shows.
  */
-const TodayLayout: React.FC<TodayProps> = ({ mark, place, placeIsHeading = false, nav, hello, summary, queue, soon, stats, breakdown, side }) => (
+const TodayLayout: React.FC<TodayProps> = ({ mark, place, placeIsHeading = false, nav, controls, markTo, hello, summary, queue, soon, stats, breakdown, side }) => (
   <div className={styles.today}>
     <header className={styles.top}>
       <div className={styles.space}>
-        <span aria-hidden="true" className={styles.mark}>
-          {mark}
-        </span>
+        {markTo ? (
+          <Link className={styles.markLink} to={markTo.to} aria-label={markTo.label}>
+            <span aria-hidden="true" className={styles.mark}>
+              {mark}
+            </span>
+          </Link>
+        ) : (
+          <span aria-hidden="true" className={styles.mark}>
+            {mark}
+          </span>
+        )}
         {placeIsHeading ? <h1 className={styles.place}>{place}</h1> : <strong className={styles.place}>{place}</strong>}
       </div>
       {nav}
+      {controls && <div className={styles.controls}>{controls}</div>}
     </header>
     <div className={styles.intro}>
       <h2 className={styles.hello}>
@@ -234,10 +249,13 @@ export const SideCard: React.FC<{ title: string; linkLabel?: string; linkTo?: st
 );
 
 /** One row of a side card: when (small) over what (strong). */
-export const SideRow: React.FC<{ when: string; what: string }> = ({ when, what }) => (
+export const SideRow: React.FC<{ when: string; what: string; icon?: React.ReactNode }> = ({ when, what, icon }) => (
   <div className={styles.sideRow}>
-    <span className={styles.sideWhen}>{when}</span>
-    <strong>{what}</strong>
+    {icon && <span className={styles.sideIcon}>{icon}</span>}
+    <span className={styles.sideText}>
+      <span className={styles.sideWhen}>{when}</span>
+      <strong>{what}</strong>
+    </span>
   </div>
 );
 
@@ -248,10 +266,10 @@ export const TodayCard: React.FC<{ item: TodayQueueItem }> = ({ item }) => (
     <div className={styles.cardBody}>
       <strong className={styles.cardTitle}>{item.title}</strong>
       <span className={styles.cardFact}>{item.fact}</span>
-      <div className={styles.cardActions}>
-        <Action action={item.primary} kind="primary" />
-        <Action action={item.secondary} kind="secondary" />
-      </div>
+    </div>
+    <div className={styles.cardActions}>
+      <Action action={item.primary} kind="primary" />
+      <Action action={item.secondary} kind="secondary" />
     </div>
   </li>
 );
@@ -259,6 +277,7 @@ export const TodayCard: React.FC<{ item: TodayQueueItem }> = ({ item }) => (
 /** One row of "due soon": the name, two small chips and one action. */
 export const TodaySoonRow: React.FC<{ item: TodaySoonItem }> = ({ item }) => (
   <li className={styles.soon} data-late={item.late ? 'true' : undefined}>
+    {item.icon && <span className={styles.soonIcon}>{item.icon}</span>}
     <div className={styles.soonMain}>
       <strong>{item.name}</strong>
       <span className={styles.chips}>
