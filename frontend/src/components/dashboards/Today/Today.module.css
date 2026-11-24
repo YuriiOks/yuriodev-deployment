@@ -1,0 +1,382 @@
+/* The Today view of a space: one structure for Money, Personal and the two work pages. Surfaces are the dashboards' glass; the accent is the space's. */
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.space {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--dash-fill);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-on-fill, var(--dash-t1));
+  font-weight: 700;
+}
+
+.place {
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.hello {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-hero);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.hello::before,
+.hello::after {
+  content: none;
+}
+
+.hash {
+  color: var(--dash-accent);
+}
+
+.summary {
+  margin: 0;
+  max-width: 48rem;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-ui);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+}
+
+.sectionTitle::before,
+.sectionTitle::after {
+  content: none;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.625rem;
+  height: 1.625rem;
+  padding: 0 var(--space-1);
+  background: var(--dash-heading-tint);
+  border-radius: var(--radius-pill);
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-meta);
+  text-decoration: none;
+}
+
+.link {
+  color: var(--dash-accent);
+  font-size: var(--dash-fs-ui);
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  color: var(--dash-t2);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The decisions of the queue: a card each, with exactly two actions. */
+.card {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--dash-r-card);
+}
+
+.card[data-severity="high"] {
+  border-left: 3px solid var(--dash-danger);
+}
+
+.card[data-severity="medium"] {
+  border-left: 3px solid var(--dash-warn);
+}
+
+.cardIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: flex-start;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.cardTitle {
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
+}
+
+.cardFact {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.action {
+  composes: button from '../../../assets/styles/dashboard-controls.module.css';
+  border-radius: var(--radius-pill);
+}
+
+.actionPrimary {
+  composes: buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.actionSecondary {
+  composes: buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.actionQuiet {
+  composes: buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  flex: none;
+}
+
+.soon {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--dash-r-card);
+}
+
+.soon[data-late="true"] {
+  border-left: 3px solid var(--dash-warn);
+}
+
+.soonMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--dash-t1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chip {
+  padding: 0 var(--space-2);
+  background: var(--dash-chip);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+/* The two figures and the breakdown. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.stat {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--dash-r-card);
+  background: color-mix(in srgb, var(--dash-accent) 14%, var(--dash-surface));
+  color: var(--dash-t1);
+}
+
+.stat[data-tone="b"] {
+  background: color-mix(in srgb, var(--dash-heading) 14%, var(--dash-surface));
+}
+
+.statLabel,
+.statNote {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.statValue {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--dash-fs-title);
+  line-height: var(--dash-lh-title);
+  min-width: 0;
+}
+
+.statPart {
+  overflow-wrap: anywhere;
+}
+
+.breakdown {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--dash-r-card);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.barTop {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--dash-t1);
+}
+
+.barName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.track {
+  height: 0.625rem;
+  overflow: hidden;
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+}
+
+.fill {
+  height: 100%;
+  background: var(--dash-accent);
+}
+
+.insight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--dash-heading-tint);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+}
+
+.insight span {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+/* The right column's cards. */
+.sideCard {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--dash-r-card);
+}
+
+.sideRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--dash-line);
+  color: var(--dash-t1);
+}
+
+.sideWhen {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+@media (max-width: 29.99rem) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -3,6 +3,7 @@ import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
 import { MANUAL_EN, MANUAL_RU, type ManualStrings } from './manualStrings';
 import { RECURRING_EN, RECURRING_RU, type RecurringStrings } from './recurringStrings';
+import { TODAY_EN, TODAY_RU, type TodayStrings } from './todayStrings';
 
 /** The page a document title is for. */
 export type TitleKey = SpaceId | 'hub' | 'calendar' | 'money';
@@ -134,6 +135,7 @@ export interface Strings {
   /** The Money page of the personal space (read-only, from the finance API). */
   readonly money: {
     readonly rec: RecurringStrings;
+    readonly today: TodayStrings;
     readonly manual: ManualStrings;
     readonly navLink: string;
     readonly title: string;
@@ -438,6 +440,7 @@ export const STRINGS: Record<Lang, Strings> = {
     titles: { hub: 'Дашборды', personal: 'Личное', 'work-1': 'Работа 1', 'work-2': 'Работа 2', calendar: 'Календарь', money: 'Деньги' },
     money: {
       rec: RECURRING_RU,
+      today: TODAY_RU,
       manual: MANUAL_RU,
       navLink: 'Деньги',
       title: 'Деньги',
@@ -757,6 +760,7 @@ export const STRINGS: Record<Lang, Strings> = {
     titles: { hub: 'Dashboards', personal: 'Personal', 'work-1': 'Work 1', 'work-2': 'Work 2', calendar: 'Calendar', money: 'Money' },
     money: {
       rec: RECURRING_EN,
+      today: TODAY_EN,
       manual: MANUAL_EN,
       navLink: 'Money',
       title: 'Money',

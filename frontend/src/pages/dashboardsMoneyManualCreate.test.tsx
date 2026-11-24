@@ -21,6 +21,8 @@ function renderAt(path: string) {
 
 const main = () => screen.getByRole('main');
 const PATH = '/dashboards/personal/money';
+/** Every section on one page (the Today view is the default). */
+const ALL = `${PATH}?view=all`;
 
 const acct = (id: string, name: string, balance: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -85,7 +87,7 @@ describe('the Money page: adding a bank entered by hand', () => {
   it('lists the server\'s brands that are not connected yet, and adds the chosen one with its first account', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const form = await openForm(user);
     const options = within(form.getByLabelText('Bank')).getAllByRole('option').map((option) => option.textContent);
@@ -112,7 +114,7 @@ describe('the Money page: adding a bank entered by hand', () => {
   it('makes a bank of the owner\'s own from a name and colours: a neutral id from the name, the colours sent with it, the contrast held', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const form = await openForm(user);
     await user.selectOptions(form.getByLabelText('Bank'), '__custom');
@@ -135,7 +137,7 @@ describe('the Money page: adding a bank entered by hand', () => {
   it('takes what is owed and the limit for a credit card, and refuses what cannot be read before sending anything', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const form = await openForm(user);
     await user.selectOptions(form.getByLabelText('Type'), 'credit_card');
@@ -164,7 +166,7 @@ describe('the Money page: adding a bank entered by hand', () => {
   it('keeps the bank when only its account is refused: the server\'s words are shown and a second try adds only the account', async () => {
     const api = setup({ fail: ['manualAccount'] });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const form = await openForm(user);
     await user.type(form.getByLabelText('Balance'), '10');
@@ -182,7 +184,7 @@ describe('the Money page: adding a bank entered by hand', () => {
   it('shows the server\'s words when the bank itself is refused, and adds nothing', async () => {
     const api = setup({ fail: ['manualConnection'] });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const form = await openForm(user);
     await user.type(form.getByLabelText('Balance'), '10');
@@ -196,7 +198,7 @@ describe('the Money page: adding an account to a bank entered by hand', () => {
   it('is offered on a bank entered by hand only, and adds the account to that bank\'s connection', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     expect(wallet().queryByRole('button', { name: 'Add an account' })).toBeNull();
     await user.click(within(wallet().getByRole('group', { name: 'Banks' })).getByRole('button', { name: /^Hand Bank/ }));
