@@ -18,6 +18,7 @@ from tests.finance_support import seed
 
 pytestmark = pytest.mark.anyio
 
+
 def png(width, height):
     size = width.to_bytes(4, "big") + height.to_bytes(4, "big")
     header = (13).to_bytes(4, "big") + b"IHDR" + size

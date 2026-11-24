@@ -160,8 +160,7 @@ async def test_accounts_say_how_much_of_a_card_is_used_and_what_each_provider_co
         await seed_rates(app)
         await execute(
             db_url,
-            "UPDATE finance.account SET kind = 'credit_card', balance = 100000 "
-            "WHERE name = 'Main'",
+            "UPDATE finance.account SET kind = 'credit_card', balance = 100000 WHERE name = 'Main'",
         )
         await add(app, account(uuid.UUID(int=14), "Savings pot", "UAH", 200_000, kind="pot"))
         body = (await client.get(f"{FINANCE}/accounts")).json()
