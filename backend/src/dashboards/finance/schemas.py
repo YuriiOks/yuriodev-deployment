@@ -127,7 +127,9 @@ class ConnectionOut(BaseModel):
     provider: str
     status: str
     status_changed_at: datetime | None
-    last_ok_at: datetime | None
+    last_ok_at: datetime | None  # for a manual connection: the date its newest data is as of
+    manual: bool  # entered by hand: no collector reads it
+    display_name: str | None
 
 
 class AccountsOut(BaseModel):
@@ -283,11 +285,23 @@ class LogoOut(BaseModel):
     mark: str | None
 
 
+class ColorsOut(BaseModel):
+    """A brand colour and the text colour on it (WCAG AA contrast, at least 4.5)."""
+
+    model_config = _RESPONSE
+
+    background: str
+    foreground: str
+
+
 class ProviderOut(BaseModel):
     model_config = _RESPONSE
 
     id: str
+    name: str  # the owner's name for it, else the built-in brand's, else the id
+    colors: ColorsOut
     logo: LogoOut
+    entry: Literal["api", "manual"]  # connected through its API, or entered by hand
 
 
 class ProvidersOut(BaseModel):

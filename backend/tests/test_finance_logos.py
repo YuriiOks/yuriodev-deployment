@@ -153,24 +153,14 @@ async def test_the_providers_answer_has_every_logo_and_every_provider_with_accou
             "/api/dashboards/v1/finance/providers", headers={"X-Dashboards-Token": "nope"}
         )
 
-    assert before.json() == {
-        "providers": [
-            {
-                "id": "monzo",
-                "logo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG},
-            },
-            {
-                "id": "neutral-bank",
-                "logo": {"on_light": None, "on_dark": GOOD_PNG, "mark": None},
-            },
-        ]
-    }
-    assert [p["id"] for p in after.json()["providers"]] == ["monzo", "neutral-bank", "sample"]
-    assert after.json()["providers"][2]["logo"] == {
-        "on_light": None,
-        "on_dark": None,
-        "mark": None,
-    }
+    first = {p["id"]: p for p in before.json()["providers"]}
+    second = {p["id"]: p for p in after.json()["providers"]}
+    assert first["monzo"]["logo"] == {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG}
+    assert first["neutral-bank"]["logo"] == {"on_light": None, "on_dark": GOOD_PNG, "mark": None}
+    assert (first["monzo"]["entry"], first["neutral-bank"]["entry"]) == ("api", "manual")
+    assert "sample" not in first
+    assert second["sample"]["logo"] == {"on_light": None, "on_dark": None, "mark": None}
+    assert [p["id"] for p in after.json()["providers"]] == sorted(second)  # in order of id
     assert anonymous.status_code == 401
 
 

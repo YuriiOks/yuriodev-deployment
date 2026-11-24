@@ -1022,6 +1022,59 @@ items are left out and counted in `hidden`. `POST /attention/dismiss` `{key}`, `
 `{key, days: 1..90}`, `/attention/restore` `{key}`; an unknown key is 404; unused states of items
 that are gone are deleted after 90 days.
 
+Banks without an API (migration `dashboards_0015`, REST under `/finance/manual`). Nothing is read
+from or sent to such a bank: you enter it. `POST /manual/connections` `{provider, display_name?,
+brand_bg?, brand_fg?}` (provider: a lower-case id such as `barclays`, `lloyds`, `aqua`, `revolut`,
+`wise`, `starling`, `paypal`, or a neutral id of your own for a bank that must not be named in the
+repository; `monobank` and `monzo` are refused: they have an API), `PATCH /manual/connections/{id}`
+(name and colours). `POST /manual/accounts` `{connection_id, name, kind: current|credit_card|
+savings|business, currency, balance | (credit_limit, owed), as_of?, mask_last4? (the last four
+digits only), label?, type?, opened_at?, overdraft_limit?}`; a credit card is given by `credit_limit`
+and `owed` (its `balance` is the limit minus what is owed, as for the other providers).
+`POST /manual/accounts/{id}/balance` `{balance | owed, as_of?}` sets the balance with a date
+(`as_of`: a day, meaning the end of that day in `DASHBOARDS_TIMEZONE`, or a time with an offset;
+default now; never in the future). `PATCH /accounts/{id}` also takes `name`, `label`, `mask_last4`,
+`archived` and (a card) `credit_limit` (what is owed stays) for an account entered by hand; an
+account from a bank's API takes only `overdraft_limit`. A connection's `last_ok_at` is the date its
+newest data is as of (a balance's date, or the newest line of a statement), never the day it was
+uploaded; with an open account and data older than 30 days there is a `stale_statement` attention
+item.
+Statements: `POST /manual/accounts/{id}/statement` with the downloaded file as the body (at most
+2 MiB; `?dry_run=true`, `?date_order=dmy|mdy`, `?apply_balance=true`). Formats: (1) OFX or QFX
+(the open OFX specification; v1 SGML and v2 XML; `FITID` is the transaction id, `LEDGERBAL` the
+balance, `CURDEF` must equal the account's currency); (2) a CSV with the headers `date`,
+`description` and `amount` (or `debit` and `credit`), and optionally `time`, `counterparty`,
+`balance`, `currency`, `id` (any order, any case; a file from any bank can be reshaped into it);
+(3) PayPal's Activity Download, the one bank export whose columns the provider itself publishes
+(developer.paypal.com, Activity Download report: Date, Time, TimeZone, Name, Type, Status,
+Currency, Gross, Fee, Net, From Email Address, To Email Address, Transaction ID, Balance...; the
+cash effect of a line is Net; Pending and Denied are marked; only for an account of provider
+`paypal`). For Barclays, Lloyds, Aqua, Revolut, Wise and Starling nothing in their own help pages
+or documentation describes the file (checked on 2026-11-24; third-party converters do, with
+different dates and no guarantee), so no layout of theirs is built in: use OFX where the bank
+offers it, or reshape the CSV into the generic one; a file in no known layout is 422
+`unknown_layout`, never guessed. Adding one is a few lines in `statements.LAYOUTS` once the header
+row of your own file is seen. Rules: amounts are plain decimals (`-12.50`, `1,234.56`; a comma is
+never a decimal point) with no more decimals than the currency has and in the account's currency;
+dates are `YYYY-MM-DD` or `DD/MM/YYYY` or `MM/DD/YYYY`, the order read from the file when a day
+over 12 settles it, else given with `date_order`, else the file is refused; a line with no time is
+booked at noon of its day (local zone). All or nothing: any bad line writes nothing and the 422
+body lists every line (`errors: [{row, field, message}]`). A line already there (same bank id, or
+same date, amount, text and place among identical lines) is a `duplicate` and left as it is, so
+the same or an overlapping file can be loaded again. The answer has `parsed`, `created`,
+`duplicates`, `first_date`, `last_date`, `money_in`, `money_out` (declined lines excluded): check
+them against the bank's own statement with `dry_run` first. `apply_balance` sets the account's
+balance from the file's newest balance unless a newer one is already set (`balance_applied`);
+a credit card's balance is set by its own endpoint. Imported lines get the category `income` or
+`other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again).
+`GET /finance/providers` now returns for every built-in brand, every id with a logo and every
+provider with a connection: `{id, name, colors: {background, foreground}, logo, entry: "api" |
+"manual"}`. The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,
+Starling Bank, Wise) have a name and a brand colour pair in code (`finance/brands.py`), each with
+a WCAG AA contrast of at least 4.5 (a test checks it); a bank not in the list takes the display
+name and colours (`brand_bg`/`brand_fg`, the same contrast rule) of its connection, else its id
+and a neutral pair. Logos stay in `DASHBOARDS_PROVIDER_LOGOS`.
+
 Display currency and rates. Stored amounts are never converted: they stay integers in minor units
 of their own currency. `FINANCE_DISPLAY_CURRENCY` (default `GBP`, three capital letters) is the
 currency the Money page also shows every amount in, beside the original and never instead of it:

@@ -18,13 +18,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.core.config import Settings
 from src.core.errors import AppError
 from src.core.http import UpstreamError
-from src.dashboards.finance import monzo_auth, service
+from src.dashboards.finance import manual, monzo_auth, service
+from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL
 from src.dashboards.finance.categories import Category
 from src.dashboards.finance.logos import VARIANTS
+from src.dashboards.finance.manual import MANUAL_FIELDS, ManualAccountPatch
 from src.dashboards.finance.schemas import (
     AccountOut,
     AccountsOut,
     CategoriesOut,
+    ColorsOut,
     ConnectionOut,
     DisplayOut,
     FinanceSummaryOut,
@@ -57,16 +60,16 @@ async def accounts(session: SessionDep, settings: SettingsDep, clock: ClockDep) 
     )
 
 
-class AccountPatch(BaseModel):
-    """What the owner may set on an account: his overdraft limit (null clears it)."""
+class AccountPatch(ManualAccountPatch):
+    """What the owner may change: his overdraft limit on any account (null clears it), and on an
+    account he entered by hand also its name, label, last four digits, archiving and (a credit
+    card) limit."""
 
-    model_config = ConfigDict(extra="forbid")
-
-    overdraft_limit: StrictInt | None
+    overdraft_limit: StrictInt | None = None
 
 
 @router.patch("/accounts/{account_id}")
-async def set_account_overdraft(
+async def patch_account(
     account_id: UUID,
     body: AccountPatch,
     session: SessionDep,
@@ -75,7 +78,15 @@ async def set_account_overdraft(
 ) -> AccountOut:
     """The owner's overdraft limit for one account, in minor units. It wins over a limit the bank
     sends (`overdraft_limit_bank` keeps showing that one) and no collector overwrites it."""
-    row, oldest = await service.set_overdraft(session, account_id, body.overdraft_limit)
+    changes = body.model_fields_set
+    if not changes:
+        raise AppError(422, "validation_error", "Nothing to change")
+    if changes & MANUAL_FIELDS:
+        await manual.update_account(session, account_id, body, clock())
+    if "overdraft_limit" in changes:
+        row, oldest = await service.set_overdraft(session, account_id, body.overdraft_limit)
+    else:
+        row, oldest = await service.account_with_history(session, account_id)
     display = await service.display_for(session, settings.finance_display_currency, clock())
     return AccountOut.from_row(row, oldest, display)
 
@@ -148,17 +159,28 @@ async def categories(
 
 @router.get("/providers")
 async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
-    """How each bank is shown: its logo from DASHBOARDS_PROVIDER_LOGOS (every id with one, and
-    every provider that has accounts, a missing logo being null). Fetch it once: the data URIs are
-    big and the accounts answer deliberately does not repeat them."""
+    """How each bank is shown: its name and brand colours (built in for the public brands, else the
+    owner's own on his connection) and its logo from DASHBOARDS_PROVIDER_LOGOS (a missing logo is
+    null), for every built-in brand, every id with a logo and every provider that has accounts.
+    Fetch it once: the data URIs are big and the accounts answer deliberately does not repeat
+    them."""
     logos = settings.provider_logos
-    names = set(logos) | set(await service.provider_ids(session))
-    return ProvidersOut(
-        providers=[
-            ProviderOut(id=name, logo=LogoOut(**{v: logos.get(name, {}).get(v) for v in VARIANTS}))
-            for name in sorted(names)
-        ]
-    )
+    names = set(logos) | set(BRANDS) | set(await service.provider_ids(session))
+    styles = await service.connection_styles(session)
+    found: list[ProviderOut] = []
+    for name in sorted(names):
+        brand, own = BRANDS.get(name), styles.get(name)
+        colors = own.colors if own and own.colors else brand or NEUTRAL
+        found.append(
+            ProviderOut(
+                id=name,
+                name=(own.name if own and own.name else brand.name if brand else name),
+                colors=ColorsOut(background=colors.background, foreground=colors.foreground),
+                logo=LogoOut(**{v: logos.get(name, {}).get(v) for v in VARIANTS}),
+                entry="api" if name in COLLECTOR_PROVIDERS else "manual",
+            )
+        )
+    return ProvidersOut(providers=found)
 
 
 @router.get("/summary")
