@@ -718,7 +718,7 @@ describe('the Money page: debts and installments', () => {
     expect(cards[0]).toHaveTextContent('Sofa installments');
     expect(cards[0]).toHaveTextContent('Creditor: Example Furniture Ltd');
     expect(cards[0]).toHaveTextContent('£450.00');
-    expect(cards[0]).toHaveTextContent('3 of 12 installments paid');
+    expect(cards[0]).toHaveTextContent('3 of 12 confirmed by the bank');
     expect(cards[0]).toHaveTextContent('Next: Dec 2, 2026 · £50.00');
     expect(cards[1]).toHaveTextContent('Family loan');
     expect(cards[1]).toHaveTextContent('£750.00 of £1,000.00 repaid');
@@ -833,5 +833,127 @@ describe('the Money page: managing recurring payments', () => {
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
     await user.click(within(gym).getByRole('button', { name: 'Deactivate' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-2')[0]?.body).toEqual({ is_active: false }));
+  });
+});
+
+describe('the Money page: what is verified and what is only on the list', () => {
+  const evidence = (matched: number, checked: number, last: string | null = null) => ({ last_matched_on: last, last_matched_amount: last ? 999 : null, matched_of_last: matched, checked });
+
+  it('marks every payment in words: confirmed by the bank (with the last match), no charge seen, or from the list and not checked', async () => {
+    setup({
+      finance: {
+        recurring: [
+          rec('r-1', 'Streaming', { account_id: 'a-current', evidence: evidence(2, 3, '2026-11-05'), schedule_state: 'on_track' }),
+          rec('r-2', 'Gym', { account_id: 'a-current', evidence: evidence(0, 3), schedule_state: 'on_track' }),
+          rec('r-3', 'Phone plan', { evidence: null, schedule_state: 'on_track' }),
+        ],
+      },
+    });
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    const row = (name: string) => within((panel.getByText(name).closest('li') as HTMLElement));
+    await waitFor(() => expect(row('Streaming').getByText('confirmed by the bank · last Nov 5, 2026')).toBeInTheDocument());
+    expect(row('Gym').getByText('no charge seen')).toBeInTheDocument();
+    expect(row('Phone plan').getByText('from your list, not checked')).toBeInTheDocument();
+  });
+
+  it('keeps a plan its own schedule has finished out of the debts and lists it apart, collapsed', async () => {
+    setup({
+      finance: {
+        recurring: [
+          rec('d-1', 'Sofa installments', { kind: 'debt', is_installment: true, total_installments: 12, completed_installments: 3, assumed_installments: 7, scheduled_installments: 10, remaining_balance: 45000, amount: 5000, creditor: 'Example Furniture Ltd', next_payment_date: '2026-12-02', schedule_state: 'on_track', evidence: evidence(1, 3, '2026-11-02'), account_id: 'a-current' }),
+          rec('d-2', 'Old phone plan', { kind: 'debt', is_installment: true, total_installments: 12, completed_installments: 2, assumed_installments: 10, scheduled_installments: 12, remaining_balance: 0, next_payment_date: '2026-10-02', schedule_state: 'ended_by_schedule', evidence: null }),
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    expect(panel.getByText('1 · £450.00 remaining')).toBeInTheDocument();
+    await user.click(panel.getAllByRole('button', { name: 'Show' })[0]);
+    const cards = panel.getAllByRole('listitem');
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent('Sofa installments');
+    expect(cards[0]).toHaveTextContent('by schedule 10 of 12 · 3 confirmed by the bank');
+    expect(cards[0]).toHaveTextContent('confirmed by the bank · last Nov 2, 2026');
+    expect(panel.queryByText('Old phone plan')).toBeNull();
+    // The ended plan is listed apart: a count first, the plan on request.
+    expect(panel.getByText('Ended by schedule: 1')).toBeInTheDocument();
+    await user.click(panel.getAllByRole('button', { name: 'Show' })[0]);
+    const ended = panel.getByText('Old phone plan').closest('li') as HTMLElement;
+    expect(ended).toHaveTextContent('ended by schedule');
+    expect(ended).toHaveTextContent('from your list, not checked');
+  });
+
+  it('says "none confirmed" when the bank has confirmed nothing of a plan the schedule has run', async () => {
+    setup({
+      finance: {
+        recurring: [
+          rec('d-1', 'Sofa installments', { kind: 'debt', is_installment: true, total_installments: 12, completed_installments: 0, assumed_installments: 4, scheduled_installments: 4, remaining_balance: 60000, amount: 5000, next_payment_date: '2026-12-02', schedule_state: 'on_track', evidence: evidence(0, 3), account_id: 'a-current' }),
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    await user.click(panel.getByRole('button', { name: 'Show' }));
+    expect(panel.getByRole('listitem')).toHaveTextContent('by schedule 4 of 12 · none confirmed by the bank');
+    expect(panel.getByRole('listitem')).toHaveTextContent('no charge seen');
+  });
+
+  it('leaves what is ended out of the upcoming payments, marks each one, and says how much of the total is confirmed and how much is not', async () => {
+    const day = (id: string, name: string, days: number, amount: number, extra: Record<string, unknown> = {}) => ({
+      recurring_id: id,
+      name,
+      kind: 'subscription',
+      due_date: `2026-11-${23 + days}`,
+      days_until: days,
+      amount,
+      currency: 'GBP',
+      display_amount: null,
+      converted: false,
+      account_id: null,
+      payment_method: null,
+      icon_url: null,
+      color: null,
+      covered: null,
+      shortfall: null,
+      account_currency: null,
+      ...extra,
+    });
+    setup({
+      finance: {
+        recurring: [
+          rec('r-1', 'Streaming', { account_id: 'a-current', evidence: evidence(3, 3, '2026-11-05'), schedule_state: 'on_track' }),
+          rec('r-2', 'Gym', { account_id: 'a-current', evidence: evidence(0, 3), schedule_state: 'on_track' }),
+          rec('r-3', 'Phone plan', { evidence: null, schedule_state: 'on_track' }),
+          rec('r-4', 'Finished plan', { kind: 'debt', is_installment: true, evidence: null, schedule_state: 'ended_by_schedule', next_payment_date: '2026-10-01' }),
+          rec('r-5', 'Old subscription', { kind: 'one_time', evidence: null, schedule_state: 'ended_by_schedule', next_payment_date: '2026-10-05' }),
+        ],
+        upcoming: {
+          from_date: '2026-11-23',
+          to_date: '2026-12-07',
+          items: [day('r-1', 'Streaming', 0, 1000), day('r-2', 'Gym', 1, 2500), day('r-3', 'Phone plan', 2, 500), day('r-4', 'Finished plan', 3, 7000)],
+          totals: [{ currency: 'GBP', amount: 11000, display_amount: null, converted: false }],
+          display: { currency: 'GBP', rates: {}, missing: [], complete: true, total: 11000 },
+        },
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
+    await panel.findByText('Streaming');
+    expect(panel.queryByText('Finished plan')).toBeNull();
+    const row = (name: string) => within(panel.getByText(name).closest('li') as HTMLElement);
+    expect(row('Streaming').getByText('confirmed by the bank · last Nov 5, 2026')).toBeInTheDocument();
+    expect(row('Gym').getByText('no charge seen')).toBeInTheDocument();
+    expect(row('Phone plan').getByText('from your list, not checked')).toBeInTheDocument();
+    expect(panel.getByText('Confirmed by the bank: £10.00')).toBeInTheDocument();
+    expect(panel.getByText('No charge seen: £25.00')).toBeInTheDocument();
+    expect(panel.getByText('From your list, not checked: £5.00')).toBeInTheDocument();
+    // What its schedule has finished (outside the debts) is listed apart.
+    expect(panel.getByText('Ended by schedule: 1')).toBeInTheDocument();
+    await user.click(panel.getByRole('button', { name: 'Show' }));
+    expect(panel.getByText('Old subscription')).toBeInTheDocument();
   });
 });

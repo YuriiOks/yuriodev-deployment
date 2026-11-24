@@ -12,7 +12,7 @@ import MoneyViewSwitch, { type MoneyView } from '../components/dashboards/Money/
 import { orderedActive } from '../components/dashboards/Money/attentionModel';
 import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
 import MoneyDebts from '../components/dashboards/Money/MoneyDebts';
-import { debtsOf } from '../components/dashboards/Money/recurringLabels';
+import { debtsOf, endedOf } from '../components/dashboards/Money/recurringLabels';
 import MoneyTotals from '../components/dashboards/Money/MoneyTotals';
 import MoneyTransactions from '../components/dashboards/Money/MoneyTransactions';
 import MoneyUpcoming from '../components/dashboards/Money/MoneyUpcoming';
@@ -87,6 +87,7 @@ const DashboardsMoney = () => {
     await (done.subjectType === 'account' ? accountChanged() : changed());
   };
   const debts = recurring.value ? debtsOf(recurring.value.recurring) : [];
+  const endedDebts = recurring.value ? endedOf(recurring.value.recurring, true) : [];
   // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
   const [mode, setMode] = useState<MoneyDisplay>(readMoneyDisplay);
   const choose = (next: MoneyDisplay) => {
@@ -168,16 +169,16 @@ const DashboardsMoney = () => {
             </div>
             {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
             {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
-            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} onDays={setDays} accounts={accounts.value?.accounts ?? []} mode={mode} />}
+            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} onDays={setDays} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
           </section>
-          {debts.length > 0 && (
+          {(debts.length > 0 || endedDebts.length > 0) && (
             <section aria-labelledby="money-debts-title" className={money.panel}>
               <div className={money.head}>
                 <h2 id="money-debts-title" className={money.title}>
                   {m.rec.debtsTitle}
                 </h2>
               </div>
-              <MoneyDebts rows={debts} mode={mode} />
+              <MoneyDebts rows={debts} ended={endedDebts} mode={mode} />
             </section>
           )}
           <section aria-labelledby="money-spend-title" className={money.panel}>
