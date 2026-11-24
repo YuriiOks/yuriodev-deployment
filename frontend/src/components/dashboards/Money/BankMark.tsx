@@ -13,8 +13,8 @@ const BankMark: React.FC<{ provider: string; logo?: ProviderLogo | null }> = ({ 
   const image = useImageFallback(logo?.mark);
   // A mark that cannot be loaded gives way to the letter tile at once, and is asked for once more a few seconds later.
   return logo?.mark && !image.failed ? (
-    <span aria-hidden="true" className={styles.bankIcon}>
-      <img key={image.attempt} src={logo.mark} alt="" draggable={false} onError={image.onError} />
+    <span ref={image.ref} aria-hidden="true" className={styles.bankIcon}>
+      <img key={image.attempt} src={image.ready ? logo.mark : undefined} alt="" decoding="async" draggable={false} onLoad={image.onLoad} onError={image.onError} />
     </span>
   ) : (
     <span aria-hidden="true" className={styles.bankMark} style={brandStyle(provider, logo)}>
