@@ -427,7 +427,7 @@ class FinanceCollector:
         async with sessions() as session, session.begin():
             for index in range(0, len(rows), INSERT_CHUNK):
                 chunk = insert(Transaction).values(rows[index : index + INSERT_CHUNK])
-                fresh = {
+                fresh: dict[str, Any] = {
                     name: chunk.excluded[name]
                     for name in rows[0]
                     if name not in ("account_id", "external_id")
