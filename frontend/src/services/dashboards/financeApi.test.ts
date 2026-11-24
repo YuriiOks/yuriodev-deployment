@@ -186,3 +186,27 @@ describe('transactionsPath', () => {
     expect(transactionsPath({ q: '   ', limit: 0 })).toBe('/finance/transactions?limit=1');
   });
 });
+
+describe('logo addresses', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const logos = (logo: Record<string, unknown>) => parseProviders({ providers: [{ id: 'acme-bank', name: 'Acme', logo }] })?.['acme-bank'];
+
+  it('takes a data URI or a same-origin path under the providers route, and nothing else', () => {
+    expect(logos({ on_light: png })?.onLight).toBe(png);
+    const path = '/api/dashboards/v1/finance/providers/acme-bank/logo/on_light.svg';
+    expect(logos({ on_light: path, mark: path })).toMatchObject({ onLight: path, mark: path });
+    for (const bad of [
+      'https://example.com/logo.png',
+      '//example.com/logo.png',
+      '/api/dashboards/v1/finance/providers/../../tasks',
+      '/api/dashboards/v1/finance/providers//evil.example.com/x.png',
+      '/api/dashboards/v1/finance/providers/%2e%2e/x',
+      '/api/dashboards/v1/finance/providers/acme?x=1',
+      '/api/other/logo.png',
+      'javascript:alert(1)',
+    ]) {
+      expect(logos({ on_light: bad, on_dark: png })?.onLight, bad).toBeNull();
+    }
+  });
+});
+
