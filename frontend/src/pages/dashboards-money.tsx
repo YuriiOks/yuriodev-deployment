@@ -32,6 +32,9 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './dashboards-money.module.css';
 
 /** No logos (until the server sends them, or when it cannot): the text names show. */
+/** An API bank whose balances are older than this is called out (the same two hours the server calls a connection stale after). */
+const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+
 const NO_LOGOS: Readonly<Record<string, ProviderLogo>> = {};
 
 /**
@@ -96,7 +99,20 @@ const DashboardsMoney = () => {
   };
   const converted = accounts.value ? hasConversion(accounts.value.accounts) : false;
   const banks = accounts.value ? groupBanks(accounts.value.accounts, accounts.value.connections) : [];
-  const asOf = summary.value?.asOf ? whenLabel(summary.value.asOf, lang) : '';
+  // "Updated" says the newest balance read, not the oldest; a bank read by its own API that has gone quiet is warned about apart.
+  const newest = summary.value?.asOfNewest ?? summary.value?.asOf ?? null;
+  const asOf = newest ? whenLabel(newest, lang) : '';
+  const oldest = summary.value?.asOfOldest ?? null;
+  const staleSince = (accounts.value?.connections ?? []).flatMap((link) => (link.stale && link.staleSince ? [link.staleSince] : [])).sort()[0] ?? (oldest && Date.now() - Date.parse(oldest) > STALE_AFTER_MS ? oldest : null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await dataChanged();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <>
@@ -108,6 +124,20 @@ const DashboardsMoney = () => {
               {m.back}
             </Link>
             {asOf && <> · {fill(m.updated, { when: asOf })}</>}
+            {live && (
+              <>
+                {' · '}
+                <button type="button" className={styles.refresh} disabled={refreshing} onClick={() => void refresh()}>
+                  {refreshing ? m.refreshing : m.refresh}
+                </button>
+              </>
+            )}
+            {staleSince && (
+              <>
+                {' · '}
+                <span className={styles.stale}>{fill(m.staleBanks, { when: whenLabel(staleSince, lang) })}</span>
+              </>
+            )}
           </p>
           {live && converted && (
             <div role="group" aria-label={m.displayLabel} className={money.display}>
