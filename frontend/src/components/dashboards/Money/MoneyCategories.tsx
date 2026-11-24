@@ -4,6 +4,7 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { CurrencyCategories, FinanceCategories } from '../../../services/dashboards/financeApi';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { formatMinor } from '../../../services/dashboards/money';
+import CategoryMark from './CategoryMark';
 import { dayLabel, monthName } from './labels';
 import styles from './Money.module.css';
 
@@ -23,18 +24,22 @@ const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previo
   }
   const sign = approx ? '≈ ' : '';
   const rows = block.categories.filter((row) => row.spent > 0).sort((a, b) => b.spent - a.spent);
+  // A bar is scaled to the largest category, not to the total, so the list reads as a comparison; the three largest are drawn stronger.
+  const largest = rows[0]?.spent ?? 0;
   return (
     <div className={styles.spendCurrency}>
       <p className={styles.spendHead}>
         {[monthName(month, lang), `${block.currency} ${sign}${formatMinor(block.spent, block.currency, lang)}`, change].filter(Boolean).join(' · ')}
       </p>
       <ul className={styles.spendList}>
-        {rows.map((row) => {
+        {rows.map((row, index) => {
           const share = block.spent > 0 ? Math.round((row.spent / block.spent) * 100) : 0;
           const rowBase = toDate ? (row.previousToDate ?? row.previous) : row.previous;
           const delta = row.spent - rowBase;
           return (
-            <li key={row.category} className={styles.spendRow} data-category={row.category}>
+            <li key={row.category} className={styles.spendRow} data-category={row.category} data-top={index < 3 ? 'true' : undefined}>
+              <CategoryMark category={row.category} variant="tile" />
+              <div className={styles.spendBody}>
               <div className={styles.spendTop}>
                 <span className={styles.spendName}>{m.categories[row.category]}</span>
                 <span className={styles.spendNumbers}>
@@ -48,7 +53,8 @@ const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previo
                 </span>
               </div>
               <div aria-hidden="true" className={styles.spendBar}>
-                <div className={styles.spendFill} style={{ width: `${share}%` }} />
+                <div className={styles.spendFill} style={{ width: `${largest > 0 ? Math.round((row.spent / largest) * 100) : 0}%` }} />
+              </div>
               </div>
             </li>
           );
