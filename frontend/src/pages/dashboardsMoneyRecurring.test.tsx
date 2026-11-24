@@ -608,7 +608,7 @@ describe('the Money page: upcoming payments', () => {
     to_date: '2026-12-07',
     items: [
       due('r-1', 'Streaming', '2026-11-23', 0, { covered: true, account_id: 'a-current', color: '#3366cc' }),
-      due('r-2', 'Gym', '2026-11-24', 1, { amount: 2500, covered: false, shortfall: 700, account_currency: 'GBP', account_id: 'a-current', icon_data: 'data:image/png;base64,iVBORw0KGgo=' }),
+      due('r-2', 'Gym', '2026-11-24', 1, { amount: 2500, covered: false, shortfall: 700, account_currency: 'GBP', account_id: 'a-current', icon_url: '/api/dashboards/v1/finance/recurring/r-2/icon?v=0a1b2c3d' }),
       due('r-3', 'Cloud storage', '2026-11-24', 1, { amount: 500, currency: 'USD', display_amount: 395, converted: true, payment_method: 'Visa ending 0000', covered: null }),
       due('r-4', 'Rent', '2026-12-01', 8, { amount: 90000, kind: 'housing' }),
     ],
@@ -649,14 +649,14 @@ describe('the Money page: upcoming payments', () => {
   });
 
   it('shows the inlined picture with no referrer (never an http address), hides it when it fails to load, and falls back to a tile in its colour', async () => {
-    setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_data: 'http://icons.example.com/x.png' })] } } });
+    setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_url: 'http://icons.example.com/x.png' })] } } });
     const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     await user.click(await panel.findByRole('button', { name: 'Show all 5' }));
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
     const image = gym.querySelector('img') as HTMLImageElement;
-    expect(image).toHaveAttribute('src', 'data:image/png;base64,iVBORw0KGgo=');
+    expect(image).toHaveAttribute('src', '/api/dashboards/v1/finance/recurring/r-2/icon?v=0a1b2c3d');
     expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
     fireEvent.error(image);
     expect(gym.querySelector('img')).toBeNull();
