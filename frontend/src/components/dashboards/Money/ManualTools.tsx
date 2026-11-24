@@ -32,8 +32,10 @@ const BalanceForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) 
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const minor = parseMinor(amount, account.currency, { signed: !card });
-    if (minor === null || (card && minor < 0)) return setProblem(x.balanceInvalid);
+    // A balance may be nothing or below it; what is owed on a card may be nothing (a card paid off) but never below it.
+    const minor = parseMinor(amount, account.currency, { signed: true });
+    if (minor === null) return setProblem(card ? x.owedInvalid : x.balanceInvalid);
+    if (card && minor < 0) return setProblem(x.owedInvalid);
     setBusy(true);
     setProblem(null);
     try {

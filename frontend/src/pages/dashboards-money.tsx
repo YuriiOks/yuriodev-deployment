@@ -61,30 +61,30 @@ const DashboardsMoney = () => {
   const attention = useAttention(showHidden, live);
   const upcoming = useUpcoming(days, live);
   const recurring = useRecurring(live);
-  const changed = () => {
-    attention.reload();
-    upcoming.reload();
-    recurring.reload();
+  // Resolves when the new answers are in, so a button stays busy until the list it acted on is current.
+  const changed = async () => {
+    await Promise.all([attention.reload(), upcoming.reload(), recurring.reload()]);
   };
   // A bank entered by hand changed (a balance set, a statement imported): the accounts, the totals, what needs attention and the transactions are asked again.
   const [txKey, setTxKey] = useState(0);
-  const dataChanged = () => {
-    accounts.reload();
-    summary.reload();
-    providers.reload();
-    changed();
+  const dataChanged = async () => {
     setTxKey((n) => n + 1);
+    await Promise.all([accounts.reload(), summary.reload(), providers.reload(), spend.reload(), changed()]);
+  };
+  // An account was changed from an attention card (an overdraft limit): the wallet and the totals ask again too.
+  const accountChanged = async () => {
+    await Promise.all([accounts.reload(), summary.reload(), changed()]);
   };
   // The item whose details are open (a sheet), and the card that opened it.
   const [sheet, setSheet] = useState<{ key: string; opener: HTMLElement | null } | null>(null);
   const ordered = attention.value ? orderedActive(attention.value.items) : [];
   const sheetItem = sheet ? (ordered.find((entry) => entry.key === sheet.key) ?? null) : null;
   /** An item was dealt with: the sheet moves to the next one (or the one before the last) and closes when none is left. */
-  const acted = (done: AttentionItem) => {
+  const acted = async (done: AttentionItem) => {
     const index = ordered.findIndex((entry) => entry.key === done.key);
     const next = ordered[index + 1] ?? ordered[index - 1];
     setSheet(next && sheet ? { key: next.key, opener: sheet.opener } : null);
-    changed();
+    await (done.subjectType === 'account' ? accountChanged() : changed());
   };
   const debts = recurring.value ? debtsOf(recurring.value.recurring) : [];
   const endedDebts = recurring.value ? endedOf(recurring.value.recurring, true) : [];
@@ -94,7 +94,7 @@ const DashboardsMoney = () => {
     setMode(next);
     writeMoneyDisplay(next);
   };
-  const converted = accounts.value ? hasConversion(accounts.value.accounts, summary.value) : false;
+  const converted = accounts.value ? hasConversion(accounts.value.accounts) : false;
   const banks = accounts.value ? groupBanks(accounts.value.accounts, accounts.value.connections) : [];
   const asOf = summary.value?.asOf ? whenLabel(summary.value.asOf, lang) : '';
 
@@ -145,7 +145,7 @@ const DashboardsMoney = () => {
               {attention.status === 'loading' && <LoadingBlock rows={3} />}
               {attention.status === 'error' && <InlineError message={m.rec.attentionFailed} onRetry={attention.reload} />}
               {attention.value && (
-                <MoneyAttentionView data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onOpenBank={setSelected} />
+                <MoneyAttentionView data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onAccountChanged={accountChanged} onOpenBank={setSelected} />
               )}
             </>
           ) : (

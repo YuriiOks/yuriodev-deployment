@@ -13,9 +13,12 @@ export interface Shown {
   readonly pots: number;
 }
 
-/** True when the server sent any converted figure at all (the display toggle is only offered then). */
-export function hasConversion(accounts: readonly FinanceAccount[], summary: FinanceSummary | null): boolean {
-  return accounts.some((account) => account.display !== null) || summary?.total != null;
+/** An open account the server really converted (it is in another currency than the display one) and has a display figure for. */
+const isConverted = (account: FinanceAccount): boolean => !account.archived && account.converted && account.display !== null;
+
+/** True when something on the page was really converted (the display toggle is only offered then: an all-pounds owner has nothing to switch). */
+export function hasConversion(accounts: readonly FinanceAccount[]): boolean {
+  return accounts.some(isConverted);
 }
 
 /**
@@ -70,7 +73,7 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
 
 /** The grand total in the display currency: the server's when it sends one, else the converted accounts' sum; null when nothing was converted. */
 export function grandTotal(accounts: readonly FinanceAccount[], summary: FinanceSummary | null): { amount: number; currency: string; approx: boolean } | null {
-  if (summary?.total) return { ...summary.total, approx: accounts.some((account) => account.converted) || accounts.length === 0 };
+  if (summary?.total) return { ...summary.total, approx: accounts.some(isConverted) };
   const converted = shownTotals(accounts, 'base').filter((shown) => shown.approx || accounts.some((account) => account.display?.currency === shown.currency));
   const first = converted[0];
   return first ? { amount: first.amount, currency: first.currency, approx: first.approx } : null;

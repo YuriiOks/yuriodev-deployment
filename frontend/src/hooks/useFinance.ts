@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchCategories, fetchFinanceAccounts, fetchFinanceSummary, fetchProviders, fetchTransactions, type Category, type FinanceAccounts, type FinanceCategories, type FinanceSummary, type FinanceTransaction, type ProviderLogo } from '../services/dashboards/financeApi';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
@@ -8,31 +8,42 @@ interface Slot<T> {
   readonly value: T | null;
 }
 
-/** One GET kept in state: asked on mount and on `reload`; `value` is null while loading and on an error. */
-export function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: boolean): { status: LoadStatus; value: T | null; reload: () => void } {
+/** One GET kept in state: asked on mount and on `reload`; `value` is null while loading and on an error. `reload` resolves when the new answer (or its failure) has come back. */
+export function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: boolean): { status: LoadStatus; value: T | null; reload: () => Promise<void> } {
   const [token, setToken] = useState(0);
   const [slot, setSlot] = useState<Slot<T> | null>(null);
+  // Whoever asked for a reload waits here until an answer that was not replaced meanwhile arrives.
+  const waiters = useRef<(() => void)[]>([]);
+  const settle = useCallback(() => {
+    const pending = waiters.current;
+    waiters.current = [];
+    for (const resolve of pending) resolve();
+  }, []);
   useEffect(() => {
     if (!enabled) return undefined;
     const controller = new AbortController();
     load(controller.signal).then(
       (value) => {
-        if (!controller.signal.aborted) setSlot({ token, value });
+        if (controller.signal.aborted) return;
+        setSlot({ token, value });
+        settle();
       },
       () => {
-        if (!controller.signal.aborted) setSlot({ token, value: null });
+        if (controller.signal.aborted) return;
+        setSlot({ token, value: null });
+        settle();
       },
     );
     return () => controller.abort();
-  }, [token, enabled, load]);
+  }, [token, enabled, load, settle]);
   const current = slot && slot.token === token ? slot : null;
-  return { status: current ? (current.value ? 'ready' : 'error') : 'loading', value: current?.value ?? null, reload: () => setToken((n) => n + 1) };
+  return { status: current ? (current.value ? 'ready' : 'error') : 'loading', value: current?.value ?? null, reload: () => new Promise<void>((resolve) => { waiters.current.push(resolve); setToken((n) => n + 1); }) };
 }
 
 export interface Kept<T> {
   readonly status: LoadStatus;
   readonly value: T | null;
-  readonly reload: () => void;
+  readonly reload: () => Promise<void>;
 }
 
 /** While an answer is being asked again (after a change, or for another window) the last good one stays on screen, so the cards do not vanish and come back; an error shows as one. */
@@ -52,7 +63,7 @@ const loadCategories = (signal: AbortSignal) => fetchCategories(undefined, signa
 export const useProviderLogos = (enabled: boolean) => useKeepLast(useOnce<Record<string, ProviderLogo>>(loadProviders, enabled));
 
 /** This month's spend per currency and category, with the month before beside it (GET /finance/categories). */
-export const useFinanceCategories = (enabled: boolean) => useOnce<FinanceCategories>(loadCategories, enabled);
+export const useFinanceCategories = (enabled: boolean) => useKeepLast(useOnce<FinanceCategories>(loadCategories, enabled));
 
 /** The accounts with the state of each bank link (GET /finance/accounts). Each request has its own loading and error state. */
 export const useFinanceAccounts = (enabled: boolean) => useKeepLast(useOnce<FinanceAccounts>(loadAccounts, enabled));

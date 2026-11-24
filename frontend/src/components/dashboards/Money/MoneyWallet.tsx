@@ -140,18 +140,25 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
           {use.kind === 'none' && <Amount amount={account.ownBalance} currency={account.currency} display={account.display} mode={mode} />}
         </strong>
       </div>
-      {(use.kind === 'debt' || (use.kind === 'overdrawn' && use.limit > 0)) && (
+      {use.kind === 'debt' && use.limit === 0 && <span className={styles.accountNote}>{m.limitUnknown}</span>}
+      {((use.kind === 'debt' && use.limit > 0) || (use.kind === 'overdrawn' && use.limit > 0)) && (
         <>
           <div aria-hidden="true" className={styles.bar}>
             <div className={styles.barFill} style={{ width: `${use.percent}%` }} />
           </div>
-          <span className={styles.accountNote}>
+          <span className={styles.accountNote} data-over={use.over > 0 ? 'true' : undefined}>
             {account.overdraftSource === 'owner' && use.kind === 'overdrawn' && `${m.ownLimit} · `}
-            {fill(use.kind === 'debt' ? m.usedOfLimit : m.usedOfOverdraft, {
-              percent: use.percent,
-              limit: formatMinor(use.limit, account.currency, lang),
-              free: formatMinor(use.free, account.currency, lang),
-            })}
+            {use.over > 0 ? (
+              <>
+                <DashIcon name="alert" size={14} /> {fill(m.overLimit, { limit: formatMinor(use.limit, account.currency, lang), over: formatMinor(use.over, account.currency, lang) })}
+              </>
+            ) : (
+              fill(use.kind === 'debt' ? m.usedOfLimit : m.usedOfOverdraft, {
+                percent: use.percent,
+                limit: formatMinor(use.limit, account.currency, lang),
+                free: formatMinor(use.free, account.currency, lang),
+              })
+            )}
           </span>
         </>
       )}

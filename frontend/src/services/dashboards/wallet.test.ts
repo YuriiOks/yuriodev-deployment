@@ -73,11 +73,18 @@ describe('wallet', () => {
   });
 
   it('reads a credit account as a debt with how much of the limit is used, an account below zero with no limit as overdrawn', () => {
-    expect(creditUse(acct('card', { balance: 217400, creditLimit: 7000000, ownBalance: -6782600 }))).toEqual({ kind: 'debt', used: 6782600, limit: 7000000, percent: 97, free: 217400 });
+    expect(creditUse(acct('card', { balance: 217400, creditLimit: 7000000, ownBalance: -6782600 }))).toEqual({ kind: 'debt', used: 6782600, limit: 7000000, percent: 96, free: 217400, over: 0 });
     expect(creditUse(acct('paid', { balance: 7000000, creditLimit: 7000000, ownBalance: 0 })).kind).toBe('none');
     expect(creditUse(acct('over', { balance: -74782, ownBalance: -74782 }))).toMatchObject({ kind: 'overdrawn', used: 74782 });
     expect(creditUse(acct('fine'))).toMatchObject({ kind: 'none', used: 0 });
-    expect(creditUse(acct('beyond', { balance: -500, creditLimit: 1000, ownBalance: -1500 })).percent).toBe(100);
+    expect(creditUse(acct('beyond', { balance: -500, creditLimit: 1000, ownBalance: -1500 }))).toMatchObject({ percent: 100, free: 0, over: 500 });
+    // The percent is rounded down, as the attention items say it (never 100 until the limit is reached).
+    expect(creditUse(acct('nearly', { balance: 5, creditLimit: 1000, ownBalance: -995 })).percent).toBe(99);
+    // An overdraft that is used beyond its agreed limit says by how much.
+    expect(creditUse(acct('past', { balance: -1200, ownBalance: -1200, overdraftLimit: 1000 }))).toMatchObject({ kind: 'overdrawn', percent: 100, free: 0, over: 200 });
+    // A credit card with no limit on record that is owed money is a debt (its limit unknown), never an overdraft.
+    expect(creditUse(acct('card', { kind: 'credit_card', balance: -4000, ownBalance: -4000 }))).toEqual({ kind: 'debt', used: 4000, limit: 0, percent: 0, free: 0, over: 0 });
+    expect(creditUse(acct('card0', { kind: 'credit_card', balance: 0, ownBalance: 0 })).kind).toBe('none');
   });
 
   it('folds business accounts away whatever is in them, and reads an agreed overdraft as used of that overdraft', () => {
@@ -89,7 +96,7 @@ describe('wallet', () => {
     expect(split.accounts.map((a) => a.id)).toEqual(['main']);
     expect(split.business.map((a) => a.id)).toEqual(['biz-full', 'biz-zero']);
     expect(split.emptyAccounts).toEqual([]);
-    expect(creditUse(acct('over', { balance: -74782, ownBalance: -74782, overdraftLimit: 100000 }))).toEqual({ kind: 'overdrawn', used: 74782, limit: 100000, percent: 75, free: 25218 });
+    expect(creditUse(acct('over', { balance: -74782, ownBalance: -74782, overdraftLimit: 100000 }))).toEqual({ kind: 'overdrawn', used: 74782, limit: 100000, percent: 74, free: 25218, over: 0 });
   });
 
   it('takes the emoji a pot\'s name starts with as its picture and strips it from the label', () => {
