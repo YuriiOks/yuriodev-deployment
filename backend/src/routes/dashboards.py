@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.clock import Clock
 from src.core.config import Settings
 from src.dashboards import projects as project_service
-from src.dashboards import service
+from src.dashboards import service, today
 from src.dashboards.catalog import DEFAULT_SPACE_NAMES, TaskStatusFilter
 from src.dashboards.runtime import get_runtime, session_scope
 from src.dashboards.schemas import (
@@ -70,6 +70,22 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
         spaces=[SpaceRef(id=s, name=names.get(s, s), icon=icons.get(s)) for s in spaces],
         areas=[AreaOut.model_validate(area) for area in areas],
         server_time=now,
+    )
+
+
+@router.get("/today")
+async def today_page(
+    session: SessionDep,
+    clock: ClockDep,
+    zone: ZoneDep,
+    settings: SettingsDep,
+    scope: Annotated[today.Scope, Query()],
+) -> today.TodayPageOut:
+    """Everything the Today view of one page shows (`personal`, `work-1`, `work-2` or `money`) as
+    data and codes: a headline's facts, a queue of at most three decisions, what is coming, two
+    stats, one breakdown with an insight, today's rows. See `src/dashboards/today.py`."""
+    return await today.build(
+        session, scope, clock(), zone, settings.finance_display_currency, assistant_enabled=False
     )
 
 
