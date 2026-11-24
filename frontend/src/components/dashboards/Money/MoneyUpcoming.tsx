@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
@@ -40,6 +40,12 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; accounts: readonly FinanceAcco
   );
 };
 
+/** The default view: payments due within this many days from today (today is day 0)... */
+const UPCOMING_WEEK_DAYS = 6;
+/** ...at most this many rows, and when nothing is due that week, this many of the next ones. */
+const UPCOMING_ROWS = 8;
+const UPCOMING_FALLBACK_ROWS = 3;
+
 export interface MoneyUpcomingProps {
   data: Upcoming;
   days: number;
@@ -52,8 +58,13 @@ export interface MoneyUpcomingProps {
 const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accounts, mode }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
+  // By default the next 7 days, at most 8 rows (when nothing falls in the week, the first few that follow); "Show all" opens the whole window.
+  const [all, setAll] = useState(false);
+  const week = data.items.filter((item) => item.daysUntil <= UPCOMING_WEEK_DAYS);
+  const bounded = (week.length > 0 ? week : data.items.slice(0, UPCOMING_FALLBACK_ROWS)).slice(0, UPCOMING_ROWS);
+  const visible = all ? data.items : bounded;
   const groups: { date: string; daysUntil: number; items: UpcomingItem[] }[] = [];
-  for (const item of data.items) {
+  for (const item of visible) {
     const last = groups[groups.length - 1];
     if (last && last.date === item.dueDate) last.items.push(item);
     else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, items: [item] });
@@ -89,6 +100,11 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
               </li>
             ))}
           </ol>
+          {data.items.length > visible.length || all ? (
+            <button type="button" className={styles.more} aria-expanded={all} onClick={() => setAll((on) => !on)}>
+              {all ? r.showFewer : fill(r.showAllN, { n: data.items.length })}
+            </button>
+          ) : null}
           <div className={styles.dueTotals}>
             <span className={styles.note}>{r.dueTotals}</span>
             {showGrand && data.grand && (

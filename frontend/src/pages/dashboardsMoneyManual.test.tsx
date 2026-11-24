@@ -233,7 +233,11 @@ describe('the Money page: a statement that is out of date', () => {
     });
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Needs attention' }));
+    // Urgent, so the collapsed strip says it in words.
     expect(panel.getByText('The data of Hand Bank is out of date: the newest is from Oct 1, 2026 (54 d ago).')).toBeInTheDocument();
-    expect(panel.getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
+    await userEvent.setup().click(panel.getByRole('button', { name: 'Show' }));
+    const row = within(panel.getByRole('group', { name: /^Out-of-date data/ }).querySelector('li') as HTMLElement);
+    expect(row.getByText('Hand Bank')).toBeInTheDocument();
+    expect(row.getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
   });
 });

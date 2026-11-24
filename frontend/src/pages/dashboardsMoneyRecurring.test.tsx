@@ -123,6 +123,28 @@ afterEach(() => {
 
 const attentionPanel = async () => within(await within(main()).findByRole('region', { name: 'Needs attention' }));
 
+/** Ten items of mixed kinds: two overdrafts, one each of the urgent kinds, and five changed amounts. */
+const mixedItems = () => [
+  item('amount_changed', 'c1', ['recurring', 'r-3'], { amount: 1250, currency: 'GBP', facts: { recorded_amount: 1000, charged_amount: 1250 } }),
+  item('amount_changed', 'c2', ['recurring', 'r-4'], { amount: 2000, currency: 'GBP', facts: { recorded_amount: 1500, charged_amount: 2000 } }),
+  item('amount_changed', 'c3', ['recurring', 'r-5'], { amount: 3000, currency: 'GBP', facts: { recorded_amount: 2500, charged_amount: 3000 } }),
+  item('amount_changed', 'c4', ['recurring', 'r-6'], { amount: 4000, currency: 'GBP', facts: { recorded_amount: 3500, charged_amount: 4000 } }),
+  item('amount_changed', 'c5', ['recurring', 'r-7'], { amount: 5000, currency: 'GBP', facts: { recorded_amount: 4500, charged_amount: 5000 } }),
+  item('credit_high', 'k4', ['account', 'a-card'], { amount: 217400, currency: 'GBP', facts: { used_percent: 72, owed: 217400, credit_limit: 300000 } }),
+  item('stale_statement', 'k8', ['connection', 'c-2'], { facts: { provider: 'hand-bank', as_of: '2026-10-01', days_old: 54 } }),
+  item('reconsent', 'k6', ['connection', 'c-1'], { facts: { provider: 'monzo' } }),
+  item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } }),
+  item('due_not_covered', 'k1', ['recurring', 'r-1'], { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }),
+  item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', facts: { over_by: 4000 } }),
+  item('overdraft', 'k9', ['account', 'a-card'], { amount: 100, currency: 'GBP', facts: { over_by: 100 } }),
+];
+const mixedPayments = () => [rec('r-1', 'Streaming'), rec('r-2', 'Gym'), rec('r-3', 'Phone plan'), rec('r-4', 'Broadband'), rec('r-5', 'Insurance'), rec('r-6', 'Water'), rec('r-7', 'Energy')];
+const openStrip = async (user: ReturnType<typeof userEvent.setup>) => {
+  const panel = await attentionPanel();
+  await user.click(await panel.findByRole('button', { name: 'Show' }));
+  return panel;
+};
+
 describe('the Money page: needs attention', () => {
   it('renders nothing at all when there is nothing to look at', async () => {
     setup();
@@ -132,111 +154,209 @@ describe('the Money page: needs attention', () => {
     expect(within(main()).queryByRole('region', { name: 'Needs attention' })).toBeNull();
   });
 
-  it('tells each kind in one plain sentence from its facts, with the action that fits it', async () => {
-    setup({
-      finance: {
-        recurring: [rec('r-1', 'Streaming'), rec('r-2', 'Gym'), rec('r-3', 'Phone plan')],
-        attention: [
-          item('due_not_covered', 'k1', ['recurring', 'r-1'], { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }),
-          item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } }),
-          item('amount_changed', 'k3', ['recurring', 'r-3'], { amount: 1250, currency: 'GBP', facts: { recorded_amount: 1000, charged_amount: 1250 } }),
-          item('credit_high', 'k4', ['account', 'a-card'], { amount: 217400, currency: 'GBP', facts: { used_percent: 72, owed: 217400, credit_limit: 300000 } }),
-          item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', facts: { over_by: 4000 } }),
-          item('reconsent', 'k6', ['connection', 'c-1'], { facts: { provider: 'monzo' } }),
-        ],
-      },
-    });
+  it('is one compact strip when collapsed: the count, a chip per kind and the most urgent item in words, with no rows or controls', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     renderAt(PATH);
     const panel = await attentionPanel();
-    const cards = panel.getAllByRole('listitem');
-    expect(cards.map((card) => card.getAttribute('data-kind'))).toEqual(['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'reconsent']);
-    expect(cards[0]).toHaveTextContent('Streaming is due tomorrow (£9.99) and the paying account is short by £2.50.');
-    expect(cards[1]).toHaveTextContent('Gym was due 3 d ago (£25.00) and no matching transaction has been seen.');
-    expect(cards[2]).toHaveTextContent('Phone plan was charged £12.50 instead of the recorded £10.00.');
-    expect(cards[3]).toHaveTextContent('Plastic card has used 72% of its limit (£2,174.00 of £3,000.00).');
-    expect(cards[4]).toHaveTextContent('Everyday is £40.00 past its overdraft.');
-    expect(cards[5]).toHaveTextContent('The Monzo connection needs to be approved again.');
-    // The server's English title is not shown while the facts are there.
-    expect(panel.queryByText(/The server's own English title/)).toBeNull();
-    // Actions that fit each kind.
-    expect(within(cards[0]).getByRole('button', { name: 'Mark paid' })).toBeInTheDocument();
-    expect(within(cards[0]).getByRole('link', { name: 'Open payment' })).toHaveAttribute('href', expect.stringContaining('view=recurring&edit=r-1'));
-    expect(within(cards[2]).getByRole('link', { name: 'Open payment' })).toBeInTheDocument();
-    expect(within(cards[3]).getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
-    expect(within(cards[5]).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
-    for (const card of cards) {
-      expect(within(card).getByRole('button', { name: 'Snooze' })).toBeInTheDocument();
-      expect(within(card).getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
-    }
+    expect(panel.getByText('12')).toBeInTheDocument();
+    const chips = panel.getAllByRole('listitem').map((chip) => chip.textContent);
+    expect(chips).toEqual(['2 overdrawn', '1 payment not covered', '1 missed payment', '1 connection to approve', '1 card near its limit', '1 bank out of date', '5 amounts changed']);
+    // The most urgent one, as a sentence: the first overdraft.
+    expect(panel.getByText('Everyday is £40.00 past its overdraft.')).toBeInTheDocument();
+    expect(panel.getByRole('button', { name: 'Show' })).toHaveAttribute('aria-expanded', 'false');
+    expect(panel.queryByRole('button', { name: 'Snooze for 3 d' })).toBeNull();
+    expect(panel.queryByRole('group')).toBeNull();
   });
 
-  it('falls back to the server\'s title when a fact is missing, and speaks Russian when asked', async () => {
-    setup({ lang: 'ru', finance: { recurring: [rec('r-2', 'Спортзал')], attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { title: 'Gym was due', amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } }), item('missed_payment', 'k9', ['recurring', 'r-2'], { title: 'The fallback title', amount: 2500, currency: 'GBP' })] } });
+  it.each([
+    ['due_not_covered', { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }, ['recurring', 'r-1'], 'Streaming is due tomorrow (£9.99) and the paying account is short by £2.50.'],
+    ['missed_payment', { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } }, ['recurring', 'r-2'], 'Gym was due 3 d ago (£25.00) and no matching transaction has been seen.'],
+    ['credit_high', { amount: 217400, currency: 'GBP', facts: { used_percent: 72, owed: 217400, credit_limit: 300000 } }, ['account', 'a-card'], 'Plastic card has used 72% of its limit (£2,174.00 of £3,000.00).'],
+    ['reconsent', { facts: { provider: 'monzo' } }, ['connection', 'c-1'], 'The Monzo connection needs to be approved again.'],
+    ['stale_statement', { facts: { provider: 'hand-bank', as_of: '2026-10-01', days_old: 54 } }, ['connection', 'c-2'], 'The data of Hand bank is out of date: the newest is from Oct 1, 2026 (54 d ago).'],
+  ] as const)('tells the most urgent %s item in one plain sentence in the collapsed strip', async (kind, extra, subject, sentence) => {
+    setup({ finance: { recurring: mixedPayments(), attention: [item(kind, 'k', [subject[0], subject[1]], { ...extra, facts: { ...extra.facts } })] } });
     renderAt(PATH);
-    const panel = within(await within(main()).findByRole('region', { name: 'Требует внимания' }));
-    const cards = panel.getAllByRole('listitem');
-    expect(cards[0]).toHaveTextContent('Спортзал: срок был 3 дн. назад');
-    expect(cards[1]).toHaveTextContent('The fallback title');
-    expect(within(cards[0]).getByRole('button', { name: 'Отметить оплаченным' })).toBeInTheDocument();
+    expect(await (await attentionPanel()).findByText(sentence)).toBeInTheDocument();
   });
 
-  it('marks a payment paid, snoozes for a chosen number of days and dismisses, asking the server and then again for the list', async () => {
-    const api = setup({
-      finance: {
-        recurring: [rec('r-2', 'Gym')],
-        attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } }), item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP' }), item('overdraft', 'k7', ['account', 'a-current'], { amount: 100, currency: 'GBP' })],
-      },
-    });
+  it('falls back to the server\'s title when a fact is missing', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k', ['recurring', 'r-2'], { title: 'The fallback title', amount: 2500, currency: 'GBP' })] } });
+    renderAt(PATH);
+    expect(await (await attentionPanel()).findByText('The fallback title')).toBeInTheDocument();
+  });
+
+  it('shows no sentence for a strip that holds only changed amounts (informational), just the chip', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems().slice(0, 2) } });
+    renderAt(PATH);
+    const panel = await attentionPanel();
+    expect(panel.getAllByRole('listitem').map((chip) => chip.textContent)).toEqual(['2 amounts changed']);
+    expect(panel.queryByText(/was charged/)).toBeNull();
+  });
+
+  it('opens into groups in severity order, three rows each with "Show all", every row one line: name, the fact in short form, one primary action and a menu', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
     renderAt(PATH);
-    let panel = await attentionPanel();
-    await user.click(within(panel.getAllByRole('listitem')[0]).getByRole('button', { name: 'Mark paid' }));
+    const panel = await openStrip(user);
+    const groups = panel.getAllByRole('group').filter((group) => group.getAttribute('data-kind'));
+    expect(groups.map((group) => group.getAttribute('data-kind'))).toEqual(['overdraft', 'due_not_covered', 'missed_payment', 'reconsent', 'credit_high', 'stale_statement', 'amount_changed']);
+    expect(within(groups[0]).getByRole('heading', { level: 3 })).toHaveTextContent('Overdrawn 2');
+    const overdraft = within(groups[0]).getAllByRole('listitem');
+    expect(overdraft[0]).toHaveTextContent('Everyday');
+    expect(overdraft[0]).toHaveTextContent('£40.00 past the overdraft');
+    expect(within(overdraft[0]).getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
+    expect(within(groups[1]).getByRole('listitem')).toHaveTextContent('Streaming£9.99 tomorrow · short £2.50');
+    expect(within(within(groups[1]).getByRole('listitem')).getByRole('button', { name: 'Mark paid' })).toBeInTheDocument();
+    expect(within(groups[2]).getByRole('listitem')).toHaveTextContent('Gym£25.00 · 3 d overdue');
+    expect(within(within(groups[3]).getByRole('listitem')).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
+    expect(within(groups[4]).getByRole('listitem')).toHaveTextContent('72% of the limit');
+    expect(within(groups[5]).getByRole('listitem')).toHaveTextContent('Hand bank');
+    expect(within(groups[5]).getByRole('listitem')).toHaveTextContent('as of Oct 1, 2026 · 54 d old');
+    // Changed amounts last, three rows of five.
+    const changed = within(groups[6]);
+    expect(changed.getAllByRole('listitem')).toHaveLength(3);
+    expect(changed.getAllByRole('listitem')[0]).toHaveTextContent('Phone plan£12.50, recorded £10.00');
+    await user.click(changed.getByRole('button', { name: 'Show all 5' }));
+    expect(changed.getAllByRole('listitem')).toHaveLength(5);
+    await user.click(changed.getByRole('button', { name: 'Show fewer' }));
+    expect(changed.getAllByRole('listitem')).toHaveLength(3);
+    // No select boxes in the rows.
+    expect(panel.queryByRole('combobox')).toBeNull();
+  });
+
+  it('remembers open or closed for the viewer', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    const first = renderAt(PATH);
+    await openStrip(user);
+    expect(localStorage.getItem('dashboards-money-attention-open')).toBe('true');
+    first.unmount();
+    renderAt(PATH);
+    const panel = await attentionPanel();
+    expect(await panel.findByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true');
+    await user.click(panel.getByRole('button', { name: 'Collapse' }));
+    expect(localStorage.getItem('dashboards-money-attention-open')).toBe('false');
+  });
+
+  it('does what a row\'s buttons say: mark paid, snooze from the menu (the days inside it), dismiss; then asks for the list again', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openStrip(user);
+    const group = (kind: string) => within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === kind) as HTMLElement);
+    await user.click(within(group('missed_payment').getAllByRole('listitem')[0]).getByRole('button', { name: 'Mark paid' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-2/paid')).toHaveLength(1));
-    // Snooze: pick 3 days, then Snooze.
-    panel = await attentionPanel();
-    const second = panel.getAllByRole('listitem')[1];
-    await user.selectOptions(within(second).getByRole('combobox'), '3');
-    await user.click(within(second).getByRole('button', { name: 'Snooze' }));
+    // The menu: Open payment, the four snooze choices and Dismiss.
+    const row = group('due_not_covered').getAllByRole('listitem')[0];
+    await user.click(within(row).getByRole('button', { name: 'More: Streaming' }));
+    expect(within(row).getByRole('link', { name: 'Open payment' })).toHaveAttribute('href', expect.stringContaining('view=recurring&edit=r-1'));
+    for (const days of [1, 3, 7, 30]) expect(within(row).getByRole('button', { name: `Snooze for ${days} d` })).toBeInTheDocument();
+    await user.click(within(row).getByRole('button', { name: 'Snooze for 3 d' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/attention/snooze')).toHaveLength(1));
-    expect(api.callsTo('POST', '/finance/attention/snooze')[0].body).toEqual({ key: 'k5', days: 3 });
-    // The snoozed one is gone from the list and counted as hidden.
-    await waitFor(() => expect(panel.getAllByRole('listitem')).toHaveLength(2));
-    await user.click((await attentionPanel()).getAllByRole('button', { name: 'Dismiss' })[1]);
-    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/dismiss')[0]?.body).toEqual({ key: 'k7' }));
-    await waitFor(() => expect(within(main()).getByText('2 hidden')).toBeInTheDocument());
+    expect(api.callsTo('POST', '/finance/attention/snooze')[0].body).toEqual({ key: 'k1', days: 3 });
+    // The group is gone once its only item is snoozed.
+    await waitFor(() => expect(panel.queryByRole('heading', { name: /Due soon, not covered/ })).toBeNull());
+    const overdraftRow = group('overdraft').getAllByRole('listitem')[1];
+    await user.click(within(overdraftRow).getByRole('button', { name: 'More: Plastic card' }));
+    await user.click(within(overdraftRow).getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/dismiss')[0]?.body).toEqual({ key: 'k9' }));
   });
 
-  it('counts the hidden ones, shows them on request and restores one', async () => {
+  it('accepts every charged amount of a group (each payment\'s amount becomes the charged one), and snoozes or dismisses a whole group with a confirmation before the dismissal', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openStrip(user);
+    const changed = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'amount_changed') as HTMLElement);
+    await user.click(changed.getByRole('button', { name: 'Accept charged amounts' }));
+    await waitFor(() => expect(api.calls.filter((call) => call.method === 'PATCH' && call.path.startsWith('/finance/recurring/'))).toHaveLength(5));
+    const bodies = api.calls.filter((call) => call.method === 'PATCH').map((call) => [call.path, call.body]);
+    expect(bodies).toEqual([
+      ['/finance/recurring/r-3', { amount: 1250 }],
+      ['/finance/recurring/r-4', { amount: 2000 }],
+      ['/finance/recurring/r-5', { amount: 3000 }],
+      ['/finance/recurring/r-6', { amount: 4000 }],
+      ['/finance/recurring/r-7', { amount: 5000 }],
+    ]);
+    // Snooze all: one request per item, 7 days.
+    const overdraft = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'overdraft') as HTMLElement);
+    await user.click(overdraft.getByRole('button', { name: 'Snooze all for 7 d' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/snooze')).toHaveLength(2));
+    expect(api.callsTo('POST', '/finance/attention/snooze').map((call) => call.body)).toEqual([{ key: 'k5', days: 7 }, { key: 'k9', days: 7 }]);
+  });
+
+  it('asks before a bulk dismissal, and does nothing when it is cancelled', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openStrip(user);
+    const changed = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'amount_changed') as HTMLElement);
+    await user.click(changed.getByRole('button', { name: 'Dismiss all' }));
+    expect(changed.getByText('Dismiss all 5?')).toBeInTheDocument();
+    await user.click(changed.getByRole('button', { name: 'Cancel' }));
+    expect(changed.queryByText('Dismiss all 5?')).toBeNull();
+    expect(api.callsTo('POST', '/finance/attention/dismiss')).toHaveLength(0);
+    await user.click(changed.getByRole('button', { name: 'Dismiss all' }));
+    await user.click(changed.getByRole('button', { name: 'Yes, dismiss' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/dismiss')).toHaveLength(5));
+  });
+
+  it('counts the hidden ones at the end, lists them on request and restores one', async () => {
     const api = setup({
       finance: {
-        attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', state: 'snoozed', snoozed_until: '2026-12-01T00:00:00Z' }), item('overdraft', 'k7', ['account', 'a-card'], { amount: 100, currency: 'GBP', state: 'dismissed' })],
+        attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', state: 'snoozed', snoozed_until: '2026-12-01T00:00:00Z' }), item('overdraft', 'k7', ['account', 'a-card'], { amount: 100, currency: 'GBP', state: 'dismissed' }), item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })],
+        recurring: [rec('r-2', 'Gym')],
       },
     });
     const user = userEvent.setup();
     renderAt(PATH);
-    // Nothing active, two hidden: the panel is only the count and the way to show them.
-    let panel = await attentionPanel();
+    let panel = await openStrip(user);
     expect(panel.getByText('2 hidden')).toBeInTheDocument();
-    expect(panel.queryAllByRole('listitem')).toHaveLength(0);
     await user.click(panel.getByRole('button', { name: 'Show hidden' }));
     await waitFor(() => expect(api.calls.filter((call) => call.url.includes('include_hidden=true')).length).toBeGreaterThan(0));
     panel = await attentionPanel();
-    await waitFor(() => expect(panel.getAllByRole('listitem')).toHaveLength(2));
-    const cards = panel.getAllByRole('listitem');
-    expect(cards[0]).toHaveTextContent('snoozed until');
-    expect(cards[1]).toHaveTextContent('dismissed');
-    expect(within(cards[0]).queryByRole('button', { name: 'Snooze' })).toBeNull();
-    await user.click(within(cards[0]).getByRole('button', { name: 'Restore' }));
+    const hidden = await panel.findByRole('group', { name: 'Hidden' });
+    const rows = within(hidden).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent('snoozed until');
+    expect(rows[1]).toHaveTextContent('dismissed');
+    expect(within(rows[0]).queryByRole('button', { name: /More/ })).toBeNull();
+    await user.click(within(rows[0]).getByRole('button', { name: 'Restore' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/attention/restore')[0]?.body).toEqual({ key: 'k5' }));
   });
 
-  it('says so when an action fails', async () => {
-    setup({ fail: ['attentionWrite'], finance: { attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP' })] } });
-    const user = userEvent.setup();
+  it('with nothing active but some hidden shows a quiet line with the way to bring them back', async () => {
+    setup({ finance: { attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', state: 'dismissed' })] } });
     renderAt(PATH);
     const panel = await attentionPanel();
-    await user.click(panel.getByRole('button', { name: 'Dismiss' }));
-    expect(await panel.findByRole('alert')).toHaveTextContent('That did not work');
+    expect(panel.getByText('1 hidden')).toBeInTheDocument();
+    expect(panel.queryByRole('button', { name: 'Show' })).toBeNull();
+    expect(panel.getByRole('button', { name: 'Show hidden' })).toBeInTheDocument();
+  });
+
+  it('says so when an action fails, and when a whole group could not be changed', async () => {
+    setup({ fail: ['attentionWrite'], finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openStrip(user);
+    const overdraft = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'overdraft') as HTMLElement);
+    await user.click(overdraft.getByRole('button', { name: 'More: Everyday' }));
+    await user.click(overdraft.getByRole('button', { name: 'Dismiss' }));
+    expect((await overdraft.findAllByRole('alert'))[0]).toHaveTextContent('That did not work');
+    await user.click(overdraft.getByRole('button', { name: 'Snooze all for 7 d' }));
+    expect(await overdraft.findByText('Some could not be changed: 2. Try again.')).toBeInTheDocument();
+  });
+
+  it('speaks Russian: the chips with the right plural form, the groups and the facts', async () => {
+    setup({ lang: 'ru', finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Требует внимания' }));
+    expect(panel.getAllByRole('listitem').map((chip) => chip.textContent)).toEqual(['2 овердрафта', '1 платёж без покрытия', '1 пропущенный платёж', '1 подключение к обновлению', '1 карта у лимита', '1 банк с устаревшими данными', '5 изменённых сумм']);
+    await user.click(panel.getByRole('button', { name: 'Показать' }));
+    expect(panel.getByRole('heading', { name: /Овердрафт/ })).toBeInTheDocument();
+    expect(panel.getAllByText('сверх овердрафта', { exact: false })).toHaveLength(2);
   });
 });
 
@@ -259,10 +379,14 @@ describe('the Money page: upcoming payments', () => {
 
   it('groups the payments by day, names what pays each and whether it is covered in words, and gives the totals the server added up', async () => {
     setup({ finance: { upcoming: upcoming() } });
+    const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByRole('heading', { level: 3, name: 'Today' })).toBeInTheDocument();
     expect(panel.getByRole('heading', { level: 3, name: 'Tomorrow' })).toBeInTheDocument();
+    // By default the next 7 days only: the payment 8 days away waits behind "Show all".
+    expect(panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-covered'))).toHaveLength(3);
+    await user.click(panel.getByRole('button', { name: 'Show all 4' }));
     const rows = panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-covered'));
     expect(rows).toHaveLength(4);
     expect(rows[0]).toHaveTextContent('Streaming');
@@ -284,8 +408,10 @@ describe('the Money page: upcoming payments', () => {
 
   it('shows the picture only from an https address with no referrer, hides it when it fails to load, and falls back to a tile in its colour', async () => {
     setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_url: 'http://icons.example.com/x.png' })] } } });
+    const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
+    await user.click(await panel.findByRole('button', { name: 'Show all 5' }));
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
     const image = gym.querySelector('img') as HTMLImageElement;
     expect(image).toHaveAttribute('src', 'https://icons.example.com/gym.png');
@@ -341,8 +467,13 @@ describe('the Money page: debts and installments', () => {
         ],
       },
     });
+    const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    // Collapsed to one summary row: how many and how much is left.
+    expect(panel.getByText('2 · £700.00 remaining')).toBeInTheDocument();
+    expect(panel.queryAllByRole('listitem')).toHaveLength(0);
+    await user.click(panel.getByRole('button', { name: 'Show' }));
     const cards = panel.getAllByRole('listitem');
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('Sofa installments');

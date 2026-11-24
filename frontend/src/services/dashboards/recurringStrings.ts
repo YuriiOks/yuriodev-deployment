@@ -1,5 +1,13 @@
 import type { AttentionKind, Frequency, RecurringKind } from './recurringApi';
 
+/** The forms of a counted noun: Russian has one, few and many; English one and other (the missing ones fall back to `other`). */
+export interface Plural {
+  readonly one: string;
+  readonly few?: string;
+  readonly many?: string;
+  readonly other: string;
+}
+
 /** The words of the recurring payments, upcoming payments, attention and debts parts of the Money page (both languages). */
 export interface RecurringStrings {
   readonly attentionTitle: string;
@@ -9,6 +17,26 @@ export interface RecurringStrings {
   readonly hideHidden: string;
   readonly sentence: Readonly<Record<AttentionKind, string>>;
   readonly sentenceShort: string;
+  readonly attentionOpen: string;
+  readonly attentionClose: string;
+  readonly groupTitle: Readonly<Record<AttentionKind, string>>;
+  readonly chip: Readonly<Record<AttentionKind, Plural>>;
+  readonly fact: Readonly<Record<AttentionKind, string>>;
+  readonly accept: string;
+  readonly more: string;
+  readonly snoozeItem: string;
+  readonly acceptAll: string;
+  readonly snoozeAll: string;
+  readonly dismissAll: string;
+  readonly confirmDismiss: string;
+  readonly confirmYes: string;
+  readonly showAllN: string;
+  readonly showFewer: string;
+  readonly bulkFailed: string;
+  readonly hiddenTitle: string;
+  readonly debtsSummary: string;
+  readonly debtsShow: string;
+  readonly debtsHide: string;
   readonly dueWhen: { readonly today: string; readonly tomorrow: string; readonly inDays: string };
   readonly markPaid: string;
   readonly openPayment: string;
@@ -98,6 +126,42 @@ export const RECURRING_RU: RecurringStrings = {
     stale_statement: 'Данные {bank} устарели: последние на {date} ({days} дн. назад).',
   },
   sentenceShort: '{name}: срок {when} ({amount}), счёта для оплаты не хватает на всё.',
+  attentionOpen: 'Показать',
+  attentionClose: 'Свернуть',
+  groupTitle: { overdraft: 'Овердрафт', due_not_covered: 'Скоро платёж, денег не хватит', missed_payment: 'Пропущенные платежи', reconsent: 'Нужно подтвердить подключение', credit_high: 'Карты у лимита', stale_statement: 'Устаревшие данные', amount_changed: 'Изменилась сумма' },
+  chip: {
+    overdraft: { one: '{n} овердрафт', few: '{n} овердрафта', many: '{n} овердрафтов', other: '{n} овердрафта' },
+    due_not_covered: { one: '{n} платёж без покрытия', few: '{n} платежа без покрытия', many: '{n} платежей без покрытия', other: '{n} платежа без покрытия' },
+    missed_payment: { one: '{n} пропущенный платёж', few: '{n} пропущенных платежа', many: '{n} пропущенных платежей', other: '{n} пропущенного платежа' },
+    reconsent: { one: '{n} подключение к обновлению', few: '{n} подключения к обновлению', many: '{n} подключений к обновлению', other: '{n} подключения к обновлению' },
+    credit_high: { one: '{n} карта у лимита', few: '{n} карты у лимита', many: '{n} карт у лимита', other: '{n} карты у лимита' },
+    stale_statement: { one: '{n} банк с устаревшими данными', few: '{n} банка с устаревшими данными', many: '{n} банков с устаревшими данными', other: '{n} банка с устаревшими данными' },
+    amount_changed: { one: '{n} изменённая сумма', few: '{n} изменённые суммы', many: '{n} изменённых сумм', other: '{n} изменённой суммы' },
+  },
+  fact: {
+    due_not_covered: '{amount} {when} · не хватает {short}',
+    missed_payment: '{amount} · просрочка {days} дн.',
+    amount_changed: '{charged}, записано {recorded}',
+    credit_high: '{percent}% лимита',
+    overdraft: 'сверх овердрафта {over}',
+    reconsent: 'подтвердите доступ заново',
+    stale_statement: 'на {date} · {days} дн. назад',
+  },
+  accept: 'Принять',
+  more: 'Ещё: {name}',
+  snoozeItem: 'Отложить на {n} дн.',
+  acceptAll: 'Принять списанные суммы',
+  snoozeAll: 'Отложить все на 7 дн.',
+  dismissAll: 'Скрыть все',
+  confirmDismiss: 'Скрыть все ({n})?',
+  confirmYes: 'Да, скрыть',
+  showAllN: 'Показать все ({n})',
+  showFewer: 'Показать меньше',
+  bulkFailed: 'Не всё получилось: {n}. Повторите.',
+  hiddenTitle: 'Скрытые',
+  debtsSummary: '{n} · осталось {amount}',
+  debtsShow: 'Показать',
+  debtsHide: 'Свернуть',
   dueWhen: { today: 'сегодня', tomorrow: 'завтра', inDays: 'через {n} дн.' },
   markPaid: 'Отметить оплаченным',
   openPayment: 'Открыть платёж',
@@ -187,6 +251,42 @@ export const RECURRING_EN: RecurringStrings = {
     stale_statement: 'The data of {bank} is out of date: the newest is from {date} ({days} d ago).',
   },
   sentenceShort: '{name} is due {when} ({amount}) and the paying account cannot cover all of it.',
+  attentionOpen: 'Show',
+  attentionClose: 'Collapse',
+  groupTitle: { overdraft: 'Overdrawn', due_not_covered: 'Due soon, not covered', missed_payment: 'Missed payments', reconsent: 'Connection to approve', credit_high: 'Cards near the limit', stale_statement: 'Out-of-date data', amount_changed: 'Amount changed' },
+  chip: {
+    overdraft: { one: '{n} overdrawn', few: '{n} overdrawn', many: '{n} overdrawn', other: '{n} overdrawn' },
+    due_not_covered: { one: '{n} payment not covered', few: '{n} payments not covered', many: '{n} payments not covered', other: '{n} payments not covered' },
+    missed_payment: { one: '{n} missed payment', few: '{n} missed payments', many: '{n} missed payments', other: '{n} missed payments' },
+    reconsent: { one: '{n} connection to approve', few: '{n} connections to approve', many: '{n} connections to approve', other: '{n} connections to approve' },
+    credit_high: { one: '{n} card near its limit', few: '{n} cards near their limit', many: '{n} cards near their limit', other: '{n} cards near their limit' },
+    stale_statement: { one: '{n} bank out of date', few: '{n} banks out of date', many: '{n} banks out of date', other: '{n} banks out of date' },
+    amount_changed: { one: '{n} amount changed', few: '{n} amounts changed', many: '{n} amounts changed', other: '{n} amounts changed' },
+  },
+  fact: {
+    due_not_covered: '{amount} {when} · short {short}',
+    missed_payment: '{amount} · {days} d overdue',
+    amount_changed: '{charged}, recorded {recorded}',
+    credit_high: '{percent}% of the limit',
+    overdraft: '{over} past the overdraft',
+    reconsent: 'approve access again',
+    stale_statement: 'as of {date} · {days} d old',
+  },
+  accept: 'Accept',
+  more: 'More: {name}',
+  snoozeItem: 'Snooze for {n} d',
+  acceptAll: 'Accept charged amounts',
+  snoozeAll: 'Snooze all for 7 d',
+  dismissAll: 'Dismiss all',
+  confirmDismiss: 'Dismiss all {n}?',
+  confirmYes: 'Yes, dismiss',
+  showAllN: 'Show all {n}',
+  showFewer: 'Show fewer',
+  bulkFailed: 'Some could not be changed: {n}. Try again.',
+  hiddenTitle: 'Hidden',
+  debtsSummary: '{n} · {amount} remaining',
+  debtsShow: 'Show',
+  debtsHide: 'Collapse',
   dueWhen: { today: 'today', tomorrow: 'tomorrow', inDays: 'in {n} d' },
   markPaid: 'Mark paid',
   openPayment: 'Open payment',
