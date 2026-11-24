@@ -39,7 +39,7 @@ describe('the switch between real data and the sample data', () => {
 
   it('asks the bootstrap once, with no auth header, and runs on the API when it says enabled', async () => {
     const api = setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     expect(await within(main()).findByRole('region', { name: 'Приоритет' })).toBeInTheDocument();
     expect(within(main()).getByText('Pay the bill')).toBeInTheDocument();
     expect(within(main()).queryByText('Оплатить счёт за электричество')).toBeNull();
@@ -62,7 +62,7 @@ describe('the switch between real data and the sample data', () => {
 
   it('runs the labelled demo on the sample data when the bootstrap says disabled (no database configured)', async () => {
     const api = setup({ enabled: false });
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
     expect(api.calls.map((call) => call.path)).toEqual(['/bootstrap']);
     // Every sample tab is still there, with its counter, and the page says it is a demo.
@@ -84,14 +84,14 @@ describe('the switch between real data and the sample data', () => {
   it('says the same on a network error and on a non-JSON answer, and recovers with the retry', async () => {
     setup();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
-    const first = renderAt('/dashboards/personal');
+    const first = renderAt('/dashboards/personal?tab=overview');
     expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
     expect(within(main()).queryByText('Оплатить счёт за электричество')).toBeNull();
     first.unmount();
 
     resetBootstrap();
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('<html>nginx</html>', { status: 200 }))));
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
     expect(within(main()).queryByText('Ревью #123: пример изменения')).toBeNull();
 
@@ -105,7 +105,7 @@ describe('the switch between real data and the sample data', () => {
     setup();
     let answer: (response: Response) => void = () => {};
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))));
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     expect(within(main()).getByRole('status')).toHaveTextContent('Загрузка…');
     expect(within(main()).queryByText('Оплатить счёт за электричество')).toBeNull();
     answer(new Response(JSON.stringify({ enabled: false }), { status: 200 }));
@@ -146,7 +146,7 @@ describe('the entrance on real data', () => {
 describe('a space on real data: the overview', () => {
   it('groups the tasks: Priority, due and overdue, this week, later, no date; the done one is only under Done', async () => {
     setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     const m = within(main());
     const names = ['Приоритет', 'Сегодня и просрочено', 'На этой неделе', 'Позже', 'Без даты'];
     for (const name of names) expect(await m.findByRole('region', { name })).toBeInTheDocument();
@@ -164,7 +164,7 @@ describe('a space on real data: the overview', () => {
 
   it('says overdue and today in words, with the area for the personal space', async () => {
     setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     const priority = await within(main()).findByRole('region', { name: 'Приоритет' });
     const row = within(priority).getByText('Pay the bill').closest('li')!;
     expect(within(row).getByText('просрочено')).toHaveAttribute('data-tone', 'danger');
@@ -175,7 +175,7 @@ describe('a space on real data: the overview', () => {
 
   it('a space with no tasks says so in the Priority panel, and shows nothing else', async () => {
     setup({ tasks: [] });
-    renderAt('/dashboards/work-2');
+    renderAt('/dashboards/work-2?tab=overview');
     const panel = await within(main()).findByRole('region', { name: 'Приоритет' });
     expect(panel).toHaveTextContent('Задач пока нет.');
     expect(within(main()).queryByRole('region', { name: 'Позже' })).toBeNull();
@@ -184,7 +184,7 @@ describe('a space on real data: the overview', () => {
 
   it('never mixes spaces: each page asks for its own space only', async () => {
     const api = setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await within(main()).findByText('Review the pull request');
     expect(within(main()).queryByText('Pay the bill')).toBeNull();
     expect(api.calls.filter((call) => call.path.includes('/tasks')).every((call) => call.path === '/spaces/work-1/tasks')).toBe(true);
@@ -192,7 +192,7 @@ describe('a space on real data: the overview', () => {
 
   it('shows the next event from the summary in the strip, in whole minutes', async () => {
     setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     expect(await within(main()).findByText('Team stand-up')).toBeInTheDocument();
     expect(within(main()).getByText(/^через 4[67] мин$/)).toBeInTheDocument();
     expect(within(main()).queryByRole('button', { name: 'Подключиться' })).toBeNull();
@@ -201,7 +201,7 @@ describe('a space on real data: the overview', () => {
   it('shows the group names in English too', async () => {
     setup();
     localStorage.setItem(LANG_STORAGE_KEY, 'en');
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     for (const name of ['Priority', 'Due and overdue', 'This week', 'Later', 'No date']) {
       expect(await within(main()).findByRole('region', { name })).toBeInTheDocument();
     }
@@ -211,7 +211,7 @@ describe('a space on real data: the overview', () => {
   it('shows a loading block while the tasks come, and an error with a retry when they do not', async () => {
     const api = setup({ fail: ['tasks'] });
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     // The page around the failure stays usable: tabs and the field are there.
     expect(await within(main()).findByText('Не удалось загрузить.')).toBeInTheDocument();
     expect(within(main()).getByRole('textbox', { name: 'Добавить задачу' })).toBeInTheDocument();
@@ -226,7 +226,7 @@ describe('source tabs on real data', () => {
   it('say "not connected yet" instead of showing sample rows, and carry no counters', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await within(main()).findByRole('region', { name: 'Приоритет' });
     const tabs = within(main()).getByRole('navigation', { name: 'Источники' });
     // No tab shows a number.
@@ -245,7 +245,7 @@ describe('source tabs on real data', () => {
     setup();
     localStorage.setItem(LANG_STORAGE_KEY, 'en');
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await within(main()).findByRole('region', { name: 'Priority' });
     await user.click(within(main()).getByRole('tab', { name: 'GitHub' }));
     expect(within(main()).getByRole('region', { name: 'GitHub' })).toHaveTextContent('Not connected yet');
@@ -256,7 +256,7 @@ describe('the life areas tab', () => {
   it('counts open tasks per area and filters the list by the chosen one', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await within(main()).findByRole('region', { name: 'Приоритет' });
     await user.click(within(main()).getByRole('tab', { name: 'Сферы' }));
     const filter = within(main()).getByRole('region', { name: 'Фильтр по сфере' });
@@ -276,7 +276,7 @@ describe('the life areas tab', () => {
   it('puts a task added on a chosen area into that area', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await within(main()).findByRole('region', { name: 'Приоритет' });
     await user.click(within(main()).getByRole('tab', { name: 'Сферы' }));
     await user.click(within(main()).getByRole('button', { name: /^Деньги/ }));
@@ -290,7 +290,7 @@ describe('quick-add on real data', () => {
   it('creates a task in this space from plain text, clears the field, keeps the focus, and shows the task', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     const field = await within(main()).findByRole('textbox', { name: 'Добавить задачу' });
     await user.type(field, '  Buy milk tomorrow at 5 !!  {Enter}');
     await waitFor(() => expect(field).toHaveValue(''));
@@ -303,7 +303,7 @@ describe('quick-add on real data', () => {
   it('does nothing for an empty field', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     const field = await within(main()).findByRole('textbox', { name: 'Добавить задачу' });
     await user.type(field, '   {Enter}');
     expect(api.callsTo('POST', '/tasks')).toHaveLength(0);
@@ -312,7 +312,7 @@ describe('quick-add on real data', () => {
   it('on failure keeps the text and the focus and shows one error line, which goes away when typing again', async () => {
     const api = setup({ fail: ['create'] });
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     const field = await within(main()).findByRole('textbox', { name: 'Добавить задачу' });
     await user.type(field, 'Will fail{Enter}');
     expect(await within(main()).findByRole('alert')).toHaveTextContent('Не удалось добавить задачу. Повторите.');
@@ -334,7 +334,7 @@ describe('ticking a task on real data', () => {
     let release!: () => void;
     api.gate = new Promise<void>((resolve) => (release = resolve));
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     const box = await within(main()).findByRole('checkbox', { name: 'Plan a trip' });
     await user.click(box);
     // Optimistic: checked and struck through while the request is still held.
@@ -350,14 +350,14 @@ describe('ticking a task on real data', () => {
   it('keeps a done task where it was, struck through, until the next load; then it is only under Done', async () => {
     const api = setup();
     const user = userEvent.setup();
-    const first = renderAt('/dashboards/personal');
+    const first = renderAt('/dashboards/personal?tab=overview');
     const box = await within(main()).findByRole('checkbox', { name: 'Plan a trip' });
     await user.click(box);
     await waitFor(() => expect(api.tasks.find((t) => t.title === 'Plan a trip')?.status).toBe('done'));
     expect(within(within(main()).getByRole('region', { name: 'Без даты' })).getByText('Plan a trip')).toBeInTheDocument();
     first.unmount();
 
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await within(main()).findByRole('region', { name: 'Приоритет' });
     expect(within(main()).queryByText('Plan a trip')).toBeNull();
     await user.click(within(main()).getByRole('button', { name: 'Готово: 2' }));
@@ -367,7 +367,7 @@ describe('ticking a task on real data', () => {
   it('reopens a done task from the Done list', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await user.click(await within(main()).findByRole('button', { name: 'Готово: 1' }));
     await user.click(within(main()).getByRole('checkbox', { name: 'Old chore' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/tasks/')[0]?.body).toEqual({ status: 'open' }));
@@ -376,7 +376,7 @@ describe('ticking a task on real data', () => {
   it('rolls back with an inline error when the request fails, and can try again', async () => {
     const api = setup({ fail: ['patch'] });
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     const box = await within(main()).findByRole('checkbox', { name: 'Plan a trip' });
     await user.click(box);
     const alert = await within(main()).findByRole('alert');
@@ -511,7 +511,7 @@ describe('editing a task on real data', () => {
     setup();
     localStorage.setItem(LANG_STORAGE_KEY, 'en');
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await user.click(await within(main()).findByRole('button', { name: 'Edit: Plan a trip' }));
     const f = within(main().querySelector('form[aria-label^="Edit"]') as HTMLElement);
     for (const label of ['Title', 'Notes', 'Area', 'Due date']) expect(f.getByLabelText(label)).toBeInTheDocument();
@@ -647,7 +647,7 @@ describe('the calendar on real data', () => {
 describe('task rows are rows', () => {
   it('have the one-line structure of every row: a checkbox, the title, plain meta, one button', async () => {
     setup({ tasks: [task('personal', 'Plain row', { due_date: dayOffset(5), area_id: 'money' })] });
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     const row = (await within(main()).findByText('Plain row')).closest('li')!;
     expect(row).toHaveAttribute('data-lead', 'true');
     expect(within(row).getAllByRole('button')).toHaveLength(1);
@@ -674,7 +674,7 @@ describe('the names the server gives the spaces', () => {
   it('shows the same names in English, and the page and its title follow', async () => {
     setup({ spaceNames: NAMES });
     localStorage.setItem(LANG_STORAGE_KEY, 'en');
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     expect(await screen.findByRole('heading', { level: 1, name: 'Acme' })).toBeInTheDocument();
     await waitFor(() => expect(document.title).toContain('Acme'));
     expect(screen.queryByText('Work 1')).toBeNull();
@@ -744,7 +744,7 @@ describe('the space tiles', () => {
 
   it('puts the image in the space heading too', async () => {
     setup({ spaceIcons: { 'work-1': PNG } });
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     const heading = await within(main()).findByRole('heading', { level: 1, name: 'Работа 1' });
     const strip = heading.parentElement;
     expect(strip?.querySelector('img')).toHaveAttribute('src', PNG);
@@ -774,7 +774,7 @@ describe('a work space on real data: the collected overview and tabs', () => {
 
   it('puts Priority first and full width, then meetings beside the reviews, then in progress beside the notes', async () => {
     setup({ tasks: collected() });
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await within(main()).findByRole('region', { name: /Ждут моего ревью/ });
     expect(panelNames().map((name) => name?.replace(/\s*\d+$/, ''))).toEqual([
       'Приоритет',
@@ -790,7 +790,7 @@ describe('a work space on real data: the collected overview and tabs', () => {
 
   it('keeps a one-line Priority panel with its empty text when nothing is prioritised', async () => {
     setup({ tasks: collected().filter((entry) => !entry.priority) });
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     const priority = await within(main()).findByRole('region', { name: 'Приоритет' });
     expect(priority.querySelectorAll('li')).toHaveLength(0);
     expect(priority).toHaveTextContent(/\S/);
@@ -800,7 +800,7 @@ describe('a work space on real data: the collected overview and tabs', () => {
   it('shows the two GitHub lists side by side as equal halves, each in its own panel', async () => {
     setup({ tasks: collected() });
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await user.click(await within(main()).findByRole('tab', { name: /GitHub/ }));
     const panels = screen.getByRole('tabpanel');
     expect(panels).toHaveAttribute('data-split', 'even');
@@ -813,7 +813,7 @@ describe('a work space on real data: the collected overview and tabs', () => {
   it('shows Linear In progress beside Todo, with the backlog disclosure outside the columns', async () => {
     setup({ tasks: collected() });
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await user.click(await within(main()).findByRole('tab', { name: /Linear/ }));
     const panels = screen.getByRole('tabpanel');
     expect(panels).toHaveAttribute('data-split', 'even');
@@ -827,7 +827,7 @@ describe('the life areas get an icon each', () => {
   it('marks every filter row (All areas, each area, No area) and each task row that shows an area, decoratively', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await within(main()).findByRole('region', { name: 'Приоритет' });
     await user.click(within(main()).getByRole('tab', { name: 'Сферы' }));
     const filter = within(main()).getByRole('region', { name: 'Фильтр по сфере' });
@@ -860,7 +860,7 @@ describe('the next-event strips follow the calendar\'s rule for copies of work m
       spaceNames: { 'work-1': 'Acme Corp' },
       nextEvents: { personal: { title: 'Stand-up (Acme Corp)', starts_at: standup }, 'work-1': null },
     });
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     expect(await within(main()).findByText('Gym')).toBeInTheDocument();
     expect(within(main()).queryByText(/Stand-up/)).toBeNull();
   });
@@ -881,7 +881,7 @@ describe('the next-event strips follow the calendar\'s rule for copies of work m
 
   it('keeps the server\'s answer when the events cannot be read', async () => {
     setup({ fail: ['events'] });
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     expect(await within(main()).findByText('Team stand-up')).toBeInTheDocument();
   });
 });
@@ -889,7 +889,7 @@ describe('the next-event strips follow the calendar\'s rule for copies of work m
 describe('the personal overview fills the page', () => {
   it('puts Priority across the full width and flows the date groups below it in columns', async () => {
     setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     await within(main()).findByRole('region', { name: 'Приоритет' });
     const panels = screen.getByRole('tabpanel');
     expect(panels).toHaveAttribute('data-split', 'flow');
@@ -901,7 +901,7 @@ describe('the personal overview fills the page', () => {
 
   it('has no Court tab on Personal, and Money where Payments was', async () => {
     setup();
-    renderAt('/dashboards/personal');
+    renderAt('/dashboards/personal?tab=overview');
     const tabs = await within(main()).findByRole('navigation', { name: 'Источники' });
     expect(within(tabs).queryByRole('tab', { name: /Суд/ })).toBeNull();
     expect(within(tabs).getByRole('tab', { name: /Сферы/ })).toBeInTheDocument();
@@ -925,7 +925,7 @@ describe('the GitHub and Linear tabs use the source fields', () => {
       ],
     });
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await user.click(await within(main()).findByRole('tab', { name: /GitHub/ }));
     const mine = within(main()).getByRole('region', { name: 'Мои PR' });
     expect(rowTitles(mine)).toEqual(['Later one', 'Undated draft', 'Due today']);
@@ -937,7 +937,7 @@ describe('the GitHub and Linear tabs use the source fields', () => {
   it('puts the reviewed-by-me pull requests behind a disclosure, out of "mine" and out of the overview\'s reviews', async () => {
     setup({ tasks: [gh('Mine', 'mine'), gh('To review', 'review'), gh('Done reviewing', 'reviewed'), gh('Also reviewed', 'reviewed')] });
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     const overviewReviews = await within(main()).findByRole('region', { name: /Ждут моего ревью/ });
     expect(within(overviewReviews).getByText('To review')).toBeInTheDocument();
     expect(within(overviewReviews).queryByText('Done reviewing')).toBeNull();
@@ -955,7 +955,7 @@ describe('the GitHub and Linear tabs use the source fields', () => {
 
   it('has no disclosure when nothing is reviewed', async () => {
     setup({ tasks: [gh('Mine', 'mine')] });
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await userEvent.setup().click(await within(main()).findByRole('tab', { name: /GitHub/ }));
     expect(within(main()).queryByRole('button', { name: /Просмотрено мной/ })).toBeNull();
   });
@@ -973,7 +973,7 @@ describe('the GitHub and Linear tabs use the source fields', () => {
       ],
     });
     const user = userEvent.setup();
-    renderAt('/dashboards/work-1');
+    renderAt('/dashboards/work-1?tab=overview');
     await user.click(await within(main()).findByRole('tab', { name: /Linear/ }));
     const started = within(main()).getByRole('region', { name: 'В работе' });
     expect(rowTitles(started)).toEqual(['Low first', 'Urgent second', 'High third', 'Medium fourth', 'No priority', 'Unknown']);

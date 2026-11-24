@@ -17,6 +17,7 @@ export type SpaceId = 'personal' | 'work-1' | 'work-2';
 
 /** One source tab. 'overview' is every space's first tab. */
 export type TabId =
+  | 'today'
   | 'overview'
   | 'areas'
   | 'payments'

@@ -32,8 +32,16 @@
 }
 
 .place {
+  margin: 0;
+  padding: 0;
   color: var(--dash-t1);
   font-size: var(--dash-fs-title);
+  font-weight: 700;
+}
+
+.place::before,
+.place::after {
+  content: none;
 }
 
 .intro {

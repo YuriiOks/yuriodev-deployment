@@ -8,6 +8,8 @@ export interface TodayAction {
   readonly label: string;
   readonly onClick?: () => void;
   readonly to?: string;
+  /** An address outside the page (a pull request, an issue): opened in a new tab. */
+  readonly href?: string;
   readonly busy?: boolean;
 }
 
@@ -51,8 +53,10 @@ export interface TodayBreakdownRow {
 
 export interface TodayProps {
   /** The space's own mark and name, at the top left. */
-  readonly mark: string;
+  readonly mark: React.ReactNode;
   readonly place: string;
+  /** The place is the page's h1 (a page with no heading of its own); else it is plain strong text. */
+  readonly placeIsHeading?: boolean;
   /** The section tabs (the caller's own nav). */
   readonly nav: React.ReactNode;
   readonly hello: string;
@@ -84,6 +88,13 @@ export interface TodayProps {
 
 const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'quiet' }> = ({ action, kind }) => {
   const className = cx(styles.action, kind === 'primary' && styles.actionPrimary, kind === 'secondary' && styles.actionSecondary, kind === 'quiet' && styles.actionQuiet);
+  if (action.href) {
+    return (
+      <a className={className} href={action.href} target="_blank" rel="noopener noreferrer">
+        {action.label}
+      </a>
+    );
+  }
   if (action.to) {
     return (
       <Link className={className} to={action.to}>
@@ -104,14 +115,14 @@ const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'q
  * at a time) and a short "due soon" list. Middle: two big figures and one breakdown that ends in a finding. Right: the caller's own cards.
  * Presentational only: it is given everything it shows.
  */
-const TodayLayout: React.FC<TodayProps> = ({ mark, place, nav, hello, summary, queue, soon, stats, breakdown, side }) => (
+const TodayLayout: React.FC<TodayProps> = ({ mark, place, placeIsHeading = false, nav, hello, summary, queue, soon, stats, breakdown, side }) => (
   <div className={styles.today}>
     <header className={styles.top}>
       <div className={styles.space}>
         <span aria-hidden="true" className={styles.mark}>
           {mark}
         </span>
-        <strong className={styles.place}>{place}</strong>
+        {placeIsHeading ? <h1 className={styles.place}>{place}</h1> : <strong className={styles.place}>{place}</strong>}
       </div>
       {nav}
     </header>
