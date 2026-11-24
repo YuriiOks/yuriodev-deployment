@@ -636,7 +636,8 @@ describe('the Money page: upcoming payments', () => {
     expect(rows[1]).toHaveTextContent('Gym');
     expect(rows[1]).toHaveTextContent('short by £7.00');
     expect(rows[2]).toHaveTextContent('Visa ending 0000');
-    expect(rows[2]).toHaveTextContent('cover unknown');
+    // Cover is said only when it is known: "cover unknown" is not noise on every row.
+    expect(rows[2]).not.toHaveTextContent('cover unknown');
     // A converted amount in pounds with the original beside it.
     expect(rows[2]).toHaveTextContent('≈ £3.95');
     expect(rows[2]).toHaveTextContent('$5.00');

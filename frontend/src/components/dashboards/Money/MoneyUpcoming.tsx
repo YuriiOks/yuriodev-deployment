@@ -31,9 +31,9 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; acc
     <li className={styles.due} data-covered={item.covered === null ? 'unknown' : String(item.covered)} data-overdue={item.overdue ? 'true' : undefined}>
       <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} />
       <span className={styles.dueMain}>
-        <strong className={styles.dueName}>{item.name}</strong>
-        <span className={styles.note}>
-          {[r.kinds[item.kind], payer, coverWords(item, lang, r)].filter(Boolean).join(' · ')}
+        <span className={styles.dueLine}>
+          <strong className={styles.dueName}>{item.name}</strong>
+          <span className={styles.note}>{[r.kinds[item.kind], payer, item.covered === null ? '' : coverWords(item, lang, r)].filter(Boolean).join(' · ')}</span>
         </span>
         {/* The shortfall above is this payment's own missing part; when earlier payments from the same account add to it, the account's whole gap is said too. */}
         {item.covered === false && item.accountShortTotal !== null && item.shortfall !== null && item.accountShortTotal > item.shortfall && item.accountCurrency && (
@@ -41,10 +41,10 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; acc
         )}
       </span>
       <span className={styles.dueEnd}>
+        <TruthMark evidence={evidence} />
         <strong className={styles.dueAmount}>
           <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} />
         </strong>
-        <TruthMark evidence={evidence} />
       </span>
     </li>
   );
