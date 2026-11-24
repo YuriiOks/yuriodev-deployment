@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMinor } from './money';
+import { formatMinor, formatMinorParts } from './money';
 import { providerName, reconnectPath } from '../../components/dashboards/Money/providers';
 
 const plain = (text: string) => text.replace(/[\s\u00a0\u202f]/g, ' ');
@@ -41,5 +41,24 @@ describe('providers', () => {
     expect(reconnectPath('toString')).toBeNull();
     expect(reconnectPath('acme-bank')).toBeNull();
     expect(reconnectPath('monzo')).toBe('/api/dashboards/v1/finance/monzo/connect');
+  });
+});
+
+describe('formatMinorParts', () => {
+  const text = (parts: ReturnType<typeof formatMinorParts>) => parts.map((part) => part.text).join('');
+  const kinds = (parts: ReturnType<typeof formatMinorParts>) => parts.map((part) => `${part.kind}:${part.text}`);
+
+  it('splits an amount into sign, symbol, pounds and pence, in the order the language writes them', () => {
+    expect(kinds(formatMinorParts(-177169, 'GBP', 'en'))).toEqual(['sign:-', 'symbol:£', 'int:1', 'int:,', 'int:771', 'frac:.', 'frac:69']);
+    expect(text(formatMinorParts(-177169, 'GBP', 'en'))).toBe(formatMinor(-177169, 'GBP', 'en'));
+    // Russian puts the symbol after the figure.
+    const ru = formatMinorParts(17, 'UAH', 'ru');
+    expect(ru[ru.length - 1]).toEqual({ kind: 'symbol', text: '₴' });
+    expect(text(ru)).toBe(formatMinor(17, 'UAH', 'ru'));
+  });
+
+  it('has no fraction for a currency with none, and falls back to one plain part for a code it cannot write', () => {
+    expect(formatMinorParts(500, 'JPY', 'en').some((part) => part.kind === 'frac')).toBe(false);
+    expect(formatMinorParts(12345, 'XXQ', 'en').length).toBeGreaterThan(0);
   });
 });

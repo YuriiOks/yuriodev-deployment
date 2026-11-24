@@ -24,3 +24,40 @@ export function formatMinor(minor: number, code: string, lang: Lang, { signed = 
     return `${value.toFixed(digits)} ${code}`;
   }
 }
+
+export type AmountPartKind = 'sign' | 'symbol' | 'int' | 'frac' | 'other';
+
+export interface AmountPart {
+  readonly kind: AmountPartKind;
+  readonly text: string;
+}
+
+/**
+ * An amount in minor units as its parts, in the order the language writes them, so a card can set the pounds big and the symbol and
+ * the pence small ("−£1,771.69"): sign, symbol, integer (with its grouping), fraction (with its separator), anything else.
+ */
+export function formatMinorParts(minor: number, code: string, lang: Lang): AmountPart[] {
+  const digits = digitsOf(code);
+  const value = minor / 10 ** digits;
+  try {
+    return new Intl.NumberFormat(lang, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' }).formatToParts(value).map((part): AmountPart => {
+      switch (part.type) {
+        case 'minusSign':
+        case 'plusSign':
+          return { kind: 'sign', text: part.value };
+        case 'currency':
+          return { kind: 'symbol', text: part.value };
+        case 'integer':
+        case 'group':
+          return { kind: 'int', text: part.value };
+        case 'decimal':
+        case 'fraction':
+          return { kind: 'frac', text: part.value };
+        default:
+          return { kind: 'other', text: part.value };
+      }
+    });
+  } catch {
+    return [{ kind: 'int', text: `${value.toFixed(digits)} ${code}` }];
+  }
+}

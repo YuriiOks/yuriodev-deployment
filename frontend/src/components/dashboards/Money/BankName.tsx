@@ -23,7 +23,8 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
   const [square, setSquare] = useState(false);
   const name = providerName(provider);
   if (!logo || (!logo.onDark && !logo.onLight)) return <>{name}</>;
-  const brand = brandOf(provider);
+  // A chip sits on the theme's own surface, not on a brand colour, so it follows the theme like a neutral card.
+  const brand = size === 'chip' ? null : brandOf(provider);
   const watch = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = event.currentTarget;
     if (naturalWidth > 0 && naturalHeight > 0) setSquare(naturalWidth / naturalHeight < 1.6);
