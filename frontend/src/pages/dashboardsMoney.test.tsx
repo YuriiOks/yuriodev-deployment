@@ -786,3 +786,73 @@ describe('the Money page: where it lives', () => {
     expect(await within(main()).findByRole('link', { name: 'Back to Personal' })).toHaveAttribute('href', '/dashboards/personal');
   });
 });
+
+describe('the personal Work and income tab', () => {
+  const now = () => new Date();
+  const thisMonth = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60000).toISOString();
+  const lastMonth = () => {
+    const first = new Date(now().getFullYear(), now().getMonth(), 1, 12, 0, 0);
+    return new Date(first.getTime() - 24 * 3600000).toISOString();
+  };
+  const income = (id: string, bookedAt: string, amount: number, extra: Record<string, unknown> = {}) => tx(id, 'a-current', 0, amount, id, { booked_at: bookedAt, category: 'income', ...extra });
+  const data = () =>
+    finance({
+      transactions: [
+        income('Salary', thisMonth(10), 250000, { counterparty: 'Example Ltd' }),
+        income('Refund', thisMonth(60), 3000),
+        income('Dollars', thisMonth(120), 40000, { currency: 'USD' }),
+        income('Own move', thisMonth(130), 90000, { internal_transfer: true }),
+        income('Bounced', thisMonth(140), 70000, { declined: true }),
+        income('Last month pay', lastMonth(), 250000),
+        tx('Spend', 'a-current', 5, -500, 'Spend', { category: 'groceries' }),
+      ],
+    });
+
+  async function openTab(options: FakeApiOptions = {}) {
+    const api = setup({ finance: data(), ...options });
+    const user = userEvent.setup();
+    renderAt('/dashboards/personal');
+    await user.click(await within(main()).findByRole('tab', { name: /^Work and income/ }));
+    return { api, user };
+  }
+
+  it('shows this month\'s income per currency and the latest incoming, leaving out spending, own transfers and declined payments', async () => {
+    const { api } = await openTab();
+    const month = within(await within(main()).findByRole('region', { name: 'Income this month' }));
+    await month.findByText('£2,530.00');
+    expect(month.getByText('$400.00')).toBeInTheDocument();
+    expect(month.queryByText(/£7/)).toBeNull();
+    const latest = within(main().querySelector('[aria-labelledby="income-latest-title"]') as HTMLElement);
+    const rows = latest.getAllByRole('listitem').map((row) => row.textContent ?? '');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toMatch(/Example Ltd.*Money in: \+£2,500\.00/);
+    expect(rows[1]).toContain('Refund');
+    expect(rows[2]).toContain('Dollars');
+    expect(rows[3]).toContain('Last month pay');
+    expect(latest.queryByText('Own move')).toBeNull();
+    expect(latest.queryByText('Bounced')).toBeNull();
+    expect(latest.queryByText('Spend')).toBeNull();
+    // Each row names its bank and account.
+    await waitFor(() => expect(latest.getAllByRole('listitem')[0]).toHaveTextContent('Acme bank · Everyday'));
+    // It asked the server for income from the first of this month.
+    const call = api.callsTo('GET', '/finance/transactions').find((entry) => entry.url.includes('category=income'));
+    expect(call?.url).toMatch(/from=\d{4}-\d{2}-01/);
+    expect(latest.getByRole('link', { name: 'All transactions in Money' })).toHaveAttribute('href', PATH);
+  });
+
+  it('says there is no income when there is none, and has an error with a retry', async () => {
+    const { api, user } = await openTab({ finance: finance({ transactions: [tx('Spend', 'a-current', 5, -500, 'Spend', { category: 'groceries' })] }) });
+    expect(await within(main()).findAllByText('No income yet.')).toHaveLength(2);
+    expect(api.callsTo('GET', '/finance/transactions').length).toBeGreaterThan(0);
+    void user;
+  });
+
+  it('shows an error with a retry when the transactions cannot be read', async () => {
+    const { api, user } = await openTab({ fail: ['financeTransactions'] });
+    const month = within(await within(main()).findByRole('region', { name: 'Income this month' }));
+    expect(await month.findByRole('alert')).toHaveTextContent('Could not load the income.');
+    api.fail.delete('financeTransactions');
+    await user.click(month.getByRole('button', { name: 'Try again' }));
+    expect(await month.findByText('£2,530.00')).toBeInTheDocument();
+  });
+});
