@@ -1054,3 +1054,18 @@ async def test_a_charge_found_only_while_catching_up_on_old_dates_is_not_an_amou
         body = await attention(client)
 
     assert body["items"] == []
+
+
+async def test_an_occurrence_more_than_one_period_old_is_rolled_past_not_matched(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        # The only "Old purchase" line is from 31 October: the occurrences of 30 October and 6
+        # November are older than one week, so only the one of 20 November is looked at.
+        body = await pay(client, "Old purchase", 7_000, "2026-10-30", frequency="weekly")
+        after = await one(client, body["id"])
+
+    assert after["next_payment_date"] == "2026-11-20"  # rolled up to the latest occurrence
+    assert (after["last_paid_on"], after["last_charged_amount"]) == (None, None)

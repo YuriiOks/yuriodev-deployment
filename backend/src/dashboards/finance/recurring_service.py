@@ -381,6 +381,14 @@ async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> in
             due = row.next_payment_date
             if due is None or not row.is_active or today < due - timedelta(days=EARLY_DAYS):
                 break
+            following = advance(
+                due, row.frequency, row.frequency_interval, anchor_of(row.start_date, due)
+            )
+            if following is not None and following <= today:
+                _step(row)  # more than one period ago: not looked up, only rolled past
+                row.updated_at = now
+                moved += 1
+                continue
             found = await _match(session, row, due, zone, used)
             if found is not None:
                 used.add(found.id)

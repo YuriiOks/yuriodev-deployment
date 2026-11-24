@@ -1009,7 +1009,10 @@ set; a payment that happens once ends. A payment whose paying account is not one
 be seen, so its date moves on when it has passed (nothing is recorded as paid); one whose account
 we do collect stays put until a transaction is seen, and becomes an attention item. This runs on
 reading (list, get, upcoming, attention), is idempotent, and catches up at most 24 occurrences per
-request.
+request. Only the latest occurrence is looked up: a date whose next date is already today or
+earlier (more than one period old, e.g. in a file with stale dates) is rolled past with nothing
+matched or recorded, so old transactions never produce a match, a `last_charged_amount` or an
+`amount_changed` item.
 `GET /upcoming?days=14` (1 to 366): every occurrence from today (the local day) to the end of the
 window (a weekly payment appears each time), with `covered` (can the paying account pay it:
 balance plus overdraft in force, a card's balance already counts its limit, counting the earlier
@@ -1042,7 +1045,10 @@ and `owed` (its `balance` is the limit minus what is owed, as for the other prov
 `POST /manual/accounts/{id}/balance` `{balance | owed, as_of?}` sets the balance with a date
 (`as_of`: a day, meaning the end of that day in `DASHBOARDS_TIMEZONE`, or a time with an offset;
 default now; never in the future). `PATCH /accounts/{id}` also takes `name`, `label`, `mask_last4`,
-`archived` and (a card) `credit_limit` (what is owed stays) for an account entered by hand; an
+`archived`, `credit_limit` (a card; what is owed stays) and `kind` for an account entered by hand
+(a current account becomes a `credit_card` only together with `credit_limit` above 0: the balance
+becomes the limit plus the old balance, so a negative balance stays what is owed; back from a card
+the limit goes and the balance is the limit taken off; no overdraft on a card); an
 account from a bank's API takes only `overdraft_limit`. A connection's `last_ok_at` is the date its
 newest data is as of (a balance's date, or the newest line of a statement), never the day it was
 uploaded; with an open account and data older than 30 days there is a `stale_statement` attention

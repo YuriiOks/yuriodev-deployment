@@ -339,6 +339,41 @@ async def test_a_bad_change_to_a_manual_account_is_refused(db_url, make_dashboar
     assert response.status_code == 422
 
 
+async def test_a_current_account_becomes_a_credit_card_and_back_keeping_what_is_owed(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        plain = await open_account(client, link, balance=-120_000, overdraft_limit=5_000)
+        url = f"{FINANCE}/accounts/{plain['id']}"
+        no_limit = await client.patch(url, json={"kind": "credit_card"})
+        zero = await client.patch(url, json={"kind": "credit_card", "credit_limit": 0})
+        card = await client.patch(url, json={"kind": "credit_card", "credit_limit": 500_000})
+        raised = await client.patch(url, json={"credit_limit": 600_000})
+        back_with_limit = await client.patch(url, json={"kind": "current", "credit_limit": 1})
+        back = await client.patch(url, json={"kind": "current"})
+        savings = await client.patch(url, json={"kind": "savings"})
+        same = await client.patch(url, json={"kind": "savings", "name": "Pot of cash"})
+        pot = await client.patch(url, json={"kind": "pot"})
+        cleared = await client.patch(url, json={"kind": None})
+
+    assert (no_limit.status_code, zero.status_code) == (422, 422)
+    assert (card.json()["kind"], card.json()["credit_limit"]) == ("credit_card", 500_000)
+    assert (card.json()["balance"], card.json()["own_balance_minor"]) == (380_000, -120_000)
+    assert card.json()["overdraft_limit_source"] is None  # a card has no overdraft
+    assert raised.json()["balance"] == 480_000
+    assert back_with_limit.status_code == 422
+    assert (back.json()["kind"], back.json()["credit_limit"], back.json()["balance"]) == (
+        "current",
+        0,
+        -120_000,
+    )
+    assert savings.json()["kind"] == "savings"
+    assert (same.json()["kind"], same.json()["name"]) == ("savings", "Pot of cash")
+    assert (pot.status_code, cleared.status_code) == (422, 422)
+
+
 async def test_an_account_from_a_bank_api_only_takes_the_overdraft(db_url, make_dashboards_app):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
