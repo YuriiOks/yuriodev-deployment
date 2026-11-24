@@ -299,6 +299,7 @@ class Recurring(FinanceBase):
     icon_checked_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     icon_error: Mapped[str | None] = mapped_column(String(40), nullable=True)  # why a fetch failed
+    icon_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     icon_manual: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     is_installment: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())

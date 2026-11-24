@@ -32,6 +32,7 @@ from src.dashboards.finance.maintenance import (
     pair_own_transfers,
     recompute_categories,
 )
+from src.dashboards.finance.icons import IconWorker
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.projects import upgrade_projects
@@ -138,6 +139,8 @@ async def _start_dashboards(
     # The SDK's session manager must run for the app's whole life; its tasks end with the stack.
     await stack.enter_async_context(app.state.mcp.session_manager.run())
     tasks = [asyncio.create_task(runtime.migrate_until_ready(), name="dashboards-migrate")]
+    if app.state.icon_autostart:
+        tasks.append(asyncio.create_task(app.state.icons.run_forever(), name="dashboards-icons"))
     if settings.collectors_enabled or settings.finance_enabled:
         from src.core.http import build_http_client  # httpx is only imported when collecting
 
@@ -202,9 +205,18 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.finance_collectors = None  # the finance loop, set by the lifespan
     app.state.finance_http = None  # its HTTP client, for the consent routes
     app.state.collector_transport = None
-    # Seams for the icon fetch after a write (tests give a fake transport and a fake resolver).
+    # The one task that fetches payment icons, with its test seams (a fake transport, a fake
+    # resolver, no autostart: the tests drain it by hand).
     app.state.icon_transport = None
     app.state.icon_resolver = resolve_host
+    app.state.icon_autostart = True
+    app.state.icons = IconWorker(
+        settings,
+        lambda: app.state.dashboards.sessions,
+        lambda: app.state.icon_transport,
+        lambda: app.state.icon_resolver,
+        app.state.clock,
+    )
     app.state.finance_sleep = asyncio.sleep  # a test seam: the pauses between provider requests
 
     # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503

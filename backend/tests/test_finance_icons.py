@@ -1,8 +1,11 @@
 """Payment icons: fetched by the server through the checked-address path, never by the browser."""
 
+import asyncio
 import base64
 import json
 import uuid
+from datetime import timedelta
+from unittest import mock
 
 import httpx
 import pytest
@@ -14,9 +17,9 @@ from src.core.http import (
     public_host,
 )
 from src.dashboards.finance.icons import (
+    backoff_for,
     discover_icon,
     fetch_icon,
-    fill_pending,
     ico_png,
     is_image,
 )
@@ -349,7 +352,7 @@ async def test_a_site_that_resolves_inside_is_never_asked():
     assert (uri, why, seen) == (None, "not_public", [])
 
 
-async def test_the_icon_of_a_payment_is_fetched_after_the_write_and_shown_as_data(
+async def test_the_icon_of_a_payment_is_fetched_by_the_worker_and_served_by_url(
     db_url, make_dashboards_app
 ):
     handler, seen = site(
@@ -366,6 +369,8 @@ async def test_the_icon_of_a_payment_is_fetched_after_the_write_and_shown_as_dat
         typed = await add(client, name="Typed", icon_url=ACME)
         by_site = await add(client, name="Site", website="HTTPS://Shop.Example.Test/pricing?x=1")
         await add(client, name="Both", icon_url=ACME, website=SHOP)
+        before = {r["name"]: r for r in (await client.get(f"{BASE}/recurring")).json()["recurring"]}
+        worked = await app.state.icons.drain()
         rows = {r["name"]: r for r in (await client.get(f"{BASE}/recurring")).json()["recurring"]}
         image_of = {}
         for row in rows.values():
@@ -374,9 +379,12 @@ async def test_the_icon_of_a_payment_is_fetched_after_the_write_and_shown_as_dat
                 image_of[row["id"]] = image.content
         none_url = {"icon_url": "https://icons.example.test/none.png"}
         moved = await client.patch(f"{BASE}/recurring/{typed['id']}", json=none_url)
+        await app.state.icons.drain()
         looked_again = (await client.get(f"{BASE}/recurring/{typed['id']}")).json()
         refreshed = await client.post(f"{BASE}/recurring/{by_site['id']}/icon/refresh")
 
+    assert {before[name]["icon_state"] for name in ("Typed", "Site", "Both")} == {"pending"}
+    assert worked == {"icons": 3, "refused": 0}
     assert (none["icon_state"], none["icon_url"]) == ("none", None)
     assert (rows["Typed"]["icon_state"], image_of[rows["Typed"]["id"]]) == ("ok", PNG)
     assert rows["Site"]["icon_state"] == "ok"
@@ -407,14 +415,16 @@ async def test_a_refreshed_icon_is_fetched_again_and_a_failure_keeps_the_row(
     app.state.icon_transport = httpx.MockTransport(handler)
     async with running(app, AUTH) as client:
         made = await add(client, icon_url="https://icons.example.test/acme.png")
+        await app.state.icons.drain()
         first = (await client.get(f"{BASE}/recurring/{made['id']}")).json()
         answers.reverse()
         second = await client.post(f"{BASE}/recurring/{made['id']}/icon/refresh")
+        await app.state.icons.drain()
         after = (await client.get(f"{BASE}/recurring/{made['id']}")).json()
         missing = await client.post(f"{BASE}/recurring/{uuid.uuid4()}/icon/refresh")
 
     assert first["icon_state"] == "ok"
-    assert second.status_code == 200
+    assert (second.status_code, second.json()["icon_state"]) == (200, "pending")  # at once
     assert (after["icon_state"], after["icon_url"]) == ("failed", None)
     assert after["icon_error"] == "status_404"
     assert after["name"] == made["name"]
@@ -459,12 +469,11 @@ async def test_a_website_that_is_not_a_public_host_is_refused(db_url, make_dashb
     assert response.json()["fields"] == ["website"]
 
 
-async def test_the_website_comes_in_by_csv_and_the_collector_fills_what_is_left(
-    db_url, make_dashboards_app, clock
-):
+async def test_the_website_comes_in_by_csv_and_the_worker_fills_it(db_url, make_dashboards_app):
     handler, _ = site({("shop.example.test", "/apple-touch-icon.png"): (200, "image/png", PNG, {})})
     app = make_dashboards_app(db_url)
-    async with running(app, AUTH) as client, client_for(handler) as outbound:
+    app.state.icon_transport = httpx.MockTransport(handler)
+    async with running(app, AUTH) as client:
         text = (
             "name,amount,currency,frequency,next_payment_date,website\n"
             "A,1,GBP,monthly,2026-12-01,shop.example.test\n"
@@ -474,8 +483,7 @@ async def test_the_website_comes_in_by_csv_and_the_collector_fills_what_is_left(
             content=text.encode(),
             headers={"content-type": "text/csv"},
         )
-        await execute(db_url, "UPDATE finance.recurring SET icon_checked_url = NULL")
-        filled = await fill_pending(outbound, app.state.dashboards.sessions, resolving({}))
+        filled = await app.state.icons.drain()
         stored = await scalar(db_url, "SELECT icon_checked_url FROM finance.recurring")
 
     assert sent.status_code == 200, sent.text
@@ -559,3 +567,81 @@ async def test_the_owner_sets_an_icon_by_hand_and_it_is_served_with_a_cache(
     assert anonymous.headers["cache-control"] == "no-store"
     assert refreshed.json()["icon_state"] == "pending"  # given up: fetched again from the website
     assert gone.status_code == 404
+
+
+async def test_no_connection_is_held_while_a_site_is_asked_and_only_one_site_at_a_time(
+    db_url, make_dashboards_app
+):
+    seen = {"busy": 0, "most": 0, "out": []}
+    app = make_dashboards_app(db_url)
+
+    async def slow(request):
+        seen["busy"] += 1
+        seen["most"] = max(seen["most"], seen["busy"])
+        seen["out"].append(app.state.dashboards.engine.pool.checkedout())  # connections in use
+        await asyncio.sleep(0.01)
+        seen["busy"] -= 1
+        stream = httpx.ByteStream(PNG)
+        return httpx.Response(200, headers={"content-type": "image/png"}, stream=stream)
+
+    app.state.icon_transport = httpx.MockTransport(slow)
+    async with running(app, AUTH) as client:
+        for n in range(4):
+            await add(client, name=f"P{n}", icon_url=f"https://icons.example.test/{n}.png")
+        worked = await app.state.icons.drain()
+
+    assert worked == {"icons": 4, "refused": 0}
+    assert seen["most"] == 1
+    assert set(seen["out"]) == {0}  # no database connection checked out during any request
+
+
+async def test_a_failed_site_says_why_even_on_a_timeout_and_is_left_alone_for_hours(
+    db_url, make_dashboards_app, clock
+):
+    calls = []
+
+    async def hang(request):
+        calls.append(request.headers["host"])
+        await asyncio.sleep(60)
+
+    app = make_dashboards_app(db_url)
+    app.state.icon_transport = httpx.MockTransport(hang)
+    async with running(app, AUTH) as client:
+        made = await add(client, icon_url=ACME)
+        with mock.patch("src.dashboards.finance.icons.PAYMENT_DEADLINE_SECONDS", 0.05):
+            first = await app.state.icons.drain()
+        row = (await client.get(f"{BASE}/recurring/{made['id']}")).json()
+        asked = len(calls)
+        again = await app.state.icons.drain()  # the same instant: not due yet
+        clock.now += timedelta(hours=4)
+        later = await app.state.icons.drain()  # a timeout is looked at again after 3 hours
+
+    assert first == {"icons": 0, "refused": 1}
+    assert (row["icon_state"], row["icon_error"]) == ("failed", "timeout")
+    assert again == {"icons": 0, "refused": 0} and asked == 1
+    assert later == {"icons": 0, "refused": 1} and len(calls) == 2
+
+
+async def test_an_unexpected_error_still_leaves_a_reason_and_a_refusal_waits_a_day(
+    db_url, make_dashboards_app, clock
+):
+    def boom(request):
+        raise RuntimeError("not a network error")
+
+    app = make_dashboards_app(db_url)
+    app.state.icon_transport = httpx.MockTransport(boom)
+    async with running(app, AUTH) as client:
+        made = await add(client, icon_url=ACME)
+        await app.state.icons.drain()
+        row = (await client.get(f"{BASE}/recurring/{made['id']}")).json()
+        retry = await scalar(db_url, "SELECT icon_retry_at FROM finance.recurring")
+
+    assert (row["icon_state"], row["icon_error"]) == ("failed", "fetch_error")
+    assert retry is not None
+
+
+def test_a_refusal_waits_longer_than_a_timeout():
+    assert backoff_for("timeout") == timedelta(hours=3)
+    assert backoff_for("status_503") == timedelta(hours=3)
+    assert backoff_for("blocked_status_403") == timedelta(hours=24)
+    assert backoff_for("no_icon_found") == timedelta(hours=24)
