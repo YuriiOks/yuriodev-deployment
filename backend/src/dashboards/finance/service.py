@@ -151,9 +151,7 @@ async def connection_styles(session: AsyncSession) -> dict[str, Style]:
     ).all()
     styles: dict[str, Style] = {}
     for link in rows:  # newest first, so the oldest wins
-        pair = (
-            Brand("", link.brand_bg, link.brand_fg) if link.brand_bg and link.brand_fg else None
-        )
+        pair = Brand("", link.brand_bg, link.brand_fg) if link.brand_bg and link.brand_fg else None
         styles[link.provider] = Style(link.display_name, pair)
     return styles
 
