@@ -70,6 +70,23 @@ export interface RecurringStrings {
   readonly viewOverview: string;
   readonly viewAttention: string;
   readonly viewRecurring: string;
+  readonly truth: {
+    readonly confirmed: string;
+    readonly confirmedOn: string;
+    readonly noneSeen: string;
+    readonly unchecked: string;
+  };
+  readonly endedMark: string;
+  readonly endedTitle: string;
+  readonly endedList: string;
+  readonly scheduleProgress: string;
+  readonly scheduleProgressNone: string;
+  readonly confirmedOfTotal: string;
+  readonly dueSplit: {
+    readonly confirmed: string;
+    readonly noneSeen: string;
+    readonly unchecked: string;
+  };
   readonly dueWhen: { readonly today: string; readonly tomorrow: string; readonly inDays: string };
   readonly markPaid: string;
   readonly openPayment: string;
@@ -239,6 +256,23 @@ export const RECURRING_RU: RecurringStrings = {
   viewOverview: 'Обзор',
   viewAttention: 'Внимание',
   viewRecurring: 'Регулярные платежи',
+  truth: {
+    confirmed: 'подтверждено банком',
+    confirmedOn: 'подтверждено банком · последний {date}',
+    noneSeen: 'списаний не видно',
+    unchecked: 'из вашего списка, не проверено',
+  },
+  endedMark: 'закончился по графику',
+  endedTitle: 'Закончились по графику',
+  endedList: 'Закончились по графику: {n}',
+  scheduleProgress: 'по графику {scheduled} из {total} · подтверждено банком: {done}',
+  scheduleProgressNone: 'по графику {scheduled} из {total} · банком не подтверждено',
+  confirmedOfTotal: 'подтверждено банком {done} из {total}',
+  dueSplit: {
+    confirmed: 'Подтверждено банком: {amount}',
+    noneSeen: 'Списаний не видно: {amount}',
+    unchecked: 'Из вашего списка, не проверено: {amount}',
+  },
   dueWhen: { today: 'сегодня', tomorrow: 'завтра', inDays: 'через {n} дн.' },
   markPaid: 'Отметить оплаченным',
   openPayment: 'Открыть платёж',
@@ -408,6 +442,23 @@ export const RECURRING_EN: RecurringStrings = {
   viewOverview: 'Overview',
   viewAttention: 'Attention',
   viewRecurring: 'Recurring payments',
+  truth: {
+    confirmed: 'confirmed by the bank',
+    confirmedOn: 'confirmed by the bank · last {date}',
+    noneSeen: 'no charge seen',
+    unchecked: 'from your list, not checked',
+  },
+  endedMark: 'ended by schedule',
+  endedTitle: 'Ended by schedule',
+  endedList: 'Ended by schedule: {n}',
+  scheduleProgress: 'by schedule {scheduled} of {total} · {done} confirmed by the bank',
+  scheduleProgressNone: 'by schedule {scheduled} of {total} · none confirmed by the bank',
+  confirmedOfTotal: '{done} of {total} confirmed by the bank',
+  dueSplit: {
+    confirmed: 'Confirmed by the bank: {amount}',
+    noneSeen: 'No charge seen: {amount}',
+    unchecked: 'From your list, not checked: {amount}',
+  },
   dueWhen: { today: 'today', tomorrow: 'tomorrow', inDays: 'in {n} d' },
   markPaid: 'Mark paid',
   openPayment: 'Open payment',

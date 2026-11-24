@@ -5,11 +5,14 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import type { Upcoming, UpcomingItem } from '../../../services/dashboards/recurringApi';
+import type { Evidence, Recurring, Upcoming, UpcomingItem } from '../../../services/dashboards/recurringApi';
 import { cx } from '../../../utils/cx';
 import Amount from './Amount';
+import EndedPlans from './EndedPlans';
 import RecurringIcon from './RecurringIcon';
-import { dayHeading, WINDOWS } from './recurringLabels';
+import TruthMark from './TruthMark';
+import { splitDue, truthOf, TRUTHS } from './evidenceModel';
+import { dayHeading, endedOf, WINDOWS } from './recurringLabels';
 import styles from './Recurring.module.css';
 
 /** Whether the paying account can cover a payment, in words (never colour alone). */
@@ -19,7 +22,7 @@ function coverWords(item: UpcomingItem, lang: string, r: ReturnType<typeof useDa
   return r.coverUnknown;
 }
 
-const UpcomingRow: React.FC<{ item: UpcomingItem; accounts: readonly FinanceAccount[]; mode: MoneyDisplay }> = ({ item, accounts, mode }) => {
+const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; accounts: readonly FinanceAccount[]; mode: MoneyDisplay }> = ({ item, evidence, accounts, mode }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
   const account = item.accountId ? accounts.find((row) => row.id === item.accountId) : undefined;
@@ -32,6 +35,7 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; accounts: readonly FinanceAcco
         <span className={styles.note}>
           {[r.kinds[item.kind], payer, coverWords(item, lang, r)].filter(Boolean).join(' · ')}
         </span>
+        <TruthMark evidence={evidence} />
       </span>
       <strong className={styles.dueAmount}>
         <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} />
@@ -51,24 +55,30 @@ export interface MoneyUpcomingProps {
   days: number;
   onDays: (days: number) => void;
   accounts: readonly FinanceAccount[];
+  /** The payments, for how far each is verified and which plans have ended by their schedule. */
+  recurring: readonly Recurring[];
   mode: MoneyDisplay;
 }
 
 /** The "Upcoming payments" body: the window switch, the payments grouped by day, and the totals the server added up. */
-const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accounts, mode }) => {
+const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accounts, recurring, mode }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
   // By default the next 7 days, at most 8 rows (when nothing falls in the week, the first few that follow); "Show all" opens the whole window.
   const [all, setAll] = useState(false);
-  const week = data.items.filter((item) => item.daysUntil <= UPCOMING_WEEK_DAYS);
-  const bounded = (week.length > 0 ? week : data.items.slice(0, UPCOMING_FALLBACK_ROWS)).slice(0, UPCOMING_ROWS);
-  const visible = all ? data.items : bounded;
+  const byId = new Map(recurring.map((row) => [row.id, row]));
+  // What its own schedule has finished is not due: it is listed apart.
+  const items = data.items.filter((item) => byId.get(item.recurringId)?.scheduleState !== 'ended_by_schedule');
+  const week = items.filter((item) => item.daysUntil <= UPCOMING_WEEK_DAYS);
+  const bounded = (week.length > 0 ? week : items.slice(0, UPCOMING_FALLBACK_ROWS)).slice(0, UPCOMING_ROWS);
+  const visible = all ? items : bounded;
   const groups: { date: string; daysUntil: number; items: UpcomingItem[] }[] = [];
   for (const item of visible) {
     const last = groups[groups.length - 1];
     if (last && last.date === item.dueDate) last.items.push(item);
     else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, items: [item] });
   }
+  const split = splitDue(items, (id) => truthOf(byId.get(id)?.evidence ?? null), mode);
   const showGrand = mode === 'base' && data.grand !== null && data.totals.some((total) => total.display !== null);
   return (
     <div className={styles.body}>
@@ -84,7 +94,7 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
           {r.allRecurring}
         </Link>
       </div>
-      {groups.length === 0 ? (
+      {items.length === 0 ? (
         <p className={styles.none}>{fill(r.upcomingNone, { days })}</p>
       ) : (
         <>
@@ -94,15 +104,15 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
                 <h3 className={styles.dayHead}>{dayHeading(group.date, group.daysUntil, lang, r)}</h3>
                 <ul className={styles.dueList}>
                   {group.items.map((item, index) => (
-                    <UpcomingRow key={`${item.recurringId}-${index}`} item={item} accounts={accounts} mode={mode} />
+                    <UpcomingRow key={`${item.recurringId}-${index}`} item={item} evidence={byId.get(item.recurringId)?.evidence ?? null} accounts={accounts} mode={mode} />
                   ))}
                 </ul>
               </li>
             ))}
           </ol>
-          {data.items.length > visible.length || all ? (
+          {items.length > visible.length || all ? (
             <button type="button" className={styles.more} aria-expanded={all} onClick={() => setAll((on) => !on)}>
-              {all ? r.showFewer : fill(r.showAllN, { n: data.items.length })}
+              {all ? r.showFewer : fill(r.showAllN, { n: items.length })}
             </button>
           ) : null}
           <div className={styles.dueTotals}>
@@ -118,9 +128,23 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
               ))}
             </ul>
             {showGrand && data.grand && !data.grand.complete && <span className={styles.note}>{r.dueIncomplete}</span>}
+            <ul className={styles.dueSplit}>
+              {TRUTHS.flatMap((truth) => {
+                const sums = split[truth];
+                if (sums.length === 0) return [];
+                const amount = sums.map((sum) => `${sum.approx ? '≈ ' : ''}${formatMinor(sum.amount, sum.currency, lang)}`).join(' · ');
+                const template = truth === 'confirmed' ? r.dueSplit.confirmed : truth === 'none_seen' ? r.dueSplit.noneSeen : r.dueSplit.unchecked;
+                return [
+                  <li key={truth} data-truth={truth}>
+                    {fill(template, { amount })}
+                  </li>,
+                ];
+              })}
+            </ul>
           </div>
         </>
       )}
+      <EndedPlans rows={endedOf(recurring, false)} />
     </div>
   );
 };

@@ -2,13 +2,13 @@ import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
-import { setManualBalance, uploadStatement, type StatementResult } from '../../../services/dashboards/manualApi';
+import { setManualBalance, updateManualAccount, uploadStatement, type ManualAccountKind, type ManualAccountPatch, type StatementResult } from '../../../services/dashboards/manualApi';
 import { formatMinor, minorToInput, parseMinor } from '../../../services/dashboards/money';
 import { refusal } from '../../../services/dashboards/recurringApi';
 import { dayLabel } from './labels';
 import styles from './Manual.module.css';
 
-type Panel = 'balance' | 'statement' | null;
+type Panel = 'balance' | 'statement' | 'edit' | null;
 
 /** The file's bytes (a FileReader works wherever a file input does). */
 const readFile = (file: File) =>
@@ -232,6 +232,92 @@ const StatementUpload: React.FC<{ account: FinanceAccount; onDone: (saved: boole
   );
 };
 
+const KINDS: readonly ManualAccountKind[] = ['current', 'savings', 'business', 'credit_card'];
+
+/** Changes the name and the type of an account entered by hand, and a card's limit ("this is a credit card", with its limit). Sends only what changed. */
+const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) => void }> = ({ account, onDone }) => {
+  const { t } = useDashboardLang();
+  const x = t.money.manual;
+  const id = useId();
+  const startKind: ManualAccountKind = KINDS.includes(account.kind as ManualAccountKind) ? (account.kind as ManualAccountKind) : 'current';
+  const [name, setName] = useState(account.name);
+  const [kind, setKind] = useState<ManualAccountKind>(startKind);
+  const [limit, setLimit] = useState(account.creditLimit > 0 ? minorToInput(account.creditLimit, account.currency) : '');
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const kindLabel: Record<ManualAccountKind, string> = { current: x.kindCurrent, savings: x.kindSavings, business: x.kindBusiness, credit_card: x.kindCard };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim()) return setProblem(x.nameRequired);
+    const body: { name?: string; kind?: ManualAccountKind; credit_limit?: number } = {};
+    if (name.trim() !== account.name) body.name = name.trim();
+    if (kind !== startKind) body.kind = kind;
+    if (kind === 'credit_card') {
+      const minor = parseMinor(limit, account.currency);
+      if (minor === null) return setProblem(x.limitInvalid);
+      if (kind !== startKind || minor !== account.creditLimit) body.credit_limit = minor;
+    }
+    if (Object.keys(body).length === 0) return onDone(false);
+    setBusy(true);
+    setProblem(null);
+    try {
+      await updateManualAccount(account.id, body as ManualAccountPatch);
+      onDone(true);
+    } catch (error) {
+      const why = refusal(error);
+      setProblem(why ? fill(x.createRefused, { why }) : x.createFailed);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className={styles.form} onSubmit={submit} aria-label={`${x.editAccount}: ${account.name}`}>
+      <div className={styles.fields}>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
+            {x.fAccountName}
+          </label>
+          <input id={`${id}-name`} className={styles.input} value={name} maxLength={120} onChange={(event) => setName(event.target.value)} />
+        </div>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={`${id}-kind`}>
+            {x.fKind}
+          </label>
+          <select id={`${id}-kind`} className={styles.select} value={kind} onChange={(event) => setKind(event.target.value as ManualAccountKind)}>
+            {KINDS.map((choice) => (
+              <option key={choice} value={choice}>
+                {kindLabel[choice]}
+              </option>
+            ))}
+          </select>
+        </div>
+        {kind === 'credit_card' && (
+          <div className={styles.field}>
+            <label className={styles.fieldLabel} htmlFor={`${id}-limit`}>
+              {x.fCreditLimit}
+            </label>
+            <input id={`${id}-limit`} className={styles.input} inputMode="decimal" value={limit} onChange={(event) => setLimit(event.target.value)} />
+          </div>
+        )}
+      </div>
+      {problem && (
+        <p role="alert" className={styles.error}>
+          {problem}
+        </p>
+      )}
+      <div className={styles.actions}>
+        <button type="submit" className={styles.primary} disabled={busy}>
+          {x.saveAccount}
+        </button>
+        <button type="button" className={styles.ghost} disabled={busy} onClick={() => onDone(false)}>
+          {x.close}
+        </button>
+      </div>
+    </form>
+  );
+};
+
 /** What an account of a bank entered by hand can do: set its balance with a date, or load a downloaded statement. */
 const ManualTools: React.FC<{ account: FinanceAccount; onChanged: () => void }> = ({ account, onChanged }) => {
   const { t } = useDashboardLang();
@@ -251,9 +337,13 @@ const ManualTools: React.FC<{ account: FinanceAccount; onChanged: () => void }> 
         <button type="button" className={styles.secondary} aria-expanded={panel === 'statement'} onClick={() => toggle('statement')}>
           {x.uploadStatement}
         </button>
+        <button type="button" className={styles.ghost} aria-expanded={panel === 'edit'} onClick={() => toggle('edit')}>
+          {x.editAccount}
+        </button>
       </div>
       {panel === 'balance' && <BalanceForm account={account} onDone={done} />}
       {panel === 'statement' && <StatementUpload account={account} onDone={done} onImported={onChanged} />}
+      {panel === 'edit' && <EditAccountForm account={account} onDone={done} />}
     </div>
   );
 };

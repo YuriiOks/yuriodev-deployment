@@ -33,8 +33,13 @@ export function dayHeading(iso: string, daysUntil: number, lang: string, r: Recu
 /** The debts and installment plans among the payments (active ones), the soonest next payment first. */
 export function debtsOf(recurring: readonly Recurring[]): Recurring[] {
   return recurring
-    .filter((row) => row.isActive && (row.kind === 'debt' || row.isInstallment))
+    .filter((row) => row.isActive && (row.kind === 'debt' || row.isInstallment) && row.scheduleState !== 'ended_by_schedule')
     .sort((a, b) => (a.nextDate ?? '9999').localeCompare(b.nextDate ?? '9999') || a.name.localeCompare(b.name));
+}
+
+/** The plans its own schedule has finished, apart from the rest: debts and installments (`debts`) or every other payment. */
+export function endedOf(recurring: readonly Recurring[], debts: boolean): Recurring[] {
+  return recurring.filter((row) => row.isActive && row.scheduleState === 'ended_by_schedule' && (row.kind === 'debt' || row.isInstallment) === debts).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** The windows the upcoming payments can be asked for, in days. */
