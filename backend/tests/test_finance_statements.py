@@ -393,7 +393,8 @@ def test_a_bank_id_is_kept_up_to_sixty_characters_then_hashed_and_a_repeat_is_nu
     assert bank_key("FIT-1", 0) == "b:FIT-1"
     assert bank_key("x" * 60, 0) == "b:" + "x" * 60
     long = bank_key("x" * 61, 0)
-    assert long.startswith("b:sha:") and len(long) <= 64
+    assert long.startswith("b:sha:")
+    assert len(long) <= 64
     assert bank_key("x" * 61, 0) != bank_key("x" * 61 + "y", 0)
     assert bank_key("FIT-1", 2) == "b:FIT-1~2"
     assert len(bank_key("x" * 60, 12345)) <= 64
