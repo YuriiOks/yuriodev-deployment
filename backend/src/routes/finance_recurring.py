@@ -41,6 +41,10 @@ router = APIRouter(prefix="/api/dashboards/v1/finance", tags=["finance"])
 MAX_BULK_KEYS = 200
 
 
+def _today(clock: ClockDep, zone: ZoneDep) -> date:
+    return clock().astimezone(zone).date()
+
+
 async def _display(session: SessionDep, settings: SettingsDep, clock: ClockDep) -> Display:
     return await display_for(session, settings.finance_display_currency, clock())
 
@@ -59,17 +63,18 @@ async def list_recurring(
     display = await _display(session, settings, clock)
     rows = await service.list_recurring(session, clock(), zone, active, kind)
     return RecurringListOut(
-        recurring=[RecurringOut.from_row(row, display) for row in rows],
+        recurring=[RecurringOut.from_row(row, display, _today(clock, zone)) for row in rows],
         display=DisplayOut(**display_fields(display, {row.currency for row in rows})),
     )
 
 
 @router.post("/recurring", status_code=201)
 async def create_recurring(
-    body: RecurringIn, session: SessionDep, settings: SettingsDep, clock: ClockDep
+    body: RecurringIn, session: SessionDep, settings: SettingsDep, clock: ClockDep, zone: ZoneDep
 ) -> RecurringOut:
     row = await service.create_recurring(session, body, clock())
-    return RecurringOut.from_row(row, await _display(session, settings, clock))
+    display = await _display(session, settings, clock)
+    return RecurringOut.from_row(row, display, _today(clock, zone))
 
 
 class BulkIn(BaseModel):
@@ -87,7 +92,7 @@ def _answer(result: ImportOut, clean: bool) -> Response:
 
 @router.post("/recurring/bulk", response_model=ImportOut)
 async def bulk_recurring(
-    body: BulkIn, session: SessionDep, settings: SettingsDep, clock: ClockDep
+    body: BulkIn, session: SessionDep, settings: SettingsDep, clock: ClockDep, zone: ZoneDep
 ) -> Response:
     """Create many payments in one go (at most 500), all or nothing: with any error nothing is
     written and the answer lists every row's problems. A row with an `external_ref` that already
@@ -95,7 +100,15 @@ async def bulk_recurring(
     inputs, errors = service.validate_items(body.items)
     display = await _display(session, settings, clock)
     result, clean = await service.load_recurring(
-        session, inputs, errors, [], clock(), display, body.on_conflict, body.dry_run
+        session,
+        inputs,
+        errors,
+        [],
+        clock(),
+        _today(clock, zone),
+        display,
+        body.on_conflict,
+        body.dry_run,
     )
     return _answer(result, clean)
 
@@ -106,6 +119,7 @@ async def import_recurring(
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
+    zone: ZoneDep,
     on_conflict: Annotated[Literal["skip", "update"], Query()] = "skip",
     dry_run: Annotated[bool, Query()] = False,
 ) -> Response:
@@ -133,6 +147,7 @@ async def import_recurring(
         errors,
         ignored,
         clock(),
+        _today(clock, zone),
         display,
         on_conflict,
         dry_run,
@@ -149,7 +164,8 @@ async def get_recurring(
     zone: ZoneDep,
 ) -> RecurringOut:
     row = await service.get_recurring(session, recurring_id, clock(), zone)
-    return RecurringOut.from_row(row, await _display(session, settings, clock))
+    display = await _display(session, settings, clock)
+    return RecurringOut.from_row(row, display, _today(clock, zone))
 
 
 @router.patch("/recurring/{recurring_id}")
@@ -159,10 +175,12 @@ async def update_recurring(
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
+    zone: ZoneDep,
 ) -> RecurringOut:
     """Change the fields sent; `null` clears a field that may be empty."""
     row = await service.update_recurring(session, recurring_id, body, clock())
-    return RecurringOut.from_row(row, await _display(session, settings, clock))
+    display = await _display(session, settings, clock)
+    return RecurringOut.from_row(row, display, _today(clock, zone))
 
 
 @router.delete("/recurring/{recurring_id}", status_code=204)
@@ -190,7 +208,8 @@ async def mark_paid(
     once ends). Use it for a payment that cannot be matched to a transaction."""
     paid_on = body.paid_on if body else None
     row = await service.mark_paid(session, recurring_id, clock(), zone, paid_on)
-    return RecurringOut.from_row(row, await _display(session, settings, clock))
+    display = await _display(session, settings, clock)
+    return RecurringOut.from_row(row, display, _today(clock, zone))
 
 
 @router.get("/upcoming")

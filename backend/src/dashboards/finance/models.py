@@ -296,6 +296,12 @@ class Recurring(FinanceBase):
     current_saved: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     recipient: Mapped[str | None] = mapped_column(String(120), nullable=True)
     last_paid_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Written by the roll-forward (migration `dashboards_0017`): the date a transaction last
+    # matched (not the owner saying "paid"), how many instalments were only passed by the schedule
+    # (never confirmed by a line), and the outcome of the last three due dates ("1" matched).
+    last_matched_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    assumed_installments: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    recent_outcomes: Mapped[str] = mapped_column(String(3), nullable=False, server_default="")
     last_charged_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     last_transaction_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey(f"{SCHEMA}.transaction.id", ondelete="SET NULL"), nullable=True

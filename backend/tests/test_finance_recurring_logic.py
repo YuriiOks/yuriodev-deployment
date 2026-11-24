@@ -1,6 +1,7 @@
 """The rules of recurring payments that need no database: dates, matching, checks, CSV."""
 
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -11,12 +12,15 @@ from src.dashboards.finance.recurring import (
     advance,
     amount_differs,
     anchor_of,
+    frequency_of,
     instalments_agree,
     kind_of,
+    last_installment_date,
     normal_color,
     occurrences,
     parse_csv,
     safe_icon_url,
+    schedule_state,
     text_matches,
 )
 
@@ -330,3 +334,66 @@ def test_more_than_the_row_limit_is_an_error_and_a_broken_file_is_too():
     assert errors[-1].message == f"more than {MAX_ROWS} rows"
     huge = "name,amount,currency,frequency\n" + "x" * 200_000 + ",1,GBP,monthly\n"
     assert parse_csv(huge)[1][-1].message == "the file is not valid CSV"
+
+
+TODAY = date(2026, 11, 22)
+
+
+def row(**extra):
+    values = {
+        "is_active": True,
+        "kind": "debt",
+        "frequency": "monthly",
+        "frequency_interval": 1,
+        "next_payment_date": date(2026, 11, 30),
+        "start_date": date(2026, 1, 30),
+        "is_installment": True,
+        "total_installments": 12,
+        "completed_installments": 3,
+        "assumed_installments": 0,
+        "last_matched_on": None,
+    }
+    return SimpleNamespace(**{**values, **extra})
+
+
+def test_the_last_instalment_is_the_start_plus_the_count_less_one_periods():
+    assert last_installment_date(date(2026, 1, 30), "monthly", 1, 12) == date(2026, 12, 30)
+    assert last_installment_date(date(2026, 1, 31), "monthly", 1, 3) == date(2026, 3, 31)
+    assert last_installment_date(date(2026, 1, 1), "weekly", 2, 3) == date(2026, 1, 29)
+    assert last_installment_date(date(2026, 1, 1), "monthly", 1, 1) == date(2026, 1, 1)
+    assert last_installment_date(None, "monthly", 1, 12) is None
+    assert last_installment_date(date(2026, 1, 1), "monthly", 1, None) is None
+    assert last_installment_date(date(2026, 1, 1), "monthly", 1, 0) is None
+    assert last_installment_date(date(2026, 1, 1), "monthly", 1, 5_000) is None
+    assert last_installment_date(date(2026, 1, 1), "once", 1, 3) is None
+
+
+def test_a_one_time_payment_never_repeats_whatever_its_frequency_says():
+    assert frequency_of("one_time", "monthly") == "once"
+    assert frequency_of("debt", "monthly") == "monthly"
+
+
+@pytest.mark.parametrize(
+    ("extra", "expected"),
+    [
+        ({}, "on_track"),
+        ({"is_active": False}, None),
+        ({"start_date": date(2025, 1, 15)}, "ended_by_schedule"),  # its last date was in 2025
+        ({"completed_installments": 12}, "ended_by_schedule"),  # all counted
+        ({"completed_installments": 5, "assumed_installments": 7}, "ended_by_schedule"),
+        (
+            {"start_date": date(2025, 1, 15), "last_matched_on": date(2026, 9, 1)},
+            "unknown",  # a line after the supposed last date: the plan goes on
+        ),
+        ({"total_installments": None}, "unknown"),
+        ({"start_date": None}, "unknown"),
+        ({"start_date": None, "completed_installments": 12}, "ended_by_schedule"),
+        ({"is_installment": False}, "on_track"),
+        ({"kind": "one_time", "next_payment_date": date(2026, 11, 1)}, "ended_by_schedule"),
+        ({"kind": "one_time", "next_payment_date": date(2026, 11, 22)}, "on_track"),
+        ({"kind": "one_time", "next_payment_date": None}, "unknown"),
+        ({"frequency": "once", "next_payment_date": date(2026, 12, 1)}, "on_track"),
+    ],
+)
+def test_the_schedule_state_comes_from_the_list_alone(extra, expected):
+    assert schedule_state(row(**extra), TODAY) == expected
