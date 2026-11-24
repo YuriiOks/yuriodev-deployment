@@ -140,6 +140,9 @@ export interface Strings {
     readonly back: string;
     readonly needsData: string;
     readonly updated: string;
+    readonly refresh: string;
+    readonly refreshing: string;
+    readonly staleBanks: string;
     readonly totalOf: string;
     readonly inPots: string;
     readonly thisMonth: string;
@@ -197,6 +200,10 @@ export interface Strings {
     readonly spendFailed: string;
     readonly spendNote: string;
     readonly vsPrevious: string;
+    readonly vsPreviousBy: string;
+    readonly spendLessBy: string;
+    readonly spendMoreBy: string;
+    readonly spendSameBy: string;
     readonly creditLimit: string;
     readonly historyFrom: string;
     readonly foldEmpty: string;
@@ -429,6 +436,9 @@ export const STRINGS: Record<Lang, Strings> = {
       back: 'К личному',
       needsData: 'Деньги доступны только на реальных данных.',
       updated: 'обновлено {when}',
+      refresh: 'Обновить',
+      refreshing: 'Обновляю…',
+      staleBanks: 'Данные банка не читались с {when}',
       totalOf: '{currency} · счетов: {n}',
       inPots: 'из них в копилках {amount}',
       thisMonth: 'в этом месяце',
@@ -501,6 +511,10 @@ export const STRINGS: Record<Lang, Strings> = {
       spendFailed: 'Не удалось загрузить траты по категориям.',
       spendNote: 'Переводы между своими счетами и копилками в траты не входят.',
       vsPrevious: 'было {amount}',
+      vsPreviousBy: 'к {date} было {amount}',
+      spendLessBy: 'на {percent}% меньше, чем к {date} за {previous}',
+      spendMoreBy: 'на {percent}% больше, чем к {date} за {previous}',
+      spendSameBy: 'как к {date} за {previous}',
       creditLimit: 'лимит {amount}',
       historyFrom: 'история с {date}',
       foldEmpty: 'Ещё пустых: {n}',
@@ -733,6 +747,9 @@ export const STRINGS: Record<Lang, Strings> = {
       back: 'Back to Personal',
       needsData: 'Money needs the live data.',
       updated: 'updated {when}',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing…',
+      staleBanks: 'A bank has not been read since {when}',
       totalOf: '{currency} · accounts: {n}',
       inPots: 'of which in pots {amount}',
       thisMonth: 'this month',
@@ -805,6 +822,10 @@ export const STRINGS: Record<Lang, Strings> = {
       spendFailed: 'Could not load spending by category.',
       spendNote: 'Transfers between your own accounts and pots are not counted as spending.',
       vsPrevious: 'was {amount}',
+      vsPreviousBy: 'by {date} was {amount}',
+      spendLessBy: '{percent}% less than {previous} by {date}',
+      spendMoreBy: '{percent}% more than {previous} by {date}',
+      spendSameBy: 'same as {previous} by {date}',
       creditLimit: 'limit {amount}',
       historyFrom: 'history from {date}',
       foldEmpty: '{n} more empty',

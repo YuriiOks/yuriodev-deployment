@@ -13,7 +13,7 @@ export type RecurringKind = (typeof RECURRING_KINDS)[number];
 export const FREQUENCIES = ['once', 'daily', 'weekly', 'monthly', 'yearly'] as const;
 export type Frequency = (typeof FREQUENCIES)[number];
 
-export const ATTENTION_KINDS = ['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'overdrawn', 'reconsent', 'stale_statement'] as const;
+export const ATTENTION_KINDS = ['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'overdrawn', 'reconsent', 'stale_statement', 'stale_connection'] as const;
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
 
 /** How much an item matters, as the server sets it: high acts now, medium looks soon, info is a plain fact. */
@@ -21,7 +21,7 @@ export const SEVERITIES = ['high', 'medium', 'info'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
 /** What an older server's item (no `severity`) is taken to be, by its kind: the same as the server's own table. */
-const FALLBACK_SEVERITY: Readonly<Record<AttentionKind, Severity>> = { due_not_covered: 'high', missed_payment: 'high', overdraft: 'high', reconsent: 'high', amount_changed: 'medium', credit_high: 'medium', stale_statement: 'medium', overdrawn: 'info' };
+const FALLBACK_SEVERITY: Readonly<Record<AttentionKind, Severity>> = { due_not_covered: 'high', missed_payment: 'high', overdraft: 'high', reconsent: 'high', amount_changed: 'medium', credit_high: 'medium', stale_statement: 'medium', stale_connection: 'medium', overdrawn: 'info' };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const COLOR = /^#[0-9a-f]{6}$/;
@@ -185,8 +185,13 @@ export interface UpcomingItem {
   readonly color: string | null;
   /** Can the paying account cover it: null when no account of ours pays or there is no rate to tell. */
   readonly covered: boolean | null;
+  /** How much of THIS payment the account cannot cover (at most its amount), in the account's currency. */
   readonly shortfall: number | null;
+  /** How much the account is short in all by then, counting the earlier payments of the window. */
+  readonly accountShortTotal: number | null;
   readonly accountCurrency: string | null;
+  /** Already due and not seen paid: listed first, with a negative `daysUntil`. */
+  readonly overdue: boolean;
 }
 
 export interface UpcomingTotal {
@@ -236,7 +241,9 @@ export function parseUpcoming(body: unknown): Upcoming | null {
         color: color(raw.color),
         covered: typeof raw.covered === 'boolean' ? raw.covered : null,
         shortfall: int(raw.shortfall),
+        accountShortTotal: int(raw.account_short_total),
         accountCurrency: currency(raw.account_currency),
+        overdue: raw.overdue === true,
       },
     ];
   });
@@ -270,6 +277,10 @@ export interface AttentionItem {
   readonly title: string;
   readonly subjectType: 'recurring' | 'account' | 'connection';
   readonly subjectId: string;
+  /** The payment's, the account's or the bank's name, as the server gives it: the item needs no join by id. */
+  readonly subjectName: string | null;
+  /** The provider of an account or connection item. */
+  readonly provider: string | null;
   readonly dueDate: string | null;
   readonly amount: number | null;
   readonly currency: string | null;
@@ -308,6 +319,8 @@ export function parseAttentionItem(raw: unknown, displayCurrency: string | null 
     title: text(raw.title) ?? '',
     subjectType,
     subjectId,
+    subjectName: text(raw.subject_name),
+    provider: text(raw.provider),
     dueDate: date(raw.due_date),
     amount: int(raw.amount),
     currency: currency(raw.currency),
@@ -352,9 +365,14 @@ export async function fetchAttention(includeHidden: boolean, signal?: AbortSigna
   return parsed;
 }
 
-/** "I paid it": the next date moves one step. */
-export async function markPaid(id: string): Promise<void> {
-  await request(`/finance/recurring/${encodeURIComponent(id)}/paid`, { method: 'POST', body: {} });
+/** The server answered 409: the payment has moved on since the page showed it (someone paid it, or it was edited). Nothing was done. */
+export function movedOn(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409;
+}
+
+/** "I paid it": the next date moves one step. `dueDate` is the date the page showed: when the payment has moved on since, nothing is done and this rejects (see `movedOn`), so a second click pays nothing. */
+export async function markPaid(id: string, dueDate: string | null = null): Promise<void> {
+  await request(`/finance/recurring/${encodeURIComponent(id)}/paid`, { method: 'POST', body: dueDate ? { due_date: dueDate } : {} });
 }
 
 export async function snoozeAttention(key: string, days: number): Promise<void> {
@@ -362,10 +380,13 @@ export async function snoozeAttention(key: string, days: number): Promise<void> 
 }
 
 /** Dismiss, snooze (`days`) or restore many items at once (the server takes at most 200 keys per request: longer lists go in several). Keys that are no longer an item are left alone. */
-export async function bulkAttention(keys: readonly string[], action: 'dismiss' | 'snooze' | 'restore', days?: number): Promise<void> {
+export async function bulkAttention(keys: readonly string[], action: 'dismiss' | 'snooze' | 'restore' | 'accept', days?: number): Promise<{ accepted: string[] }> {
+  const accepted: string[] = [];
   for (let start = 0; start < keys.length; start += 200) {
-    await request('/finance/attention/bulk', { method: 'POST', body: { keys: keys.slice(start, start + 200), action, ...(action === 'snooze' && days ? { days } : {}) } });
+    const body = await request('/finance/attention/bulk', { method: 'POST', body: { keys: keys.slice(start, start + 200), action, ...(action === 'snooze' && days ? { days } : {}) } });
+    if (isObject(body) && Array.isArray(body.accepted)) accepted.push(...body.accepted.filter((key): key is string => typeof key === 'string'));
   }
+  return { accepted };
 }
 
 /** Sets the overdraft limit the owner gives an account (minor units, 0 or more): it wins over a limit the bank sends. */

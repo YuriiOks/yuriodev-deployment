@@ -1,7 +1,7 @@
 import type { AttentionItem, AttentionKind, Severity } from '../../../services/dashboards/recurringApi';
 
 /** The order of kinds within one severity (and the order a kind the page does not know yet takes: last). */
-const KIND_ORDER: readonly AttentionKind[] = ['overdraft', 'due_not_covered', 'missed_payment', 'reconsent', 'credit_high', 'stale_statement', 'amount_changed', 'overdrawn'];
+const KIND_ORDER: readonly AttentionKind[] = ['overdraft', 'due_not_covered', 'missed_payment', 'reconsent', 'credit_high', 'stale_connection', 'stale_statement', 'amount_changed', 'overdrawn'];
 const RANK: Readonly<Record<Severity, number>> = { high: 0, medium: 1, info: 2 };
 
 export interface AttentionGroup {

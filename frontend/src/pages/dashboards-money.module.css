@@ -49,6 +49,25 @@
   color: var(--dash-t2);
 }
 
+.refresh {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dash-t2);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.refresh:disabled {
+  cursor: progress;
+}
+
+.stale {
+  color: var(--dash-warn);
+  font-weight: 700;
+}
+
 .hint {
   margin-left: auto;
   color: var(--dash-t2);
