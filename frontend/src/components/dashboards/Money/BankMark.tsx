@@ -14,7 +14,7 @@ const BankMark: React.FC<{ provider: string; logo?: ProviderLogo | null }> = ({ 
       <img src={logo.mark} alt="" draggable={false} />
     </span>
   ) : (
-    <span aria-hidden="true" className={styles.bankMark} style={brandStyle(provider)}>
+    <span aria-hidden="true" className={styles.bankMark} style={brandStyle(provider, logo)}>
       {markOf(provider)}
     </span>
   );

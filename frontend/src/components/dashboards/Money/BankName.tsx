@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { ProviderLogo } from '../../../services/dashboards/financeApi';
-import { brandOf, prefersWhiteInk } from '../../../services/dashboards/providerBrand';
-import { providerName } from './providers';
+import { brandFor, prefersWhiteInk } from '../../../services/dashboards/providerBrand';
+import { bankLabel } from './providers';
 import styles from './Money.module.css';
 
 export interface BankNameProps {
@@ -21,10 +21,10 @@ export interface BankNameProps {
  */
 const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) => {
   const [square, setSquare] = useState(false);
-  const name = providerName(provider);
+  const name = bankLabel(provider, logo);
   if (!logo || (!logo.onDark && !logo.onLight)) return <>{name}</>;
   // A chip sits on the theme's own surface, not on a brand colour, so it follows the theme like a neutral card.
-  const brand = size === 'chip' ? null : brandOf(provider);
+  const brand = size === 'chip' ? null : brandFor(provider, logo);
   const watch = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = event.currentTarget;
     if (naturalWidth > 0 && naturalHeight > 0) setSquare(naturalWidth / naturalHeight < 1.6);

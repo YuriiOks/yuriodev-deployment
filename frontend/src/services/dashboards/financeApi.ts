@@ -100,12 +100,22 @@ export interface ProviderLogo {
   readonly onDark: string | null;
   /** A square icon of the bank, for the small letter tiles (transaction rows, filter chips); null when the server has none. */
   readonly mark: string | null;
+  /** The bank's name as the server gives it (the owner's name for it, else the built-in brand's): preferred over the page's own; null from an older server. */
+  readonly name: string | null;
+  /** The bank's card colours as the server gives them (AA held by the server): preferred over the table in providerBrand.ts. */
+  readonly colors: { readonly background: string; readonly foreground: string } | null;
+  /** Connected through its API, or entered by hand. */
+  readonly entry: 'api' | 'manual' | null;
 }
 
 export interface FinanceConnection {
   readonly provider: string;
   readonly status: ConnectionStatus;
+  /** For a bank entered by hand: the date its newest data is as of (never the day it was uploaded). */
   readonly lastOkAt: string | null;
+  /** Entered by hand: no collector reads it, so it has no link state, only a date its data is as of. */
+  readonly manual: boolean;
+  readonly displayName: string | null;
 }
 
 export interface FinanceAccounts {
@@ -207,6 +217,8 @@ const MAX_LOGO_LENGTH = 72 * 1024;
 /** A logo is a base64 PNG or SVG data URI of a sane size: never a link, so it can only be an image the server vetted. */
 const logoUri = (value: unknown): string | null => (typeof value === 'string' && value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value) ? value : null);
 
+const hexColor = (value: unknown): string | null => (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : null);
+
 const STATUSES: readonly ConnectionStatus[] = ['ok', 'needs_reconsent', 'paused'];
 
 export function parseAccounts(body: unknown): FinanceAccounts | null {
@@ -252,7 +264,7 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
     if (!isObject(raw)) return [];
     const provider = text(raw.provider);
     const status = STATUSES.find((candidate) => candidate === raw.status);
-    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at) }] : [];
+    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at), manual: raw.manual === true, displayName: text(raw.display_name) }] : [];
   });
   return { accounts, connections, display };
 }
@@ -442,12 +454,18 @@ export function parseProviders(body: unknown): Record<string, ProviderLogo> | nu
   if (!isObject(body) || !Array.isArray(body.providers)) return null;
   const logos: Record<string, ProviderLogo> = {};
   for (const raw of body.providers) {
-    if (!isObject(raw) || !isObject(raw.logo)) continue;
+    if (!isObject(raw)) continue;
     const id = text(raw.id);
-    const onLight = logoUri(raw.logo.on_light);
-    const onDark = logoUri(raw.logo.on_dark);
-    const mark = logoUri(raw.logo.mark);
-    if (id && (onLight || onDark || mark)) logos[id] = { onLight, onDark, mark };
+    const logo = isObject(raw.logo) ? raw.logo : {};
+    const onLight = logoUri(logo.on_light);
+    const onDark = logoUri(logo.on_dark);
+    const mark = logoUri(logo.mark);
+    const name = text(raw.name);
+    const background = isObject(raw.colors) ? hexColor(raw.colors.background) : null;
+    const foreground = isObject(raw.colors) ? hexColor(raw.colors.foreground) : null;
+    const colors = background && foreground ? { background, foreground } : null;
+    const entry = raw.entry === 'api' || raw.entry === 'manual' ? raw.entry : null;
+    if (id && (onLight || onDark || mark || name || colors || entry)) logos[id] = { onLight, onDark, mark, name, colors, entry };
   }
   return logos;
 }
