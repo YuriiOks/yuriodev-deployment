@@ -512,6 +512,7 @@ def _item(
     money: tuple[int, str] | None = None,
 ) -> AttentionItem:
     amount, currency = money if money else (None, None)
+    shown = None if amount is None or currency is None else display.convert(amount, currency)
     return AttentionItem.model_validate(
         {
             "key": key,
@@ -522,8 +523,8 @@ def _item(
             "due_date": due,
             "amount": amount,
             "currency": currency,
-            "display_amount": display.convert(amount, currency) if money else None,
-            "converted": bool(money and display.converted(currency or "")),
+            "display_amount": shown,
+            "converted": currency is not None and display.converted(currency),
             "facts": facts,
             "state": "active",
             "snoozed_until": None,
