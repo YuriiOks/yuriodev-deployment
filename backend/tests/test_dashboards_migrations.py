@@ -3,9 +3,11 @@
 import asyncio
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy.exc import IntegrityError
 
-from src.dashboards.db import run_migrations
+from src.dashboards.db import MIGRATIONS_DIR, run_migrations
 from src.dashboards.runtime import run_in_thread
 from tests.dashboards_support import (
     AUTH,
@@ -59,7 +61,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0017"
+    assert version == "dashboards_0018"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -244,7 +246,7 @@ async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty
 
     assert inside == (
         "account,attention_state,connection,fx_rate,monzo_oauth_state,monzo_token,recurring,"
-        "transaction"
+        "recurring_match,transaction"
     )
     assert outside == 0
     assert money == "bigint"
@@ -410,7 +412,7 @@ async def test_recurring_payments_and_attention_state_are_checked_by_the_databas
             NEW_PAYMENT_WITH_REF,
         )
 
-    assert columns == 39
+    assert columns == 40
 
 
 async def test_a_manual_connection_has_its_own_flag_and_a_colour_pair(empty_db_url):
@@ -457,3 +459,56 @@ async def test_the_category_checks_take_transfers_out_and_still_refuse_the_rest(
     )
 
     assert checks == 2
+
+
+def upgrade_to(url, revision):
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS_DIR))
+    config.attributes["url"] = url
+    command.upgrade(config, revision)
+
+
+async def test_csv_references_lose_their_row_numbers_and_every_payment_gets_its_day(empty_db_url):
+    await asyncio.to_thread(upgrade_to, empty_db_url, "dashboards_0017")
+    base = (
+        "INSERT INTO finance.recurring (id, name, kind, amount, currency, frequency, "
+        "external_ref, start_date, next_payment_date) "
+        "VALUES (gen_random_uuid(), 'x', 'service', 1, 'GBP', 'monthly', 'REF', DATE1, DATE2)"
+    )
+    for ref, start, following in (
+        ("csv:acme:gbp:5", "'2026-01-31'", "'2026-11-30'"),
+        ("csv:acme:gbp:2", "NULL", "'2026-11-15'"),
+        ("csv:beta:gbp:1", "NULL", "NULL"),
+        ("by-hand", "NULL", "'2026-12-01'"),
+    ):
+        await execute(
+            empty_db_url,
+            base.replace("REF", ref).replace("DATE1", start).replace("DATE2", following),
+        )
+
+    await migrate(empty_db_url)
+
+    refs = await scalar(
+        empty_db_url,
+        "SELECT string_agg(external_ref || '=' || COALESCE(anchor_day::text, '-'), ',' "
+        "ORDER BY external_ref) FROM finance.recurring",
+    )
+    assert refs == "by-hand=1,csv:acme:gbp:1=15,csv:acme:gbp:2=31,csv:beta:gbp:1=-"
+
+
+async def test_a_transaction_pays_one_due_date_once(empty_db_url):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_LINK, NEW_ACCOUNT, NEW_TRANSACTION, NEW_PAYMENT)
+
+    pairs = (
+        "INSERT INTO finance.recurring_match (recurring_id, due_date, transaction_id) "
+        "SELECT r.id, DATE 'DAY', t.id FROM finance.recurring r, finance.transaction t"
+    )
+    await execute(empty_db_url, pairs.replace("DAY", "2026-11-20"))
+    for day in ("2026-11-20", "2026-12-20"):  # the same date again, and the same line again
+        with pytest.raises(IntegrityError):
+            await execute(empty_db_url, pairs.replace("DAY", day))
+    await execute(empty_db_url, "DELETE FROM finance.recurring")
+    count = await scalar(empty_db_url, "SELECT count(*) FROM finance.recurring_match")
+
+    assert count == 0  # a match goes with its payment

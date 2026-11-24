@@ -280,7 +280,13 @@ async def test_the_summary_totals_each_currency_and_this_months_movement(
         await seed(app)
         response = await client.get(f"{BASE}/summary")
 
-    assert money(empty.json()) == {"month": "2026-11", "as_of": None, "currencies": []}
+    assert money(empty.json()) == {
+        "month": "2026-11",
+        "as_of": None,
+        "as_of_newest": None,
+        "as_of_oldest": None,
+        "currencies": [],
+    }
     body = response.json()
     assert body["month"] == "2026-11"
     assert body["as_of"] == "2026-11-22T12:00:00Z"

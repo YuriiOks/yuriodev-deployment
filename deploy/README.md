@@ -953,8 +953,18 @@ opposite amounts in one currency, on two different accounts, within 2 minutes, b
 lines, each the only candidate of the other; two lookalike sends and one receipt are paired with
 nothing), at startup for everything stored and after every refresh for the last 7 days; both
 legs become internal (`transfers`, out of spend and income). A line once internal stays so when its
-window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM` gives money out per currency and category with
-the month before beside it. You can change one transaction's category
+window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM`
+gives money out per currency and category with the month before beside it, and, for the month in
+progress, the month before up to the same day and time of day as now (`previous_to_date` on every
+line, currency and in the display block, `previous_to_date_day` the day it reaches, clamped to the
+month's length; null for a month that is over), the like-for-like comparison. Refunds: money in on
+a spending category (a card refund keeps the merchant's category) is taken off that category's
+spending, never below 0, and is not income in `/finance/summary` either, so the report and the
+summary agree. A line whose category is `transfers` (set by you, or by the bank) is left out of
+both. A hold that the bank no longer lists in a window that was fetched whole (a released
+pre-authorisation) is marked declined and stops counting as money out. An overdraft (yours or the
+bank's) only counts towards `available_minor` of a current or business account, and only those can
+be given one. You can change one transaction's category
 (`PATCH /finance/transactions/{id}`, or the MCP tool `finance_set_category`); that is a note on our
 copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
 categories existed are categorised when the backend next starts.
@@ -982,7 +992,8 @@ also comes back in the display currency (`display_amount`, `display_total_owed`,
 `display_remaining_balance`, `converted`, and a root `display` block as elsewhere).
 REST under `/api/dashboards/v1/finance`: `GET|POST /recurring` (`?active=`, `?kind=`),
 `GET|PATCH|DELETE /recurring/{id}` (PATCH: `null` clears what may be empty), `POST
-/recurring/{id}/paid` (`{paid_on?}`: you say it was paid; the next date moves one step). Loading
+/recurring/{id}/paid` (`{paid_on?, due_date?}`: you say it was paid; the next date moves one step;
+send the `due_date` you saw, and a repeated request is 409 instead of paying the next one). Loading
 many: `POST /recurring/bulk` `{items: [...], on_conflict: "skip"|"update", dry_run}` (at most 500,
 all or nothing: any error writes nothing and the 422 answer lists every row's problems) and `POST
 /recurring/import` (the body is a UTF-8 CSV file with a header row, at most 500 rows and 1 MiB,
@@ -996,9 +1007,14 @@ one-time, else service; the word itself is kept), `payment_mode`, `category`, `n
 `payment_method`, `reminder_days`, `icon_url`, `color`, `auto_renew`, `is_installment`,
 `total_installments`, `completed_installments`, `total_owed`, `remaining_balance`, `creditor`,
 `target_amount`, `current_saved`, `recipient`; also `kind`, `match_text` and `external_ref`. Other
-columns are ignored and named in the answer. A row's `external_ref` (given, or `csv:<name>:<currency>:<row>`)
-makes loading the same file twice find the same rows: they are skipped (or replaced with
-`update`; replacing also resets the next date to the file's).
+columns are ignored and named in the answer. A row's `external_ref` (given, or `csv:<name>:<currency>:<n>`, `n` counting from 1 among the file's
+rows with that name and currency, never the row's position)
+makes loading the same file twice find the same rows, and an edited file keep the references of
+rows that did not change: they are skipped (or replaced with `update`; replacing also resets the
+next date to the file's). `probable_duplicates` in the answer counts rows created that look like a
+payment already there (same name, currency, amount and cadence) under another reference, also in a
+`dry_run`. A repeating payment needs a `next_payment_date` or a `start_date` (the first occurrence
+from today on is worked out from the start); error rows of a CSV carry the row number of the file.
 `icon_url` must be a plain `https` URL (no credentials, spaces, quotes or markup characters, at
 most 500 characters), else the row is refused; it is stored as given and served as `icon_url`;
 the page should show it only in an `<img>` (with `referrerpolicy="no-referrer"`), and a content
@@ -1009,18 +1025,25 @@ Moving on and matching. A payment due on D is paid when a transaction is money o
 not a move between your own accounts, in the payment's currency, on the paying account when one is
 named, booked from 3 days before D to 7 days after (local days), and its counterparty or
 description names the payment (the name, or `match_text`, inside the text, both reduced to
-lower-case letters and digits; or the counterparty inside the name). The amount does not decide
-the match: of several candidates the closest to D wins, one transaction pays one payment only.
-On a match `next_payment_date` moves one period on (months keep the day of `start_date`, clamped
-to a short month's end) and `last_paid_on`, `last_charged_amount` and `last_transaction_id` are
+lower-case letters and digits; or, without `match_text`, the counterparty inside the name); a card
+payment abroad on an account in another currency is found by its original currency and amount.
+The amount counts: lines within 1% of the recorded amount are looked at first (the closest to D
+wins, before or after it); a line of another amount is the payment only on or after D, once
+nothing is at the right amount, and then raises `amount_changed`. One transaction pays one due
+date once (kept in `finance.recurring_match`). On a match `next_payment_date` moves one period on
+(a payment keeps its day of the month, `anchor_day`, set from the start or next date and again
+when you change the next date: 31 January, 28 February, 31 March) and `last_paid_on`, `last_charged_amount` and `last_transaction_id` are
 set; a payment that happens once ends. A payment whose paying account is not one we collect cannot
 be seen, so its date moves on when it has passed (nothing is recorded as paid); one whose account
-we do collect stays put until a transaction is seen, and becomes an attention item. This runs on
+we do collect stays put until a transaction is seen, and becomes an attention item; when its
+next date arrives the miss is written to its `evidence` and it moves on (not as assumed). The
+outcomes kept per payment are the last three due dates: a line (counted), none (counted as a miss),
+or your "paid" (not counted). This runs on
 reading (list, get, upcoming, attention), is idempotent, and catches up at most 24 occurrences per
-request. Only the latest occurrence is looked up: a date whose next date is already today or
-earlier (more than one period old, e.g. in a file with stale dates) is rolled past with nothing
-matched or recorded, so old transactions never produce a match, a `last_charged_amount` or an
-`amount_changed` item.
+request. A date whose next date is already today or earlier (more than one period old, e.g. in a
+file with stale dates) is rolled past: on a payment nobody can see it counts as assumed, on one
+we collect it is looked up once its own window (3 days before to 7 after) is over and recorded as
+a match or a miss. An `amount_changed` item still needs a charge from the last 60 days.
 Instalment plans and what the list alone says (migration `dashboards_0017`). A matched occurrence of a
 plan (`is_installment`) confirms one instalment: `completed_installments` goes up by one and
 `remaining_balance` down by `amount` (never below 0); you saying `POST /recurring/{id}/paid` does
@@ -1040,30 +1063,45 @@ never a `missed_payment`. `evidence` (null when no account of ours pays the paym
 `{last_matched_on, last_matched_amount, matched_of_last, checked}`, how many of its last three due
 dates had a matching transaction (a date that has passed with none counts as a miss), so a page
 can tell "confirmed by the bank" from "from your list, unverified".
-`GET /upcoming?days=14` (1 to 366): every occurrence from today (the local day) to the end of the
-window (a weekly payment appears each time), with `covered` (can the paying account pay it:
-balance plus overdraft in force, a card's balance already counts its limit, counting the earlier
-payments of the window from the same account; no income is assumed; null when no account of ours
-pays or there is no rate to put the amount in the account's currency) and `shortfall`, totals per
-currency and in the display currency (each currency's total converted once; `complete` is false
-when a currency has no rate).
+`GET /upcoming?days=14` (1 to 366): every occurrence in `days` days counting today (`from_date` today
+to `to_date` today + days - 1: 14 days is two weeks, a fortnightly payment due today appears once;
+a weekly payment appears each time), with `covered` (can the paying account pay it: balance plus
+overdraft in force, a card's balance already counts its limit, counting the earlier payments of the
+window from the same account; no income is assumed; null when no account of ours pays or there is
+no rate to put the amount in the account's currency), `shortfall` (how much of THIS payment is
+missing, at most its amount) and `account_short_total` (how much the account is short in all by
+then, counting the earlier ones), both in the account's currency; totals per currency and in the
+display currency (each currency's total converted once; `complete` is false when a currency has no
+rate). A payment already due and not seen paid on an account we collect comes first with
+`overdue: true` and a negative `days_until`; it counts in the totals and against the account.
 `GET /attention` (`?include_hidden=true`): `due_not_covered` (due within `reminder_days`, default
-2, and not covered), `missed_payment` (past its date with no matching transaction, only when we
-collect the paying account), `amount_changed` (the matched charge differs from the recorded
+2, and not covered; never an overdue one), `missed_payment` (more than two days past its date, or
+the Monday when that day is a weekend, with no matching transaction, only when we collect the
+paying account AND its data goes that far: a manual bank's `last_ok_at` or the day its API was
+last read, else the page says the data is old instead), `amount_changed` (the matched charge differs from the recorded
 amount by more than 1%, for a charge paid in the last 60 days), `credit_high` (a credit card above 90% of its limit), `overdraft` (a
 current or business account past its overdraft in force), `overdrawn` (a current or business account with a negative balance and NO overdraft limit known,
 from you or the bank: only a plain fact, `info`; once a limit is set a balance below it is
 `overdraft` instead), `reconsent` (a connection that needs
-approving again). A manual statement older than 30 days comes with manual banks. Each item has a
-stable `key` (it names the occasion: a new due date, month or charge is a new item), `kind`,
+approving again), `stale_statement` (a manual bank whose data is older than 30 days, or that has
+none: `facts.no_data`), `stale_connection` (a bank's API not read for 2 hours: the balances are
+old, `medium`, `high` after 24 hours; `facts.last_error`). Each item has a
+stable `key` (it names the occasion: a new due date or charge is a new item; an account's
+`credit_high` (a tier: 90, 95 or 100 percent), `overdraft` and `overdrawn` last while the condition
+does: what you did about them is forgotten when it clears, so it is raised again if it returns, and
+`credit_high` is raised again when the card gets into a worse tier), `kind`,
 `severity` (`high`: act now: due_not_covered, missed_payment, overdraft, reconsent; `medium`:
 amount_changed, credit_high, stale_statement; `info`: a plain fact: overdrawn; the list is ordered by
-severity, then kind, then date), `title`, `subject_type`/`subject_id`, `due_date`, `amount`/`currency`/`display_amount`/`converted`,
+severity, then kind, then date), `title` (for logs and tools; a page writes its own sentence), `subject_type`/`subject_id`,
+`subject_name` (the payment's, the account's, the bank's name), `provider` (account and connection
+items), `due_date`, `amount`/`currency`/`display_amount`/`converted`,
 `facts`, `state` (`active`, `snoozed`, `dismissed`) and `snoozed_until`. Dismissed and snoozed
 items are left out and counted in `hidden`. `POST /attention/dismiss` `{key}`, `/attention/snooze`
 `{key, days: 1..90}`, `/attention/restore` `{key}`; an unknown key is 404; `POST /attention/bulk`
-`{keys: [...up to 200], action: dismiss|snooze|restore, days?}` does it for many at once and returns
-`{items, missing}` (keys that are not an item now are listed, not an error); unused states of items
+`{keys: [...up to 200], action: dismiss|snooze|restore|accept, days?}` does it for many at once and
+returns `{items, missing, accepted}` (keys that are not an item now are listed, not an error;
+`accept` makes the charged amount of every `amount_changed` item the payment's amount, in one
+transaction: the keys are in `accepted`, those items are gone); unused states of items
 that are gone are deleted after 90 days.
 
 Banks without an API (migration `dashboards_0015`, REST under `/finance/manual`). Nothing is read

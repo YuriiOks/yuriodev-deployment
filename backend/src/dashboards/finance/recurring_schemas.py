@@ -13,6 +13,7 @@ from src.dashboards.finance.recurring import (
     Kind,
     RowError,
     ScheduleState,
+    grace_end,
     schedule_state,
 )
 from src.dashboards.finance.schemas import DisplayOut
@@ -28,6 +29,7 @@ AttentionKind = Literal[
     "overdrawn",
     "reconsent",
     "stale_statement",
+    "stale_connection",
 ]
 Severity = Literal["high", "medium", "info"]
 ItemState = Literal["active", "snoozed", "dismissed"]
@@ -44,7 +46,7 @@ class EvidenceOut(BaseModel):
     last_matched_on: date | None
     last_matched_amount: int | None
     matched_of_last: int
-    checked: int  # how many due dates that is, up to three
+    checked: int  # how many of the last three due dates the bank could show (not his "paid")
 
 
 class RecurringOut(BaseModel):
@@ -77,6 +79,9 @@ class RecurringOut(BaseModel):
     completed_installments: int | None
     remaining_installments: int | None  # the total less the confirmed ones
     assumed_installments: int  # passed by the schedule only, never seen in a line
+    # The balance left if every assumed instalment had been paid at `amount` (an estimate: the
+    # confirmed `remaining_balance` less assumed times amount, never below 0); null without one.
+    scheduled_remaining_balance: int | None
     scheduled_installments: int | None  # confirmed plus assumed, at most the total
     schedule_state: ScheduleState | None  # null for a payment that is switched off
     evidence: EvidenceOut | None  # null when no account of ours pays it
@@ -100,6 +105,7 @@ class RecurringOut(BaseModel):
         derived = (
             "remaining_installments",
             "scheduled_installments",
+            "scheduled_remaining_balance",
             "schedule_state",
             "evidence",
             "display_amount",
@@ -113,19 +119,24 @@ class RecurringOut(BaseModel):
         values["scheduled_installments"] = (
             None if total is None else min(total, (done or 0) + row.assumed_installments)
         )
+        left = row.remaining_balance
+        values["scheduled_remaining_balance"] = (
+            None if left is None else max(left - row.assumed_installments * row.amount, 0)
+        )
         values["schedule_state"] = state = schedule_state(row, today)
         values["evidence"] = None
         if row.account_id is not None:
             outcomes = row.recent_outcomes
-            late = row.next_payment_date is not None and row.next_payment_date < today
+            late = row.next_payment_date is not None and today > grace_end(row.next_payment_date)
             if row.is_active and late and state != "ended_by_schedule":
                 outcomes += "0"  # the date has passed and nothing matched
             outcomes = outcomes[-3:]
+            seen = sum(1 for outcome in outcomes if outcome in "01")  # "p" is only his word
             values["evidence"] = EvidenceOut(
                 last_matched_on=row.last_matched_on,
                 last_matched_amount=row.last_charged_amount if row.last_matched_on else None,
                 matched_of_last=outcomes.count("1"),
-                checked=len(outcomes),
+                checked=seen,
             )
 
         def shown(amount: int | None) -> int | None:
@@ -168,6 +179,9 @@ class ImportOut(BaseModel):
     created: int
     updated: int
     skipped: int  # rows whose `external_ref` already exists (with `on_conflict` skip)
+    # Rows created that look like a payment already there (same name, currency, amount and
+    # cadence) under another reference: a file edited by hand, or loaded another way before.
+    probable_duplicates: int
     errors: list[RowErrorOut]
     ignored_columns: list[str]
     recurring: list[RecurringOut]
@@ -195,8 +209,13 @@ class UpcomingItem(BaseModel):
     # earlier payments of the window from the same account? null when no account of ours pays,
     # or the amount cannot be told in the account's currency (no rate).
     covered: bool | None
-    shortfall: int | None  # how much is missing, in the account's currency, when not covered
+    # When not covered: how much of THIS payment is missing (at most its amount), and how much the
+    # account is short in all by then, counting the earlier payments of the window; both in the
+    # account's currency.
+    shortfall: int | None
+    account_short_total: int | None
     account_currency: str | None
+    overdue: bool  # already due and not seen paid: listed first, counted in the totals
 
 
 class UpcomingTotal(BaseModel):
@@ -232,9 +251,11 @@ class AttentionItem(BaseModel):
     key: str  # names the condition and its occasion; what dismiss and snooze take
     kind: AttentionKind
     severity: Severity  # high: act now; medium: look soon; info: a plain fact
-    title: str
+    title: str  # for logs and tools: a page writes its own sentence from `kind` and `facts`
     subject_type: Literal["recurring", "account", "connection"]
     subject_id: UUID
+    subject_name: str  # the payment's, the account's, the bank's name: the row is self-contained
+    provider: str | None  # of an account or connection item
     due_date: date | None
     amount: int | None
     currency: str | None
@@ -250,6 +271,7 @@ class AttentionBulkOut(BaseModel):
 
     items: list[AttentionItem]  # the items that were found, as they are now
     missing: list[str]  # keys that are not an item right now: nothing was done for them
+    accepted: list[str]  # with `accept`: the keys whose charged amount became the amount
 
 
 class AttentionOut(BaseModel):

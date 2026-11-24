@@ -94,7 +94,9 @@ def test_a_card_payment_is_sorted_by_its_merchant_category_code(code, expected):
         ("shopping", -100, "shopping"),
         ("cash", -100, "cash"),
         ("personal_care", -100, "health"),
-        ("mondo", 5_000, "transfers"),  # a top-up
+        ("mondo", 5_000, "income"),  # a top-up from another bank: money in
+        ("mondo", -5_000, "transfers_out"),  # and one sent on: spending
+        ("savings", -5_000, "transfers_out"),  # a pot move is flagged internal by the provider
         ("income", 5_000, "income"),
         ("general", -100, "other"),
         ("general", 100, "income"),  # money in that nothing else explains
@@ -168,7 +170,9 @@ async def test_the_month_report_per_currency_with_the_month_before(db_url, make_
     assert empty.json()["currencies"] == []
 
 
-@pytest.mark.parametrize("month", ["2026-13", "2026-00", "2026-1", "26-11", "abc", "2026/11", ""])
+@pytest.mark.parametrize(
+    "month", ["2026-13", "2026-00", "2026-1", "26-11", "abc", "2026/11", "", "0001-01", "9999-12"]
+)
 async def test_a_bad_month_is_422(db_url, make_dashboards_app, month):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:

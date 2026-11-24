@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict, SecretStr, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.config import Settings
@@ -55,9 +55,12 @@ async def accounts(session: SessionDep, settings: SettingsDep, clock: ClockDep) 
     found, links, oldest = await service.list_accounts(session)
     return AccountsOut(
         accounts=[AccountOut.from_row(item, oldest.get(item.id), display) for item in found],
-        connections=[ConnectionOut.model_validate(item) for item in links],
+        connections=[ConnectionOut.from_row(item, clock()) for item in links],
         display=DisplayOut(**display_fields(display, {item.currency for item in found})),
     )
+
+
+OverdraftLimit = Annotated[int, Field(strict=True, ge=0, le=service.MAX_OVERDRAFT)]
 
 
 class AccountPatch(ManualAccountPatch):
@@ -65,7 +68,7 @@ class AccountPatch(ManualAccountPatch):
     account he entered by hand also its name, label, last four digits, archiving and (a credit
     card) limit."""
 
-    overdraft_limit: StrictInt | None = None
+    overdraft_limit: OverdraftLimit | None = None
 
 
 @router.patch("/accounts/{account_id}")
@@ -81,12 +84,16 @@ async def patch_account(
     changes = body.model_fields_set
     if not changes:
         raise AppError(422, "validation_error", "Nothing to change")
+    # Both parts are applied in one transaction: a refused half changes nothing.
     if changes & MANUAL_FIELDS:
-        await manual.update_account(session, account_id, body, clock())
+        await manual.update_account(session, account_id, body, clock(), commit=False)
     if "overdraft_limit" in changes:
-        row, oldest = await service.set_overdraft(session, account_id, body.overdraft_limit)
+        row, oldest = await service.set_overdraft(
+            session, account_id, body.overdraft_limit, commit=False
+        )
     else:
         row, oldest = await service.account_with_history(session, account_id)
+    await session.commit()
     display = await service.display_for(session, settings.finance_display_currency, clock())
     return AccountOut.from_row(row, oldest, display)
 

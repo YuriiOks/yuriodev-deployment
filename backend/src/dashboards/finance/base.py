@@ -451,6 +451,20 @@ class FinanceCollector:
                 ).all()
                 added += sum(1 for (is_new,) in outcome if is_new)
                 updated += sum(1 for (is_new,) in outcome if not is_new)
+            # The window was fetched whole: a hold inside it that the bank no longer lists was
+            # released or reversed, so it is not money out any more.
+            await session.execute(
+                update(Transaction)
+                .where(
+                    Transaction.account_id == window.account_id,
+                    Transaction.pending.is_(True),
+                    Transaction.declined.is_(False),
+                    Transaction.booked_at >= window.start,
+                    Transaction.booked_at < window.end,
+                    Transaction.external_id.not_in(list(window.items)),
+                )
+                .values(declined=True, pending=False)
+            )
             moved = await self._cursor_values(session, window, now)
             await session.execute(
                 update(Account).where(Account.id == window.account_id).values(**moved)

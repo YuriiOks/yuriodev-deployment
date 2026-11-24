@@ -11,11 +11,11 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from src.dashboards.finance.fx import exponent
 
@@ -33,6 +33,7 @@ Count = Annotated[int, Field(strict=True, ge=0, le=100_000)]
 # (paid early) up to this many after it (a card payment can post days late).
 EARLY_DAYS = 3
 LATE_DAYS = 7
+MISSED_GRACE_DAYS = 2  # a payment is "missed" only after this many days (a weekend moves it on)
 
 SYNONYMS: dict[str, tuple[Frequency, int]] = {
     "once": ("once", 1),
@@ -177,6 +178,14 @@ class RecurringIn(_Checks):
     recipient: str | None = Field(default=None, max_length=120)
     external_ref: str | None = Field(default=None, min_length=1, max_length=80)
 
+    @model_validator(mode="after")
+    def _has_a_date(self) -> Self:
+        if needs_a_date(
+            self.is_active, self.kind, self.frequency, self.start_date, self.next_payment_date
+        ):
+            raise ValueError("next_payment_date or start_date is required for a repeating payment")
+        return self
+
 
 class RecurringPatch(_Checks):
     """Fields to change; `null` clears a field that may be empty (name, amount, currency, kind,
@@ -271,6 +280,36 @@ def occurrences(
     return found
 
 
+def grace_end(due: date) -> date:
+    """The last day a payment due on `due` may still be on its way: two days later, and when that
+    is a Saturday or Sunday the Monday (banks do not book at the weekend)."""
+    day = date.fromordinal(due.toordinal() + MISSED_GRACE_DAYS)
+    return date.fromordinal(day.toordinal() + {5: 2, 6: 1}.get(day.weekday(), 0))
+
+
+def needs_a_date(
+    is_active: bool, kind: str, frequency: str, start: date | None, following: date | None
+) -> bool:
+    """An active payment that repeats but has neither a next date nor a start date to work one
+    out from would never be rolled, listed or noticed."""
+    repeats = frequency_of(kind, frequency) != "once"
+    return is_active and repeats and start is None and following is None
+
+
+def first_on_or_after(start: date, frequency: str, interval: int, anchor: int, today: date) -> date:
+    """The first occurrence of a payment that began on `start` that is today or later (`start`
+    itself when it is later, or when the payment happens once). `frequency` is the real one."""
+    day = start
+    for _ in range(5000):
+        if day >= today:
+            return day
+        following = advance(day, frequency, interval, anchor)
+        if following is None:
+            return day
+        day = following
+    return day
+
+
 def frequency_of(kind: str, frequency: str) -> str:
     """How often a payment really repeats: a one-time payment never does, whatever it says."""
     return "once" if kind == "one_time" else frequency
@@ -310,17 +349,30 @@ def schedule_state(row: Any, today: date) -> ScheduleState | None:
     if frequency == "once":
         if row.next_payment_date is None:
             return "unknown"
-        return "ended_by_schedule" if row.next_payment_date < today else "on_track"
+        if row.next_payment_date >= today:
+            return "on_track"
+        if row.account_id is not None and row.recent_outcomes[-1:] not in ("1", "p"):
+            return "unknown"  # a collected account saw nothing: still a missed payment
+        return "ended_by_schedule"
     if not row.is_installment:
         return "on_track"
     total = row.total_installments
     if not total:
         return "unknown"
     last = last_installment_date(row.start_date, frequency, row.frequency_interval, total)
-    counted = (row.completed_installments or 0) + row.assumed_installments >= total
-    if (last is not None and last < today) or counted:
+    done = row.completed_installments or 0
+    if done >= total:  # counted by a line or by the owner
+        ended = True
+    else:
+        ended = (last is not None and last < today) or done + row.assumed_installments >= total
+        # A payment from an account we collect is over only when its last due date was seen paid
+        # (a line, or the owner's word); a date that passed with nothing seen is still missed.
+        ended = ended and (row.account_id is None or row.recent_outcomes[-1:] in ("1", "p"))
+    if ended:
         proven_later = last is not None and row.last_matched_on and row.last_matched_on > last
         return "unknown" if proven_later else "ended_by_schedule"
+    if last is not None and last < today:
+        return "unknown"  # the schedule says it is over, the bank has not confirmed
     return "on_track" if last is not None else "unknown"
 
 
@@ -328,17 +380,23 @@ def squash(text: str | None) -> str:
     return ALNUM.sub("", (text or "").casefold())
 
 
-def text_matches(needle_source: str, counterparty: str | None, description: str | None) -> bool:
+def text_matches(
+    needle_source: str,
+    counterparty: str | None,
+    description: str | None,
+    reverse: bool = True,
+) -> bool:
     """Does a transaction's text name this payment? Both sides are lower-cased and stripped to
     letters and digits; the payment's name (or `match_text`) must be inside the counterparty or
-    the description, or the counterparty (4 characters or more) inside the name."""
+    the description, or, with `reverse`, the counterparty (4 characters or more) inside the name
+    (not when the owner gave `match_text`: he said what to look for)."""
     needle = squash(needle_source)
     if len(needle) < 3:
         return False
     other = squash(counterparty)
     if needle in other or needle in squash(description):
         return True
-    return len(other) >= 4 and other in needle
+    return reverse and len(other) >= 4 and other in needle
 
 
 def amount_differs(recorded: int, charged: int) -> bool:
@@ -476,7 +534,7 @@ def cell_frequency(text: str, interval: int | None) -> tuple[Frequency, int]:
     return found[0], found[1] * (interval or 1)
 
 
-def row_to_input(row: dict[str, str], number: int) -> RecurringIn:
+def row_to_input(row: dict[str, str], ordinal: int = 1) -> RecurringIn:
     """One CSV row as the input shape; raises `CellError` or pydantic's `ValidationError`."""
     cells = {key: value.strip() for key, value in row.items() if value and value.strip()}
     currency = cells.get("currency", "").upper()
@@ -510,29 +568,36 @@ def row_to_input(row: dict[str, str], number: int) -> RecurringIn:
         raise CellError("frequency", "required")
     if "name" not in values or "amount" not in values:
         raise CellError("name" if "name" not in values else "amount", "required")
-    values.setdefault("external_ref", reference(values["name"], currency, number))
+    values.setdefault("external_ref", reference(values["name"], currency, ordinal))
     return RecurringIn.model_validate(values)
 
 
-def reference(name: str, currency: str, number: int) -> str:
-    """The key that makes a second import of the same file find the same rows."""
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50] or "row"
-    return f"csv:{slug}:{currency.lower()}:{number}"
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:50] or "row"
 
 
-def parse_csv(text: str) -> tuple[list[RecurringIn], list[RowError], list[str]]:
-    """A file with a header row (the owner's own column names) to inputs, per-row errors and the
-    columns that were ignored. A row's reference includes its row number, so a file loaded twice
-    matches itself and a changed file is loaded as new rows."""
+def reference(name: str, currency: str, ordinal: int) -> str:
+    """The key that makes a second import of the same file find the same rows: the name and the
+    currency, and `ordinal` (1, 2, ...) among the rows of the file with that name and currency,
+    never the row's position, so adding, removing or sorting rows changes no other key."""
+    return f"csv:{slug(name)}:{currency.lower()}:{ordinal}"
+
+
+def parse_csv(text: str) -> tuple[list[tuple[int, RecurringIn]], list[RowError], list[str]]:
+    """A file with a header row (the owner's own column names) to its rows as (row number,
+    input), per-row errors and the columns that were ignored. A row's reference names it by its
+    name and currency (see `reference`), so a file loaded twice matches itself and an edited file
+    keeps the references of the rows that did not change."""
     reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
     header = [name.strip().lower() for name in (reader.fieldnames or [])]
     if not header:
         return [], [RowError(0, None, "the file has no header row")], []
     reader.fieldnames = header
     ignored = [name for name in header if name and name not in KNOWN_COLUMNS]
-    inputs: list[RecurringIn] = []
+    inputs: list[tuple[int, RecurringIn]] = []
     errors: list[RowError] = []
     seen: set[str] = set()
+    counted: dict[tuple[str, str], int] = {}
     try:
         for number, row in enumerate(reader, start=1):
             if number > MAX_ROWS:
@@ -541,8 +606,9 @@ def parse_csv(text: str) -> tuple[list[RecurringIn], list[RowError], list[str]]:
             if not any((value or "").strip() for value in row.values() if isinstance(value, str)):
                 continue
             clean = {key: value for key, value in row.items() if isinstance(value, str)}
+            key = (slug(clean.get("name", "")), clean.get("currency", "").upper())
             try:
-                item = row_to_input(clean, number)
+                item = row_to_input(clean, counted.get(key, 0) + 1)
             except CellError as exc:
                 errors.append(RowError(number, exc.field, str(exc)))
                 continue
@@ -553,7 +619,8 @@ def parse_csv(text: str) -> tuple[list[RecurringIn], list[RowError], list[str]]:
                 errors.append(RowError(number, "external_ref", "the same reference twice"))
                 continue
             seen.add(str(item.external_ref))
-            inputs.append(item)
+            counted[key] = counted.get(key, 0) + 1
+            inputs.append((number, item))
     except csv.Error:
         errors.append(RowError(0, None, "the file is not valid CSV"))
     return inputs, errors, ignored

@@ -25,7 +25,7 @@ from src.core.errors import AppError
 from src.dashboards.finance.brands import COLLECTOR_PROVIDERS, readable
 from src.dashboards.finance.categories import categorize
 from src.dashboards.finance.logos import PROVIDER_ID
-from src.dashboards.finance.models import Account, Connection, Transaction
+from src.dashboards.finance.models import OVERDRAFT_KINDS, Account, Connection, Transaction
 from src.dashboards.finance.recurring import MAX_MINOR, Minor, RowError
 from src.dashboards.finance.recurring_schemas import RowErrorOut
 from src.dashboards.finance.service import invalid
@@ -281,18 +281,23 @@ def _change_kind(row: Account, changes: dict[str, Any]) -> None:
             raise invalid("A credit card needs credit_limit above 0")
         row.balance += limit
         row.credit_limit = limit
-        row.overdraft_limit_override = None  # a card has no overdraft
     elif row.kind == "credit_card":
         if "credit_limit" in changes:
             raise invalid("Only a credit card has a limit")
         row.balance -= row.credit_limit
         row.credit_limit = 0
     row.kind = new
+    if new not in OVERDRAFT_KINDS:
+        row.overdraft_limit_override = None  # only a current or business account has one
 
 
 @guarded
 async def update_account(
-    session: AsyncSession, account_id: uuid.UUID, patch: ManualAccountPatch, now: datetime
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    patch: ManualAccountPatch,
+    now: datetime,
+    commit: bool = True,
 ) -> Account:
     row, _ = await _manual_account(session, account_id, lock=True)
     changes = {name: getattr(patch, name) for name in patch.model_fields_set & MANUAL_FIELDS}
@@ -310,7 +315,8 @@ async def update_account(
     for name, value in changes.items():
         setattr(row, name, value)
     row.updated_at = now
-    await session.commit()
+    if commit:
+        await session.commit()
     return row
 
 

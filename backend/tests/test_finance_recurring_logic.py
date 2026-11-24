@@ -12,10 +12,12 @@ from src.dashboards.finance.recurring import (
     advance,
     amount_differs,
     anchor_of,
+    first_on_or_after,
     frequency_of,
     instalments_agree,
     kind_of,
     last_installment_date,
+    needs_a_date,
     normal_color,
     occurrences,
     parse_csv,
@@ -23,6 +25,13 @@ from src.dashboards.finance.recurring import (
     schedule_state,
     text_matches,
 )
+
+
+def items(text):
+    """The inputs of a file (without their row numbers), the errors and the ignored columns."""
+    pairs, errors, ignored = parse_csv(text)
+    return [item for _, item in pairs], errors, ignored
+
 
 HEADER = (
     "name,amount,currency,frequency,frequency_interval,start_date,next_payment_date,payment_type,"
@@ -158,7 +167,7 @@ def test_completed_instalments_may_not_pass_the_total():
 
 
 def test_the_input_shape_is_strict_about_money_and_unknown_fields():
-    good = {"name": "Acme", "amount": 100, "currency": "GBP"}
+    good = {"name": "Acme", "amount": 100, "currency": "GBP", "next_payment_date": "2026-12-01"}
 
     assert RecurringIn.model_validate(good).kind == "service"
     for bad in (
@@ -181,7 +190,7 @@ def test_the_input_shape_is_strict_about_money_and_unknown_fields():
 def test_the_owners_file_columns_load_without_loss():
     text = "\n".join([HEADER, STREAMING, LOAN])
 
-    inputs, errors, ignored = parse_csv(text)
+    inputs, errors, ignored = items(text)
 
     assert errors == []
     assert ignored == ["extra_col"]
@@ -209,23 +218,23 @@ def test_the_owners_file_columns_load_without_loss():
     assert (loan.total_installments, loan.completed_installments) == (24, 6)
     assert (loan.total_owed, loan.remaining_balance) == (360_000, 270_000)
     assert loan.creditor == "Sample Credit Ltd"
-    assert loan.external_ref == "csv:example-loan:gbp:2"
+    assert loan.external_ref == "csv:example-loan:gbp:1"  # not the row number
 
 
 def test_cadence_words_become_a_frequency_and_an_interval():
     rows = [
-        "name,amount,currency,frequency,frequency_interval",
-        "A,1,GBP,quarterly,",
-        "B,1,GBP,quarterly,2",
-        "C,1,GBP,fortnightly,",
-        "D,1,GBP,Annually,",
-        "E,1,GBP,one-time,",
-        "F,1,GBP,weekly,3",
-        "G,1,GBP,custom,6",
-        "H,1,GBP,custom,",
+        "name,amount,currency,next_payment_date,frequency,frequency_interval",
+        "A,1,GBP,2026-12-01,quarterly,",
+        "B,1,GBP,2026-12-01,quarterly,2",
+        "C,1,GBP,2026-12-01,fortnightly,",
+        "D,1,GBP,2026-12-01,Annually,",
+        "E,1,GBP,2026-12-01,one-time,",
+        "F,1,GBP,2026-12-01,weekly,3",
+        "G,1,GBP,2026-12-01,custom,6",
+        "H,1,GBP,2026-12-01,custom,",
     ]
 
-    inputs, errors, _ = parse_csv("\n".join(rows))
+    inputs, errors, _ = items("\n".join(rows))
 
     assert errors == []
     assert [(i.frequency, i.frequency_interval) for i in inputs] == [
@@ -242,16 +251,16 @@ def test_cadence_words_become_a_frequency_and_an_interval():
 
 def test_money_follows_the_currencys_decimals():
     rows = [
-        "name,amount,currency,frequency,total_owed",
-        "A,40,JPY,monthly,1000",
-        "B,1.234,KWD,monthly,",
-        "C,\u00a3,GBP,monthly,",
-        "D,1.234,GBP,monthly,",
-        "E,12.5,GBP,monthly,",
-        "F,12,GBP,monthly,",
+        "name,amount,currency,frequency,next_payment_date,total_owed",
+        "A,40,JPY,monthly,2026-12-01,1000",
+        "B,1.234,KWD,monthly,2026-12-01,",
+        "C,\u00a3,GBP,monthly,2026-12-01,",
+        "D,1.234,GBP,monthly,2026-12-01,",
+        "E,12.5,GBP,monthly,2026-12-01,",
+        "F,12,GBP,monthly,2026-12-01,",
     ]
 
-    inputs, errors, _ = parse_csv("\n".join(rows))
+    inputs, errors, _ = items("\n".join(rows))
 
     assert [(i.name, i.amount) for i in inputs] == [
         ("A", 40),
@@ -281,7 +290,7 @@ def test_every_problem_of_every_row_is_reported_with_its_row():
         "BadCount,1,GBP,monthly,,,,x,",
     ]
 
-    inputs, errors, _ = parse_csv("\n".join(rows))
+    inputs, errors, _ = items("\n".join(rows))
 
     assert [i.name for i in inputs] == ["Fine"]
     assert [(e.row, e.field) for e in errors] == [
@@ -303,7 +312,7 @@ def test_every_problem_of_every_row_is_reported_with_its_row():
 def test_a_one_time_payment_needs_no_frequency():
     rows = ["name,amount,currency,payment_type", "Fee,5,GBP,one-time"]
 
-    inputs, errors, _ = parse_csv("\n".join(rows))
+    inputs, errors, _ = items("\n".join(rows))
 
     assert errors == []
     assert (inputs[0].kind, inputs[0].frequency) == ("one_time", "once")
@@ -311,24 +320,29 @@ def test_a_one_time_payment_needs_no_frequency():
 
 def test_a_file_without_a_header_blank_lines_a_bom_and_repeated_references():
     assert parse_csv("")[1][0].message == "the file has no header row"
-    rows = ["\ufeffName,Amount,Currency,Frequency,External_Ref", ",,,,", "A,1,GBP,weekly,r1"]
-    inputs, errors, _ = parse_csv("\n".join(rows))
+    rows = [
+        "\ufeffName,Amount,Currency,Frequency,Start_Date,External_Ref",
+        ",,,,,",
+        "A,1,GBP,weekly,2026-01-05,r1",
+    ]
+    inputs, errors, _ = items("\n".join(rows))
     assert errors == []
     assert [i.external_ref for i in inputs] == ["r1"]
     twice = [
-        "name,amount,currency,frequency,external_ref",
-        "A,1,GBP,weekly,r1",
-        "B,1,GBP,weekly,r1",
+        "name,amount,currency,frequency,start_date,external_ref",
+        "A,1,GBP,weekly,2026-01-05,r1",
+        "B,1,GBP,weekly,2026-01-05,r1",
     ]
-    inputs, errors, _ = parse_csv("\n".join(twice))
+    inputs, errors, _ = items("\n".join(twice))
     assert len(inputs) == 1
     assert [(e.row, e.field) for e in errors] == [(2, "external_ref")]
 
 
 def test_more_than_the_row_limit_is_an_error_and_a_broken_file_is_too():
-    rows = ["name,amount,currency,frequency"] + [f"P{n},1,GBP,monthly" for n in range(MAX_ROWS + 1)]
+    rows = ["name,amount,currency,frequency,start_date"]
+    rows += [f"P{n},1,GBP,monthly,2026-01-05" for n in range(MAX_ROWS + 1)]
 
-    inputs, errors, _ = parse_csv("\n".join(rows))
+    inputs, errors, _ = items("\n".join(rows))
 
     assert len(inputs) == MAX_ROWS
     assert errors[-1].message == f"more than {MAX_ROWS} rows"
@@ -337,6 +351,8 @@ def test_more_than_the_row_limit_is_an_error_and_a_broken_file_is_too():
 
 
 TODAY = date(2026, 11, 22)
+COLLECTED_OLD = {"account_id": "a", "start_date": date(2025, 1, 15)}  # its plan ended in 2025
+COLLECTED_ONCE = {"account_id": "a", "kind": "one_time", "next_payment_date": date(2026, 11, 1)}
 
 
 def row(**extra):
@@ -352,6 +368,8 @@ def row(**extra):
         "completed_installments": 3,
         "assumed_installments": 0,
         "last_matched_on": None,
+        "account_id": None,
+        "recent_outcomes": "",
     }
     return SimpleNamespace(**{**values, **extra})
 
@@ -393,7 +411,72 @@ def test_a_one_time_payment_never_repeats_whatever_its_frequency_says():
         ({"kind": "one_time", "next_payment_date": date(2026, 11, 22)}, "on_track"),
         ({"kind": "one_time", "next_payment_date": None}, "unknown"),
         ({"frequency": "once", "next_payment_date": date(2026, 12, 1)}, "on_track"),
+        # A payment from an account we collect is over by its dates only once its last due date
+        # was seen paid (a line "1", or his word "p"); a miss "0" or nothing seen is not.
+        (dict(COLLECTED_OLD), "unknown"),
+        (dict(COLLECTED_OLD, recent_outcomes="0"), "unknown"),
+        (dict(COLLECTED_OLD, recent_outcomes="01"), "ended_by_schedule"),
+        (dict(COLLECTED_OLD, recent_outcomes="1p"), "ended_by_schedule"),
+        ({"account_id": "a", "completed_installments": 12}, "ended_by_schedule"),  # counted
+        (dict(COLLECTED_ONCE), "unknown"),
+        (dict(COLLECTED_ONCE, recent_outcomes="1"), "ended_by_schedule"),
     ],
 )
 def test_the_schedule_state_comes_from_the_list_alone(extra, expected):
     assert schedule_state(row(**extra), TODAY) == expected
+
+
+def test_the_reverse_containment_is_off_when_the_owner_says_what_to_look_for():
+    assert text_matches("Amazon Prime", "Amazon", None) is True
+    assert text_matches("Amazon Prime", "Amazon", None, reverse=False) is False
+    assert text_matches("Amazon Prime", None, "AMAZON PRIME EU", reverse=False) is True
+
+
+def test_a_repeating_payment_needs_a_date_to_work_from():
+    assert needs_a_date(True, "service", "monthly", None, None) is True
+    assert needs_a_date(True, "service", "monthly", date(2026, 1, 5), None) is False
+    assert needs_a_date(True, "service", "monthly", None, date(2026, 1, 5)) is False
+    assert needs_a_date(True, "service", "once", None, None) is False
+    assert needs_a_date(True, "one_time", "monthly", None, None) is False
+    assert needs_a_date(False, "service", "monthly", None, None) is False
+    with pytest.raises(ValidationError):
+        RecurringIn.model_validate({"name": "A", "amount": 1, "currency": "GBP"})
+
+
+def test_the_first_occurrence_from_a_start_date_is_today_or_later():
+    today = date(2026, 11, 22)
+    assert first_on_or_after(date(2026, 1, 31), "monthly", 1, 31, today) == date(2026, 11, 30)
+    assert first_on_or_after(date(2026, 11, 22), "monthly", 1, 22, today) == date(2026, 11, 22)
+    assert first_on_or_after(date(2027, 1, 5), "monthly", 1, 5, today) == date(2027, 1, 5)
+    assert first_on_or_after(date(2026, 1, 1), "once", 1, 1, today) == date(2026, 1, 1)
+    assert first_on_or_after(date(2026, 1, 5), "weekly", 2, 5, today) == date(2026, 11, 23)
+
+
+def test_references_name_the_row_by_its_name_and_not_its_position():
+    header = "name,amount,currency,frequency,start_date"
+    acme_1, acme_2 = "Acme,1,GBP,weekly,2026-01-05", "Acme,2,GBP,weekly,2026-01-05"
+    beta = "Beta,3,GBP,weekly,2026-01-05"
+    one = "\n".join([header, acme_1, acme_2, beta])
+    shifted = "\n".join([header, "", beta, ",,,,", acme_1, acme_2])
+
+    first = {i.amount: i.external_ref for _, i in parse_csv(one)[0]}
+    second = {i.amount: i.external_ref for _, i in parse_csv(shifted)[0]}
+
+    assert first == {100: "csv:acme:gbp:1", 200: "csv:acme:gbp:2", 300: "csv:beta:gbp:1"}
+    assert second == first  # rows moved and a blank line added: the same references
+
+
+def test_row_numbers_are_the_files_even_when_rows_are_left_out():
+    rows = [
+        "name,amount,currency,frequency,start_date",
+        ",,,,",
+        "A,1,GBP,weekly,2026-01-05",
+        "B,x,GBP,weekly,2026-01-05",
+        "C,3,GBP,weekly,2026-01-05",
+    ]
+    text = "\n".join(rows)
+
+    pairs, errors, _ = parse_csv(text)
+
+    assert [number for number, _ in pairs] == [2, 4]
+    assert [(e.row, e.field) for e in errors] == [(3, "amount")]

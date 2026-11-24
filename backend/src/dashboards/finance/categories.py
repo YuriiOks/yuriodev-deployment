@@ -38,6 +38,9 @@ Category = Literal[
     "other",
 ]
 CATEGORIES: tuple[str, ...] = get_args(Category)
+# A positive line in one of these is a refund: netted off the category's spending (never below
+# 0), not income. Income, own-account moves and money sent to people are not refundable.
+REFUNDABLE = frozenset(CATEGORIES) - {"income", "transfers", "transfers_out"}
 
 # Monzo's categories (https://docs.monzo.com/, transactions) and the newer ones seen in use.
 MONZO_CATEGORIES = {
@@ -51,13 +54,13 @@ MONZO_CATEGORIES = {
     "shopping": "shopping",
     "holidays": "entertainment",
     "groceries": "groceries",
-    "mondo": "transfers",  # a top-up
+    "mondo": "transfers_out",  # a top-up from another bank: out is spending, in is income
     "personal_care": "health",
     "gifts": "shopping",
     "charity": "other",
     "family": "other",
     "finances": "debt",
-    "savings": "transfers",
+    "savings": "transfers_out",  # a real pot move is flagged internal by the provider
     "income": "income",
 }
 
@@ -66,7 +69,7 @@ MCC_RANGES: tuple[tuple[int, int, str], ...] = (
     (4814, 4814, "housing_utilities"),  # telecommunication services
     (4899, 4899, "subscriptions"),  # cable, satellite and other pay TV and radio
     (4900, 4900, "housing_utilities"),  # utilities
-    (4829, 4829, "transfers_out"),  # money transfer (to a person, or between own cards: see below)
+    (4829, 4829, "transfers_out"),  # money transfer: to a person, or between own cards (paired)
     (6538, 6540, "transfers_out"),  # money send, stored value load
     (6010, 6011, "cash"),  # financial institutions: manual cash, ATM
     (6012, 6012, "debt"),  # financial institutions: merchandise and services (loan payments)
