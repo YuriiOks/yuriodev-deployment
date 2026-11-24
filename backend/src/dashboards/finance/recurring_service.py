@@ -223,9 +223,7 @@ async def update_recurring(
             raise AppError(409, "conflict", "A payment with this reference exists")
     for name, value in changes.items():
         setattr(row, name, value)
-    if needs_a_date(
-        row.is_active, row.kind, row.frequency, row.start_date, row.next_payment_date
-    ):
+    if needs_a_date(row.is_active, row.kind, row.frequency, row.start_date, row.next_payment_date):
         raise invalid("A repeating payment needs a next date or a start date")
     if "completed_installments" in changes:
         row.assumed_installments = 0  # his figure is the new starting point

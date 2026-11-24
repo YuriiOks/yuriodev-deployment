@@ -1386,9 +1386,7 @@ async def test_the_line_at_the_right_amount_beats_a_nearer_purchase_of_the_same_
     assert (after["last_charged_amount"], after["last_paid_on"]) == (799, "2026-11-21")
 
 
-async def test_a_card_payment_abroad_is_found_by_its_original_currency(
-    db_url, make_dashboards_app
-):
+async def test_a_card_payment_abroad_is_found_by_its_original_currency(db_url, make_dashboards_app):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         await seed(app)
@@ -1412,9 +1410,7 @@ async def test_a_card_payment_abroad_is_found_by_its_original_currency(
     assert after["amount"] == 1_000
 
 
-async def test_a_missed_payment_is_remembered_when_its_next_date_comes(
-    db_url, make_dashboards_app
-):
+async def test_a_missed_payment_is_remembered_when_its_next_date_comes(db_url, make_dashboards_app):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         await seed(app)
@@ -1539,9 +1535,7 @@ async def test_loading_a_file_again_after_a_row_was_added_does_not_double_the_re
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         await client.post(f"{BASE}/recurring/import", content=first.encode(), headers=CSV)
-        again = await client.post(
-            f"{BASE}/recurring/import", content=second.encode(), headers=CSV
-        )
+        again = await client.post(f"{BASE}/recurring/import", content=second.encode(), headers=CSV)
         names = sorted(r["name"] for r in await listed(client))
 
     assert (again.json()["created"], again.json()["skipped"]) == (1, 2)
