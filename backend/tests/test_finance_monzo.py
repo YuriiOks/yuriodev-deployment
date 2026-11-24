@@ -126,7 +126,8 @@ async def test_declined_pending_foreign_and_pot_transfers_are_mapped_and_a_decli
     assert await tx_field(db_url, "counterparty", 2003) == "Corner Cafe Ltd"
     assert await tx_field(db_url, "category_code", 2003) == "eating_out"
     gbp = next(c for c in summary.json()["currencies"] if c["currency"] == "GBP")
-    assert gbp["spent"] == 2_500 + 1_300 + 10_000  # the declined 99.99 never moved
+    # Neither the declined 99.99 nor the 100.00 moved into a pot is spending.
+    assert gbp["spent"] == 2_500 + 1_300
     assert gbp["balance"] == 150_000 + 50_000  # the account and its pot, counted once each
     private = await scalar(
         db_url,
