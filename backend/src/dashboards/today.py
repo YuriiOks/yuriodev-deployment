@@ -39,8 +39,8 @@ from src.dashboards.finance import service as finance_service
 from src.dashboards.finance.models import Recurring
 from src.dashboards.finance.schemas import API_STALE_AFTER
 from src.dashboards.models import Area, Event, Task
-from src.dashboards.streak import Streak, current, record
 from src.dashboards.service import guarded, task_order
+from src.dashboards.streak import Streak, current, record
 
 Scope = Literal["personal", "work-1", "work-2", "money"]
 SCOPES: tuple[str, ...] = get_args(Scope)

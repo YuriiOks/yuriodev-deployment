@@ -46,20 +46,19 @@ async def test_looks_at_the_queue_add_up_and_a_second_look_changes_nothing(
     db_url, make_dashboards_app
 ):
     app = make_dashboards_app(db_url)
-    async with running(app, AUTH):
-        async with app.state.dashboards.sessions() as session:
-            await record(session, "personal", TODAY, 0, WED)
-            first = await stored(app)
-            first = (first.opened, first.cleared_after_open, first.empty_now)
-            await record(session, "personal", TODAY, 0, WED)
-            again = await stored(app)
-            again = (again.opened, again.cleared_after_open, again.empty_now)
-            await record(session, "personal", TODAY, 2, WED)
-            full = await stored(app)
-            full = (full.opened, full.cleared_after_open, full.empty_now)
-            await record(session, "personal", TODAY, 0, WED)
-            empty = await stored(app)
-            empty = (empty.opened, empty.cleared_after_open, empty.empty_now)
+    async with running(app, AUTH), app.state.dashboards.sessions() as session:
+        await record(session, "personal", TODAY, 0, WED)
+        first = await stored(app)
+        first = (first.opened, first.cleared_after_open, first.empty_now)
+        await record(session, "personal", TODAY, 0, WED)
+        again = await stored(app)
+        again = (again.opened, again.cleared_after_open, again.empty_now)
+        await record(session, "personal", TODAY, 2, WED)
+        full = await stored(app)
+        full = (full.opened, full.cleared_after_open, full.empty_now)
+        await record(session, "personal", TODAY, 0, WED)
+        empty = await stored(app)
+        empty = (empty.opened, empty.cleared_after_open, empty.empty_now)
 
     assert first == again == (False, False, True)  # empty at every look so far
     assert full == (True, False, False)  # a new item: open again
