@@ -209,7 +209,8 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
     logos = settings.provider_logos
     options = settings.provider_logo_options
     connected = set(await service.provider_ids(session))
-    names = set(logos) | set(BRANDS) | connected
+    dropped = settings.provider_logos_dropped
+    names = set(logos) | set(BRANDS) | connected | set(dropped)
     styles = await service.connection_styles(session)
     found: list[ProviderOut] = []
     for name in sorted(names):
@@ -221,6 +222,7 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
                 id=name,
                 name=(own.name if own and own.name else brand.name if brand else None),
                 colors=ColorsOut(background=colors.background, foreground=colors.foreground),
+                logo_dropped=dropped.get(name, {}),
                 logo=_logo_out(name, logos.get(name, {}) if name in connected else {}, options),
                 entry="api" if name in COLLECTOR_PROVIDERS else "manual",
                 reconnect=reconnect[0] if reconnect else None,

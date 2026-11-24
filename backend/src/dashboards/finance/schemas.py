@@ -437,6 +437,9 @@ class ProviderOut(BaseModel):
     name: str | None  # the owner's name for it, else the built-in brand's, else null
     colors: ColorsOut
     logo: LogoOut
+    # Variants named in the settings that were NOT served, and why (`{"on_dark": "element not
+    # allowed: <image>"}`): empty when every given logo is in use.
+    logo_dropped: dict[str, str]
     entry: Literal["api", "manual"]  # connected through its API, or entered by hand
     # How a link that needs approving again is mended: `oauth` (open `reconnect_path` in a
     # browser) or `token` (replace the token in the server's settings); null for a bank by hand.

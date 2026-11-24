@@ -9,6 +9,7 @@ from src.dashboards.finance.logos import (
     PNG,
     SVG,
     aspect,
+    logo_check,
     parse_logo_options,
     parse_provider_logos,
     valid_logo,
@@ -369,3 +370,52 @@ async def test_the_providers_answer_uses_the_file(db_url, make_dashboards_app, t
 
     mark = next(p for p in found if p["id"] == "sample")["logo"]["mark"]
     assert "/providers/sample/logo/mark?v=" in mark
+
+
+def test_a_logo_that_sets_its_fills_in_a_style_block_with_a_clip_path_is_kept():
+    markup = (
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+        'viewBox="0 0 120 40"><title>Sample Bank</title><defs>'
+        '<style>.a{fill:#123456;fill-rule:evenodd}.b{fill:#fff;clip-rule:evenodd}</style>'
+        '<clipPath id="c"><rect width="120" height="40"/></clipPath></defs>'
+        '<g clip-path="url(#c)"><path class="a" d="M0 0h60v40H0z"/>'
+        '<path class="b" fill-rule="evenodd" clip-rule="evenodd" d="M60 0h60v40H60z"/></g></svg>'
+    )
+
+    assert valid_logo(svg(markup)) is True
+    assert aspect(svg(markup)) == 3.0
+
+
+@pytest.mark.parametrize(
+    ("markup", "reason"),
+    [
+        ('<svg xmlns="http://www.w3.org/2000/svg"><image href="#a"/></svg>', "<image>"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><metadata/></svg>', "<metadata>"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><rect inkscape="x"/></svg>', "inkscape"),
+        ("<svg><rect/></svg>", "xmlns"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><use href="https://e.test/a#b"/></svg>', "href"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><style>@import "x";</style></svg>', "<style>"),
+        ("<svg xmlns=", "XML"),
+    ],
+)
+def test_a_dropped_logo_says_why(markup, reason):
+    assert reason in str(logo_check(svg(markup))[1])
+
+
+async def test_the_providers_answer_lists_the_logos_that_were_dropped_and_why(
+    db_url, make_dashboards_app
+):
+    bad = svg('<svg xmlns="http://www.w3.org/2000/svg"><image href="#a"/></svg>')
+    wide_mark = uri(PNG, png(9, 3))
+    raw = json.dumps({"sample": {"on_light": GOOD_SVG, "on_dark": bad, "mark": wide_mark}})
+    app = make_dashboards_app(db_url, dashboards_provider_logos=raw)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        found = (await client.get("/api/dashboards/v1/finance/providers")).json()["providers"]
+
+    sample = next(p for p in found if p["id"] == "sample")
+    assert set(sample["logo_dropped"]) == {"on_dark", "mark"}
+    assert "<image>" in sample["logo_dropped"]["on_dark"]
+    assert "square" in sample["logo_dropped"]["mark"]
+    assert sample["logo"]["on_dark"] is None
+    assert all(p["logo_dropped"] == {} for p in found if p["id"] != "sample")

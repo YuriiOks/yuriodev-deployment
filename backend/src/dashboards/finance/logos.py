@@ -83,38 +83,40 @@ def _number(value: str | None) -> float | None:
     return float(found[1]) if found and float(found[1]) > 0 else None
 
 
-def _svg_root(body: bytes) -> ET.Element | None:
+def _svg_check(body: bytes) -> tuple[ET.Element | None, str | None]:
     """The root of an SVG that has only allowed elements and attributes and no way to reach
-    outside itself, or None. Parsed without DTDs (a document type is refused before parsing, so
-    no entity can be defined); `href` may only point inside the file (`#id`)."""
+    outside itself, else the reason it was refused. Parsed without DTDs (a document type is
+    refused before parsing, so no entity can be defined); `href` may only point inside the file
+    (`#id`). The reasons name only what is in the file itself (an element or attribute name)."""
     try:
         text = body.decode("utf-8")
     except UnicodeDecodeError:
-        return None
+        return None, "svg is not UTF-8 text"
     if re.search(r"<!\s*(doctype|entity)", text, re.IGNORECASE):
-        return None
+        return None, "svg has a document type or an entity"
     try:
         root = ET.fromstring(text)  # noqa: S314 (no DTD reaches here: refused above)
     except ET.ParseError:
-        return None
+        return None, "svg is not well-formed XML"
     if root.tag != f"{{{SVG_NS}}}svg":
-        return None
+        return None, "the root is not <svg> in the SVG namespace (is xmlns missing?)"
     for element in root.iter():
         if not isinstance(element.tag, str) or not element.tag.startswith(f"{{{SVG_NS}}}"):
-            return None
-        if _local(element.tag) not in SVG_ELEMENTS:
-            return None
-        if _local(element.tag) == "style" and EXTERNAL_REFERENCE.search(element.text or ""):
-            return None
+            return None, "an element is not in the SVG namespace"
+        tag = _local(element.tag)
+        if tag not in SVG_ELEMENTS:
+            return None, f"element not allowed: <{tag}>"
+        if tag == "style" and EXTERNAL_REFERENCE.search(element.text or ""):
+            return None, "<style> reaches outside the file (@import or url() that is not #id)"
         for name, value in element.attrib.items():
             if name in ("href", XLINK_HREF):
                 if not value.startswith("#"):
-                    return None
+                    return None, f"href on <{tag}> does not point inside the file (#id)"
             elif name not in SVG_ATTRIBUTES and not name.startswith("aria-"):
-                return None
+                return None, f"attribute not allowed: {_local(name)} on <{tag}>"
             if EXTERNAL_REFERENCE.search(value) or "data:" in value.lower():
-                return None
-    return root
+                return None, f"{_local(name)} on <{tag}> reaches outside the file"
+    return root, None
 
 
 def _svg_size(root: ET.Element) -> tuple[float, float] | None:
@@ -127,43 +129,51 @@ def _svg_size(root: ET.Element) -> tuple[float, float] | None:
     return (width, height) if width and height else None
 
 
-def logo_size(value: object) -> tuple[float, float] | bool | None:
-    """False for something that is not a valid logo; else its (width, height), or None when an
-    SVG says no size."""
-    if not isinstance(value, str) or len(value) > MAX_ICON_LENGTH:
-        return False
-    for prefix in (PNG, SVG):
-        if value.startswith(prefix):
-            try:
-                body = base64.b64decode(value[len(prefix) :], validate=True)
-            except ValueError:  # binascii.Error is one
-                return False
-            if prefix == PNG:
-                if not body.startswith(PNG_SIGNATURE):
-                    return False
-                size = _png_size(body)
-                return False if size is None else (float(size[0]), float(size[1]))
-            root = _svg_root(body)
-            return False if root is None else _svg_size(root)
-    return False
+def logo_check(
+    value: object, square: bool = False
+) -> tuple[tuple[float, float] | None, str | None]:
+    """(its (width, height) or None when an SVG says no size, None) for a valid logo, else
+    (None, why it is not one)."""
+    if not isinstance(value, str) or not value.startswith(("data:image/png", "data:image/svg")):
+        return None, "not a data URI of a PNG or an SVG"
+    if len(value) > MAX_ICON_LENGTH:
+        return None, "over 48 KiB"
+    prefix = PNG if value.startswith(PNG) else SVG if value.startswith(SVG) else None
+    if prefix is None:
+        return None, "not a base64 data URI of a PNG or an SVG"
+    try:
+        body = base64.b64decode(value[len(prefix) :], validate=True)
+    except ValueError:  # binascii.Error is one
+        return None, "not valid base64"
+    size: tuple[float, float] | None
+    if prefix == PNG:
+        if not body.startswith(PNG_SIGNATURE):
+            return None, "png: wrong signature"
+        found = _png_size(body)
+        if found is None:
+            return None, "png: no valid header with a size"
+        size = (float(found[0]), float(found[1]))
+    else:
+        root, why = _svg_check(body)
+        if root is None:
+            return None, why
+        size = _svg_size(root)
+    if square and size is not None and abs(size[0] / size[1] - 1) > MARK_TOLERANCE:
+        return None, "a mark must be square (within 5%)"
+    return size, None
 
 
 def valid_logo(value: object, square: bool = False) -> bool:
     """Is it a PNG (a real header with a size) or an SVG that parses, has only allowed elements,
     and reaches nothing outside itself? A `square` one (a mark) must be as wide as it is high
     when its size is known."""
-    size = logo_size(value)
-    if size is False:
-        return False
-    if square and isinstance(size, tuple):
-        return abs(size[0] / size[1] - 1) <= MARK_TOLERANCE
-    return True
+    return logo_check(value, square)[1] is None
 
 
 def aspect(value: object) -> float | None:
     """Width over height of a valid logo (rounded), None when the logo does not say."""
-    size = logo_size(value)
-    return round(size[0] / size[1], 3) if isinstance(size, tuple) else None
+    size, why = logo_check(value)
+    return round(size[0] / size[1], 3) if why is None and size is not None else None
 
 
 def parse_logo_options(raw: str | None) -> dict[str, dict[str, float | bool]]:
@@ -189,6 +199,29 @@ def parse_logo_options(raw: str | None) -> dict[str, dict[str, float | bool]]:
         if found:
             options[provider] = found
     return options
+
+
+def dropped_logos(raw: str | None) -> dict[str, dict[str, str]]:
+    """Per provider, each variant of the setting that was dropped and why (so an owner can see
+    that a file is not being served without reading the setting)."""
+    try:
+        data = json.loads(raw) if raw else None
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    found: dict[str, dict[str, str]] = {}
+    for provider, variants in data.items():
+        if not isinstance(provider, str) or not PROVIDER_ID.fullmatch(provider):
+            continue
+        if not isinstance(variants, dict):
+            continue
+        for name in VARIANTS:
+            if name in variants:
+                why = logo_check(variants[name], square=name == "mark")[1]
+                if why is not None:
+                    found.setdefault(provider, {})[name] = why
+    return found
 
 
 def parse_provider_logos(raw: str | None) -> dict[str, dict[str, str]]:
