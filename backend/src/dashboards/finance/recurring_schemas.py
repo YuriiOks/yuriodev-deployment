@@ -131,8 +131,8 @@ class RecurringOut(BaseModel):
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
         total, done = row.total_installments, row.completed_installments
         values["icon_url"] = icon_path(row)
-        values["icon_state"] = state = icon_state(row)
-        values["icon_error"] = row.icon_error if state == "failed" else None
+        values["icon_state"] = fetched = icon_state(row)
+        values["icon_error"] = row.icon_error if fetched == "failed" else None
         values["remaining_installments"] = None if total is None else max(total - (done or 0), 0)
         values["scheduled_installments"] = (
             None if total is None else min(total, (done or 0) + row.assumed_installments)
