@@ -185,8 +185,9 @@ describe('the Money page: the row of attention cards', () => {
     const user = userEvent.setup();
     renderAt(PATH);
     const panel = await attentionPanel();
-    expect(panel.getByRole('button', { name: 'Scroll left' })).toBeInTheDocument();
-    expect(panel.getByRole('button', { name: 'Scroll right' })).toBeInTheDocument();
+    // Present at both ends (hidden by style while there is nothing to scroll to: jsdom has no layout, so both edges count as reached).
+    expect(panel.getByRole('button', { name: 'Scroll left', hidden: true })).toBeInTheDocument();
+    expect(panel.getByRole('button', { name: 'Scroll right', hidden: true })).toBeInTheDocument();
     const cards = panel.getAllByRole('button').filter((button) => button.getAttribute('data-key'));
     cards[0].focus();
     await user.keyboard('{ArrowRight}');
