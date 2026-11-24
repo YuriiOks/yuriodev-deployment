@@ -17,10 +17,10 @@ from src.dashboards.finance.categories import CATEGORIES
 from src.dashboards.finance.fx import Display, load_rates
 from src.dashboards.finance.models import Account, Connection, Transaction
 from src.dashboards.finance.schemas import (
+    CategoriesDisplay,
     CategoriesOut,
     CategorySpend,
     CurrencyCategories,
-    CategoriesDisplay,
     CurrencySummary,
     DisplayCategory,
     FinanceSummaryOut,
