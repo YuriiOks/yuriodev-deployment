@@ -12,6 +12,7 @@ tool error's message, and nothing a client sent (titles, notes) may reach the lo
 carries input. An unexpected exception is logged by class name only.
 """
 
+import contextlib
 import json
 import logging
 from collections.abc import AsyncIterator, Callable
@@ -31,7 +32,7 @@ from starlette.types import Receive, Scope, Send
 from src.core.clock import Clock
 from src.core.errors import AppError, error_response
 from src.dashboards import projects as project_service
-from src.dashboards import service
+from src.dashboards import service, streak
 from src.dashboards import today as page_today
 from src.dashboards.catalog import SPACE_IDS, TaskStatus, TaskStatusFilter
 from src.dashboards.finance import mcp as finance_mcp
@@ -107,7 +108,12 @@ def build_mcp_server(
         if project is not None:
             update = project_service.update_project_task
             return _json(_ptask(await update(session, project, task_id, patch, now)))
-        return _json(_task(await service.update_task(session, task_id, patch, now)))
+        task = await service.update_task(session, task_id, patch, now)
+        out = _json(_task(task))
+        if patch.status == "done":  # a completed task may have emptied the page's queue
+            with contextlib.suppress(AppError):
+                await streak.note(session, task.space_id, now, zone)
+        return out
 
     @asynccontextmanager
     async def scope(tool: str) -> AsyncIterator[tuple[AsyncSession, datetime]]:

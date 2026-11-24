@@ -18,6 +18,7 @@ after D and only when nothing is at the right amount, and is then raised as an a
 `finance.recurring_match`.
 """
 
+import contextlib
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta, tzinfo
@@ -80,6 +81,7 @@ from src.dashboards.finance.schemas import (
 )
 from src.dashboards.finance.service import day_start, invalid
 from src.dashboards.service import guarded
+from src.dashboards.streak import note
 
 DEFAULT_REMINDER_DAYS = 2
 UPCOMING_LOOKAHEAD_DAYS = 90
@@ -1180,6 +1182,9 @@ async def set_attention_states(
         )
     )
     await session.commit()
+    if changed or accepted:  # a decided item may have emptied the money page's queue
+        with contextlib.suppress(AppError):
+            await note(session, "money", now, zone, display.currency)
     return changed, missing, accepted
 
 

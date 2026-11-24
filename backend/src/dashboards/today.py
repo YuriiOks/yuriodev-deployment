@@ -39,6 +39,7 @@ from src.dashboards.finance import service as finance_service
 from src.dashboards.finance.models import Recurring
 from src.dashboards.finance.schemas import API_STALE_AFTER
 from src.dashboards.models import Area, Event, Task
+from src.dashboards.streak import Streak, current, record
 from src.dashboards.service import guarded, task_order
 
 Scope = Literal["personal", "work-1", "work-2", "money"]
@@ -177,6 +178,7 @@ class TodayPageOut(BaseModel):
     stats: list[Stat]
     breakdown: Breakdown
     today: list[TodayRow]
+    streak: Streak
     assistant: Assistant
 
 
@@ -899,6 +901,21 @@ async def _money(
 # ---- the entry point --------------------------------------------------------------------------
 
 
+async def queue_total(
+    session: AsyncSession, scope: str, now: datetime, zone: tzinfo, display_currency: str = "GBP"
+) -> int:
+    """How many items qualify for a page's queue right now (without building the whole page)."""
+    if scope not in SCOPES:
+        raise invalid_scope()
+    today = now.astimezone(zone).date()
+    if scope == "money":
+        display = await finance_service.display_for(session, display_currency, now)
+        return len((await recurring_service.attention(session, now, zone, display)).items)
+    tasks = await _open_tasks(session, scope)
+    rule = {"personal": personal_queue, "work-1": work1_queue}.get(scope, work2_queue)
+    return rule(tasks, today, now)[1]
+
+
 @guarded
 async def build(
     session: AsyncSession,
@@ -920,10 +937,12 @@ async def build(
         parts = await _work1(session, now, zone, today)
     else:
         parts = await _work2(session, now, zone, today)
+    await record(session, scope, today, parts["queue_total"], now)
     return TodayPageOut(
         scope=scope,  # type: ignore[arg-type]
         date=today,
         generated_at=now,
+        streak=await current(session, scope, today),
         assistant=Assistant(enabled=assistant_enabled and scope != "work-2"),
         **parts,
     )
