@@ -67,7 +67,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
       await onChanged();
     } catch (error) {
       // The payment moved on since the page showed it: nothing was done, the page is refreshed and says so (no retry).
-      if (movedOn(error)) await onChanged().catch(() => undefined);
+      if (movedOn(error)) await Promise.resolve(onChanged()).catch(() => undefined);
       setFailed(movedOn(error) ? 'moved' : 'failed');
     } finally {
       setBusy(false);
@@ -180,24 +180,6 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
   const items = group.items;
   const shown = all ? items : items.slice(0, GROUP_ROWS);
   const payments = new Map(context.recurring.map((row) => [row.id, row]));
-
-  /** One request per item, one after the other; what fails is counted and the rest goes on. */
-  const bulk = async (each: (item: AttentionItem) => Promise<void>, list: readonly AttentionItem[] = items) => {
-    setBusy(true);
-    setFailures(0);
-    let failed = 0;
-    for (const item of list) {
-      try {
-        await each(item);
-      } catch {
-        failed += 1;
-      }
-    }
-    setFailures(failed);
-    setConfirming(false);
-    await context.onChanged();
-    setBusy(false);
-  };
 
   /** One request for the listed items (the server's bulk endpoint); a failure is counted as all of them, and for `accept` the keys the server did not accept are the failures. */
   const bulkAll = async (send: (keys: string[]) => Promise<{ accepted: string[] } | void>, list: readonly AttentionItem[] = items, accepting = false) => {
