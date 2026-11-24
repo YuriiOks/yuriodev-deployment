@@ -12,7 +12,7 @@ from tests.test_finance_recurring_api import add
 
 pytestmark = pytest.mark.anyio
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10" + b"\x00" * 20
 SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1"/></svg>'
 URL = "https://icons.example.test/acme.png"
 
