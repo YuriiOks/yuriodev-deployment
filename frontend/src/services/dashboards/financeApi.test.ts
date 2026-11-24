@@ -202,11 +202,34 @@ describe('logo addresses', () => {
       '/api/dashboards/v1/finance/providers//evil.example.com/x.png',
       '/api/dashboards/v1/finance/providers/%2e%2e/x',
       '/api/dashboards/v1/finance/providers/acme?x=1',
+      '/api/dashboards/v1/finance/providers/acme/logo/mark?v=abc&x=1',
+      '/api/dashboards/v1/finance/providers/acme/logo/mark?v=',
       '/api/other/logo.png',
       'javascript:alert(1)',
     ]) {
       expect(logos({ on_light: bad, on_dark: png })?.onLight, bad).toBeNull();
     }
+  });
+});
+
+describe('the providers answer as the server writes it now', () => {
+  it('keeps the three logo variants served by address with a version query, whatever else the answer carries (aspect, scale, mono, reconnect, a null name)', () => {
+    const base = '/api/dashboards/v1/finance/providers/aqua/logo';
+    const parsed = parseProviders({
+      providers: [
+        {
+          id: 'aqua',
+          name: null,
+          entry: 'manual',
+          colors: { background: '#0000a6', foreground: '#ffffff' },
+          logo: { on_light: `${base}/on_light?v=e6140d0d`, on_dark: `${base}/on_dark?v=e6140d0d`, mark: `${base}/mark?v=e6140d0d`, aspect: { on_light: 5.9, on_dark: 5.9, mark: 1 }, scale: { on_light: 1, on_dark: 1, mark: 1 }, mono: false },
+          logo_dropped: false,
+          reconnect: null,
+          reconnect_path: null,
+        },
+      ],
+    });
+    expect(parsed?.aqua).toMatchObject({ onLight: `${base}/on_light?v=e6140d0d`, onDark: `${base}/on_dark?v=e6140d0d`, mark: `${base}/mark?v=e6140d0d`, entry: 'manual', colors: { background: '#0000a6', foreground: '#ffffff' } });
   });
 });
 
