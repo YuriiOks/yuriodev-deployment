@@ -8,6 +8,7 @@ import { useDashboardMode } from '../hooks/useDashboardMode';
 import { useLiveSummary } from '../hooks/useLiveSummary';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSpaces } from '../hooks/useDashboards';
+import { useUpcomingEvents } from '../hooks/useUpcomingEvents';
 import { nearestNext, nextAtLabel } from '../services/dashboards/liveLabels';
 import { SPACES } from '../services/dashboards/spaces';
 import { summarize } from '../services/dashboards/summary';
@@ -35,9 +36,12 @@ const SampleHub = ({ title }: { title: string }) => {
 const LiveHub = ({ title }: { title: string }) => {
   const { t } = useDashboardLang();
   const { status, summary, reload } = useLiveSummary();
+  // The next events go through the calendar's rule for copies of work meetings, so the cards wait for the list too (no wrong name first).
+  const ahead = useUpcomingEvents(true);
   const now = new Date();
-  const ready = status === 'ready' && summary !== null;
-  const soonest = ready ? nearestNext(SPACES.map((id) => summary[id].next)) : null;
+  const ready = status === 'ready' && summary !== null && ahead.status !== 'loading';
+  const nexts = ready ? SPACES.map((id) => ahead.nextFor(id, summary[id].next)) : [];
+  const soonest = ready ? nearestNext(nexts) : null;
   return (
     <>
       <HubHeader
@@ -47,7 +51,7 @@ const LiveHub = ({ title }: { title: string }) => {
         now={now}
       />
       {status === 'error' && <InlineError message={t.summaryFailed} onRetry={reload} />}
-      {status === 'loading' && (
+      {(status === 'loading' || (status === 'ready' && !ready)) && (
         <div className={styles.cards}>
           {SPACES.map((id) => (
             <LoadingBlock key={id} rows={2} />
@@ -57,7 +61,8 @@ const LiveHub = ({ title }: { title: string }) => {
       {ready && (
         <div className={styles.cards}>
           {SPACES.map((id) => {
-            const { open, priority, overdue, next } = summary[id];
+            const { open, priority, overdue } = summary[id];
+            const next = ahead.nextFor(id, summary[id].next);
             return (
               <SpaceCard
                 key={id}

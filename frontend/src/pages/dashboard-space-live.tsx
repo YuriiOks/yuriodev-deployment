@@ -10,7 +10,7 @@ import SpaceHero from '../components/dashboards/SpaceHero/SpaceHero';
 import TaskPanel from '../components/dashboards/TaskPanel/TaskPanel';
 import panelStyles from '../components/dashboards/Panel/Panel.module.css';
 import rowStyles from '../components/dashboards/PanelRow/PanelRow.module.css';
-import { useLiveEvents } from '../hooks/useLiveEvents';
+import { useUpcomingEvents } from '../hooks/useUpcomingEvents';
 import { useLiveSummary } from '../hooks/useLiveSummary';
 import { useSpaceNames } from '../hooks/useSpaceNames';
 import { useLiveTasks } from '../hooks/useLiveTasks';
@@ -66,8 +66,10 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
 
   const current = tabs.includes(selected) ? selected : 'overview';
   const areaList = space === 'personal' ? areas : null;
-  // The space's meetings of today, for the overview of a space that has collected tasks (the work spaces).
-  const todayEvents = useLiveEvents(today, today, space !== 'personal');
+  // The events of the next days: today's meetings for the overview of a space that has collected tasks (the work spaces), and
+  // the next event of the strip, put through the calendar's rule for copies of work meetings.
+  const ahead = useUpcomingEvents(true);
+  const todayEvents = ahead;
   const { serverNameOf } = useSpaceNames();
   const meetings = withoutCopies(todayEvents.events, { 'work-1': serverNameOf('work-1'), 'work-2': serverNameOf('work-2') })
     .filter((event) => event.space === space && localDate(new Date(event.startsAt)) === today)
@@ -82,7 +84,9 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   for (const [tab, source] of Object.entries(COLLECTED) as [TabId, string][]) {
     tabCounts[tab] = tasks.tasks.filter((task) => task.source === source && task.status === 'open').length;
   }
-  const next = summary.summary?.[space].next ?? null;
+  const summaryNext = summary.summary?.[space].next ?? null;
+  // Until the list is in the strip stays empty rather than show a copy of a work meeting first.
+  const next = ahead.status === 'loading' ? null : ahead.nextFor(space, summaryNext);
   const hero = next ? liveHero(next, now, t) : null;
 
   const create = async (title: string) => {
@@ -107,9 +111,9 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   );
 
   let body: ReactNode;
-  let split: 'main' | 'even' | false = false;
+  let split: 'main' | 'even' | 'flow' | false = false;
   let wideFirst = false;
-  let rows = 1;
+  const rows = 1;
   let backlog: LiveTask[] = [];
   if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
     body = <NotConnected name={t.tabs[current]} />;
@@ -206,8 +210,9 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       ...(groups.later.length ? [panel('later', t.groupLater, groups.later)] : []),
       ...(groups.undated.length ? [panel('undated', t.groupNoDate, groups.undated)] : []),
     ];
-    split = panels.length > 1 ? 'main' : false;
-    rows = Math.max(panels.length - 1, 1);
+    // Priority across the full width, then the date groups in two or three columns by width (one on a phone), so a long list fills the page.
+    split = panels.length > 1 ? 'flow' : false;
+    wideFirst = panels.length > 1;
     body = panels;
   } else {
     const counts = areaCounts(tasks.tasks, areaList ?? []);

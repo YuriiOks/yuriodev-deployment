@@ -223,7 +223,7 @@ const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
         placeholder={t.addTask}
         onSubmit={async (title) => ((await tasks.create({ title })) ? t.addTaskFailed : null)}
       />
-      <div className={space.panels} data-split={split ? 'true' : undefined} style={{ '--rows': rows } as CSSProperties}>
+      <div className={space.panels} data-split={split ? 'flow' : undefined} data-wide-first={split ? 'true' : undefined} style={{ '--rows': rows } as CSSProperties}>
         {body}
       </div>
       {tasks.status === 'ready' && groups.done.length > 0 && (
