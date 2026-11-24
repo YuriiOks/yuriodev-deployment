@@ -66,6 +66,16 @@ describe('the recurring payments parsers', () => {
     expect(parseAttention({ hidden: 1 })).toBeNull();
   });
 
+  it('takes a picture the server inlined as a base64 image, and refuses any other data or scheme', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(iconUrl(png)).toBe(png);
+    expect(iconUrl('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=')).not.toBeNull();
+    expect(iconUrl('data:text/html;base64,PGI+')).toBeNull();
+    expect(iconUrl('data:image/png;base64,' + 'A'.repeat(200_000))).toBeNull();
+    expect(iconUrl('javascript:alert(1)')).toBeNull();
+    expect(iconUrl('http://x.example.com/a.png')).toBeNull();
+  });
+
   it('passes on the server\'s refusal words and nothing generic', () => {
     expect(refusal(new ApiError('validation_error', 422, 'amount must be positive'))).toBe('amount must be positive');
     expect(refusal(new ApiError('http', 422, 'HTTP 422'))).toBeNull();

@@ -675,6 +675,20 @@
 /* A bank's wordmark in place of its name: sized by height (about the name's cap height), with a ceiling on its width so a long
    wordmark never pushes the balance. A neutral card shows the variant for the theme (dark by default, the light theme swaps them);
    a brand card is dark and always shows the dark one. */
+.logoMark {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--dash-r-tag);
+  overflow: hidden;
+}
+
+.logoMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .logos {
   display: inline-flex;
   align-items: center;

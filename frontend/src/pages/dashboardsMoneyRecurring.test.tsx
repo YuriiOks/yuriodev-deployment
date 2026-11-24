@@ -176,6 +176,11 @@ describe('the Money page: the row of attention cards', () => {
     expect(panel.getByRole('link', { name: 'All 12' })).toHaveAttribute('href', expect.stringContaining('view=attention'));
     // A card has nothing in it to press but itself.
     for (const card of cards) expect(card.querySelector('button, a')).toBeNull();
+    // The label and "All 12" are fixed outside the scrolling area; only the cards scroll.
+    const scroller = cards[0].parentElement as HTMLElement;
+    expect(scroller.contains(panel.getByText('Needs attention · 12'))).toBe(false);
+    expect(scroller.contains(panel.getByRole('link', { name: 'All 12' }))).toBe(false);
+    expect(Array.from(scroller.children).every((child) => child.getAttribute('data-key'))).toBe(true);
     // Nothing of the long list is on the overview.
     expect(panel.queryByRole('group')).toBeNull();
   });
