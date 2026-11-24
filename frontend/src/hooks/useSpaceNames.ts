@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
 import siteMark from '../assets/site-mark.svg';
-import { getBootstrapSnapshot, subscribeBootstrap } from '../services/dashboards/bootstrapStore';
+import { getBarSeed, getBootstrapSnapshot, subscribeBootstrap } from '../services/dashboards/bootstrapStore';
 import { SPACE_NAME } from '../services/dashboards/spaces';
 import type { SpaceId } from '../services/dashboards/types';
 
@@ -27,7 +27,8 @@ const NONE: Readonly<Partial<Record<SpaceId, string>>> = {};
 export function useSpaceNames(): SpaceNames {
   const { text } = useDashboardLang();
   const snapshot = useSyncExternalStore(subscribeBootstrap, getBootstrapSnapshot, getBootstrapSnapshot);
-  const bootstrap = snapshot.bootstrap?.enabled ? snapshot.bootstrap : null;
+  // Until the answer is in, the last visit's names and icons (if any) are used, so the first paint is already the final one.
+  const bootstrap = snapshot.status === 'ready' ? (snapshot.bootstrap?.enabled ? snapshot.bootstrap : null) : getBarSeed();
   const live = bootstrap !== null;
   const names = bootstrap?.spaceNames ?? NONE;
   const icons = bootstrap?.spaceIcons ?? NONE;

@@ -7,9 +7,9 @@
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  height: var(--header-h);
+  height: 3.5rem;
   box-sizing: border-box;
-  padding: 0 var(--space-4);
+  padding: 0;
   font-family: var(--font-mono);
   border-width: 0 0 2px;
   border-bottom: 2px solid var(--header-border-bottom-color);
@@ -18,14 +18,12 @@
 .inner {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   height: 100%;
-}
-
-@media (min-width: 64rem) {
-  .bar {
-    padding: 0 var(--space-6);
-  }
+  max-width: var(--dash-column);
+  margin-inline: auto;
+  padding: 0 var(--dash-gutter);
+  box-sizing: border-box;
 }
 
 /* The pages: the site's pills in a row that scrolls sideways when it must. */
@@ -33,7 +31,7 @@
   display: flex;
   flex: 1 1 auto;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-width: 0;
   padding: var(--space-1) 0;
   overflow-x: auto;
@@ -104,24 +102,46 @@
   background: var(--header-border-bottom-color);
 }
 
-/* With projects in the row there is no room at laptop widths for everything: below 100rem the prompt is the short one
-   (as on a phone) and the portfolio link is its arrow, so the pages and a few projects fit; the rest scroll sideways. */
+/* The prompt's form depends on the width alone, never on what arrives later (the projects, the names), so a reload cannot
+   change it: below 100rem it is the short one (as on a phone), and the portfolio link is its arrow at every width (its label
+   is the aria-label), so the pages and a few projects fit; the rest scroll sideways. */
 @media (max-width: 99.99rem) {
-  .bar[data-projects] .full {
+  .full {
     display: none;
   }
 
-  .bar[data-projects] .short {
+  .short {
     display: inline;
   }
+}
 
-  .bar[data-projects] .portfolioText {
-    display: none;
-  }
+.portfolioText {
+  display: none;
+}
+
+/* Until the answer: a fixed-size quiet block where each pill will be (never the bundled names or number tiles). */
+.skeleton {
+  flex: none;
+  width: 6.5rem;
+  height: 2.5rem;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-control);
+  opacity: 0.6;
 }
 
 /* The row's right end fades out while there is more to scroll to. */
 .nav[data-more="true"] {
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
   mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+}
+
+/* Tighter pills: 8px of side padding (the site's are 12px) with the current page's underline brought in to match. */
+.nav a {
+  padding-inline: var(--space-2);
+}
+
+.nav a[aria-current]::after {
+  left: var(--space-2);
+  right: var(--space-2);
 }

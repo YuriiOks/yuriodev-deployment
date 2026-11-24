@@ -11,11 +11,12 @@
   --scheme-p: var(--dash-chip);
   --scheme-c: var(--dash-chip);
   --scheme-ch: var(--dash-chip);
+  --scheme-z: var(--dash-t2);
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
+  gap: var(--space-3);
+  padding: var(--space-4);
   box-sizing: border-box;
   border-radius: var(--dash-r-surface);
   transition:
@@ -117,7 +118,7 @@
   justify-content: center;
   gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-3) var(--space-1);
+  padding: var(--space-2) var(--space-1);
   background: var(--scheme-c);
   border: 1px solid color-mix(in srgb, var(--scheme-ink) 28%, transparent);
   border-radius: var(--dash-r-control);
@@ -134,7 +135,7 @@
 }
 
 .zero {
-  color: var(--dash-t2);
+  color: var(--scheme-z);
 }
 
 .alarm {
@@ -158,7 +159,7 @@
 
 @media (max-width: 47.99rem) {
   .card {
-    padding: var(--space-4);
+    padding: var(--space-3);
   }
 }
 
@@ -170,6 +171,7 @@
   --scheme-p: var(--hub-personal-p);
   --scheme-c: var(--hub-personal-c);
   --scheme-ch: var(--hub-personal-ch);
+  --scheme-z: var(--hub-personal-z);
 }
 
 .card[data-scheme="work-1"] {
@@ -178,6 +180,7 @@
   --scheme-p: var(--hub-work-1-p);
   --scheme-c: var(--hub-work-1-c);
   --scheme-ch: var(--hub-work-1-ch);
+  --scheme-z: var(--hub-work-1-z);
 }
 
 .card[data-scheme="work-2"] {
@@ -186,6 +189,7 @@
   --scheme-p: var(--hub-work-2-p);
   --scheme-c: var(--hub-work-2-c);
   --scheme-ch: var(--hub-work-2-ch);
+  --scheme-z: var(--hub-work-2-z);
 }
 
 .card[data-scheme="project"] {
@@ -194,6 +198,7 @@
   --scheme-p: var(--hub-project-p);
   --scheme-c: var(--hub-project-c);
   --scheme-ch: var(--hub-project-ch);
+  --scheme-z: var(--hub-project-z);
 }
 
 .nextLabel {

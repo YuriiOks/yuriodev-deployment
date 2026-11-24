@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath, projectPath, type PageId } from '../../../data/site';
+import { useBarData } from '../../../hooks/useBarData';
 import { useProjects } from '../../../hooks/useProjects';
 import { useSpaceNames } from '../../../hooks/useSpaceNames';
 import { promptPlace } from '../../../services/dashboards/promptPlace';
@@ -22,6 +23,9 @@ const Mark: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </span>
 );
 
+/** The quiet blocks the pills' place holds until the answer (or the last visit's cache) says what the pills are. */
+const SKELETON = ['all', 'personal', 'work-1', 'work-2', 'calendar'] as const;
+
 const navClass = ({ isActive }: { isActive: boolean }) => cx(header.navLink, isActive && header.current);
 
 export interface DashboardBarProps {
@@ -40,14 +44,15 @@ export interface DashboardBarProps {
 const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t } = useDashboardLang();
   const { nameOf, serverNameOf } = useSpaceNames();
-  const { projects, active } = useProjects();
+  useProjects(); // asks for the shared list (live data only); the pills themselves come from useBarData
+  const { phase, projects: active } = useBarData();
   const currentRef = useRef<HTMLAnchorElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const [more, setMore] = useState(false);
   const { pathname } = useLocation();
   const place = promptPlace(pathname, {
     spaceName: serverNameOf,
-    projectName: (id) => projects.find((project) => project.id === id)?.name,
+    projectName: (id) => active.find((project) => project.id === id)?.name,
   });
   // When the row is wider than its room, its right end fades out (a hint that it scrolls): measured after paint, on a resize, on a scroll and
   // whenever the pills change.
@@ -65,7 +70,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
       window.removeEventListener('resize', measure);
       nav?.removeEventListener('scroll', measure);
     };
-  }, [active.length, phone, pathname]);
+  }, [active.length, phase, phone, pathname]);
   // The current pill stays in view when the row scrolls sideways (many projects, a phone).
   useEffect(() => {
     currentRef.current?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
@@ -80,7 +85,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const items = [...before, ...spaces, ...after];
 
   return (
-    <div className={styles.bar} data-projects={active.length > 0 ? 'true' : undefined}>
+    <div className={styles.bar}>
       <div className={styles.inner}>
         <div className={cx(header.terminalPrompt, styles.prompt)}>
           <span className={cx(header.promptFull, styles.full)}>yurii@yuriodev:~$ ./{place}</span>
@@ -89,15 +94,16 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
             _
           </span>
         </div>
-        <nav ref={navRef} aria-label={t.navLabel} className={styles.nav} data-more={more ? 'true' : undefined}>
-          {items.map(([id, label, mark]) => (
+        <nav ref={navRef} aria-label={t.navLabel} className={styles.nav} data-more={more ? 'true' : undefined} aria-busy={phase === 'placeholder' ? true : undefined}>
+          {phase === 'placeholder' && SKELETON.map((key) => <span key={key} aria-hidden="true" data-skeleton="true" className={styles.skeleton} />)}
+          {phase !== 'placeholder' && items.map(([id, label, mark]) => (
             <NavLink key={id} to={pagePath(id)} end={id === 'dashboards'} className={navClass}>
               <Mark>{mark}</Mark>
               {label}
             </NavLink>
           ))}
-          {active.length > 0 && <span role="separator" aria-orientation="vertical" aria-label={t.navProjects} className={styles.divider} />}
-          {active.map((project) => (
+          {phase !== 'placeholder' && active.length > 0 && <span role="separator" aria-orientation="vertical" aria-label={t.navProjects} className={styles.divider} />}
+          {phase !== 'placeholder' && active.map((project) => (
             <NavLink key={project.id} to={projectPath(project.id)} end className={navClass} ref={pathname === projectPath(project.id) ? currentRef : undefined}>
               <Mark>
                 <ProjectTile name={project.name} icon={project.icon} />

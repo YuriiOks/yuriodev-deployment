@@ -4,8 +4,8 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 /* global.css gives every h2 an underline and spacing: both cleared; the '# ' mark stays, in the page's cyan. */
@@ -30,7 +30,7 @@
 .cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-5);
+  gap: var(--space-4);
   align-items: stretch;
 }
 
@@ -86,8 +86,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 7.5rem;
-  padding: var(--space-5);
+  min-height: 6.5rem;
+  padding: var(--space-4);
   box-sizing: border-box;
   background: transparent;
   border: 1px dashed var(--dash-edge);
@@ -136,4 +136,11 @@
 
 .cancel {
   composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+/* From 100rem the projects take four to a row. */
+@media (min-width: 100rem) {
+  .cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }

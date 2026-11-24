@@ -1,4 +1,5 @@
-import { fetchBootstrap, type Bootstrap } from './liveApi';
+import { clearBarCache, readBarCache, writeBarCache } from './barCache';
+import { fetchBootstrap, type Bootstrap, type LiveProjectRef } from './liveApi';
 
 /*
  * Whether the dashboards run on the API or on the bundled sample data, decided once per page load: the first
@@ -18,6 +19,8 @@ const IDLE: BootstrapSnapshot = { status: 'idle', bootstrap: null };
 
 let snapshot: BootstrapSnapshot = IDLE;
 let inflight: AbortController | null = null;
+/** The bar's state from the last visit (services/dashboards/barCache.ts): read once, forgotten when the store is reset. */
+let seed: Bootstrap | null | undefined;
 const listeners = new Set<() => void>();
 
 function publish(next: BootstrapSnapshot): void {
@@ -43,6 +46,10 @@ export function ensureBootstrap(): void {
   void fetchBootstrap(controller.signal).then((bootstrap) => {
     if (inflight !== controller) return;
     inflight = null;
+    // A live answer is the new last good state; "disabled" clears it; a failure keeps what there was.
+    if (bootstrap?.enabled) writeBarCache(bootstrap);
+    else if (bootstrap) clearBarCache();
+    seed = undefined;
     publish({ status: 'ready', bootstrap });
   });
 }
@@ -51,6 +58,7 @@ export function ensureBootstrap(): void {
 export function primeBootstrap(bootstrap: Bootstrap | null): void {
   inflight?.abort();
   inflight = null;
+  seed = undefined;
   publish({ status: 'ready', bootstrap });
 }
 
@@ -58,5 +66,17 @@ export function primeBootstrap(bootstrap: Bootstrap | null): void {
 export function resetBootstrap(): void {
   inflight?.abort();
   inflight = null;
+  seed = undefined;
   publish(IDLE);
+}
+
+/** The bar's state from the last visit, for the paint before the answer is in (null when there is none). */
+export function getBarSeed(): Bootstrap | null {
+  if (seed === undefined) seed = readBarCache();
+  return seed;
+}
+
+/** The projects changed (a create, a rename, an icon, an archive): the bar's cache follows, so the next load paints them. */
+export function updateBarCacheProjects(projects: readonly LiveProjectRef[]): void {
+  if (snapshot.status === 'ready' && snapshot.bootstrap?.enabled) writeBarCache(snapshot.bootstrap, projects);
 }

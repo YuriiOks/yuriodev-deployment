@@ -53,7 +53,9 @@ HISTORY_LIMIT = timedelta(days=89)  # a day inside the 90 days the API answers a
 FAST_BURST = 60  # requests per tick while the five minutes last
 STEADY_BURST = 3
 POLL_EVERY = 5.0  # seconds between asking whether the owner has approved yet
-POLL_BUDGET = 100.0  # seconds of asking per tick (the manager gives a run 120)
+POLL_BUDGET = 60.0  # seconds of waiting per tick; with the requests it stays under POLL_LIMIT
+POLL_LIMIT = 90.0  # real seconds of asking per tick (the manager gives a run 120)
+TRANSIENT = ("timeout", "connect", "http_5xx")
 ACCOUNT_LABELS = {"uk_retail": "Current account", "uk_retail_joint": "Joint account"}
 
 
@@ -107,17 +109,23 @@ class MonzoProvider(ProviderDefaults):
     async def _first_accounts(self, client: httpx.AsyncClient, view: TokenView) -> Any:
         """The accounts answer. Before the in-app approval the API refuses (403): keep asking, for
         a while per tick and until the approval deadline, instead of failing."""
+        loop = asyncio.get_running_loop()
+        started = loop.time()
         waited = 0.0
         while True:
             try:
                 return await self._get(client, view.access_token, "/accounts", None)
             except UpstreamError as exc:
-                if exc.status != 403 or view.approved_at is not None:
+                waiting = exc.status == 403 and view.approved_at is None
+                # A slow or failed answer while waiting is no reason to stop asking: the next
+                # answer may be the approval, and the five minutes start when it comes.
+                if not waiting and not (view.approved_at is None and exc.kind in TRANSIENT):
                     raise
                 if self._clock() > view.approval_deadline:
                     raise UpstreamError("auth", 403) from None  # never approved in time
-                if waited >= POLL_BUDGET:
-                    raise UpstreamError("awaiting_approval", 403) from None
+                if waited >= POLL_BUDGET or loop.time() - started >= POLL_LIMIT:
+                    kind = "awaiting_approval" if waiting else exc.kind
+                    raise UpstreamError(kind, exc.status) from None
             await self._sleep(POLL_EVERY)
             waited += POLL_EVERY
 
@@ -180,7 +188,15 @@ class MonzoProvider(ProviderDefaults):
                 "limit": PAGE,
                 "expand[]": "merchant",
             }
-            body = await self._get(client, view.access_token, "/transactions", params)
+            try:
+                body = await self._get(client, view.access_token, "/transactions", params)
+            except UpstreamError as exc:
+                if exc.status == 403 and since < self._clock() - HISTORY_LIMIT:
+                    # The five minutes are over (they started a little before we noticed): this
+                    # is the 90-day rule, not a refused token. Close the window, keep the link.
+                    self._window_until = self._clock()
+                    raise UpstreamError("history_closed", 403) from None
+                raise
             page = parse_transactions(body, currency)
             for item in page:
                 found[item.external_id] = item

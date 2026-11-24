@@ -4,7 +4,7 @@ import { DashboardLangProvider } from '../../../context/DashboardLangProvider';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { PAGE_CONTENT_ID } from '../../../constants/pageContent';
 import { maxWidth } from '../../../constants/breakpoints';
-import { isProjectPath, pageAt } from '../../../data/site';
+import { isProjectPath } from '../../../data/site';
 import { useDashboardMode } from '../../../hooks/useDashboardMode';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { spaceAt } from '../../../services/dashboards/spaces';
@@ -23,9 +23,8 @@ const Frame: React.FC = () => {
   // Which data the dashboards run on is asked once; until the answer is in, a quiet placeholder holds the place
   // (the page never flashes sample data and then swaps to real data).
   const { mode } = useDashboardMode();
-  const calendar = pageAt(pathname)?.id === 'dashboards-calendar';
   return (
-    <div className={styles.root} data-space={space} data-wide={calendar ? 'true' : undefined} lang={lang}>
+    <div className={styles.root} data-space={space} lang={lang}>
       {/* A private area: React hoists this into <head> and removes it again on unmount. */}
       <meta name="robots" content="noindex" />
       <DashboardBar phone={phone} />
