@@ -167,9 +167,7 @@ async def update_recurring(
         raise invalid("A required field cannot be cleared")
     merged = {
         "total_installments": changes.get("total_installments", row.total_installments),
-        "completed_installments": changes.get(
-            "completed_installments", row.completed_installments
-        ),
+        "completed_installments": changes.get("completed_installments", row.completed_installments),
     }
     if not instalments_agree(merged):
         raise invalid("completed_installments cannot exceed total_installments")

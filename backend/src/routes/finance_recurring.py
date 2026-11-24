@@ -268,4 +268,3 @@ async def restore(
 ) -> AttentionItem:
     """Bring a dismissed or snoozed item back."""
     return await _state(session, settings, clock, zone, body.key, "restore")
-
