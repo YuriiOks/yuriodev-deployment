@@ -113,6 +113,8 @@ afterEach(() => {
 
 const wallet = () => within(within(main()).getByRole('region', { name: 'Wallet' }));
 const bankButton = (name: string) => wallet().getByRole('button', { name: new RegExp(`^${name}`) });
+/** The whole card of a bank (its button, and the facts and pills of the open one). */
+const bankCard = (name: string) => bankButton(name).parentElement as HTMLElement;
 const opened = () => within(wallet().getByRole('article'));
 /** The wallet's region exists once the bootstrap has answered; the banks once the accounts have. */
 const banksReady = async () => {
@@ -145,8 +147,9 @@ describe('the Money page: totals and the wallet', () => {
     const user = userEvent.setup();
     renderAt(PATH);
     await banksReady();
-    const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => button.querySelector('strong')?.textContent);
-    expect(names).toEqual(['Acme bank', 'Monzo', 'Monobank']);
+    // The open bank sits at the bottom of the stack; the others keep their order above it.
+    const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => /^(Acme bank|Monzo|Monobank)/.exec(button.textContent ?? '')?.[1]);
+    expect(names).toEqual(['Monzo', 'Monobank', 'Acme bank']);
     expect(bankButton('Acme bank')).toHaveAttribute('aria-pressed', 'true');
     expect(bankButton('Monzo')).toHaveAttribute('aria-pressed', 'false');
     expect(bankButton('Acme bank')).toHaveTextContent('£746.50');
@@ -158,13 +161,33 @@ describe('the Money page: totals and the wallet', () => {
     expect(wallet().queryByRole('article', { name: 'Acme bank' })).toBeNull();
   });
 
+  it('shows the hero balance with the symbol and pence smaller, the open card\'s facts and its pill actions, and nothing of the kind on the others', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    const acme = bankCard('Acme bank');
+    // Pounds big, symbol and pence small: three kinds of part, one text.
+    const hero = bankButton('Acme bank').querySelector('[data-hero]') as HTMLElement;
+    expect(hero.textContent).toBe('£746.50');
+    expect(Array.from(hero.querySelectorAll('[data-part]')).map((part) => part.getAttribute('data-part'))).toEqual(['symbol', 'int', 'frac', 'frac']);
+    expect(hero.querySelector('[data-part="int"]')?.textContent).toBe('746');
+    expect(within(acme).getByRole('link', { name: 'Accounts' })).toHaveAttribute('href', '#money-bank-acme-bank-name');
+    expect(within(acme).getByRole('link', { name: 'Transactions' })).toHaveAttribute('href', '#money-transactions-title');
+    expect(within(bankCard('Monobank')).queryByRole('link')).toBeNull();
+    await user.click(bankButton('Monobank'));
+    expect(within(bankCard('Monobank')).getByRole('link', { name: 'Accounts' })).toBeInTheDocument();
+    expect(within(bankCard('Acme bank')).queryByRole('link')).toBeNull();
+  });
+
   it('colours a bank we know in its brand pair, and any other in the neutral card', async () => {
     setup();
     renderAt(PATH);
     await banksReady();
-    expect(bankButton('Monzo').getAttribute('style')).toContain('--bank-bg: #b3261e');
-    expect(bankButton('Monobank').getAttribute('style')).toContain('--bank-fg: #ffffff');
-    expect(bankButton('Acme bank').getAttribute('style')).toBeNull();
+    expect(bankCard('Monzo').getAttribute('style')).toContain('--bank-bg: #c9364a');
+    expect(bankCard('Monobank').getAttribute('style')).toContain('--bank-bg: #000000');
+    expect(bankCard('Monobank').getAttribute('style')).toContain('--bank-fg: #ffffff');
+    expect(bankCard('Acme bank').getAttribute('style')).toBeNull();
   });
 
   it('opens a bank: main accounts as cards, pots as tiles with their emoji as the picture, the empty ones folded', async () => {
@@ -234,9 +257,14 @@ describe('the Money page: totals and the wallet', () => {
     const user = userEvent.setup();
     renderAt(PATH);
     await banksReady();
-    expect(bankButton('Acme bank')).toHaveTextContent(/connected · updated/);
-    expect(bankButton('Monzo')).toHaveTextContent('needs reconnecting');
+    // Connection status is told on the open card only; a card that needs attention elsewhere carries a warning mark.
+    expect(bankCard('Acme bank')).toHaveTextContent(/connected · updated/);
+    expect(bankCard('Monzo')).not.toHaveTextContent(/updated/);
+    expect(within(bankCard('Monzo')).getByTitle('needs reconnecting')).toBeInTheDocument();
+    expect(within(bankCard('Acme bank')).queryByRole('link', { name: 'Reconnect' })).toBeNull();
     await user.click(bankButton('Monzo'));
+    expect(bankCard('Monzo')).toHaveTextContent('needs reconnecting');
+    expect(within(bankCard('Monzo')).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
     const alert = opened().getByRole('alert');
     expect(alert).toHaveTextContent('asks you to confirm access again');
     expect(within(alert).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');

@@ -75,79 +75,162 @@
   flex-direction: column;
 }
 
+/* One bank in the stack: a big solid card in the bank's own colour (--bank-bg and --bank-fg, set inline from the brand table), 96px tall
+   with a 28px radius, overlapping the one above so about 80px of each shows; no border and no status text on a collapsed card. The
+   selected card is the last of the stack, taller, with a quiet line of facts and its actions. */
 .bank {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  position: relative;
   margin-top: calc(-1 * var(--space-4));
-  padding: var(--space-3) var(--space-4) calc(var(--space-4) + var(--space-3));
   background: var(--bank-bg, var(--dash-chip));
-  border: 1px solid var(--bank-bg, var(--dash-edge));
-  border-radius: var(--dash-r-surface);
+  border-radius: var(--dash-r-card);
+  box-shadow: var(--dash-glass-shadow);
   color: var(--bank-fg, var(--dash-t1));
-  font-family: var(--dash-font-ui);
-  text-align: left;
-  cursor: pointer;
 }
 
 .bankFirst {
   margin-top: 0;
 }
 
-.stack > .bank:last-child {
-  padding-bottom: var(--space-3);
-}
-
-.bankSelected {
-  box-shadow: inset 0 0 0 3px var(--dash-accent);
-}
-
-.bankText {
+/* The whole top of the card is one button: the name or wordmark at the left, the balance at the right. The bottom 16px are the part the
+   next card covers, so the content sits in the visible 80px. */
+.bankHead {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 6rem;
+  padding: 0 var(--space-5) var(--space-4);
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  border-radius: var(--dash-r-card);
+  color: inherit;
+  font-family: var(--dash-font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bankSelected .bankHead {
+  min-height: 5rem;
+  padding-bottom: 0;
 }
 
 .bankName {
-  font-size: var(--dash-fs-title);
-  font-weight: 700;
-  line-height: var(--dash-lh-title);
-}
-
-.bankState {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: var(--dash-fs-meta);
-  line-height: var(--dash-lh-meta);
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--dash-fs-stat);
+  font-weight: 700;
+  line-height: var(--dash-lh-stat);
+}
+
+/* A card that needs attention carries a small warning mark. */
+.warnMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid currentColor;
+  border-radius: var(--radius-round);
 }
 
 .bankSums {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  min-width: 0;
 }
 
-/* The first currency is the big figure; any others follow smaller. */
-.bankSum {
+/* The balance as the hero: pounds large and bold, the symbol and the pence small beside them. */
+.hero {
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  font-size: var(--dash-fs-ui);
-  font-weight: 700;
-  line-height: var(--dash-lh-ui);
+  display: inline-flex;
+  align-items: baseline;
   white-space: nowrap;
 }
 
-.bankSum:first-child {
-  font-size: var(--dash-fs-page);
-  line-height: var(--dash-lh-page);
+.heroBig {
+  font-size: var(--dash-fs-hero);
+  font-weight: 700;
+  line-height: var(--dash-lh-hero);
+}
+
+.heroSmall {
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}
+
+.bankSub {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+  white-space: nowrap;
+}
+
+.bankFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+.bankFacts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+}
+
+.bankActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* An action on the card: a pill a little darker than the card, in the card's ink (held at AA on every brand colour). */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dash-h-control);
+  padding: 0 var(--space-4);
+  background: color-mix(in srgb, black 22%, var(--bank-bg, var(--dash-chip)));
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: inherit;
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media (max-width: 47.99rem) {
+  .bankHead {
+    padding-inline: var(--space-4);
+  }
+
+  .bankFoot {
+    padding-inline: var(--space-4);
+  }
+
+  .heroBig {
+    font-size: var(--dash-fs-stat);
+    line-height: var(--dash-lh-stat);
+  }
 }
 
 /* The opened bank: a glass panel with its header in the brand colours. */
 .detail {
   composes: glassDash from '../../../assets/styles/recipes.module.css';
   overflow: hidden;
-  border-radius: var(--dash-r-surface);
+  border-radius: var(--dash-r-card);
 }
 
 .detailHead {
@@ -156,7 +239,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
   background: var(--bank-bg, var(--dash-chip));
   color: var(--bank-fg, var(--dash-t1));
 }
@@ -166,6 +249,17 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+}
+
+.detailTitleText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.detailState {
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
 }
 
 .detailName {
@@ -258,10 +352,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--dash-chip);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--dash-r-control);
+  border-radius: var(--dash-r-surface);
 }
 
 .account[data-archived="true"] {
@@ -340,13 +433,21 @@
   min-width: 0;
   padding: var(--space-3);
   background: var(--dash-chip);
-  border: 1px solid var(--dash-line);
-  border-radius: var(--dash-r-control);
+  border-radius: var(--dash-r-surface);
 }
 
+/* A pot's picture: its emoji (or first letter) on a square tile tinted with the bank's colour. */
 .potPicture {
-  font-size: var(--dash-fs-stat);
-  line-height: var(--dash-lh-stat);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: var(--space-1);
+  background: color-mix(in srgb, var(--bank-bg, var(--dash-edge)) 30%, var(--dash-chip));
+  border-radius: var(--dash-r-control);
+  font-size: var(--dash-fs-page);
+  line-height: var(--dash-lh-page);
 }
 
 .potName {
@@ -563,15 +664,15 @@
 .logos img {
   display: block;
   width: auto;
-  max-width: 9rem;
-  height: 1.25rem;
+  max-width: 11rem;
+  height: 1.75rem;
   object-fit: contain;
   object-position: left center;
 }
 
 .logos[data-shape="square"] img {
-  height: 2.25rem;
-  max-width: 2.25rem;
+  height: 3rem;
+  max-width: 3rem;
 }
 
 .logos[data-size="chip"] img {
