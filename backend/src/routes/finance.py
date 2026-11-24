@@ -19,7 +19,7 @@ from src.core.config import Settings
 from src.core.errors import AppError
 from src.core.http import UpstreamError
 from src.dashboards.finance import manual, monzo_auth, service
-from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL
+from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL, RECONNECT
 from src.dashboards.finance.categories import Category
 from src.dashboards.finance.logos import VARIANTS
 from src.dashboards.finance.manual import MANUAL_FIELDS, ManualAccountPatch
@@ -44,7 +44,7 @@ from src.routes.dashboards import ClockDep, SessionDep, SettingsDep, ZoneDep
 
 logger = logging.getLogger("yuriodev.finance")
 router = APIRouter(prefix="/api/dashboards/v1/finance", tags=["finance"])
-DASHBOARDS_PAGE = "/dashboards"  # where the browser lands after the consent, with ?monzo=<status>
+DASHBOARDS_PAGE = "/dashboards/personal/money"  # where the browser lands after the consent
 
 
 @router.get("/accounts")
@@ -203,14 +203,17 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
     found: list[ProviderOut] = []
     for name in sorted(names):
         brand, own = BRANDS.get(name), styles.get(name)
+        reconnect = RECONNECT.get(name)
         colors = own.colors if own and own.colors else brand or NEUTRAL
         found.append(
             ProviderOut(
                 id=name,
-                name=(own.name if own and own.name else brand.name if brand else name),
+                name=(own.name if own and own.name else brand.name if brand else None),
                 colors=ColorsOut(background=colors.background, foreground=colors.foreground),
                 logo=LogoOut(**{v: logos.get(name, {}).get(v) for v in VARIANTS}),
                 entry="api" if name in COLLECTOR_PROVIDERS else "manual",
+                reconnect=reconnect[0] if reconnect else None,
+                reconnect_path=reconnect[1] if reconnect else None,
             )
         )
     return ProvidersOut(providers=found)

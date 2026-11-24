@@ -77,7 +77,7 @@ async def test_the_callback_exchanges_the_code_keeps_the_pair_and_goes_back_to_t
         status = await scalar(db_url, "SELECT status FROM finance.connection")
 
     assert response.status_code == 303
-    assert where_to(response) == "/dashboards?monzo=connected"
+    assert where_to(response) == "/dashboards/personal/money?monzo=connected"
     assert fake.exchange_calls == 1
     assert (stored, waiting, status) == (1, True, "ok")
     shown = str(response.headers) + response.text
@@ -95,8 +95,8 @@ async def test_a_state_works_once(db_url, make_dashboards_app, clock):
         first = await http.get(f"{BASE}/callback", params=params)
         replay = await http.get(f"{BASE}/callback", params=params)
 
-    assert where_to(first) == "/dashboards?monzo=connected"
-    assert where_to(replay) == "/dashboards?monzo=invalid_state"
+    assert where_to(first) == "/dashboards/personal/money?monzo=connected"
+    assert where_to(replay) == "/dashboards/personal/money?monzo=invalid_state"
     assert fake.exchange_calls == 1  # the replayed code never went to Monzo
 
 
@@ -115,7 +115,7 @@ async def test_a_stale_missing_or_unknown_state_is_refused_before_anything_is_ex
         long = await http.get(f"{BASE}/callback", params={"code": "code-1", "state": "x" * 256})
 
     for response in (late, none, wrong, long):
-        assert where_to(response) == "/dashboards?monzo=invalid_state"
+        assert where_to(response) == "/dashboards/personal/money?monzo=invalid_state"
     assert fake.exchange_calls == 0
 
 
@@ -132,9 +132,9 @@ async def test_a_denied_or_failed_consent_stores_nothing(db_url, make_dashboards
         failed = await http.get(f"{BASE}/callback", params={"code": "forged", "state": three})
         stored = await scalar(db_url, TOKENS)
 
-    assert where_to(denied) == "/dashboards?monzo=denied"
-    assert where_to(no_code) == "/dashboards?monzo=denied"
-    assert where_to(failed) == "/dashboards?monzo=failed"
+    assert where_to(denied) == "/dashboards/personal/money?monzo=denied"
+    assert where_to(no_code) == "/dashboards/personal/money?monzo=denied"
+    assert where_to(failed) == "/dashboards/personal/money?monzo=failed"
     assert fake.exchange_calls == 1  # only the forged code went to Monzo, which refused it
     assert stored == 0
 

@@ -918,8 +918,9 @@ configured depth, or, for an account whose opening date the bank does not give, 
 observed in use; the documentation names none) is taken to have more behind it and the window
 is asked again for the rest. A window is fetched whole in memory and written in one transaction
 with its cursor, so a failed or partial fetch changes nothing and the window is asked again. A
-429 pauses the collector for the time the source asked (at least a minute). Jars (savings pots) are kept as accounts
-of type `jar`. The stored `balance` is exactly what the bank sends (with a credit card it includes
+429 pauses the collector for the time the source asked (at least a minute). Jars are kept as accounts
+of type `jar` and kind `pot` (like Monzo's pots), with `goal_amount` from the jar's `goal` when it has
+one; a jar has a statement like any other account. The stored `balance` is exactly what the bank sends (with a credit card it includes
 the credit limit); `GET /finance/accounts` adds `own_balance_minor` (balance minus credit limit)
 and the summary adds `own_balance` per currency, so a page never shows a limit as money. A
 transaction is marked `internal_transfer` when its counterparty is another account of the same
@@ -1188,7 +1189,13 @@ MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set
 `finance_update_manual_account` (archive with `archived: true`).
 `GET /finance/providers` now returns for every built-in brand, every id with a logo and every
 provider with a connection: `{id, name, colors: {background, foreground}, logo, entry: "api" |
-"manual"}`. The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,
+"manual", reconnect: "oauth" | "token" | null, reconnect_path}`; `name` is null when there is neither
+your name nor a built-in brand (a page writes its own), `reconnect` says how a link that needs
+approving again is mended (`oauth`: open `reconnect_path`, Monzo; `token`: replace the token in the
+server's settings, Monobank; null for a bank by hand). `GET /finance/accounts` rows have
+`name_generated`: true when the name is one the collector made up ("Black card UAH", "Pot GBP"), so
+a page can write its own from `type`, `label` and `currency` (rows stored before it was added say
+false until the next refresh). The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,
 Starling Bank, Wise) have a name and a brand colour pair in code (`finance/brands.py`), each with
 a contrast of at least 3:1, the WCAG floor for large text (on a card the only text is the name and
 a big bold amount; a test checks it), with the brand's own signature colour as the background and
@@ -1287,7 +1294,7 @@ Your steps (the secrets are typed by you into the secrets file, never into chat 
    `https://dev.yuriodev.co.uk/api/dashboards/v1/finance/monzo/connect`. It sends you to Monzo:
    log in with your email.
 4. **Approve in the Monzo app within 15 minutes** (a push notification asks for your PIN,
-   fingerprint or face). The browser then lands on `/dashboards?monzo=connected` (or `denied`,
+   fingerprint or face). The browser then lands on `/dashboards/personal/money?monzo=connected` (or `denied`,
    `invalid_state`, `failed`).
 
 Strong customer authentication decides what can be read: right after you approve, the whole

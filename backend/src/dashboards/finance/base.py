@@ -68,6 +68,7 @@ class AccountData:
     goal_amount: int | None = None  # a pot's goal, when the provider gives one (minor units)
     overdraft_limit: int | None = None  # a current account's agreed overdraft (minor units)
     label: str | None = None  # a neutral sub-type ("Joint", "Platinum"), never a holder's name
+    name_generated: bool = False  # `name` was made up from the type and currency, not given
 
 
 @dataclass(frozen=True)
@@ -543,6 +544,7 @@ class FinanceCollector:
                     "goal_amount": data.goal_amount,
                     "overdraft_limit": data.overdraft_limit,
                     "label": data.label,
+                    "name_generated": data.name_generated,
                     "archived": False,
                     "updated_at": now,
                 }

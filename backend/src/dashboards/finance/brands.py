@@ -11,9 +11,16 @@ signature colour, the ink is chosen for contrast.
 
 import re
 from dataclasses import dataclass
+from typing import Literal
 
 # Providers with a collector of their own: an account of theirs is never entered by hand.
 COLLECTOR_PROVIDERS = frozenset({"monobank", "monzo"})
+# How a link that needs approving again is mended: through the bank's own consent page, or by
+# putting a new token in the server's settings.
+RECONNECT: dict[str, tuple[Literal["oauth", "token"], str | None]] = {
+    "monzo": ("oauth", "/api/dashboards/v1/finance/monzo/connect"),
+    "monobank": ("token", None),
+}
 HEX = re.compile(r"#[0-9a-f]{6}")
 MIN_CONTRAST = 3.0
 

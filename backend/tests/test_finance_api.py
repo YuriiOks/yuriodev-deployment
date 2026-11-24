@@ -31,6 +31,7 @@ ACCOUNT_FIELDS = {
     "archived",
     "kind",
     "label",
+    "name_generated",
     "parent_id",
     "goal_amount",
     "overdraft_limit",

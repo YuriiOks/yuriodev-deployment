@@ -66,6 +66,9 @@ class AccountOut(BaseModel):
     archived: bool
     kind: AccountKind  # what the page can rely on to present it
     label: str | None  # a neutral sub-type ("Joint", "Platinum"): never a holder's name
+    # True when the name is one the collector made up ("Black card UAH"): a page may write its
+    # own words from `type`, `label` and `currency`. A name from the bank or you is false.
+    name_generated: bool
     parent_id: UUID | None  # a pot's current account
     goal_amount: int | None  # a pot's goal, when the provider gives one
     overdraft_limit: int | None  # the one in force: the owner's if set, else the bank's
@@ -351,10 +354,14 @@ class ProviderOut(BaseModel):
     model_config = _RESPONSE
 
     id: str
-    name: str  # the owner's name for it, else the built-in brand's, else the id
+    name: str | None  # the owner's name for it, else the built-in brand's, else null
     colors: ColorsOut
     logo: LogoOut
     entry: Literal["api", "manual"]  # connected through its API, or entered by hand
+    # How a link that needs approving again is mended: `oauth` (open `reconnect_path` in a
+    # browser) or `token` (replace the token in the server's settings); null for a bank by hand.
+    reconnect: Literal["oauth", "token"] | None
+    reconnect_path: str | None
 
 
 class ProvidersOut(BaseModel):

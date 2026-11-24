@@ -110,6 +110,8 @@ class Account(FinanceBase):
     # whatever the bank sends.
     overdraft_limit_override: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     label: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # True when the collector made the name up (from the type and currency): a page writes its own.
+    name_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     synced_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     backfilled_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
