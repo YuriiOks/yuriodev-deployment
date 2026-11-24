@@ -4,6 +4,7 @@ import { useDashboardLang } from '../context/useDashboardLang';
 import { pagePath } from '../data/site';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
+import WorkIncome from '../components/dashboards/Money/WorkIncome';
 import NotConnected from '../components/dashboards/NotConnected/NotConnected';
 import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
 import SourceTabs from '../components/dashboards/SourceTabs/SourceTabs';
@@ -119,7 +120,10 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const rows = 1;
   let backlog: LiveTask[] = [];
   let reviewed: LiveTask[] = [];
-  if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
+  if (current === 'work' && space === 'personal') {
+    // The personal "Work and income" tab: this month's income and the latest incoming, from the finance API.
+    body = <WorkIncome />;
+  } else if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
     body = <NotConnected name={t.tabs[current]} />;
   } else if (tasks.status === 'loading') {
     body = <LoadingBlock rows={4} />;

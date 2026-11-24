@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchFinanceAccounts, fetchFinanceSummary, fetchTransactions, type FinanceAccounts, type FinanceSummary, type FinanceTransaction } from '../services/dashboards/financeApi';
+import { fetchCategories, fetchFinanceAccounts, fetchFinanceSummary, fetchProviders, fetchTransactions, type Category, type FinanceAccounts, type FinanceCategories, type FinanceSummary, type FinanceTransaction, type ProviderLogo } from '../services/dashboards/financeApi';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
 
@@ -31,6 +31,14 @@ function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: boolean)
 
 const loadAccounts = (signal: AbortSignal) => fetchFinanceAccounts(signal);
 const loadSummary = (signal: AbortSignal) => fetchFinanceSummary(signal);
+const loadProviders = (signal: AbortSignal) => fetchProviders(signal);
+const loadCategories = (signal: AbortSignal) => fetchCategories(undefined, signal);
+
+/** The banks' logos by provider id (GET /finance/providers), fetched once: they are big and the accounts answer does not repeat them. A failure only means the text names stay. */
+export const useProviderLogos = (enabled: boolean) => useOnce<Record<string, ProviderLogo>>(loadProviders, enabled);
+
+/** This month's spend per currency and category, with the month before beside it (GET /finance/categories). */
+export const useFinanceCategories = (enabled: boolean) => useOnce<FinanceCategories>(loadCategories, enabled);
 
 /** The accounts with the state of each bank link (GET /finance/accounts). Each request has its own loading and error state. */
 export const useFinanceAccounts = (enabled: boolean) => useOnce<FinanceAccounts>(loadAccounts, enabled);
@@ -63,16 +71,16 @@ interface Pages {
  * The transactions of one account or all, filtered by a text, newest first: the first page when the filter changes (the list
  * of the previous filter is not shown for the new one), the next page appended by `loadMore` with the server's cursor.
  */
-export function useTransactions(account: string | null, q: string, enabled: boolean): TransactionsState {
+export function useTransactions(account: string | null, category: Category | null, q: string, enabled: boolean): TransactionsState {
   const [token, setToken] = useState(0);
-  const key = `${account ?? ''}|${q}|${token}`;
+  const key = `${account ?? ''}|${category ?? ''}|${q}|${token}`;
   const [pages, setPages] = useState<Pages | null>(null);
   const [more, setMore] = useState<{ key: string; busy: boolean; failed: boolean }>({ key: '', busy: false, failed: false });
 
   useEffect(() => {
     if (!enabled) return undefined;
     const controller = new AbortController();
-    fetchTransactions({ account, q }, controller.signal).then(
+    fetchTransactions({ account, category, q }, controller.signal).then(
       (page) => {
         if (!controller.signal.aborted) setPages({ key, ok: true, items: page.transactions, cursor: page.nextCursor, pages: 1 });
       },
@@ -81,21 +89,21 @@ export function useTransactions(account: string | null, q: string, enabled: bool
       },
     );
     return () => controller.abort();
-  }, [account, q, key, enabled]);
+  }, [account, category, q, key, enabled]);
 
   const current = pages && pages.key === key ? pages : null;
   const loadMore = useCallback(() => {
     if (!current || !current.cursor || more.busy) return;
     const cursor = current.cursor;
     setMore({ key, busy: true, failed: false });
-    fetchTransactions({ account, q, cursor }).then(
+    fetchTransactions({ account, category, q, cursor }).then(
       (page) => {
         setPages((previous) => (previous && previous.key === key ? { key, ok: true, items: [...previous.items, ...page.transactions], cursor: page.nextCursor, pages: previous.pages + 1 } : previous));
         setMore({ key, busy: false, failed: false });
       },
       () => setMore({ key, busy: false, failed: true }),
     );
-  }, [account, q, key, current, more.busy]);
+  }, [account, category, q, key, current, more.busy]);
 
   const mine = more.key === key;
   return {

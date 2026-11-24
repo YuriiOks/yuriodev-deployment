@@ -16,9 +16,12 @@ from zoneinfo import ZoneInfo
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.dashboards.finance import service
+from src.dashboards.finance import recurring_service, service
+from src.dashboards.finance.recurring import RecurringIn, RecurringPatch
+from src.dashboards.finance.recurring_schemas import RecurringOut
 from src.dashboards.finance.schemas import (
     AccountOut,
     ConnectionOut,
@@ -32,7 +35,9 @@ type Scope = Callable[[str], AbstractAsyncContextManager[tuple[AsyncSession, dat
 INSTRUCTIONS = (
     " Read-only bank data (finance): accounts with balances, this month's totals and a "
     "transaction search. Amounts are integers in minor units (1250 is 12.50) with an ISO 4217 "
-    "currency, signed: money out is negative."
+    "currency, signed: money out is negative. Recurring payments (finance_recurring, "
+    "finance_upcoming, finance_attention) are the owner's own notes: a payment is a positive "
+    "amount in minor units."
 )
 
 
@@ -114,6 +119,20 @@ def register(
             )
 
     @server.tool(structured_output=False)
+    async def finance_set_overdraft(account: str, limit_minor: int | None = None) -> str:
+        """Set the owner's overdraft limit of an account (an id from finance_accounts) in minor
+        units (1000 is 10.00), or clear it by passing no limit. It wins over a limit the bank
+        sends and no collector overwrites it; nothing is sent to a bank."""
+        try:
+            account_id = uuid.UUID(account)
+        except ValueError:
+            raise ToolError("Invalid account id") from None
+        async with scope("finance_set_overdraft") as (session, now):
+            row, oldest = await service.set_overdraft(session, account_id, limit_minor)
+            display = await service.display_for(session, display_currency, now)
+            return _json(AccountOut.from_row(row, oldest, display).model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
     async def finance_categories(month: str | None = None) -> str:
         """Money out per currency and category for a month (YYYY-MM, default this month) with the
         month before beside it, in minor units. Transfers between the owner's own accounts and
@@ -137,3 +156,85 @@ def register(
             row = await service.set_category(session, transaction_id, category)
             display = await service.display_for(session, display_currency, now)
             return _json(TransactionOut.from_row(row, display).model_dump(mode="json"))
+
+    def _bad_fields(exc: ValidationError) -> ToolError:
+        names = sorted({str(p["loc"][0]) for p in exc.errors() if p.get("loc")})
+        return ToolError("Invalid fields: " + ", ".join(names) if names else "Invalid payment")
+
+    @server.tool(structured_output=False)
+    async def finance_recurring(active_only: bool = True) -> str:
+        """List the owner's recurring payments (subscriptions, debts, utilities, insurance,
+        housing, services, one-offs): amount in minor units with its currency, cadence, the next
+        date, the paying account or free-text source, debts' balances, and each amount also in the
+        display currency."""
+        async with scope("finance_recurring") as (session, now):
+            display = await service.display_for(session, display_currency, now)
+            only = True if active_only else None
+            rows = await recurring_service.list_recurring(session, now, zone, only)
+            shown = DisplayOut(**display_fields(display, {r.currency for r in rows}))
+            return _json(
+                {
+                    "display": shown.model_dump(mode="json"),
+                    "recurring": [
+                        RecurringOut.from_row(r, display).model_dump(mode="json") for r in rows
+                    ],
+                }
+            )
+
+    @server.tool(structured_output=False)
+    async def finance_add_recurring(payment: dict[str, Any]) -> str:
+        """Add a recurring payment. Required: name, amount (positive, minor units: 1250 is
+        12.50) and currency (ISO code). Optional: kind (subscription, debt, utility, insurance,
+        housing, service, one_time), frequency (once, daily, weekly, monthly, yearly),
+        frequency_interval, start_date and next_payment_date (YYYY-MM-DD), account_id (an id from
+        finance_accounts), payment_method (free text), notes, reminder_days, match_text (what its
+        bank text contains), icon_url (https), color (#rrggbb), is_active, and for debts
+        is_installment, total_installments, completed_installments, total_owed,
+        remaining_balance, creditor."""
+        try:
+            data = RecurringIn.model_validate(payment)
+        except ValidationError as exc:
+            raise _bad_fields(exc) from None
+        async with scope("finance_add_recurring") as (session, now):
+            row = await recurring_service.create_recurring(session, data, now)
+            display = await service.display_for(session, display_currency, now)
+            return _json(RecurringOut.from_row(row, display).model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def finance_update_recurring(recurring_id: str, changes: dict[str, Any]) -> str:
+        """Change fields of a recurring payment (an id from finance_recurring); `changes` has
+        the fields of finance_add_recurring to set, and null clears one that may be empty."""
+        try:
+            payment_id = uuid.UUID(recurring_id)
+        except ValueError:
+            raise ToolError("Invalid payment id") from None
+        try:
+            patch = RecurringPatch.model_validate(changes)
+        except ValidationError as exc:
+            raise _bad_fields(exc) from None
+        async with scope("finance_update_recurring") as (session, now):
+            row = await recurring_service.update_recurring(session, payment_id, patch, now)
+            display = await service.display_for(session, display_currency, now)
+            return _json(RecurringOut.from_row(row, display).model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def finance_upcoming(days: int = 14) -> str:
+        """The recurring payments due from today to `days` days ahead (1 to 366), with whether
+        the paying account covers each (its balance plus overdraft, counting the earlier ones),
+        totals per currency and in the display currency."""
+        async with scope("finance_upcoming") as (session, now):
+            display = await service.display_for(session, display_currency, now)
+            found = await recurring_service.upcoming(session, now, zone, display, days)
+            return _json(found.model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def finance_attention(include_hidden: bool = False) -> str:
+        """What needs a look now: a payment due soon that its account cannot cover, one past
+        its date with no matching transaction, a charge that differs from the recorded amount,
+        a credit card over 90% of its limit, an account past its overdraft, a bank connection
+        that needs approving again. Dismissed and snoozed items are left out unless
+        include_hidden; each item has a key (dismiss and snooze are on the REST API)."""
+        async with scope("finance_attention") as (session, now):
+            display = await service.display_for(session, display_currency, now)
+            found = await recurring_service.attention(session, now, zone, display, include_hidden)
+            return _json(found.model_dump(mode="json"))

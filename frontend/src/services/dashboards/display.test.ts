@@ -16,7 +16,16 @@ const acct = (id: string, currency: string, own: number, display: FinanceAccount
   balanceAt: null,
   historyFrom: null,
   archived: false,
+  kind: 'current',
+  label: null,
+  parentId: null,
+  goalAmount: null,
+  overdraftLimit: null,
+  overdraftSource: null,
+  overdraftBank: null,
+  availableMinor: own,
   display,
+  converted: display !== null && display.currency !== currency,
   ...extra,
 });
 
@@ -26,7 +35,7 @@ const summary = (total: FinanceSummary['total']): FinanceSummary => ({ month: '2
 describe('display', () => {
   const accounts = [
     acct('uk', 'GBP', 10000, gbp(10000)),
-    acct('pot', 'GBP', 5000, gbp(5000), { type: 'pot' }),
+    acct('pot', 'GBP', 5000, gbp(5000), { type: 'pot', kind: 'pot' }),
     acct('ua', 'UAH', 650000, gbp(12500)),
     acct('us', 'USD', 21000, gbp(16800)),
     acct('jp', 'JPY', 99900, null),

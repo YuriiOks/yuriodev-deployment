@@ -16,7 +16,16 @@ const acct = (id: string, extra: Partial<FinanceAccount> = {}): FinanceAccount =
   balanceAt: null,
   historyFrom: null,
   archived: false,
+  kind: 'current',
+  label: null,
+  parentId: null,
+  goalAmount: null,
+  overdraftLimit: null,
+  overdraftSource: null,
+  overdraftBank: null,
+  availableMinor: 1000,
   display: null,
+  converted: false,
   ...extra,
 });
 
@@ -31,7 +40,7 @@ describe('wallet', () => {
   it('totals per currency over the open accounts, with the part in pots, never across currencies', () => {
     const totals = totalsByCurrency([
       acct('cur', { ownBalance: 5000, balance: 5000 }),
-      acct('pot', { type: 'pot', ownBalance: 2000, balance: 2000 }),
+      acct('pot', { type: 'pot', kind: 'pot', ownBalance: 2000, balance: 2000 }),
       acct('eur', { currency: 'EUR', ownBalance: 700, balance: 700 }),
       acct('old', { archived: true, ownBalance: 99999, balance: 99999 }),
       acct('card', { ownBalance: -3000, balance: 7000, creditLimit: 10000 }),
@@ -49,8 +58,8 @@ describe('wallet', () => {
       accounts: [
         acct('full'),
         acct('zero', { balance: 0, ownBalance: 0 }),
-        acct('pot-full', { type: 'pot' }),
-        acct('pot-zero', { type: 'pot', balance: 0, ownBalance: 0 }),
+        acct('pot-full', { type: 'pot', kind: 'pot' }),
+        acct('pot-zero', { type: 'pot', kind: 'pot', balance: 0, ownBalance: 0 }),
         acct('gone', { archived: true }),
         acct('owed', { balance: 0, ownBalance: -500 }),
       ],
@@ -69,6 +78,18 @@ describe('wallet', () => {
     expect(creditUse(acct('over', { balance: -74782, ownBalance: -74782 }))).toMatchObject({ kind: 'overdrawn', used: 74782 });
     expect(creditUse(acct('fine'))).toMatchObject({ kind: 'none', used: 0 });
     expect(creditUse(acct('beyond', { balance: -500, creditLimit: 1000, ownBalance: -1500 })).percent).toBe(100);
+  });
+
+  it('folds business accounts away whatever is in them, and reads an agreed overdraft as used of that overdraft', () => {
+    const split = splitBank({
+      provider: 'acme-bank',
+      connection: undefined,
+      accounts: [acct('main'), acct('biz-full', { kind: 'business', balance: 9000, ownBalance: 9000 }), acct('biz-zero', { kind: 'business', balance: 0, ownBalance: 0 })],
+    });
+    expect(split.accounts.map((a) => a.id)).toEqual(['main']);
+    expect(split.business.map((a) => a.id)).toEqual(['biz-full', 'biz-zero']);
+    expect(split.emptyAccounts).toEqual([]);
+    expect(creditUse(acct('over', { balance: -74782, ownBalance: -74782, overdraftLimit: 100000 }))).toEqual({ kind: 'overdrawn', used: 74782, limit: 100000, percent: 75, free: 25218 });
   });
 
   it('takes the emoji a pot\'s name starts with as its picture and strips it from the label', () => {

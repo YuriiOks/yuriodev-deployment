@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
@@ -56,6 +56,8 @@ const tx = (id: string, account: string, minutes: number, amount: number, what: 
   declined: false,
   internal_transfer: false,
   settled_at: null,
+  category: 'other',
+  category_overridden: false,
   ...extra,
 });
 
@@ -111,6 +113,8 @@ afterEach(() => {
 
 const wallet = () => within(within(main()).getByRole('region', { name: 'Wallet' }));
 const bankButton = (name: string) => wallet().getByRole('button', { name: new RegExp(`^${name}`) });
+/** The whole card of a bank (its button, and the facts and pills of the open one). */
+const bankCard = (name: string) => bankButton(name).parentElement as HTMLElement;
 const opened = () => within(wallet().getByRole('article'));
 /** The wallet's region exists once the bootstrap has answered; the banks once the accounts have. */
 const banksReady = async () => {
@@ -143,8 +147,9 @@ describe('the Money page: totals and the wallet', () => {
     const user = userEvent.setup();
     renderAt(PATH);
     await banksReady();
-    const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => button.querySelector('strong')?.textContent);
-    expect(names).toEqual(['Acme bank', 'Monzo', 'Monobank']);
+    // The open bank sits at the bottom of the stack; the others keep their order above it.
+    const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => /^(Acme bank|Monzo|Monobank)/.exec(button.textContent ?? '')?.[1]);
+    expect(names).toEqual(['Monzo', 'Monobank', 'Acme bank']);
     expect(bankButton('Acme bank')).toHaveAttribute('aria-pressed', 'true');
     expect(bankButton('Monzo')).toHaveAttribute('aria-pressed', 'false');
     expect(bankButton('Acme bank')).toHaveTextContent('£746.50');
@@ -156,13 +161,33 @@ describe('the Money page: totals and the wallet', () => {
     expect(wallet().queryByRole('article', { name: 'Acme bank' })).toBeNull();
   });
 
+  it('shows the hero balance with the symbol and pence smaller, the open card\'s facts and its pill actions, and nothing of the kind on the others', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    const acme = bankCard('Acme bank');
+    // Pounds big, symbol and pence small: three kinds of part, one text.
+    const hero = bankButton('Acme bank').querySelector('[data-hero]') as HTMLElement;
+    expect(hero.textContent).toBe('£746.50');
+    expect(Array.from(hero.querySelectorAll('[data-part]')).map((part) => part.getAttribute('data-part'))).toEqual(['symbol', 'int', 'frac', 'frac']);
+    expect(hero.querySelector('[data-part="int"]')?.textContent).toBe('746');
+    expect(within(acme).getByRole('link', { name: 'Accounts' })).toHaveAttribute('href', '#money-bank-acme-bank-name');
+    expect(within(acme).getByRole('link', { name: 'Transactions' })).toHaveAttribute('href', '#money-transactions-title');
+    expect(within(bankCard('Monobank')).queryByRole('link')).toBeNull();
+    await user.click(bankButton('Monobank'));
+    expect(within(bankCard('Monobank')).getByRole('link', { name: 'Accounts' })).toBeInTheDocument();
+    expect(within(bankCard('Acme bank')).queryByRole('link')).toBeNull();
+  });
+
   it('colours a bank we know in its brand pair, and any other in the neutral card', async () => {
     setup();
     renderAt(PATH);
     await banksReady();
-    expect(bankButton('Monzo').getAttribute('style')).toContain('--bank-bg: #b3261e');
-    expect(bankButton('Monobank').getAttribute('style')).toContain('--bank-fg: #ffffff');
-    expect(bankButton('Acme bank').getAttribute('style')).toBeNull();
+    expect(bankCard('Monzo').getAttribute('style')).toContain('--bank-bg: #c9364a');
+    expect(bankCard('Monobank').getAttribute('style')).toContain('--bank-bg: #000000');
+    expect(bankCard('Monobank').getAttribute('style')).toContain('--bank-fg: #ffffff');
+    expect(bankCard('Acme bank').getAttribute('style')).toBeNull();
   });
 
   it('opens a bank: main accounts as cards, pots as tiles with their emoji as the picture, the empty ones folded', async () => {
@@ -232,9 +257,14 @@ describe('the Money page: totals and the wallet', () => {
     const user = userEvent.setup();
     renderAt(PATH);
     await banksReady();
-    expect(bankButton('Acme bank')).toHaveTextContent(/connected · updated/);
-    expect(bankButton('Monzo')).toHaveTextContent('needs reconnecting');
+    // Connection status is told on the open card only; a card that needs attention elsewhere carries a warning mark.
+    expect(bankCard('Acme bank')).toHaveTextContent(/connected · updated/);
+    expect(bankCard('Monzo')).not.toHaveTextContent(/updated/);
+    expect(within(bankCard('Monzo')).getByTitle('needs reconnecting')).toBeInTheDocument();
+    expect(within(bankCard('Acme bank')).queryByRole('link', { name: 'Reconnect' })).toBeNull();
     await user.click(bankButton('Monzo'));
+    expect(bankCard('Monzo')).toHaveTextContent('needs reconnecting');
+    expect(within(bankCard('Monzo')).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
     const alert = opened().getByRole('alert');
     expect(alert).toHaveTextContent('asks you to confirm access again');
     expect(within(alert).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
@@ -389,33 +419,194 @@ describe('the Money page: transactions', () => {
   });
 });
 
+describe('the Money page: account kinds, goals and categories', () => {
+  const kinds = () =>
+    finance({
+      accounts: [
+        acct('main', 'Everyday', 'GBP', 45050, { kind: 'current', mask_last4: '1234' }),
+        acct('card-1', 'Card', 'UAH', 5000, { provider: 'monobank', kind: 'current', label: 'Black', mask_last4: '1111' }),
+        acct('card-2', 'Card', 'UAH', 7000, { provider: 'monobank', kind: 'current', label: 'Platinum', mask_last4: '2222' }),
+        acct('biz-1', 'Studio', 'UAH', 0, { provider: 'monobank', kind: 'business', label: 'Business' }),
+        acct('biz-2', 'Shop', 'UAH', 9000, { provider: 'monobank', kind: 'business', label: 'Business' }),
+        acct('over', 'Main', 'GBP', -74782, { provider: 'monzo', kind: 'current', overdraft_limit: 100000, overdraft_limit_source: 'owner', overdraft_limit_bank: 50000 }),
+        acct('trip', '✈️ Trip', 'GBP', 25000, { provider: 'monzo', kind: 'pot', goal_amount: 100000 }),
+        acct('plain', 'Rainy day', 'GBP', 7500, { provider: 'monzo', kind: 'pot' }),
+      ],
+      connections: [
+        { provider: 'acme-bank', status: 'ok', last_ok_at: null },
+        { provider: 'monobank', status: 'ok', last_ok_at: null },
+        { provider: 'monzo', status: 'ok', last_ok_at: null },
+      ],
+      transactions: [
+        tx('g1', 'main', 5, -6000, 'Weekly shop', { category: 'groceries' }),
+        tx('g2', 'main', 10, -4000, 'Pizza', { category: 'eating_out' }),
+        tx('g3', 'main', 15, 150000, 'Salary', { category: 'income' }),
+      ],
+      categories: {
+        month: '2026-11',
+        previous_month: '2026-10',
+        currencies: [
+          {
+            currency: 'GBP',
+            spent: 10000,
+            previous_spent: 10638,
+            categories: [
+              { category: 'eating_out', spent: 4000, previous: 5638 },
+              { category: 'groceries', spent: 6000, previous: 5000 },
+              { category: 'transport', spent: 0, previous: 0 },
+            ],
+          },
+        ],
+      },
+    });
+
+  it('folds the business accounts, whatever is in them, behind their own button', async () => {
+    setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monobank'));
+    expect(opened().queryByText('Studio')).toBeNull();
+    expect(opened().queryByText('Shop')).toBeNull();
+    const fold = opened().getByRole('button', { name: 'Business accounts: 2' });
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    await user.click(fold);
+    expect(opened().getByText('Studio')).toBeInTheDocument();
+    expect(opened().getByText('Shop').closest('li')).toHaveTextContent('Business');
+    expect(opened().getByRole('button', { name: 'Hide business accounts' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('tells two accounts with one name apart by their label and last four', async () => {
+    setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monobank'));
+    const cards = opened().getAllByText('Card').map((name) => name.closest('li') as HTMLElement);
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveTextContent('Black · •••• 1111');
+    expect(cards[1]).toHaveTextContent('Platinum · •••• 2222');
+  });
+
+  it('reads an agreed overdraft as how much of it is used, and shows a pot\'s goal as a bar with its percentage', async () => {
+    setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monzo'));
+    const over = opened().getByText('Main').closest('li') as HTMLElement;
+    expect(over).toHaveTextContent('overdrawn -£747.82');
+    expect(over).toHaveTextContent('your limit · 75% of the £1,000.00 overdraft used · £252.18 free');
+    const trip = opened().getByText('Trip').closest('li') as HTMLElement;
+    expect(trip).toHaveTextContent('25% of the £1,000.00 goal');
+    expect(trip.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '25%' });
+    // A pot with no goal has no bar.
+    expect((opened().getByText('Rainy day').closest('li') as HTMLElement).textContent).not.toMatch(/goal/);
+  });
+
+  it('shows spend by category: the month, the total and its change, a bar per category with its share and the change from last month in words and a sign', async () => {
+    setup({ finance: kinds() });
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
+    await panel.findByText(/November · GBP £100\.00 · 6% less than October/);
+    const rows = panel.getAllByRole('listitem');
+    // Largest first; a category with nothing spent is not listed.
+    expect(rows.map((row) => row.getAttribute('data-category'))).toEqual(['groceries', 'eating_out']);
+    expect(rows[0]).toHaveTextContent('Groceries');
+    expect(rows[0]).toHaveTextContent('£60.00 · 60% · +£10.00 (was £50.00)');
+    expect(rows[1]).toHaveTextContent('£40.00 · 40% · -£16.38 (was £56.38)');
+    expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '60%' });
+    expect(panel.getByText(/Transfers between your own accounts and pots are not counted/)).toBeInTheDocument();
+  });
+
+  it('in pounds shows the server\'s merged lines (each converted once, adding up), marked approximate, with the unconverted currencies named; in the account currency, one block per currency', async () => {
+    const categories = {
+      month: '2026-11',
+      previous_month: '2026-10',
+      currencies: [
+        { currency: 'GBP', spent: 10000, previous_spent: 8000, converted: false, display_spent: 10000, display_previous_spent: 8000, categories: [{ category: 'groceries', spent: 10000, previous: 8000, display_spent: 10000, display_previous: 8000 }] },
+        { currency: 'UAH', spent: 200000, previous_spent: 100000, converted: true, display_spent: 3800, display_previous_spent: 1900, categories: [{ category: 'groceries', spent: 200000, previous: 100000, display_spent: 3800, display_previous: 1900 }] },
+      ],
+      display: {
+        currency: 'GBP',
+        rates: { UAH: { rate: '0.019', as_of: '2026-11-24T08:00:00Z', source: 'bank' } },
+        missing: ['JPY'],
+        complete: false,
+        spent: 13800,
+        previous_spent: 9900,
+        categories: [{ category: 'groceries', spent: 13800, previous: 9900 }],
+      },
+    };
+    setup({ finance: finance({ categories, display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a', 'Everyday', 'GBP', 1, { display_own_balance_minor: 1, converted: false })] }) });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
+    await panel.findByText(/November · GBP ≈ £138\.00 · 39% more than October/);
+    expect(panel.getAllByRole('listitem')).toHaveLength(1);
+    expect(panel.getByRole('listitem')).toHaveTextContent('≈ £138.00 · 100% · +£39.00 (was £99.00)');
+    expect(panel.getByText('not converted: JPY')).toBeInTheDocument();
+    await user.click(within(main()).getByRole('button', { name: 'in account currency' }));
+    await panel.findByText(/November · GBP £100\.00 · 25% more than October/);
+    expect(panel.getByText(/November · UAH ₴2,000\.00 · 100% more than October/)).toBeInTheDocument();
+  });
+
+  it('says nothing was spent when the month has no spending, and has an error with a retry for the block', async () => {
+    const api = setup({ fail: ['financeCategories'] });
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
+    expect(await panel.findByRole('alert')).toHaveTextContent('Could not load spending by category.');
+    api.fail.delete('financeCategories');
+    await userEvent.setup().click(panel.getByRole('button', { name: 'Try again' }));
+    expect(await panel.findByText('No spending this month yet.')).toBeInTheDocument();
+  });
+
+  it('offers category chips for the categories with spending, filters the rows through the API, and labels each row with its category', async () => {
+    const api = setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const list = within(await within(main()).findByRole('region', { name: 'Transactions' }));
+    await list.findByText('Weekly shop');
+    const chips = await list.findByRole('group', { name: 'Category' });
+    const names = within(chips).getAllByRole('button').map((chip) => chip.textContent);
+    expect(names).toEqual(['All categories', 'Groceries', 'Eating out', 'Income']);
+    expect(within(list.getAllByRole('listitem')[0]).getByText('Groceries')).toBeInTheDocument();
+    await user.click(within(chips).getByRole('button', { name: 'Groceries' }));
+    await waitFor(() => expect(api.callsTo('GET', '/finance/transactions').some((call) => call.url.includes('category=groceries'))).toBe(true));
+    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(1));
+    expect(within(chips).getByRole('button', { name: 'Groceries' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(chips).getByRole('button', { name: 'All categories' }));
+    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(3));
+  });
+});
+
 describe('the Money page: pounds by default, originals beside', () => {
-  const gbp = (amount: number) => ({ display_balance: amount, display_currency: 'GBP' });
+  const same = (amount: number) => ({ display_own_balance_minor: amount, converted: false });
+  const other = (amount: number) => ({ display_own_balance_minor: amount, converted: true });
+  const rates = { UAH: { rate: '0.019', as_of: '2026-11-24T08:00:00Z', source: 'bank' }, USD: { rate: '0.79', as_of: '2026-11-24T09:30:00Z', source: 'bank' } };
   const converted = () =>
     finance({
       accounts: [
-        acct('a-current', 'Everyday', 'GBP', 45050, { ...gbp(45050) }),
-        acct('m-ua', 'Hryvnia card', 'UAH', 650000, { provider: 'monobank', connection_id: 'c-2', ...gbp(12500) }),
-        acct('m-us', 'Dollar card', 'USD', 21000, { provider: 'monobank', connection_id: 'c-2', ...gbp(16800) }),
-        acct('m-jp', 'Yen card', 'JPY', 99900, { provider: 'monobank', connection_id: 'c-2' }),
+        acct('a-current', 'Everyday', 'GBP', 45050, same(45050)),
+        acct('m-ua', 'Hryvnia card', 'UAH', 650000, { provider: 'monobank', connection_id: 'c-2', ...other(12500) }),
+        acct('m-us', 'Dollar card', 'USD', 21000, { provider: 'monobank', connection_id: 'c-2', ...other(16800) }),
+        acct('m-jp', 'Yen card', 'JPY', 99900, { provider: 'monobank', connection_id: 'c-2', display_own_balance_minor: null, converted: true }),
       ],
       connections: [
         { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' },
         { provider: 'monobank', status: 'ok', last_ok_at: '2026-11-23T09:30:00Z' },
       ],
+      display: { currency: 'GBP', rates, missing: ['JPY'] },
       transactions: [
-        tx('c1', 'm-ua', 5, -65000, 'Taxi', { currency: 'UAH', display_amount: -1250, display_currency: 'GBP' }),
-        tx('c2', 'm-jp', 10, -500, 'Snack', { currency: 'JPY' }),
-        tx('c3', 'a-current', 20, -300, 'Bus', { display_amount: -300, display_currency: 'GBP' }),
+        tx('c1', 'm-ua', 5, -65000, 'Taxi', { currency: 'UAH', display_amount_minor: -1250, converted: true }),
+        tx('c2', 'm-jp', 10, -500, 'Snack', { currency: 'JPY', display_amount_minor: null, converted: true }),
+        tx('c3', 'a-current', 20, -300, 'Bus', { display_amount_minor: -300, converted: false }),
       ],
       summary: {
         month: '2026-11',
         as_of: '2026-11-23T09:00:00Z',
-        display_total: 74350,
-        display_currency: 'GBP',
-        rate_as_of: '2026-11-24T08:00:00Z',
         currencies: [],
-      } as unknown as FinanceData['summary'],
+        display: { currency: 'GBP', rates, missing: ['JPY'], complete: false, balance: 74350, own_balance: 74350, spent: 0, received: 0 },
+      },
     });
 
   it('offers no display choice, and shows the originals, while the server sends no converted figures', async () => {
@@ -436,7 +627,8 @@ describe('the Money page: pounds by default, originals beside', () => {
     const header = main().querySelector('header') as HTMLElement;
     expect(header).toHaveTextContent('in all');
     expect(header).toHaveTextContent('≈ £743.50');
-    expect(header).toHaveTextContent(/rate as of Nov 24/);
+    // The rate's time is the oldest of the rates used (08:00, not 09:30).
+    expect(header).toHaveTextContent(/rate as of Nov 24.*08:00/);
     expect(header).toHaveTextContent('not converted: JPY');
     // The parts under it, each in its own currency.
     const parts = within(header).getAllByRole('listitem').map((part) => part.textContent ?? '');
@@ -487,38 +679,109 @@ describe('the Money page: pounds by default, originals beside', () => {
 });
 
 describe('the Money page: bank logos', () => {
-  const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  // Distinct, valid data URIs: the page must pick the right variant of each (invented, not any bank's).
+  const DARK_INK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const WHITE_INK = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
   const withLogos = () =>
     finance({
-      connections: [
-        { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z', logo: { light: PIXEL, dark: PIXEL } },
-        { provider: 'monzo', status: 'ok', last_ok_at: null, logo: { light: PIXEL, dark: PIXEL } },
-        { provider: 'monobank', status: 'ok', last_ok_at: null, logo: { light: 'https://example.com/logo.png', dark: null } },
-      ] as unknown as FinanceData['connections'],
+      providers: [
+        { id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK } },
+        { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } },
+        { id: 'monobank', logo: { on_light: 'https://example.com/logo.png', on_dark: null } },
+      ],
     });
+  const images = (button: HTMLElement) => Array.from(button.querySelectorAll('img'));
 
-  it('shows a wordmark in place of the text name, keeps the name as the accessible name, and picks the variant by the card', async () => {
+  it('shows a wordmark in place of the text name, keeps the name as the accessible name, and picks the variant by the card\'s background', async () => {
     setup({ finance: withLogos() });
     renderAt(PATH);
     await banksReady();
     const acme = bankButton('Acme bank');
-    // The decorative image carries no text of its own; the name is there for a screen reader.
-    expect(acme.querySelectorAll('img')).toHaveLength(2);
-    for (const image of Array.from(acme.querySelectorAll('img'))) expect(image).toHaveAttribute('alt', '');
+    // A neutral card shows both variants (the stylesheet shows the theme\'s); the images are decorative, the name is there for a screen reader.
+    await waitFor(() => expect(images(acme)).toHaveLength(2));
+    for (const image of images(acme)) expect(image).toHaveAttribute('alt', '');
+    expect(images(acme).map((image) => image.getAttribute('src'))).toEqual([WHITE_INK, DARK_INK]);
     expect(acme.querySelector('.sr-only')).toHaveTextContent('Acme bank');
-    // A known brand card is dark: only the dark variant.
-    expect(bankButton('Monzo').querySelectorAll('img')).toHaveLength(1);
+    // A dark brand card gets white ink only, chosen by its luminance, not by the theme.
+    await waitFor(() => expect(images(bankButton('Monzo'))).toHaveLength(1));
+    expect(images(bankButton('Monzo'))[0].getAttribute('src')).toBe(WHITE_INK);
     // A logo that is a link (not a data URI) is refused, and the text name stays.
-    expect(bankButton('Monobank').querySelector('img')).toBeNull();
+    expect(images(bankButton('Monobank'))).toHaveLength(0);
     expect(bankButton('Monobank')).toHaveTextContent('Monobank');
   });
 
-  it('shows the text name when the server has no logo', async () => {
+  it('shows the logo in the opened bank\'s header and in the bank filter chips, with the name as each one\'s accessible name', async () => {
+    setup({ finance: withLogos() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monzo'));
+    const header = opened().getByRole('heading', { level: 3, name: 'Monzo' });
+    await waitFor(() => expect(header.querySelector('img')).not.toBeNull());
+    const chips = within(within(main()).getByRole('region', { name: 'Transactions' })).getByRole('group', { name: 'Bank' });
+    const chip = within(chips).getByRole('button', { name: 'Acme bank' });
+    await waitFor(() => expect(chip.querySelector('img')).not.toBeNull());
+    expect(chip.querySelector('[data-size="chip"]')).not.toBeNull();
+    expect(within(chips).getByRole('button', { name: 'Monobank' }).querySelector('img')).toBeNull();
+  });
+
+  it('uses the bank\'s square icon for the small tiles in the transaction rows and the filter chips when the server sends one, the letter tile otherwise', async () => {
+    setup({
+      finance: finance({
+        providers: [
+          { id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK, mark: WHITE_INK } },
+          { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } },
+        ],
+      }),
+    });
+    renderAt(PATH);
+    await banksReady();
+    const transactions = within(main()).getByRole('region', { name: 'Transactions' });
+    const chips = within(transactions).getByRole('group', { name: 'Bank' });
+    const chip = within(chips).getByRole('button', { name: 'Acme bank' });
+    await waitFor(() => expect(chip.querySelector('img')?.getAttribute('src')).toBe(WHITE_INK));
+    expect(chip.querySelector('[data-size="chip"]')).toBeNull();
+    // A bank without an icon keeps the wordmark in its chip.
+    expect(within(chips).getByRole('button', { name: 'Monzo' }).querySelector('[data-size="chip"]')).not.toBeNull();
+    const rows = await within(transactions).findAllByRole('listitem');
+    expect(rows.some((row) => row.querySelector('img')?.getAttribute('src') === WHITE_INK)).toBe(true);
+  });
+
+  it('shows a square mark taller than a wide one, once the image has loaded', async () => {
+    setup({ finance: withLogos() });
+    renderAt(PATH);
+    await banksReady();
+    const monzo = bankButton('Monzo');
+    await waitFor(() => expect(images(monzo)).toHaveLength(1));
+    const image = images(monzo)[0];
+    const holder = image.parentElement as HTMLElement;
+    expect(holder).toHaveAttribute('data-shape', 'wide');
+    Object.defineProperty(image, 'naturalWidth', { value: 40, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 40, configurable: true });
+    fireEvent.load(image);
+    await waitFor(() => expect(holder).toHaveAttribute('data-shape', 'square'));
+    Object.defineProperty(image, 'naturalWidth', { value: 120, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 24, configurable: true });
+    fireEvent.load(image);
+    await waitFor(() => expect(holder).toHaveAttribute('data-shape', 'wide'));
+  });
+
+  it('shows the text names when the server has no logos or the providers answer fails', async () => {
     setup();
     renderAt(PATH);
     await banksReady();
-    expect(bankButton('Acme bank').querySelector('img')).toBeNull();
+    expect(images(bankButton('Acme bank'))).toHaveLength(0);
     expect(bankButton('Acme bank').querySelector('.sr-only')).toBeNull();
+  });
+
+  it('keeps the text names when the providers request fails, and asks for the logos once', async () => {
+    const api = setup({ finance: withLogos(), fail: ['financeProviders'] });
+    renderAt(PATH);
+    await banksReady();
+    expect(images(bankButton('Acme bank'))).toHaveLength(0);
+    expect(bankButton('Acme bank')).toHaveTextContent('Acme bank');
+    expect(api.callsTo('GET', '/finance/providers')).toHaveLength(1);
+    expect(api.callsTo('GET', '/finance/accounts').every((call) => !call.url.includes('logo'))).toBe(true);
   });
 });
 
@@ -571,5 +834,75 @@ describe('the Money page: where it lives', () => {
     setup();
     renderAt(PATH);
     expect(await within(main()).findByRole('link', { name: 'Back to Personal' })).toHaveAttribute('href', '/dashboards/personal');
+  });
+});
+
+describe('the personal Work and income tab', () => {
+  const now = () => new Date();
+  const thisMonth = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60000).toISOString();
+  const lastMonth = () => {
+    const first = new Date(now().getFullYear(), now().getMonth(), 1, 12, 0, 0);
+    return new Date(first.getTime() - 24 * 3600000).toISOString();
+  };
+  const income = (id: string, bookedAt: string, amount: number, extra: Record<string, unknown> = {}) => tx(id, 'a-current', 0, amount, id, { booked_at: bookedAt, category: 'income', ...extra });
+  const data = () =>
+    finance({
+      transactions: [
+        income('Salary', thisMonth(10), 250000, { counterparty: 'Example Ltd' }),
+        income('Refund', thisMonth(60), 3000),
+        income('Dollars', thisMonth(120), 40000, { currency: 'USD' }),
+        income('Own move', thisMonth(130), 90000, { internal_transfer: true }),
+        income('Bounced', thisMonth(140), 70000, { declined: true }),
+        income('Last month pay', lastMonth(), 250000),
+        tx('Spend', 'a-current', 5, -500, 'Spend', { category: 'groceries' }),
+      ],
+    });
+
+  async function openTab(options: FakeApiOptions = {}) {
+    const api = setup({ finance: data(), ...options });
+    const user = userEvent.setup();
+    renderAt('/dashboards/personal');
+    await user.click(await within(main()).findByRole('tab', { name: /^Work and income/ }));
+    return { api, user };
+  }
+
+  it('shows this month\'s income per currency and the latest incoming, leaving out spending, own transfers and declined payments', async () => {
+    const { api } = await openTab();
+    const month = within(await within(main()).findByRole('region', { name: 'Income this month' }));
+    await month.findByText('£2,530.00');
+    expect(month.getByText('$400.00')).toBeInTheDocument();
+    expect(month.queryByText(/£7/)).toBeNull();
+    const latest = within(main().querySelector('[aria-labelledby="income-latest-title"]') as HTMLElement);
+    const rows = latest.getAllByRole('listitem').map((row) => row.textContent ?? '');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toMatch(/Example Ltd.*Money in: \+£2,500\.00/);
+    expect(rows[1]).toContain('Refund');
+    expect(rows[2]).toContain('Dollars');
+    expect(rows[3]).toContain('Last month pay');
+    expect(latest.queryByText('Own move')).toBeNull();
+    expect(latest.queryByText('Bounced')).toBeNull();
+    expect(latest.queryByText('Spend')).toBeNull();
+    // Each row names its bank and account.
+    await waitFor(() => expect(latest.getAllByRole('listitem')[0]).toHaveTextContent('Acme bank · Everyday'));
+    // It asked the server for income from the first of this month.
+    const call = api.callsTo('GET', '/finance/transactions').find((entry) => entry.url.includes('category=income'));
+    expect(call?.url).toMatch(/from=\d{4}-\d{2}-01/);
+    expect(latest.getByRole('link', { name: 'All transactions in Money' })).toHaveAttribute('href', PATH);
+  });
+
+  it('says there is no income when there is none, and has an error with a retry', async () => {
+    const { api, user } = await openTab({ finance: finance({ transactions: [tx('Spend', 'a-current', 5, -500, 'Spend', { category: 'groceries' })] }) });
+    expect(await within(main()).findAllByText('No income yet.')).toHaveLength(2);
+    expect(api.callsTo('GET', '/finance/transactions').length).toBeGreaterThan(0);
+    void user;
+  });
+
+  it('shows an error with a retry when the transactions cannot be read', async () => {
+    const { api, user } = await openTab({ fail: ['financeTransactions'] });
+    const month = within(await within(main()).findByRole('region', { name: 'Income this month' }));
+    expect(await month.findByRole('alert')).toHaveTextContent('Could not load the income.');
+    api.fail.delete('financeTransactions');
+    await user.click(month.getByRole('button', { name: 'Try again' }));
+    expect(await month.findByText('£2,530.00')).toBeInTheDocument();
   });
 });

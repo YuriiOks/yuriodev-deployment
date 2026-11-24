@@ -30,6 +30,12 @@ TOOLS = {
     "finance_transactions",
     "finance_categories",
     "finance_set_category",
+    "finance_set_overdraft",
+    "finance_recurring",
+    "finance_add_recurring",
+    "finance_update_recurring",
+    "finance_upcoming",
+    "finance_attention",
 }
 
 

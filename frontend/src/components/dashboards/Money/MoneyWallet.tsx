@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import type { FinanceAccount, FinanceAccounts } from '../../../services/dashboards/financeApi';
+import type { FinanceAccount, FinanceAccounts, ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import { shownTotals } from '../../../services/dashboards/display';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
@@ -9,9 +9,9 @@ import { creditUse, groupBanks, potParts, sharedNames, splitBank, type Bank } fr
 import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import Amount, { ShownAmount } from './Amount';
-import BankMark from './BankMark';
 import { brandStyle } from './brandStyle';
 import BankName from './BankName';
+import HeroAmount from './HeroAmount';
 import { dayLabel, whenLabel } from './labels';
 import { reconnectPath } from './providers';
 import styles from './Money.module.css';
@@ -26,36 +26,82 @@ function useLinkLine(bank: Bank): string {
   return when ? `${label} · ${fill(m.lastOk, { when })}` : label;
 }
 
-/** One bank in the stack: a coloured card, the name at the left and its money at the right; a button that opens the bank. */
-const BankCard: React.FC<{ bank: Bank; selected: boolean; first: boolean; mode: MoneyDisplay; onSelect: () => void }> = ({ bank, selected, first, mode, onSelect }) => {
+/** The quiet facts of a bank's main account: its overdraft or credit limit, and its last four digits. */
+function useBankFacts(bank: Bank): { limit: string; last4: string } {
+  const { t, lang } = useDashboardLang();
+  const main = splitBank(bank).accounts[0] ?? bank.accounts[0];
+  if (!main) return { limit: '', last4: '' };
+  const m = t.money;
+  const overdraft = main.overdraftLimit ?? 0;
+  const limit = overdraft > 0 ? fill(m.overdraftLimit, { amount: formatMinor(overdraft, main.currency, lang) }) : main.creditLimit > 0 ? fill(m.creditLimit, { amount: formatMinor(main.creditLimit, main.currency, lang) }) : '';
+  return { limit, last4: main.maskLast4 ? `\u2022\u2022\u2022\u2022 ${main.maskLast4}` : '' };
+}
+
+/**
+ * One bank in the stack: a big solid card in the bank's colour, overlapping the one above. The wordmark is the only label at the left, the
+ * balance the hero at the right. The selected card is the last of the stack and taller: a quiet line of facts, the link's state, and its
+ * actions as pills. A card that needs attention carries a small warning mark.
+ */
+const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected: boolean; first: boolean; mode: MoneyDisplay; onSelect: () => void }> = ({ bank, logo, selected, first, mode, onSelect }) => {
+  const { t, lang } = useDashboardLang();
+  const m = t.money;
   const line = useLinkLine(bank);
+  const facts = useBankFacts(bank);
   const totals = shownTotals(bank.accounts, mode);
+  const [lead, ...rest] = totals;
   const warn = bank.connection?.status === 'needs_reconsent';
+  const reconnect = warn ? reconnectPath(bank.provider) : null;
+  const id = `money-bank-${bank.provider}`;
   return (
-    <button
-      type="button"
-      className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)}
-      style={brandStyle(bank.provider)}
-      aria-pressed={selected}
-      onClick={onSelect}
-    >
-      <span className={styles.bankText}>
-        <strong className={styles.bankName}>
-          <BankName provider={bank.provider} logo={bank.connection?.logo} />
-        </strong>
-        <span className={styles.bankState}>
-          {warn && <DashIcon name="alert" size={14} />}
-          {line}
+    <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider)}>
+      <button type="button" className={styles.bankHead} aria-pressed={selected} onClick={onSelect}>
+        <span className={styles.bankName}>
+          <BankName provider={bank.provider} logo={logo} />
+          {warn && (
+            <span className={styles.warnMark} title={m.linkNeedsReconsent}>
+              <DashIcon name="alert" size={14} />
+              <span className="sr-only">{m.linkNeedsReconsent}</span>
+            </span>
+          )}
         </span>
-      </span>
-      <span className={styles.bankSums}>
-        {totals.map((total) => (
-          <strong key={total.currency} className={styles.bankSum}>
-            <ShownAmount shown={total} />
-          </strong>
-        ))}
-      </span>
-    </button>
+        <span className={styles.bankSums}>
+          {lead && (
+            <>
+              <HeroAmount amount={lead.amount} currency={lead.currency} approx={lead.approx} />
+              {lead.approx && lead.originals.length > 0 && (
+                <span className={styles.bankSub}>{lead.originals.map((original) => formatMinor(original.amount, original.currency, lang)).join(' \u00b7 ')}</span>
+              )}
+            </>
+          )}
+          {rest.map((total) => (
+            <span key={total.currency} className={styles.bankSub}>
+              <ShownAmount shown={total} />
+            </span>
+          ))}
+        </span>
+      </button>
+      {selected && (
+        <div className={styles.bankFoot}>
+          <div className={styles.bankFacts}>
+            <span>{[facts.last4, facts.limit].filter(Boolean).join(' \u00b7 ')}</span>
+            <span>{line}</span>
+          </div>
+          <div className={styles.bankActions}>
+            <a className={styles.pill} href={`#${id}-name`}>
+              {m.actionAccounts}
+            </a>
+            <a className={styles.pill} href="#money-transactions-title">
+              {m.actionTransactions}
+            </a>
+            {reconnect && (
+              <a className={styles.pill} href={reconnect}>
+                {m.reconnect}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -64,6 +110,7 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
   const m = t.money;
   const use = creditUse(account);
   const notes = [
+    account.label ?? '',
     account.maskLast4 ? `•••• ${account.maskLast4}` : '',
     distinguish && account.historyFrom ? fill(m.historyFrom, { date: dayLabel(account.historyFrom, lang) }) : '',
     account.creditLimit > 0 && use.kind === 'none' ? fill(m.creditLimit, { amount: formatMinor(account.creditLimit, account.currency, lang) }) : '',
@@ -89,13 +136,14 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
           {use.kind === 'none' && <Amount amount={account.ownBalance} currency={account.currency} display={account.display} mode={mode} />}
         </strong>
       </div>
-      {use.kind === 'debt' && (
+      {(use.kind === 'debt' || (use.kind === 'overdrawn' && use.limit > 0)) && (
         <>
           <div aria-hidden="true" className={styles.bar}>
             <div className={styles.barFill} style={{ width: `${use.percent}%` }} />
           </div>
           <span className={styles.accountNote}>
-            {fill(m.usedOfLimit, {
+            {account.overdraftSource === 'owner' && use.kind === 'overdrawn' && `${m.ownLimit} · `}
+            {fill(use.kind === 'debt' ? m.usedOfLimit : m.usedOfOverdraft, {
               percent: use.percent,
               limit: formatMinor(use.limit, account.currency, lang),
               free: formatMinor(use.free, account.currency, lang),
@@ -108,7 +156,10 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
 };
 
 const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ account, mode }) => {
+  const { t, lang } = useDashboardLang();
   const { emoji, label } = potParts(account.name);
+  const goal = account.goalAmount !== null && account.goalAmount > 0 ? account.goalAmount : null;
+  const percent = goal ? Math.max(0, Math.min(100, Math.round((account.ownBalance / goal) * 100))) : 0;
   return (
     <li className={styles.pot}>
       <span aria-hidden="true" className={styles.potPicture}>
@@ -118,15 +169,24 @@ const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ ac
       <strong className={styles.potAmount}>
         <Amount amount={account.ownBalance} currency={account.currency} display={account.display} mode={mode} />
       </strong>
+      {goal && (
+        <>
+          <div aria-hidden="true" className={styles.goalBar}>
+            <div className={styles.goalFill} style={{ width: `${percent}%` }} />
+          </div>
+          <span className={styles.accountNote}>{fill(t.money.goalOf, { percent, goal: formatMinor(goal, account.currency, lang) })}</span>
+        </>
+      )}
     </li>
   );
 };
 
 /** The opened bank: its header in the brand colours, the main accounts as cards, the pots as tiles, the empty ones folded. */
-const BankDetail: React.FC<{ bank: Bank; mode: MoneyDisplay }> = ({ bank, mode }) => {
+const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: MoneyDisplay }> = ({ bank, logo, mode }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const [showEmpty, setShowEmpty] = useState(false);
+  const [showBusiness, setShowBusiness] = useState(false);
   const line = useLinkLine(bank);
   const split = splitBank(bank);
   const totals = shownTotals(bank.accounts, mode);
@@ -139,22 +199,21 @@ const BankDetail: React.FC<{ bank: Bank; mode: MoneyDisplay }> = ({ bank, mode }
   const id = `money-bank-${bank.provider}`;
 
   return (
-    <article aria-labelledby={`${id}-name`} className={styles.detail}>
+    <article aria-labelledby={`${id}-name`} className={styles.detail} style={brandStyle(bank.provider)}>
       <header className={styles.detailHead} style={brandStyle(bank.provider)}>
         <div className={styles.detailTitle}>
-          <BankMark provider={bank.provider} />
-          <div className={styles.bankText}>
+          <div className={styles.detailTitleText}>
             <h3 id={`${id}-name`} className={styles.detailName}>
-              <BankName provider={bank.provider} logo={bank.connection?.logo} />
+              <BankName provider={bank.provider} logo={logo} />
             </h3>
-            <span className={styles.bankState}>
+            <span className={styles.detailState}>
               {bank.connection?.status === 'needs_reconsent' && <DashIcon name="alert" size={14} />}
               {line}
             </span>
           </div>
         </div>
         <div className={styles.detailSums}>
-          <span className={styles.bankState}>{m.ownMoney}</span>
+          <span className={styles.detailState}>{m.ownMoney}</span>
           {totals.map((total) => (
             <strong key={total.currency} className={styles.detailSum}>
               <ShownAmount shown={total} />
@@ -203,6 +262,20 @@ const BankDetail: React.FC<{ bank: Bank; mode: MoneyDisplay }> = ({ bank, mode }
             {showEmpty ? m.hideEmpty : fill(m.foldEmpty, { n: emptyCount })}
           </button>
         )}
+        {split.business.length > 0 && (
+          <section aria-label={m.businessFold.replace(': {n}', '')}>
+            <button type="button" className={styles.fold} aria-expanded={showBusiness} onClick={() => setShowBusiness((open) => !open)}>
+              {showBusiness ? m.hideBusiness : fill(m.businessFold, { n: split.business.length })}
+            </button>
+            {showBusiness && (
+              <ul className={styles.accountList}>
+                {split.business.map((account) => (
+                  <AccountCard key={account.id} account={account} distinguish={shared.has(account.name.trim().toLowerCase())} mode={mode} />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
         {split.archived.length > 0 && (
           <section aria-label={m.archivedTitle}>
             <h4 className={styles.sectionTitle}>{m.archivedTitle}</h4>
@@ -230,23 +303,27 @@ export interface MoneyWalletProps {
   /** The bank the page has open (the transactions' bank chip follows it when it is chosen there). */
   selected: string | null;
   mode: MoneyDisplay;
+  /** The banks' wordmarks by provider id (empty until the server sends them: the text names show). */
+  logos: Readonly<Record<string, ProviderLogo>>;
   onSelect: (provider: string) => void;
 }
 
 /** The wallet: every bank as a coloured card in a stack, and the selected bank opened beside it (below it on a phone). */
-const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, onSelect }) => {
+const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, onSelect }) => {
   const { t } = useDashboardLang();
   const banks = groupBanks(data.accounts, data.connections);
   if (banks.length === 0) return <p className={styles.none}>{t.money.noAccounts}</p>;
   const current = banks.find((bank) => bank.provider === selected) ?? banks[0];
+  // The open bank sits at the bottom of the stack, fully shown; the others keep their order above it.
+  const stacked = [...banks.filter((bank) => bank !== current), current];
   return (
     <div className={styles.wallet}>
       <div role="group" aria-label={t.money.walletLabel} className={styles.stack}>
-        {banks.map((bank, index) => (
-          <BankCard key={bank.provider} bank={bank} first={index === 0} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
+        {stacked.map((bank, index) => (
+          <BankCard key={bank.provider} bank={bank} logo={logos[bank.provider]} first={index === 0} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
         ))}
       </div>
-      <BankDetail key={current.provider} bank={current} mode={mode} />
+      <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} />
     </div>
   );
 };

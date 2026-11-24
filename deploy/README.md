@@ -944,6 +944,84 @@ the month before beside it. You can change one transaction's category
 copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
 categories existed are categorised when the backend next starts.
 
+Overdraft limit you set yourself. Monzo sends no overdraft limit, so set it by hand:
+`PATCH /api/dashboards/v1/finance/accounts/{id}` with `{"overdraft_limit": 100000}` (minor units,
+0 or more; `null` clears it), or the MCP tool `finance_set_overdraft(account, limit_minor)`. Your
+figure is kept in its own column that no collector writes, so a refresh never overwrites it, and it
+wins over a limit the bank sends (you set it on purpose; the bank's own figure stays visible as
+`overdraft_limit_bank`, and `overdraft_limit_source` says `owner`, `bank` or null for the one in
+force). `overdraft_limit` and `available_minor` use the one in force. A pot has no overdraft.
+
+Recurring payments, upcoming and attention (migration `dashboards_0014`). You enter your recurring
+payments yourself (nothing is read from a bank, nothing is sent to one). Fields: `name`, `amount`
+(what is paid each time, a positive integer in minor units) with `currency`, `kind`
+(`subscription`, `debt`, `utility`, `insurance`, `housing`, `service`, `one_time`), `frequency`
+(`once`, `daily`, `weekly`, `monthly`, `yearly`) with `frequency_interval` (every N; a quarter is
+monthly, 3), `start_date`, `next_payment_date`, the paying `account_id` (an account we collect) or
+the free-text `payment_method`, `match_text` (what its bank text contains, when that differs from
+the name), `reminder_days`, `is_active`, `auto_renew`, `notes`, `category` (free text, kept as
+given), `payment_type` and `payment_mode` (free text, kept as given), `icon_url`, `color`, and for
+debts `is_installment`, `total_installments`, `completed_installments`, `total_owed`,
+`remaining_balance`, `creditor` (also `target_amount`, `current_saved`, `recipient`). Every figure
+also comes back in the display currency (`display_amount`, `display_total_owed`,
+`display_remaining_balance`, `converted`, and a root `display` block as elsewhere).
+REST under `/api/dashboards/v1/finance`: `GET|POST /recurring` (`?active=`, `?kind=`),
+`GET|PATCH|DELETE /recurring/{id}` (PATCH: `null` clears what may be empty), `POST
+/recurring/{id}/paid` (`{paid_on?}`: you say it was paid; the next date moves one step). Loading
+many: `POST /recurring/bulk` `{items: [...], on_conflict: "skip"|"update", dry_run}` (at most 500,
+all or nothing: any error writes nothing and the 422 answer lists every row's problems) and `POST
+/recurring/import` (the body is a UTF-8 CSV file with a header row, at most 500 rows and 1 MiB,
+`?on_conflict=`, `?dry_run=true`). The CSV columns are the ones of your older project: `name`,
+`amount` (a decimal such as 12.99; never more decimals than the currency has), `currency`,
+`frequency` (monthly, weekly, daily, yearly, quarterly, fortnightly, annually, one-time...),
+`frequency_interval`, `start_date`, `next_payment_date` (YYYY-MM-DD), `payment_type` (its word
+decides `kind`: subscription, loan/debt, bill/utility, insurance, rent/mortgage/housing,
+one-time, else service; the word itself is kept), `payment_mode`, `category`, `notes`, `is_active`,
+`payment_method`, `reminder_days`, `icon_url`, `color`, `auto_renew`, `is_installment`,
+`total_installments`, `completed_installments`, `total_owed`, `remaining_balance`, `creditor`,
+`target_amount`, `current_saved`, `recipient`; also `kind`, `match_text` and `external_ref`. Other
+columns are ignored and named in the answer. A row's `external_ref` (given, or `csv:<name>:<currency>:<row>`)
+makes loading the same file twice find the same rows: they are skipped (or replaced with
+`update`; replacing also resets the next date to the file's).
+`icon_url` must be a plain `https` URL (no credentials, spaces, quotes or markup characters, at
+most 500 characters), else the row is refused; it is stored as given and served as `icon_url`;
+the page should show it only in an `<img>` (with `referrerpolicy="no-referrer"`), and a content
+security policy that limits `img-src` has to allow that host. `color` is `#rgb` or `#rrggbb`,
+stored as lower-case `#rrggbb`. MCP: `finance_recurring`, `finance_add_recurring`,
+`finance_update_recurring`, `finance_upcoming`, `finance_attention`.
+Moving on and matching. A payment due on D is paid when a transaction is money out, not declined,
+not a move between your own accounts, in the payment's currency, on the paying account when one is
+named, booked from 3 days before D to 7 days after (local days), and its counterparty or
+description names the payment (the name, or `match_text`, inside the text, both reduced to
+lower-case letters and digits; or the counterparty inside the name). The amount does not decide
+the match: of several candidates the closest to D wins, one transaction pays one payment only.
+On a match `next_payment_date` moves one period on (months keep the day of `start_date`, clamped
+to a short month's end) and `last_paid_on`, `last_charged_amount` and `last_transaction_id` are
+set; a payment that happens once ends. A payment whose paying account is not one we collect cannot
+be seen, so its date moves on when it has passed (nothing is recorded as paid); one whose account
+we do collect stays put until a transaction is seen, and becomes an attention item. This runs on
+reading (list, get, upcoming, attention), is idempotent, and catches up at most 24 occurrences per
+request.
+`GET /upcoming?days=14` (1 to 366): every occurrence from today (the local day) to the end of the
+window (a weekly payment appears each time), with `covered` (can the paying account pay it:
+balance plus overdraft in force, a card's balance already counts its limit, counting the earlier
+payments of the window from the same account; no income is assumed; null when no account of ours
+pays or there is no rate to put the amount in the account's currency) and `shortfall`, totals per
+currency and in the display currency (each currency's total converted once; `complete` is false
+when a currency has no rate).
+`GET /attention` (`?include_hidden=true`): `due_not_covered` (due within `reminder_days`, default
+2, and not covered), `missed_payment` (past its date with no matching transaction, only when we
+collect the paying account), `amount_changed` (the matched charge differs from the recorded
+amount by more than 1%), `credit_high` (a credit card above 90% of its limit), `overdraft` (a
+current or business account past its overdraft in force), `reconsent` (a connection that needs
+approving again). A manual statement older than 30 days comes with manual banks. Each item has a
+stable `key` (it names the occasion: a new due date, month or charge is a new item), `kind`,
+`title`, `subject_type`/`subject_id`, `due_date`, `amount`/`currency`/`display_amount`/`converted`,
+`facts`, `state` (`active`, `snoozed`, `dismissed`) and `snoozed_until`. Dismissed and snoozed
+items are left out and counted in `hidden`. `POST /attention/dismiss` `{key}`, `/attention/snooze`
+`{key, days: 1..90}`, `/attention/restore` `{key}`; an unknown key is 404; unused states of items
+that are gone are deleted after 90 days.
+
 Display currency and rates. Stored amounts are never converted: they stay integers in minor units
 of their own currency. `FINANCE_DISPLAY_CURRENCY` (default `GBP`, three capital letters) is the
 currency the Money page also shows every amount in, beside the original and never instead of it:

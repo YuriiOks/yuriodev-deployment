@@ -554,6 +554,7 @@
 
     /* Shape: three radii and the pill. */
     --dash-r-surface: 1.25rem;
+    --dash-r-card: 1.75rem;
     --dash-r-control: 0.75rem;
     --dash-r-tag: 0.375rem;
 
@@ -564,6 +565,7 @@
     --dash-fs-title: 1rem;     --dash-lh-title: 1.5rem;
     --dash-fs-page: 1.5rem;    --dash-lh-page: 2rem;
     --dash-fs-stat: 1.75rem;   --dash-lh-stat: 2rem;
+    --dash-fs-hero: 2.5rem;    --dash-lh-hero: 3rem;
 
     /* Sizes: a fine pointer gets 40px controls and 44px rows, a coarse one 44px and 56px rows. */
     --dash-h-control: 2.5rem;

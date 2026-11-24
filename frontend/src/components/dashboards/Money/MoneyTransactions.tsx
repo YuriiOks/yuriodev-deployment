@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import type { FinanceAccount, FinanceTransaction } from '../../../services/dashboards/financeApi';
+import { CATEGORIES, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import Amount from './Amount';
@@ -12,6 +12,7 @@ import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import ProjectIcon from '../ProjectIcon/ProjectIcon';
 import BankMark from './BankMark';
+import BankName from './BankName';
 import { whenLabel } from './labels';
 import { providerName } from './providers';
 import styles from './Money.module.css';
@@ -22,7 +23,7 @@ const WANTED_ROWS = 15;
 const MAX_AUTO_PAGES = 6;
 
 /** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when, which bank and account, and its marks. */
-const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; mode: MoneyDisplay }> = ({ item, account, mode }) => {
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay }> = ({ item, account, logo, mode }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const incoming = item.amount > 0;
@@ -39,7 +40,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
       <span aria-hidden="true" className={styles.arrow}>
         {item.amount !== 0 && <ProjectIcon name={incoming ? 'arrow-down-left' : 'arrow-up-right'} size={16} />}
       </span>
-      {account && <BankMark provider={account.provider} />}
+      {account && <BankMark provider={account.provider} logo={logo} />}
       <span className={styles.main}>
         <span className={styles.what} title={detail ? `${what}: ${detail}` : what}>
           {what}
@@ -51,6 +52,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
               {providerName(account.provider)} · {account.name}
             </span>
           )}
+          <span className={styles.tag}>{m.categories[item.category]}</span>
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
@@ -69,7 +71,11 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
 
 export interface MoneyTransactionsProps {
   banks: readonly Bank[];
+  /** The categories that have spending this month (the server's report), offered as chips beside the ones seen in the rows. */
+  categories: readonly Category[];
   mode: MoneyDisplay;
+  /** The banks' wordmarks by provider id: the bank chips show them when there is one. */
+  logos: Readonly<Record<string, ProviderLogo>>;
   enabled: boolean;
 }
 
@@ -77,12 +83,13 @@ export interface MoneyTransactionsProps {
  * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enabled }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled }) => {
   const { t } = useDashboardLang();
   const m = t.money;
   const id = useId();
   const [provider, setProvider] = useState<string | null>(null);
   const [account, setAccount] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState('');
   useEffect(() => {
@@ -93,7 +100,8 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enab
   const allAccounts = banks.flatMap((bank) => bank.accounts);
   const byId = new Map(allAccounts.map((item) => [item.id, item]));
   const bank = banks.find((candidate) => candidate.provider === provider) ?? null;
-  const list = useTransactions(account, query, enabled);
+  const list = useTransactions(account, category, query, enabled);
+  const chipCategories = CATEGORIES.filter((candidate) => candidate === category || categories.includes(candidate) || list.transactions.some((item) => item.category === candidate));
   const inBank = bank ? new Set(bank.accounts.map((item) => item.id)) : null;
   const shown = list.transactions.filter((item) => !inBank || inBank.has(item.accountId));
 
@@ -126,10 +134,29 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enab
                 aria-pressed={provider === candidate.provider}
                 onClick={() => chooseBank(candidate.provider)}
               >
-                {providerName(candidate.provider)}
+                {logos[candidate.provider]?.mark ? (
+                  <>
+                    <span className="sr-only">{providerName(candidate.provider)}</span>
+                    <BankMark provider={candidate.provider} logo={logos[candidate.provider]} />
+                  </>
+                ) : (
+                  <BankName provider={candidate.provider} logo={logos[candidate.provider]} size="chip" />
+                )}
               </button>
             ))}
         </div>
+        {chipCategories.length > 0 && (
+          <div role="group" aria-label={m.categoryFilter} className={styles.chips}>
+            <button type="button" className={cx(styles.chip, category === null && styles.chipOn)} aria-pressed={category === null} onClick={() => setCategory(null)}>
+              {m.allCategories}
+            </button>
+            {chipCategories.map((candidate) => (
+              <button key={candidate} type="button" className={cx(styles.chip, category === candidate && styles.chipOn)} aria-pressed={category === candidate} onClick={() => setCategory(candidate)}>
+                {m.categories[candidate]}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={styles.fields}>
           {bank && (
             <div className={styles.field}>
@@ -169,7 +196,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enab
       {list.status === 'ready' && shown.length > 0 && (
         <ul className={styles.list}>
           {shown.map((item) => (
-            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} mode={mode} />
+            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} />
           ))}
         </ul>
       )}

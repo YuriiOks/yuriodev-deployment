@@ -52,7 +52,7 @@ describe('dashboards design rules', () => {
   });
 
   it('sets type from the five --dash-fs-* steps, never clamp() or a site size token', () => {
-    expect(declarations('font-size', (value) => /^(var\(--dash-fs-(meta|ui|title|page|stat)\)|var\(--tile-font, var\(--dash-fs-ui\)\)|inherit)$/.test(value))).toEqual([]);
+    expect(declarations('font-size', (value) => /^(var\(--dash-fs-(meta|ui|title|page|stat|hero)\)|var\(--tile-font, var\(--dash-fs-ui\)\)|inherit)$/.test(value))).toEqual([]);
     expect(find(/clamp\(/)).toEqual([]);
     expect(find(/var\(--fs-/)).toEqual([]);
   });
@@ -84,10 +84,10 @@ describe('dashboards design rules', () => {
     ).toEqual([]);
   });
 
-  it('uses only the three radii and the pill (or a circle, or a fixed fraction of one)', () => {
+  it('uses only the radii (surface, control, tag, and the wallet card) and the pill (or a circle, or a fixed fraction of one)', () => {
     expect(
       declarations('border-radius', (value) =>
-        /^(var\(--dash-r-(surface|control|tag)\)|var\(--tile-radius, var\(--dash-r-control\)\)|var\(--radius-(round|pill)\)|inherit|0)$/.test(value),
+        /^(var\(--dash-r-(surface|control|tag|card)\)|var\(--tile-radius, var\(--dash-r-control\)\)|var\(--radius-(round|pill)\)|inherit|0)$/.test(value),
       ),
     ).toEqual([]);
   });
