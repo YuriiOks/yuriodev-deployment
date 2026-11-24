@@ -175,7 +175,6 @@ export interface Strings {
     readonly categoryFilter: string;
     readonly allCategories: string;
     readonly spendTitle: string;
-    readonly spendHead: string;
     readonly spendLess: string;
     readonly spendMore: string;
     readonly spendSame: string;
@@ -466,7 +465,6 @@ export const STRINGS: Record<Lang, Strings> = {
       categoryFilter: 'Категория',
       allCategories: 'Все категории',
       spendTitle: 'Траты по категориям',
-      spendHead: '{month} · {total} · {change}',
       spendLess: 'на {percent}% меньше, чем за {previous}',
       spendMore: 'на {percent}% больше, чем за {previous}',
       spendSame: 'как за {previous}',
@@ -757,10 +755,9 @@ export const STRINGS: Record<Lang, Strings> = {
       categoryFilter: 'Category',
       allCategories: 'All categories',
       spendTitle: 'Spend by category',
-      spendHead: '{month} · {total} · {change}',
-      spendLess: '{percent}% less than in {previous}',
-      spendMore: '{percent}% more than in {previous}',
-      spendSame: 'same as in {previous}',
+      spendLess: '{percent}% less than {previous}',
+      spendMore: '{percent}% more than {previous}',
+      spendSame: 'same as {previous}',
       spendNothing: 'No spending this month yet.',
       spendFailed: 'Could not load spending by category.',
       spendNote: 'Transfers between your own accounts and pots are not counted as spending.',
