@@ -23,6 +23,7 @@ const acct = (id: string, currency: string, own: number, display: FinanceAccount
   overdraftLimit: null,
   availableMinor: own,
   display,
+  converted: display !== null && display.currency !== currency,
   ...extra,
 });
 

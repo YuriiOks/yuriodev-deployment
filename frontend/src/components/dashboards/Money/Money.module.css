@@ -569,6 +569,21 @@
   object-position: left center;
 }
 
+.logos[data-shape="square"] img {
+  height: 2.25rem;
+  max-width: 2.25rem;
+}
+
+.logos[data-size="chip"] img {
+  height: 1rem;
+  max-width: 6rem;
+}
+
+.logos[data-size="chip"][data-shape="square"] img {
+  height: 1.5rem;
+  max-width: 1.5rem;
+}
+
 .logos[data-surface="theme"] .logoOnLight {
   display: none;
 }

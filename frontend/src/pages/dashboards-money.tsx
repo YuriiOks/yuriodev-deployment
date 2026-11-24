@@ -9,15 +9,19 @@ import MoneyTotals from '../components/dashboards/Money/MoneyTotals';
 import MoneyTransactions from '../components/dashboards/Money/MoneyTransactions';
 import MoneyWallet from '../components/dashboards/Money/MoneyWallet';
 import money from '../components/dashboards/Money/Money.module.css';
+import type { ProviderLogo } from '../services/dashboards/financeApi';
 import { fill } from '../services/dashboards/calendarLabels';
 import { hasConversion } from '../services/dashboards/display';
 import { readMoneyDisplay, writeMoneyDisplay, type MoneyDisplay } from '../services/dashboards/preferences';
 import { groupBanks } from '../services/dashboards/wallet';
 import { pagePath } from '../data/site';
 import { useDashboardMode } from '../hooks/useDashboardMode';
-import { useFinanceAccounts, useFinanceCategories, useFinanceSummary } from '../hooks/useFinance';
+import { useFinanceAccounts, useFinanceCategories, useFinanceSummary, useProviderLogos } from '../hooks/useFinance';
 import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './dashboards-money.module.css';
+
+/** No logos (until the server sends them, or when it cannot): the text names show. */
+const NO_LOGOS: Readonly<Record<string, ProviderLogo>> = {};
 
 /**
  * /dashboards/personal/money: the personal space's money, read-only, from the finance API. A strip of totals per currency, the
@@ -34,6 +38,8 @@ const DashboardsMoney = () => {
   const accounts = useFinanceAccounts(live);
   const summary = useFinanceSummary(live);
   const spend = useFinanceCategories(live);
+  const providers = useProviderLogos(live);
+  const logos = providers.value ?? NO_LOGOS;
   const [selected, setSelected] = useState<string | null>(null);
   // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
   const [mode, setMode] = useState<MoneyDisplay>(readMoneyDisplay);
@@ -81,7 +87,7 @@ const DashboardsMoney = () => {
             </div>
             {accounts.status === 'loading' && <LoadingBlock rows={4} />}
             {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
-            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} onSelect={setSelected} />}
+            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} logos={logos} onSelect={setSelected} />}
           </section>
           <section aria-labelledby="money-spend-title" className={money.panel}>
             <div className={money.head}>
@@ -91,7 +97,7 @@ const DashboardsMoney = () => {
             </div>
             {spend.status === 'loading' && <LoadingBlock rows={3} />}
             {spend.status === 'error' && <InlineError message={m.spendFailed} onRetry={spend.reload} />}
-            {spend.value && <MoneyCategories data={spend.value} />}
+            {spend.value && <MoneyCategories data={spend.value} mode={mode} />}
           </section>
           <section aria-labelledby="money-transactions-title" className={money.panel}>
             <div className={money.head}>
@@ -99,7 +105,7 @@ const DashboardsMoney = () => {
                 {m.transactionsTitle}
               </h2>
             </div>
-            <MoneyTransactions banks={banks} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
+            <MoneyTransactions banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
         </>
       )}

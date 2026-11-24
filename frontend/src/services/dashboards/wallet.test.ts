@@ -23,6 +23,7 @@ const acct = (id: string, extra: Partial<FinanceAccount> = {}): FinanceAccount =
   overdraftLimit: null,
   availableMinor: 1000,
   display: null,
+  converted: false,
   ...extra,
 });
 

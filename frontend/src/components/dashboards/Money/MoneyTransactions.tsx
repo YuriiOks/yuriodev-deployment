@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import { CATEGORIES, type Category, type FinanceAccount, type FinanceTransaction } from '../../../services/dashboards/financeApi';
+import { CATEGORIES, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import Amount from './Amount';
@@ -12,6 +12,7 @@ import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import ProjectIcon from '../ProjectIcon/ProjectIcon';
 import BankMark from './BankMark';
+import BankName from './BankName';
 import { whenLabel } from './labels';
 import { providerName } from './providers';
 import styles from './Money.module.css';
@@ -73,6 +74,8 @@ export interface MoneyTransactionsProps {
   /** The categories that have spending this month (the server's report), offered as chips beside the ones seen in the rows. */
   categories: readonly Category[];
   mode: MoneyDisplay;
+  /** The banks' wordmarks by provider id: the bank chips show them when there is one. */
+  logos: Readonly<Record<string, ProviderLogo>>;
   enabled: boolean;
 }
 
@@ -80,7 +83,7 @@ export interface MoneyTransactionsProps {
  * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, enabled }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled }) => {
   const { t } = useDashboardLang();
   const m = t.money;
   const id = useId();
@@ -131,7 +134,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
                 aria-pressed={provider === candidate.provider}
                 onClick={() => chooseBank(candidate.provider)}
               >
-                {providerName(candidate.provider)}
+                <BankName provider={candidate.provider} logo={logos[candidate.provider]} size="chip" />
               </button>
             ))}
         </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchCategories, fetchFinanceAccounts, fetchFinanceSummary, fetchTransactions, type Category, type FinanceAccounts, type FinanceCategories, type FinanceSummary, type FinanceTransaction } from '../services/dashboards/financeApi';
+import { fetchCategories, fetchFinanceAccounts, fetchFinanceSummary, fetchProviders, fetchTransactions, type Category, type FinanceAccounts, type FinanceCategories, type FinanceSummary, type FinanceTransaction, type ProviderLogo } from '../services/dashboards/financeApi';
 
 export type LoadStatus = 'loading' | 'ready' | 'error';
 
@@ -31,7 +31,11 @@ function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: boolean)
 
 const loadAccounts = (signal: AbortSignal) => fetchFinanceAccounts(signal);
 const loadSummary = (signal: AbortSignal) => fetchFinanceSummary(signal);
+const loadProviders = (signal: AbortSignal) => fetchProviders(signal);
 const loadCategories = (signal: AbortSignal) => fetchCategories(undefined, signal);
+
+/** The banks' logos by provider id (GET /finance/providers), fetched once: they are big and the accounts answer does not repeat them. A failure only means the text names stay. */
+export const useProviderLogos = (enabled: boolean) => useOnce<Record<string, ProviderLogo>>(loadProviders, enabled);
 
 /** This month's spend per currency and category, with the month before beside it (GET /finance/categories). */
 export const useFinanceCategories = (enabled: boolean) => useOnce<FinanceCategories>(loadCategories, enabled);
