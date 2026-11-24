@@ -376,7 +376,7 @@ def test_a_logo_that_sets_its_fills_in_a_style_block_with_a_clip_path_is_kept():
     markup = (
         '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
         'viewBox="0 0 120 40"><title>Sample Bank</title><defs>'
-        '<style>.a{fill:#123456;fill-rule:evenodd}.b{fill:#fff;clip-rule:evenodd}</style>'
+        "<style>.a{fill:#123456;fill-rule:evenodd}.b{fill:#fff;clip-rule:evenodd}</style>"
         '<clipPath id="c"><rect width="120" height="40"/></clipPath></defs>'
         '<g clip-path="url(#c)"><path class="a" d="M0 0h60v40H0z"/>'
         '<path class="b" fill-rule="evenodd" clip-rule="evenodd" d="M60 0h60v40H60z"/></g></svg>'
