@@ -145,7 +145,7 @@ function finance(overrides: Partial<FinanceData> = {}): FinanceData {
           categories: [line('groceries', 62000, 50000, 40000), line('entertainment', 46000, 20000, 3700), line('eating_out', 29000, 36000, 30000), line('transport', 21000, 22000, 18000), line('other', 52000, 40000, 50000)],
         },
       ],
-      display: { currency: 'GBP', rates: {}, missing: [], complete: true, spent: 254000, previous_spent: 300000, previous_to_date_spent: 176000, categories: [] },
+      display: { currency: 'GBP', rates: {}, missing: [], complete: true, spent: 254000, previous_spent: 300000, previous_to_date_spent: 176000, categories: [{ category: 'groceries', spent: 62000, previous: 50000, previous_to_date: 40000 }, { category: 'other', spent: 52000, previous: 40000, previous_to_date: 50000 }, { category: 'entertainment', spent: 46000, previous: 20000, previous_to_date: 3700 }, { category: 'eating_out', spent: 29000, previous: 36000, previous_to_date: 30000 }, { category: 'transport', spent: 21000, previous: 22000, previous_to_date: 18000 }] },
     },
     ...overrides,
   };
