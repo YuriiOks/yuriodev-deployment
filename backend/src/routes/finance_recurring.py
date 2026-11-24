@@ -11,16 +11,14 @@ from datetime import date
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.config import Settings
 from src.core.errors import AppError
-from src.core.http import build_http_client
 from src.dashboards.finance import recurring_service as service
 from src.dashboards.finance.fx import Display
-from src.dashboards.finance.icons import MAX_ICON_BYTES, fill_in_background, to_data_uri
+from src.dashboards.finance.icons import MAX_ICON_BYTES, to_data_uri
 from src.dashboards.finance.rawbody import require_file_type
 from src.dashboards.finance.recurring import (
     MAX_CSV_BYTES,
@@ -77,23 +75,16 @@ async def list_recurring(
     )
 
 
-def icons_later(background: BackgroundTasks, request: Request, settings: Settings) -> None:
-    """After the answer is sent, fetch the icons that are waiting (a few, a short deadline each).
-    The write never waits for another site."""
-    state = request.app.state
-    background.add_task(
-        fill_in_background,
-        state.dashboards.sessions,
-        lambda: build_http_client(settings, state.icon_transport),
-        state.icon_resolver,
-    )
+def icons_later(request: Request) -> None:
+    """Tell the icon worker there is something to look at. It only sets a flag: the write never
+    waits for another site, and nothing here holds a connection while a site is asked."""
+    request.app.state.icons.wake()
 
 
 @router.post("/recurring", status_code=201)
 async def create_recurring(
     body: RecurringIn,
     request: Request,
-    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -101,7 +92,7 @@ async def create_recurring(
 ) -> RecurringOut:
     today = _today(clock, zone)
     row = await service.create_recurring(session, body, clock(), today)
-    icons_later(background, request, settings)
+    icons_later(request)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, today)
 
@@ -123,7 +114,6 @@ def _answer(result: ImportOut, clean: bool) -> Response:
 async def bulk_recurring(
     body: BulkIn,
     request: Request,
-    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -145,14 +135,13 @@ async def bulk_recurring(
         body.on_conflict,
         body.dry_run,
     )
-    icons_later(background, request, settings)
+    icons_later(request)
     return _answer(result, clean)
 
 
 @router.post("/recurring/import", response_model=ImportOut)
 async def import_recurring(
     request: Request,
-    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -190,7 +179,7 @@ async def import_recurring(
         on_conflict,
         dry_run,
     )
-    icons_later(background, request, settings)
+    icons_later(request)
     return _answer(result, clean)
 
 
@@ -198,7 +187,6 @@ async def import_recurring(
 async def refresh_icon(
     recurring_id: UUID,
     request: Request,
-    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -207,7 +195,7 @@ async def refresh_icon(
     """Look for the payment's icon again (its `icon_url`, else its website's own icon): it goes
     back to `pending` and is fetched after this answer. Nothing else about the payment changes."""
     row = await service.reset_icon(session, recurring_id, clock(), zone)
-    icons_later(background, request, settings)
+    icons_later(request)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, _today(clock, zone))
 
@@ -280,7 +268,6 @@ async def update_recurring(
     recurring_id: UUID,
     body: RecurringPatch,
     request: Request,
-    background: BackgroundTasks,
     session: SessionDep,
     settings: SettingsDep,
     clock: ClockDep,
@@ -288,7 +275,7 @@ async def update_recurring(
 ) -> RecurringOut:
     """Change the fields sent; `null` clears a field that may be empty."""
     row = await service.update_recurring(session, recurring_id, body, clock())
-    icons_later(background, request, settings)
+    icons_later(request)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, _today(clock, zone))
 

@@ -181,6 +181,8 @@ def make_dashboards_app(
         # No test reaches a real site: the icon fetch after a write meets a fake that has no icon.
         app.state.icon_transport = httpx.MockTransport(lambda request: httpx.Response(404))
         app.state.icon_resolver = fake_public_resolver
+        app.state.icon_autostart = False  # the tests drain the worker by hand
+        app.state.icons._pause = 0.0  # no waiting between payments in a test
         return app
 
     return _make
