@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories';
 
 export interface Call {
   readonly method: string;
@@ -108,6 +108,8 @@ export interface FinanceData {
   connections: Record<string, unknown>[];
   transactions: Record<string, unknown>[];
   summary: Record<string, unknown>;
+  /** GET /finance/categories (default: no spending). */
+  categories?: Record<string, unknown>;
 }
 
 export interface FakeApiOptions {
@@ -158,6 +160,10 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       if (api.fail.has('financeAccounts')) return failure();
       return json({ accounts: api.finance.accounts, connections: api.finance.connections });
     }
+    if (path === '/finance/categories') {
+      if (api.fail.has('financeCategories')) return failure();
+      return json(api.finance.categories ?? { month: '2026-11', previous_month: '2026-10', currencies: [] });
+    }
     if (path === '/finance/summary') {
       if (api.fail.has('financeSummary')) return failure();
       return json(api.finance.summary);
@@ -168,8 +174,9 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       const account = url.searchParams.get('account');
       const q = (url.searchParams.get('q') ?? '').toLowerCase();
       const limit = Number(url.searchParams.get('limit') ?? 25);
+      const category = url.searchParams.get('category');
       const found = api.finance.transactions.filter(
-        (item) => (!account || item.account_id === account) && (!q || `${item.description} ${item.counterparty ?? ''}`.toLowerCase().includes(q)),
+        (item) => (!account || item.account_id === account) && (!category || item.category === category) && (!q || `${item.description} ${item.counterparty ?? ''}`.toLowerCase().includes(q)),
       );
       const start = cursor ? Number(cursor) : 0;
       const page = found.slice(start, start + limit);

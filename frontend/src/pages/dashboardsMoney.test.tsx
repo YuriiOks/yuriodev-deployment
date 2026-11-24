@@ -56,6 +56,8 @@ const tx = (id: string, account: string, minutes: number, amount: number, what: 
   declined: false,
   internal_transfer: false,
   settled_at: null,
+  category: 'other',
+  category_overridden: false,
   ...extra,
 });
 
@@ -386,6 +388,135 @@ describe('the Money page: transactions', () => {
     api.fail.delete('financeTransactions');
     await userEvent.setup().click(within(failed).getByRole('button', { name: 'Try again' }));
     expect(await list().findByText('Corner Cafe')).toBeInTheDocument();
+  });
+});
+
+describe('the Money page: account kinds, goals and categories', () => {
+  const kinds = () =>
+    finance({
+      accounts: [
+        acct('main', 'Everyday', 'GBP', 45050, { kind: 'current', mask_last4: '1234' }),
+        acct('card-1', 'Card', 'UAH', 5000, { provider: 'monobank', kind: 'current', label: 'Black', mask_last4: '1111' }),
+        acct('card-2', 'Card', 'UAH', 7000, { provider: 'monobank', kind: 'current', label: 'Platinum', mask_last4: '2222' }),
+        acct('biz-1', 'Studio', 'UAH', 0, { provider: 'monobank', kind: 'business', label: 'Business' }),
+        acct('biz-2', 'Shop', 'UAH', 9000, { provider: 'monobank', kind: 'business', label: 'Business' }),
+        acct('over', 'Main', 'GBP', -74782, { provider: 'monzo', kind: 'current', overdraft_limit: 100000 }),
+        acct('trip', '✈️ Trip', 'GBP', 25000, { provider: 'monzo', kind: 'pot', goal_amount: 100000 }),
+        acct('plain', 'Rainy day', 'GBP', 7500, { provider: 'monzo', kind: 'pot' }),
+      ],
+      connections: [
+        { provider: 'acme-bank', status: 'ok', last_ok_at: null },
+        { provider: 'monobank', status: 'ok', last_ok_at: null },
+        { provider: 'monzo', status: 'ok', last_ok_at: null },
+      ],
+      transactions: [
+        tx('g1', 'main', 5, -6000, 'Weekly shop', { category: 'groceries' }),
+        tx('g2', 'main', 10, -4000, 'Pizza', { category: 'eating_out' }),
+        tx('g3', 'main', 15, 150000, 'Salary', { category: 'income' }),
+      ],
+      categories: {
+        month: '2026-11',
+        previous_month: '2026-10',
+        currencies: [
+          {
+            currency: 'GBP',
+            spent: 10000,
+            previous_spent: 10638,
+            categories: [
+              { category: 'eating_out', spent: 4000, previous: 5638 },
+              { category: 'groceries', spent: 6000, previous: 5000 },
+              { category: 'transport', spent: 0, previous: 0 },
+            ],
+          },
+        ],
+      },
+    });
+
+  it('folds the business accounts, whatever is in them, behind their own button', async () => {
+    setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monobank'));
+    expect(opened().queryByText('Studio')).toBeNull();
+    expect(opened().queryByText('Shop')).toBeNull();
+    const fold = opened().getByRole('button', { name: 'Business accounts: 2' });
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    await user.click(fold);
+    expect(opened().getByText('Studio')).toBeInTheDocument();
+    expect(opened().getByText('Shop').closest('li')).toHaveTextContent('Business');
+    expect(opened().getByRole('button', { name: 'Hide business accounts' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('tells two accounts with one name apart by their label and last four', async () => {
+    setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monobank'));
+    const cards = opened().getAllByText('Card').map((name) => name.closest('li') as HTMLElement);
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toHaveTextContent('Black · •••• 1111');
+    expect(cards[1]).toHaveTextContent('Platinum · •••• 2222');
+  });
+
+  it('reads an agreed overdraft as how much of it is used, and shows a pot\'s goal as a bar with its percentage', async () => {
+    setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await user.click(bankButton('Monzo'));
+    const over = opened().getByText('Main').closest('li') as HTMLElement;
+    expect(over).toHaveTextContent('overdrawn -£747.82');
+    expect(over).toHaveTextContent('75% of the £1,000.00 overdraft used · £252.18 free');
+    const trip = opened().getByText('Trip').closest('li') as HTMLElement;
+    expect(trip).toHaveTextContent('25% of the £1,000.00 goal');
+    expect(trip.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '25%' });
+    // A pot with no goal has no bar.
+    expect((opened().getByText('Rainy day').closest('li') as HTMLElement).textContent).not.toMatch(/goal/);
+  });
+
+  it('shows spend by category: the month, the total and its change, a bar per category with its share and the change from last month in words and a sign', async () => {
+    setup({ finance: kinds() });
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
+    await panel.findByText(/November · GBP £100\.00 · 6% less than October/);
+    const rows = panel.getAllByRole('listitem');
+    // Largest first; a category with nothing spent is not listed.
+    expect(rows.map((row) => row.getAttribute('data-category'))).toEqual(['groceries', 'eating_out']);
+    expect(rows[0]).toHaveTextContent('Groceries');
+    expect(rows[0]).toHaveTextContent('£60.00 · 60% · +£10.00 (was £50.00)');
+    expect(rows[1]).toHaveTextContent('£40.00 · 40% · -£16.38 (was £56.38)');
+    expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '60%' });
+    expect(panel.getByText(/Transfers between your own accounts and pots are not counted/)).toBeInTheDocument();
+  });
+
+  it('says nothing was spent when the month has no spending, and has an error with a retry for the block', async () => {
+    const api = setup({ fail: ['financeCategories'] });
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
+    expect(await panel.findByRole('alert')).toHaveTextContent('Could not load spending by category.');
+    api.fail.delete('financeCategories');
+    await userEvent.setup().click(panel.getByRole('button', { name: 'Try again' }));
+    expect(await panel.findByText('No spending this month yet.')).toBeInTheDocument();
+  });
+
+  it('offers category chips for the categories with spending, filters the rows through the API, and labels each row with its category', async () => {
+    const api = setup({ finance: kinds() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const list = within(await within(main()).findByRole('region', { name: 'Transactions' }));
+    await list.findByText('Weekly shop');
+    const chips = await list.findByRole('group', { name: 'Category' });
+    const names = within(chips).getAllByRole('button').map((chip) => chip.textContent);
+    expect(names).toEqual(['All categories', 'Groceries', 'Eating out', 'Income']);
+    expect(within(list.getAllByRole('listitem')[0]).getByText('Groceries')).toBeInTheDocument();
+    await user.click(within(chips).getByRole('button', { name: 'Groceries' }));
+    await waitFor(() => expect(api.callsTo('GET', '/finance/transactions').some((call) => call.url.includes('category=groceries'))).toBe(true));
+    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(1));
+    expect(within(chips).getByRole('button', { name: 'Groceries' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(chips).getByRole('button', { name: 'All categories' }));
+    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(3));
   });
 });
 

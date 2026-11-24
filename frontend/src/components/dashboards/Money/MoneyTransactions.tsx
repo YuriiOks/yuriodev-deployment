@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import type { FinanceAccount, FinanceTransaction } from '../../../services/dashboards/financeApi';
+import { CATEGORIES, type Category, type FinanceAccount, type FinanceTransaction } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import Amount from './Amount';
@@ -51,6 +51,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
               {providerName(account.provider)} · {account.name}
             </span>
           )}
+          <span className={styles.tag}>{m.categories[item.category]}</span>
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
@@ -69,6 +70,8 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
 
 export interface MoneyTransactionsProps {
   banks: readonly Bank[];
+  /** The categories that have spending this month (the server's report), offered as chips beside the ones seen in the rows. */
+  categories: readonly Category[];
   mode: MoneyDisplay;
   enabled: boolean;
 }
@@ -77,12 +80,13 @@ export interface MoneyTransactionsProps {
  * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enabled }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, enabled }) => {
   const { t } = useDashboardLang();
   const m = t.money;
   const id = useId();
   const [provider, setProvider] = useState<string | null>(null);
   const [account, setAccount] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState('');
   useEffect(() => {
@@ -93,7 +97,8 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enab
   const allAccounts = banks.flatMap((bank) => bank.accounts);
   const byId = new Map(allAccounts.map((item) => [item.id, item]));
   const bank = banks.find((candidate) => candidate.provider === provider) ?? null;
-  const list = useTransactions(account, query, enabled);
+  const list = useTransactions(account, category, query, enabled);
+  const chipCategories = CATEGORIES.filter((candidate) => candidate === category || categories.includes(candidate) || list.transactions.some((item) => item.category === candidate));
   const inBank = bank ? new Set(bank.accounts.map((item) => item.id)) : null;
   const shown = list.transactions.filter((item) => !inBank || inBank.has(item.accountId));
 
@@ -130,6 +135,18 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enab
               </button>
             ))}
         </div>
+        {chipCategories.length > 0 && (
+          <div role="group" aria-label={m.categoryFilter} className={styles.chips}>
+            <button type="button" className={cx(styles.chip, category === null && styles.chipOn)} aria-pressed={category === null} onClick={() => setCategory(null)}>
+              {m.allCategories}
+            </button>
+            {chipCategories.map((candidate) => (
+              <button key={candidate} type="button" className={cx(styles.chip, category === candidate && styles.chipOn)} aria-pressed={category === candidate} onClick={() => setCategory(candidate)}>
+                {m.categories[candidate]}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={styles.fields}>
           {bank && (
             <div className={styles.field}>

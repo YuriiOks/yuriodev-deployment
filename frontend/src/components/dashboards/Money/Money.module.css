@@ -632,3 +632,90 @@
   font-weight: 700;
   line-height: var(--dash-lh-title);
 }
+
+/* A pot's goal bar. */
+.goalBar {
+  height: 0.375rem;
+  overflow: hidden;
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+}
+
+.goalFill {
+  height: 100%;
+  background: var(--dash-accent);
+}
+
+/* Spend by category: one block per currency, a bar per category. */
+.spend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.spendCurrency {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.spendHead {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.spendList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spendRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.spendTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.spendName {
+  color: var(--dash-t1);
+  font-weight: 700;
+}
+
+.spendNumbers {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  text-align: right;
+}
+
+.spendBar {
+  height: 0.625rem;
+  overflow: hidden;
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+}
+
+.spendFill {
+  height: 100%;
+  background: var(--dash-accent);
+}
+
+.spendNote {
+  margin: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
