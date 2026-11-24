@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore';
 
 export interface Call {
   readonly method: string;
@@ -20,6 +20,8 @@ export interface FakeApi {
   readonly calls: Call[];
   readonly tasks: Record<string, unknown>[];
   readonly events: Record<string, unknown>[];
+  /** The finance API's data (invented in the tests): accounts, bank links, transactions (newest first), the month's summary. */
+  readonly finance: FinanceData;
   /** The projects; their tasks are in `tasks`, with a `project_id` and no `space_id`. */
   readonly projects: { id: string; name: string; archived: boolean; icon: string | null }[];
   readonly fail: Set<FailKey>;
@@ -101,7 +103,16 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const failure = (status = 500) => json({ error: 'internal_error', message: 'x', request_id: 'test' }, status);
 
+export interface FinanceData {
+  accounts: Record<string, unknown>[];
+  connections: Record<string, unknown>[];
+  transactions: Record<string, unknown>[];
+  summary: Record<string, unknown>;
+}
+
 export interface FakeApiOptions {
+  readonly finance?: Partial<FinanceData>;
+
   readonly enabled?: boolean;
   readonly tasks?: Record<string, unknown>[];
   readonly events?: Record<string, unknown>[];
@@ -113,11 +124,12 @@ export interface FakeApiOptions {
   readonly spaceIcons?: Record<string, string>;
 }
 
-export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {} }: FakeApiOptions = {}): FakeApi {
+export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {} }: FakeApiOptions = {}): FakeApi {
   const api: FakeApi = {
     calls: [],
     tasks,
     events,
+    finance: { accounts: [], connections: [], transactions: [], summary: { month: '2026-11', as_of: null, currencies: [] }, ...finance },
     projects: projects.map((p) => ({ archived: false, icon: null, ...p })),
     fail: new Set(fail),
     gate: null,
@@ -140,6 +152,27 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     if (path === '/bootstrap') {
       if (api.fail.has('bootstrap')) return failure();
       return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal', icon: spaceIcons.personal ?? null }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1', icon: spaceIcons['work-1'] ?? null }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2', icon: spaceIcons['work-2'] ?? null }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name, icon }) => ({ id, name, icon })), server_time: new Date().toISOString() } : { enabled: false });
+    }
+    if (path === '/finance/accounts') {
+      if (api.fail.has('financeAccounts')) return failure();
+      return json({ accounts: api.finance.accounts, connections: api.finance.connections });
+    }
+    if (path === '/finance/summary') {
+      if (api.fail.has('financeSummary')) return failure();
+      return json(api.finance.summary);
+    }
+    if (path === '/finance/transactions') {
+      const cursor = url.searchParams.get('cursor');
+      if (api.fail.has('financeTransactions') || (cursor && api.fail.has('financeMore'))) return failure();
+      const account = url.searchParams.get('account');
+      const q = (url.searchParams.get('q') ?? '').toLowerCase();
+      const limit = Number(url.searchParams.get('limit') ?? 25);
+      const found = api.finance.transactions.filter(
+        (item) => (!account || item.account_id === account) && (!q || `${item.description} ${item.counterparty ?? ''}`.toLowerCase().includes(q)),
+      );
+      const start = cursor ? Number(cursor) : 0;
+      const page = found.slice(start, start + limit);
+      return json({ transactions: page, next_cursor: start + limit < found.length ? String(start + limit) : null });
     }
     if (path === '/summary') {
       if (api.fail.has('summary')) return failure();

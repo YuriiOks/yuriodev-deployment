@@ -2,7 +2,7 @@ import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
 import type { ProjectIconKey } from './projectIcons';
 
 /** The page a document title is for. */
-export type TitleKey = SpaceId | 'hub' | 'calendar';
+export type TitleKey = SpaceId | 'hub' | 'calendar' | 'money';
 
 export const LANGS: readonly Lang[] = ['ru', 'en'];
 export const DEFAULT_LANG: Lang = 'ru';
@@ -128,6 +128,50 @@ export interface Strings {
   readonly themeToDark: string;
   /** The document title of each page, before " | <name>". */
   readonly titles: Record<TitleKey, string>;
+  /** The Money page of the personal space (read-only, from the finance API). */
+  readonly money: {
+    readonly navLink: string;
+    readonly title: string;
+    readonly back: string;
+    readonly accountsTitle: string;
+    readonly pots: string;
+    readonly archived: string;
+    readonly creditLimit: string;
+    readonly historyFrom: string;
+    readonly balanceAt: string;
+    readonly noAccounts: string;
+    readonly needsData: string;
+    readonly accountsFailed: string;
+    readonly monthTitle: string;
+    readonly monthFailed: string;
+    readonly spent: string;
+    readonly received: string;
+    readonly balance: string;
+    readonly accountsCount: string;
+    readonly linkOk: string;
+    readonly linkNeedsReconsent: string;
+    readonly linkPaused: string;
+    readonly linkNone: string;
+    readonly lastOk: string;
+    readonly reconnect: string;
+    readonly reconnectHint: string;
+    readonly transactionsTitle: string;
+    readonly allAccounts: string;
+    readonly accountFilter: string;
+    readonly search: string;
+    readonly searchPlaceholder: string;
+    readonly empty: string;
+    readonly failed: string;
+    readonly loadMore: string;
+    readonly loadingMore: string;
+    readonly moreFailed: string;
+    readonly moneyIn: string;
+    readonly moneyOut: string;
+    readonly pending: string;
+    readonly declined: string;
+    readonly internal: string;
+    readonly originalAmount: string;
+  };
   readonly navAll: string;
   readonly navCalendar: string;
   readonly langLabel: string;
@@ -313,7 +357,50 @@ export const STRINGS: Record<Lang, Strings> = {
     backToSite: 'yuriodev: на сайт',
     themeToLight: 'Включить светлую тему',
     themeToDark: 'Включить тёмную тему',
-    titles: { hub: 'Дашборды', personal: 'Личное', 'work-1': 'Работа 1', 'work-2': 'Работа 2', calendar: 'Календарь' },
+    titles: { hub: 'Дашборды', personal: 'Личное', 'work-1': 'Работа 1', 'work-2': 'Работа 2', calendar: 'Календарь', money: 'Деньги' },
+    money: {
+      navLink: 'Деньги',
+      title: 'Деньги',
+      back: 'К личному',
+      accountsTitle: 'Счета',
+      pots: 'Копилки',
+      archived: 'в архиве',
+      creditLimit: 'кредитный лимит {amount}',
+      historyFrom: 'история с {date}',
+      balanceAt: 'на {date}',
+      noAccounts: 'Счетов пока нет.',
+      needsData: 'Деньги доступны только на реальных данных.',
+      accountsFailed: 'Не удалось загрузить счета.',
+      monthTitle: 'Этот месяц',
+      monthFailed: 'Не удалось загрузить итоги месяца.',
+      spent: 'потрачено',
+      received: 'получено',
+      balance: 'баланс',
+      accountsCount: 'счетов: {n}',
+      linkOk: 'подключено',
+      linkNeedsReconsent: 'нужно переподключить',
+      linkPaused: 'приостановлено',
+      linkNone: 'нет подключения',
+      lastOk: 'обновлено {when}',
+      reconnect: 'Переподключить',
+      reconnectHint: 'Банк просит подтвердить доступ заново. Данные не обновляются, пока это не сделано.',
+      transactionsTitle: 'Операции',
+      allAccounts: 'Все счета',
+      accountFilter: 'Счёт',
+      search: 'Поиск по операциям',
+      searchPlaceholder: 'Описание или получатель',
+      empty: 'Операций не найдено.',
+      failed: 'Не удалось загрузить операции.',
+      loadMore: 'Загрузить ещё',
+      loadingMore: 'Загрузка…',
+      moreFailed: 'Не удалось загрузить ещё.',
+      moneyIn: 'Поступление',
+      moneyOut: 'Списание',
+      pending: 'в обработке',
+      declined: 'отклонено',
+      internal: 'между своими счетами',
+      originalAmount: 'в оригинале {amount}',
+    },
     navAll: 'Все',
     navCalendar: 'Календарь',
     langLabel: 'Язык',
@@ -501,7 +588,50 @@ export const STRINGS: Record<Lang, Strings> = {
     backToSite: 'yuriodev: back to the site',
     themeToLight: 'Switch to light theme',
     themeToDark: 'Switch to dark theme',
-    titles: { hub: 'Dashboards', personal: 'Personal', 'work-1': 'Work 1', 'work-2': 'Work 2', calendar: 'Calendar' },
+    titles: { hub: 'Dashboards', personal: 'Personal', 'work-1': 'Work 1', 'work-2': 'Work 2', calendar: 'Calendar', money: 'Money' },
+    money: {
+      navLink: 'Money',
+      title: 'Money',
+      back: 'Back to Personal',
+      accountsTitle: 'Accounts',
+      pots: 'Pots',
+      archived: 'archived',
+      creditLimit: 'credit limit {amount}',
+      historyFrom: 'history from {date}',
+      balanceAt: 'as of {date}',
+      noAccounts: 'No accounts yet.',
+      needsData: 'Money needs the live data.',
+      accountsFailed: 'Could not load the accounts.',
+      monthTitle: 'This month',
+      monthFailed: 'Could not load this month\'s totals.',
+      spent: 'spent',
+      received: 'received',
+      balance: 'balance',
+      accountsCount: '{n} accounts',
+      linkOk: 'connected',
+      linkNeedsReconsent: 'needs reconnecting',
+      linkPaused: 'paused',
+      linkNone: 'no connection',
+      lastOk: 'updated {when}',
+      reconnect: 'Reconnect',
+      reconnectHint: 'The bank asks you to confirm access again. Nothing updates until you do.',
+      transactionsTitle: 'Transactions',
+      allAccounts: 'All accounts',
+      accountFilter: 'Account',
+      search: 'Search transactions',
+      searchPlaceholder: 'Description or payee',
+      empty: 'No transactions found.',
+      failed: 'Could not load the transactions.',
+      loadMore: 'Load more',
+      loadingMore: 'Loading…',
+      moreFailed: 'Could not load more.',
+      moneyIn: 'Money in',
+      moneyOut: 'Money out',
+      pending: 'pending',
+      declined: 'declined',
+      internal: 'between your accounts',
+      originalAmount: 'originally {amount}',
+    },
     navAll: 'All',
     navCalendar: 'Calendar',
     langLabel: 'Language',

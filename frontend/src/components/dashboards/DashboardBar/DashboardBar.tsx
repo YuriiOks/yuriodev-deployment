@@ -91,7 +91,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
         </div>
         <nav ref={navRef} aria-label={t.navLabel} className={styles.nav} data-more={more ? 'true' : undefined}>
           {items.map(([id, label, mark]) => (
-            <NavLink key={id} to={pagePath(id)} end className={navClass}>
+            <NavLink key={id} to={pagePath(id)} end={id === 'dashboards'} className={navClass}>
               <Mark>{mark}</Mark>
               {label}
             </NavLink>

@@ -57,6 +57,8 @@ export const PATHS = {
   'dashed-circle': ['M12 3a9 9 0 0 1 3.2.6', 'M18.6 5.8a9 9 0 0 1 2.4 3.4', 'M21 14a9 9 0 0 1-2.4 4.3', 'M15.5 20.4A9 9 0 0 1 12 21', 'M8.5 20.4a9 9 0 0 1-3.1-2', 'M3.6 14.8A9 9 0 0 1 3 12', 'M4.2 8.4a9 9 0 0 1 2.4-3'],
   dot: ['M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z'],
   document: ['M6.5 3.5h7l4 4v13h-11v-17Z', 'M13.5 3.5v4h4', 'M9 12h6', 'M9 15.5h6'],
+  'arrow-down-left': ['M17 7 7 17', 'M17 17H7V7'],
+  'arrow-up-right': ['M7 17 17 7', 'M7 7h10v10'],
   grid: ['M4.5 4.5h6v6h-6Z', 'M13.5 4.5h6v6h-6Z', 'M4.5 13.5h6v6h-6Z', 'M13.5 13.5h6v6h-6Z'],
   calendar: ['M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z', 'M4 10h16', 'M8 3v4', 'M16 3v4'],
 } as const satisfies Record<string, readonly string[]>;

@@ -1,6 +1,7 @@
 import AreaIcon from '../components/dashboards/AreaIcon/AreaIcon';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
+import { pagePath } from '../data/site';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import NotConnected from '../components/dashboards/NotConnected/NotConnected';
@@ -246,7 +247,14 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     <>
       <div className={styles.top}>
         <SpaceHero space={space} hero={hero} />
-        <SourceTabs tabs={tabs} current={current} counts={tabCounts} onSelect={setSelected} idPrefix={space} />
+        <SourceTabs
+          tabs={tabs}
+          current={current}
+          counts={tabCounts}
+          onSelect={setSelected}
+          idPrefix={space}
+          link={space === 'personal' ? { to: pagePath('dashboards-money'), label: t.money.navLink } : undefined}
+        />
       </div>
       {workingTab && <QuickAdd placeholder={t.addTask} onSubmit={create} />}
       <div

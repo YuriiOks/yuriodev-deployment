@@ -28,6 +28,7 @@ export function promptPlace(pathname: string, names: PromptNames): string {
     const id = decodeURIComponent(pathname.slice(PROJECTS_PATH.length + 1).replace(/\/+$/, ''));
     return `dashboards/projects/${promptSlug(names.projectName(id) ?? id) || 'project'}`;
   }
+  if (pageAt(pathname)?.id === 'dashboards-money') return `dashboards/${promptSlug(names.spaceName('personal') ?? 'personal') || 'personal'}/money`;
   const space = spaceAt(pathname);
   if (space) return `dashboards/${promptSlug(names.spaceName(space) ?? space) || space}`;
   if (pageAt(pathname)?.id === 'dashboards-calendar') return 'dashboards/calendar';

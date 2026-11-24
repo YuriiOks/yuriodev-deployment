@@ -2,6 +2,15 @@
    tint and edge, no icon, and the count as a small mono pill. The row never wraps: it scrolls sideways when the tabs
    do not fit and fades out at the right edge (a mask on the scroller), so a cut-off tab reads as "more this way". */
 .tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The tab list takes the room and scrolls; the link beside it stays put. */
+.tabs > .scroller {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -72,5 +81,19 @@
 @media (forced-colors: active) {
   .on {
     border-color: Highlight;
+  }
+}
+
+/* A page beside the tabs: the same pill, a link with an arrow. */
+.link {
+  composes: tab;
+  text-decoration: none;
+  color: var(--dash-accent);
+  border-color: var(--dash-prio-edge);
+}
+
+@media (hover: hover) {
+  .link:hover {
+    border-color: var(--dash-accent);
   }
 }

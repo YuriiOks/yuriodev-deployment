@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import type { TabId } from '../../../services/dashboards/types';
 import { cx } from '../../../utils/cx';
@@ -12,6 +13,8 @@ export interface SourceTabsProps {
   onSelect: (tab: TabId) => void;
   /** Makes the tab and panel ids unique on the page; the panel is `${idPrefix}-panel`. */
   idPrefix: string;
+  /** A page of its own beside the tabs (the personal space's Money): a link, not a tab. */
+  link?: { to: string; label: string };
 }
 
 /**
@@ -19,7 +22,7 @@ export interface SourceTabsProps {
  * arrow keys, Home and End move between the tabs and select the one reached,
  * and the selected tab controls the panel grid beside it.
  */
-const SourceTabs: React.FC<SourceTabsProps> = ({ tabs, current, counts, onSelect, idPrefix }) => {
+const SourceTabs: React.FC<SourceTabsProps> = ({ tabs, current, counts, onSelect, idPrefix, link }) => {
   const { t } = useDashboardLang();
   const refs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
 
@@ -65,6 +68,12 @@ const SourceTabs: React.FC<SourceTabsProps> = ({ tabs, current, counts, onSelect
           );
         })}
       </div>
+      {link && (
+        <Link to={link.to} className={styles.link}>
+          {link.label}
+          <span aria-hidden="true">→</span>
+        </Link>
+      )}
     </nav>
   );
 };
