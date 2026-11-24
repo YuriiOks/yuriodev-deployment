@@ -47,7 +47,13 @@ async def test_the_finance_tools_only_read_but_one_notes_a_category(db_url, make
         "finance_upcoming",
         "finance_attention",
     }  # the owner's own list of payments, also notes
-    assert finance == READ_ONLY | notes | recurring
+    manual = {
+        "finance_add_manual_connection",
+        "finance_add_manual_account",
+        "finance_set_manual_balance",
+        "finance_update_manual_account",
+    }  # banks entered by hand
+    assert finance == READ_ONLY | notes | recurring | manual
 
 
 async def test_accounts_and_balances(db_url, make_dashboards_app):

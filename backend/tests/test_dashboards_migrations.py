@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0015"
+    assert version == "dashboards_0016"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -433,3 +433,27 @@ async def test_a_manual_connection_has_its_own_flag_and_a_colour_pair(empty_db_u
     )
 
     assert default is False
+
+
+async def test_the_category_checks_take_transfers_out_and_still_refuse_the_rest(empty_db_url):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_LINK, NEW_ACCOUNT, NEW_TRANSACTION)
+
+    checks = await scalar(
+        empty_db_url,
+        "SELECT count(*) FROM pg_constraint WHERE conrelid = 'finance.transaction'::regclass "
+        "AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%category%'",
+    )
+    for statement in (
+        "UPDATE finance.transaction SET category = 'fun'",
+        "UPDATE finance.transaction SET category_override = 'fun'",
+    ):
+        with pytest.raises(IntegrityError):
+            await execute(empty_db_url, statement)
+    await execute(
+        empty_db_url,
+        "UPDATE finance.transaction SET category = 'transfers_out', "
+        "category_override = 'transfers_out'",
+    )
+
+    assert checks == 2

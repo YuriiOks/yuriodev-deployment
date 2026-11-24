@@ -19,7 +19,8 @@ from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.dashboards.finance import recurring_service, service
+from src.dashboards.finance import manual, recurring_service, service
+from src.dashboards.finance.manual import AccountIn, BalanceIn, ConnectionIn, ManualAccountPatch
 from src.dashboards.finance.recurring import RecurringIn, RecurringPatch
 from src.dashboards.finance.recurring_schemas import RecurringOut
 from src.dashboards.finance.schemas import (
@@ -238,3 +239,87 @@ def register(
             display = await service.display_for(session, display_currency, now)
             found = await recurring_service.attention(session, now, zone, display, include_hidden)
             return _json(found.model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def finance_add_manual_connection(
+        provider: str,
+        display_name: str | None = None,
+        brand_bg: str | None = None,
+        brand_fg: str | None = None,
+    ) -> str:
+        """Add a bank that has no API, entered by hand. provider is a lower-case id (barclays,
+        lloyds, aqua, revolut, wise, starling, paypal, or your own neutral id); display_name and
+        the colours (#rrggbb pair with a contrast of 4.5) are for a bank that has no built-in
+        brand. monobank and monzo are connected through their APIs and are refused."""
+        try:
+            data = ConnectionIn.model_validate(
+                {
+                    "provider": provider,
+                    "display_name": display_name,
+                    "brand_bg": brand_bg,
+                    "brand_fg": brand_fg,
+                }
+            )
+        except ValidationError as exc:
+            raise _bad_fields(exc) from None
+        async with scope("finance_add_manual_connection") as (session, _):
+            link = await manual.create_connection(session, data)
+            return _json(ConnectionOut.model_validate(link).model_dump(mode="json"))
+
+    @server.tool(structured_output=False)
+    async def finance_add_manual_account(account: dict[str, Any]) -> str:
+        """Add an account to a manual connection (its id is in finance_accounts). Required:
+        connection_id, name, currency (ISO code) and for a current, savings or business account
+        balance (minor units, may be negative); for kind credit_card credit_limit and owed
+        instead. Optional: kind (current, credit_card, savings, business), as_of (YYYY-MM-DD or a
+        time with an offset, default now), mask_last4, label, type, opened_at, overdraft_limit."""
+        try:
+            data = AccountIn.model_validate(account)
+        except ValidationError as exc:
+            raise _bad_fields(exc) from None
+        async with scope("finance_add_manual_account") as (session, now):
+            row = await manual.create_account(session, data, now, zone)
+            return await _account_json(session, row.id, now)
+
+    @server.tool(structured_output=False)
+    async def finance_set_manual_balance(
+        account: str,
+        balance: int | None = None,
+        owed: int | None = None,
+        as_of: str | None = None,
+    ) -> str:
+        """Set the balance of an account entered by hand (minor units; a credit card takes owed,
+        what is owed now, instead of balance), as of a day (YYYY-MM-DD) or a time with an offset;
+        default now, never in the future."""
+        try:
+            account_id = uuid.UUID(account)
+        except ValueError:
+            raise ToolError("Invalid account id") from None
+        try:
+            data = BalanceIn.model_validate({"balance": balance, "owed": owed, "as_of": as_of})
+        except ValidationError as exc:
+            raise _bad_fields(exc) from None
+        async with scope("finance_set_manual_balance") as (session, now):
+            await manual.set_balance(session, account_id, data, now, zone)
+            return await _account_json(session, account_id, now)
+
+    @server.tool(structured_output=False)
+    async def finance_update_manual_account(account: str, changes: dict[str, Any]) -> str:
+        """Change an account entered by hand: name, label, mask_last4, credit_limit (a credit
+        card; what is owed stays) or archived (true hides it, false brings it back)."""
+        try:
+            account_id = uuid.UUID(account)
+        except ValueError:
+            raise ToolError("Invalid account id") from None
+        try:
+            patch = ManualAccountPatch.model_validate(changes)
+        except ValidationError as exc:
+            raise _bad_fields(exc) from None
+        async with scope("finance_update_manual_account") as (session, now):
+            await manual.update_account(session, account_id, patch, now)
+            return await _account_json(session, account_id, now)
+
+    async def _account_json(session: AsyncSession, account_id: uuid.UUID, now: datetime) -> str:
+        row, oldest = await service.account_with_history(session, account_id)
+        display = await service.display_for(session, display_currency, now)
+        return _json(AccountOut.from_row(row, oldest, display).model_dump(mode="json"))

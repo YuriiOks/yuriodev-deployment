@@ -115,6 +115,7 @@ class MonobankProvider(ProviderDefaults):
     refresh_every = timedelta(minutes=20)  # balances three times an hour
     max_window = timedelta(days=31)  # documented: at most 31 days and 1 hour
     page_limit = MAX_PAGE
+    pairs_transfers = True  # a card-to-card move between own cards is two unrelated lines
 
     def __init__(self, token: SecretStr) -> None:
         self._token = token
