@@ -60,34 +60,45 @@ describe('the switch between real data and the sample data', () => {
     expect(api.calls.filter((call) => call.path === '/bootstrap')).toHaveLength(1);
   });
 
-  it('keeps the sample data when the bootstrap says disabled', async () => {
+  it('runs the labelled demo on the sample data when the bootstrap says disabled (no database configured)', async () => {
     const api = setup({ enabled: false });
     renderAt('/dashboards/personal');
     expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
     expect(api.calls.map((call) => call.path)).toEqual(['/bootstrap']);
-    // Every sample tab is still there, with its counter.
+    // Every sample tab is still there, with its counter, and the page says it is a demo.
     expect(within(main()).getByRole('tab', { name: /^Почта/ })).toHaveTextContent('8');
+    expect(within(main()).getByRole('note')).toHaveTextContent('Демо: примерные данные');
   });
 
-  it.each([
-    ['a failing answer', { fail: ['bootstrap'] } as FakeApiOptions],
-  ])('keeps the sample data on %s', async (_name, options) => {
-    setup(options);
-    renderAt('/dashboards/personal');
-    expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
+  it('never shows the sample data when the answer fails: a plain "cannot reach the server" block with a retry', async () => {
+    setup({ fail: ['bootstrap'] });
+    renderAt('/dashboards');
+    const block = await within(main()).findByRole('alert');
+    expect(block).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).queryByRole('note')).toBeNull();
+    for (const sample of ['Gym session', 'Тренировка', 'Оплатить счёт за электричество']) expect(within(main()).queryByText(sample)).toBeNull();
+    expect(within(main()).queryByRole('region', { name: 'Личное' })).toBeNull();
+    expect(within(block).getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
   });
 
-  it('keeps the sample data on a network error and on a non-JSON answer', async () => {
+  it('says the same on a network error and on a non-JSON answer, and recovers with the retry', async () => {
     setup();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
     const first = renderAt('/dashboards/personal');
-    expect(await within(main()).findByText('Оплатить счёт за электричество')).toBeInTheDocument();
+    expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).queryByText('Оплатить счёт за электричество')).toBeNull();
     first.unmount();
 
     resetBootstrap();
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('<html>nginx</html>', { status: 200 }))));
     renderAt('/dashboards/work-1');
-    expect(await within(main()).findByText('Ревью #123: пример изменения')).toBeInTheDocument();
+    expect(await within(main()).findByRole('alert')).toHaveTextContent('Нет связи с сервером');
+    expect(within(main()).queryByText('Ревью #123: пример изменения')).toBeNull();
+
+    vi.unstubAllGlobals();
+    installFakeApi();
+    await userEvent.setup().click(within(main()).getByRole('button', { name: 'Повторить' }));
+    expect(await within(main()).findByText('Review the pull request')).toBeInTheDocument();
   });
 
   it('shows a quiet placeholder, not the sample data, while the answer is on its way', async () => {

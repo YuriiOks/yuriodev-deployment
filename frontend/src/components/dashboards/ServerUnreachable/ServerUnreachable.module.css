@@ -1,0 +1,37 @@
+/* A calm block in the panel look: the title with an alert mark in the danger colour, two quiet lines and the retry. */
+.panel {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 40rem;
+  padding: var(--space-4);
+  box-sizing: border-box;
+  border-radius: var(--dash-r-surface);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  color: var(--dash-danger);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}
+
+.title::before,
+.title::after {
+  content: none;
+}
+
+.text {
+  margin: 0;
+  color: var(--dash-t2);
+}
+
+.retry {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+}

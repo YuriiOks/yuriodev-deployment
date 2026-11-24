@@ -1,43 +1,13 @@
-/* The hub's Projects section: a quiet h2, then cards in the entrance's own grid; the cards are the space cards'
-   (their classes are composed, not copied), and the "new project" tile is a flat surface with a hairline, so it
-   reads as "add" next to the glass cards. */
+/* The hub's Projects section: the section strip, then cards in the entrance's own grid (pages/dashboards.module.css .cards, the
+   very same columns as the space cards above); the cards are the space cards' (their classes are composed, not copied). */
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin-top: var(--space-3);
-}
-
-/* global.css gives every h2 an underline and spacing: both cleared; the '# ' mark stays, in the page's cyan. */
-.section .title {
-  margin: 0;
-  padding: 0;
-  color: var(--dash-heading);
-  font-size: var(--dash-fs-title);
-  font-weight: 700;
-  line-height: var(--dash-lh-title);
-}
-
-.section .title::before {
-  content: '# ';
-  color: var(--dash-accent);
-}
-
-.section .title::after {
-  content: none;
 }
 
 .cards {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: stretch;
-}
-
-@media (min-width: 64rem) {
-  .cards {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  composes: cards from '../../../pages/dashboards.module.css';
 }
 
 .card {
@@ -80,40 +50,6 @@
   composes: label from '../SpaceCard/SpaceCard.module.css';
 }
 
-/* The new-project tile: the same footprint as a card, a button. */
-.newTile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: 6.5rem;
-  padding: var(--space-4);
-  box-sizing: border-box;
-  background: transparent;
-  border: 1px dashed var(--dash-edge);
-  border-radius: var(--dash-r-surface);
-  color: var(--dash-t2);
-  font-family: var(--dash-font-ui);
-  font-size: var(--dash-fs-ui);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    border-color 120ms,
-    color 120ms;
-}
-
-@media (hover: hover) {
-  .newTile:hover {
-    border-color: var(--dash-edge);
-    color: var(--dash-t1);
-  }
-}
-
-.plus {
-  font-size: var(--dash-fs-title);
-  line-height: 1;
-}
-
 .newForm {
   gap: var(--space-3);
 }
@@ -138,9 +74,14 @@
   composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
 }
 
-/* From 100rem the projects take four to a row. */
-@media (min-width: 100rem) {
-  .cards {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+/* The strip's action: a small ghost button, "+ New project". */
+.add {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+/* No projects yet: one quiet line in the grid. */
+.none {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--dash-t2);
 }

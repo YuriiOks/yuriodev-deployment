@@ -45,7 +45,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t } = useDashboardLang();
   const { nameOf, serverNameOf } = useSpaceNames();
   useProjects(); // asks for the shared list (live data only); the pills themselves come from useBarData
-  const { phase, projects: active } = useBarData();
+  const { phase, projects: active, stale } = useBarData();
   const currentRef = useRef<HTMLAnchorElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const [more, setMore] = useState(false);
@@ -85,7 +85,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const items = [...before, ...spaces, ...after];
 
   return (
-    <div className={styles.bar}>
+    <div className={styles.bar} data-stale={stale ? 'true' : undefined}>
       <div className={styles.inner}>
         <div className={cx(header.terminalPrompt, styles.prompt)}>
           <span className={cx(header.promptFull, styles.full)}>yurii@yuriodev:~$ ./{place}</span>
@@ -96,14 +96,14 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
         </div>
         <nav ref={navRef} aria-label={t.navLabel} className={styles.nav} data-more={more ? 'true' : undefined} aria-busy={phase === 'placeholder' ? true : undefined}>
           {phase === 'placeholder' && SKELETON.map((key) => <span key={key} aria-hidden="true" data-skeleton="true" className={styles.skeleton} />)}
-          {phase !== 'placeholder' && items.map(([id, label, mark]) => (
+          {phase !== 'placeholder' && phase !== 'unreachable' && items.map(([id, label, mark]) => (
             <NavLink key={id} to={pagePath(id)} end={id === 'dashboards'} className={navClass}>
               <Mark>{mark}</Mark>
               {label}
             </NavLink>
           ))}
-          {phase !== 'placeholder' && active.length > 0 && <span role="separator" aria-orientation="vertical" aria-label={t.navProjects} className={styles.divider} />}
-          {phase !== 'placeholder' && active.map((project) => (
+          {phase !== 'placeholder' && phase !== 'unreachable' && active.length > 0 && <span role="separator" aria-orientation="vertical" aria-label={t.navProjects} className={styles.divider} />}
+          {phase !== 'placeholder' && phase !== 'unreachable' && active.map((project) => (
             <NavLink key={project.id} to={projectPath(project.id)} end className={navClass} ref={pathname === projectPath(project.id) ? currentRef : undefined}>
               <Mark>
                 <ProjectTile name={project.name} icon={project.icon} />

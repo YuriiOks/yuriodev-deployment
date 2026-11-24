@@ -1,0 +1,52 @@
+/* The section strip: the hub header's family at half its height (glass, the surface radius, the page's accent border). The title
+   is the heading colour led by the accent '# ' (global.css's h2 underline and spacing are cleared), the count a small bordered
+   pill like a panel's, the action pushed to the right. */
+.strip {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--dash-h-control);
+  padding: var(--space-1) var(--space-3);
+  box-sizing: border-box;
+  border-color: color-mix(in srgb, var(--dash-accent) 40%, transparent);
+  border-radius: var(--dash-r-surface);
+}
+
+.strip .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}
+
+.strip .title::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
+.strip .title::after {
+  content: none;
+}
+
+.count {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  min-width: 1.375rem;
+  padding: 0 var(--space-2);
+  box-sizing: border-box;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-prio-edge);
+  border-radius: var(--radius-pill);
+  color: var(--dash-accent);
+  font-size: var(--dash-fs-meta);
+  font-weight: 700;
+  line-height: 1.125rem;
+  text-align: center;
+}
+
+.action {
+  display: flex;
+  margin-left: auto;
+}

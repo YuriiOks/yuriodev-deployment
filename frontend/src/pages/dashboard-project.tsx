@@ -4,6 +4,7 @@ import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import IconPicker from '../components/dashboards/IconPicker/IconPicker';
+import ProjectHero from '../components/dashboards/ProjectHero/ProjectHero';
 import ProjectTile from '../components/dashboards/ProjectTile/ProjectTile';
 import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
 import TaskPanel from '../components/dashboards/TaskPanel/TaskPanel';
@@ -13,7 +14,7 @@ import { useLiveTasks } from '../hooks/useLiveTasks';
 import { useNow } from '../hooks/useNow';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useProjects } from '../hooks/useProjects';
-import { fill } from '../services/dashboards/calendarLabels';
+import { dateLabel, fill } from '../services/dashboards/calendarLabels';
 import type { LiveProject, LiveTask } from '../services/dashboards/liveApi';
 import { localDate } from '../services/dashboards/liveTime';
 import { groupTasks } from '../services/dashboards/taskGroups';
@@ -57,6 +58,11 @@ const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
   const tasks = useLiveTasks({ project: project.id });
   const today = localDate(useNow());
   const groups = groupTasks(tasks.tasks, today, tasks.sticky);
+  // The strip's facts: what is open, what is overdue, and the nearest date still ahead.
+  const openTasks = tasks.tasks.filter((task) => task.status === 'open');
+  const openCount = openTasks.length;
+  const overdue = openTasks.filter((task) => task.dueDate !== null && task.dueDate < today).length;
+  const nextDue = openTasks.map((task) => task.dueDate).filter((due): due is string => due !== null && due >= today).sort()[0] ?? null;
   const nameRef = useRef<HTMLInputElement>(null);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(project.name);
@@ -160,36 +166,47 @@ const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
 
   return (
     <>
-      <div className={styles.head}>
-        <ProjectTile name={project.name} icon={project.icon} />
-        {renaming ? (
-          <form
-            className={styles.rename}
-            aria-label={t.renameProject}
-            onSubmit={saveName}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') stopRenaming();
-            }}
-          >
-            <input
-              ref={nameRef}
-              className={styles.input}
-              aria-label={t.projectName}
-              value={name}
-              maxLength={80}
-              onChange={(event) => setName(event.target.value)}
-            />
-            <button type="submit" className={styles.save} disabled={busy}>
-              {t.save}
-            </button>
-            <button type="button" className={styles.cancel} onClick={stopRenaming} disabled={busy}>
-              {t.cancel}
-            </button>
-          </form>
-        ) : (
-          <>
-            <h1 className={styles.name}>{project.name}</h1>
-            <div className={styles.actions}>
+      <ProjectHero
+        tile={<ProjectTile name={project.name} icon={project.icon} />}
+        name={project.name}
+        facts={
+          tasks.status === 'ready' ? (
+            <>
+              <span className={styles.fact}>{openCount}</span> {t.statOpen} · <span className={overdue > 0 ? styles.alarm : styles.fact}>{overdue}</span> {t.statOverdue}
+            </>
+          ) : undefined
+        }
+        aside={nextDue ? fill(t.nextDue, { date: dateLabel(nextDue, t) }) : undefined}
+        rename={
+          renaming ? (
+            <form
+              className={styles.rename}
+              aria-label={t.renameProject}
+              onSubmit={saveName}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') stopRenaming();
+              }}
+            >
+              <input
+                ref={nameRef}
+                className={styles.input}
+                aria-label={t.projectName}
+                value={name}
+                maxLength={80}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <button type="submit" className={styles.save} disabled={busy}>
+                {t.save}
+              </button>
+              <button type="button" className={styles.cancel} onClick={stopRenaming} disabled={busy}>
+                {t.cancel}
+              </button>
+            </form>
+          ) : null
+        }
+        actions={
+          !renaming && (
+            <>
               <button type="button" className={styles.action} onClick={() => setRenaming(true)}>
                 {t.renameProject}
               </button>
@@ -205,15 +222,15 @@ const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
               >
                 {confirming ? t.confirmArchive : t.archiveProject}
               </button>
-            </div>
-          </>
-        )}
-        {error && (
-          <div className={styles.error}>
-            <InlineError message={error} />
-          </div>
-        )}
-      </div>
+            </>
+          )
+        }
+      />
+      {error && (
+        <div className={styles.error}>
+          <InlineError message={error} />
+        </div>
+      )}
       {picking && (
         <div className={styles.picker}>
           <IconPicker value={project.icon} onChange={chooseIcon} disabled={busy} />

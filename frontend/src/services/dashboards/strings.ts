@@ -172,6 +172,14 @@ export interface Strings {
     readonly internal: string;
     readonly originalAmount: string;
   };
+  /** The server did not answer (never the sample data), and the demo banner for a server with no database. */
+  readonly unreachableTitle: string;
+  readonly unreachableText: string;
+  readonly unreachableKept: string;
+  readonly sampleBanner: string;
+  readonly spacesTitle: string;
+  readonly noProjects: string;
+  readonly nextDue: string;
   readonly navAll: string;
   readonly navCalendar: string;
   readonly langLabel: string;
@@ -401,6 +409,13 @@ export const STRINGS: Record<Lang, Strings> = {
       internal: 'между своими счетами',
       originalAmount: 'в оригинале {amount}',
     },
+    unreachableTitle: 'Нет связи с сервером',
+    unreachableText: 'Панель не получила ответа, поэтому ничего не показывает: примерные данные здесь не подставляются. Попробуйте ещё раз через минуту.',
+    unreachableKept: 'Названия и проекты в верхней панели взяты из последнего сеанса и могут быть устаревшими.',
+    sampleBanner: 'Демо: примерные данные, сервер данных не подключён.',
+    spacesTitle: 'Пространства',
+    noProjects: 'Проектов пока нет.',
+    nextDue: 'ближайший срок {date}',
     navAll: 'Все',
     navCalendar: 'Календарь',
     langLabel: 'Язык',
@@ -631,6 +646,13 @@ export const STRINGS: Record<Lang, Strings> = {
       internal: 'between your accounts',
       originalAmount: 'originally {amount}',
     },
+    unreachableTitle: 'Cannot reach the server',
+    unreachableText: 'The dashboards got no answer, so they show nothing: sample data is never put in its place. Try again in a minute.',
+    unreachableKept: 'The names and projects in the bar come from the last visit and may be out of date.',
+    sampleBanner: 'Demo: sample data, no data server is connected.',
+    spacesTitle: 'Spaces',
+    noProjects: 'No projects yet.',
+    nextDue: 'next due {date}',
     navAll: 'All',
     navCalendar: 'Calendar',
     langLabel: 'Language',
