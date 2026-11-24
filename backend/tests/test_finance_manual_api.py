@@ -701,7 +701,12 @@ async def test_data_older_than_thirty_days_is_raised_for_attention(db_url, make_
     (item,) = stale["items"]
     assert item["kind"] == "stale_statement"
     assert item["key"] == f"stale_statement:{link['id']}:2026-10-22"
-    assert item["facts"] == {"provider": "barclays", "as_of": "2026-10-22", "days_old": 31}
+    assert item["facts"] == {
+        "provider": "barclays",
+        "as_of": "2026-10-22",
+        "days_old": 31,
+        "no_data": False,
+    }
     assert (item["subject_type"], item["amount"]) == ("connection", None)
     assert "Joint Barclays" in item["title"]
     assert archived["items"] == []  # nothing open on it

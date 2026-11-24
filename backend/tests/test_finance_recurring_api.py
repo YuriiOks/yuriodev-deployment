@@ -863,7 +863,12 @@ async def test_a_payment_past_its_date_with_no_transaction_is_raised_when_we_can
     (item,) = body["items"]
     assert item["kind"] == "missed_payment"
     assert item["key"] == f"missed_payment:{seen['id']}:2026-11-18"
-    assert item["facts"] == {"days_overdue": 4, "last_paid_on": None, "account_id": MAIN}
+    assert item["facts"] == {
+        "days_overdue": 4,
+        "last_paid_on": None,
+        "account_id": MAIN,
+        "data_as_of": "2026-11-22",
+    }
     assert item["due_date"] == "2026-11-18"
 
 
@@ -938,9 +943,10 @@ async def test_items_come_in_a_fixed_order_by_kind_then_date(db_url, make_dashbo
         await pay(client, "Big", 2_000_000, "2026-11-23")
         body = await attention(client)
 
-    # By severity (high first), then by kind: the plain overdrawn fact comes last.
-    assert kinds(body) == ["due_not_covered", "missed_payment", "reconsent", "overdrawn"]
-    assert [i["severity"] for i in body["items"]] == ["high", "high", "high", "info"]
+    # By severity (high first), then by kind: the plain overdrawn fact comes last. The payment
+    # that was missed is not raised: the link needs approving again, so its data is not current.
+    assert kinds(body) == ["due_not_covered", "reconsent", "overdrawn"]
+    assert [i["severity"] for i in body["items"]] == ["high", "high", "info"]
 
 
 async def test_dismissing_snoozing_and_restoring_an_item(db_url, make_dashboards_app, clock):
@@ -957,6 +963,7 @@ async def test_dismissing_snoozing_and_restoring_an_item(db_url, make_dashboards
         snoozed = await client.post(f"{BASE}/attention/snooze", json={"key": key, "days": 3})
         quiet = await attention(client)
         clock.now += timedelta(days=4)  # the snooze has run out
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = '2026-11-26T11:00:00Z'")
         again = await attention(client)
 
     assert dismissed.status_code == 200
@@ -984,6 +991,7 @@ async def test_what_was_done_about_a_condition_lasts_until_it_clears(
         await client.post(f"{BASE}/attention/dismiss", json={"key": key})
         same_month = await attention(client)
         clock.now = datetime(2026, 12, 2, 12, tzinfo=UTC)
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = '2026-12-02T11:00:00Z'")
         next_month = await attention(client)  # a new month is no new occasion
         await execute(db_url, "UPDATE finance.account SET balance = 5000 WHERE name = 'Main'")
         cleared = await attention(client)
