@@ -834,3 +834,66 @@ describe('the life areas get an icon each', () => {
     expect(label).toBeTruthy();
   });
 });
+
+describe('the next-event strips follow the calendar\'s rule for copies of work meetings', () => {
+  const soon = (minutes: number) => new Date(Date.now() + minutes * 60000).toISOString();
+
+  it('personal shows its own next event, not the work stand-up its calendar carries a tagged copy of; the work space shows the stand-up', async () => {
+    const standup = soon(40);
+    const events = [
+      { ...event('personal', 'Stand-up (Acme Corp)', dayOffset(0), '00:00', '00:00'), starts_at: standup, ends_at: soon(55) },
+      { ...event('personal', 'Gym', dayOffset(0), '00:00', '00:00'), starts_at: soon(300), ends_at: soon(360) },
+    ];
+    setup({
+      events,
+      spaceNames: { 'work-1': 'Acme Corp' },
+      nextEvents: { personal: { title: 'Stand-up (Acme Corp)', starts_at: standup }, 'work-1': null },
+    });
+    renderAt('/dashboards/personal');
+    expect(await within(main()).findByText('Gym')).toBeInTheDocument();
+    expect(within(main()).queryByText(/Stand-up/)).toBeNull();
+  });
+
+  it('shows the stand-up in the work space\'s strip and on its hub card, and the gym on the personal card', async () => {
+    const standup = soon(40);
+    const events = [
+      { ...event('personal', 'Stand-up (Acme Corp)', dayOffset(0), '00:00', '00:00'), starts_at: standup, ends_at: soon(55) },
+      { ...event('personal', 'Gym', dayOffset(0), '00:00', '00:00'), starts_at: soon(300), ends_at: soon(360) },
+    ];
+    setup({ events, spaceNames: { 'work-1': 'Acme Corp' }, nextEvents: { personal: { title: 'Stand-up (Acme Corp)', starts_at: standup }, 'work-1': null } });
+    renderAt('/dashboards');
+    const personal = await within(main()).findByRole('region', { name: 'Личное' });
+    await waitFor(() => expect(personal).toHaveTextContent('Gym'));
+    expect(personal).not.toHaveTextContent('Stand-up');
+    expect(within(main()).getByRole('region', { name: 'Acme Corp' })).toHaveTextContent('Stand-up (Acme Corp)');
+  });
+
+  it('keeps the server\'s answer when the events cannot be read', async () => {
+    setup({ fail: ['events'] });
+    renderAt('/dashboards/work-1');
+    expect(await within(main()).findByText('Team stand-up')).toBeInTheDocument();
+  });
+});
+
+describe('the personal overview fills the page', () => {
+  it('puts Priority across the full width and flows the date groups below it in columns', async () => {
+    setup();
+    renderAt('/dashboards/personal');
+    await within(main()).findByRole('region', { name: 'Приоритет' });
+    const panels = screen.getByRole('tabpanel');
+    expect(panels).toHaveAttribute('data-split', 'flow');
+    expect(panels).toHaveAttribute('data-wide-first', 'true');
+    const names = within(panels).getAllByRole('region').map((region) => region.getAttribute('aria-labelledby') && document.getElementById(region.getAttribute('aria-labelledby') as string)?.textContent?.replace(/\s*\d+$/, ''));
+    expect(names[0]).toBe('Приоритет');
+    expect(names.slice(1)).toEqual(['Сегодня и просрочено', 'На этой неделе', 'Позже', 'Без даты']);
+  });
+
+  it('has no Court tab on Personal, on real data or the sample', async () => {
+    setup();
+    renderAt('/dashboards/personal');
+    const tabs = await within(main()).findByRole('navigation', { name: 'Источники' });
+    expect(within(tabs).queryByRole('tab', { name: /Суд/ })).toBeNull();
+    expect(within(tabs).getByRole('tab', { name: /Сферы/ })).toBeInTheDocument();
+    expect(within(tabs).getByRole('tab', { name: /Платежи/ })).toBeInTheDocument();
+  });
+});

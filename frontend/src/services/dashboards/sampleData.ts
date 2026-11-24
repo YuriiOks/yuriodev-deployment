@@ -77,7 +77,7 @@ const PERSONAL: SpaceData = {
     ],
     sync: L('личный календарь, Telegram', 'personal calendar, Telegram'),
   },
-  tabs: ['overview', 'areas', 'payments', 'court', 'work', 'mail', 'telegram'],
+  tabs: ['overview', 'areas', 'payments', 'work', 'mail', 'telegram'],
   panels: [
     panel(
       'personal-priority',
@@ -157,39 +157,6 @@ const PERSONAL: SpaceData = {
       info('personal-pay4', L('Страховка: добавить члена семьи', 'Insurance: add a family member'), {
         meta: L('£50/мес', '£50/mo'),
         due: due(L('1 янв', '1 Jan')),
-      }),
-    ]),
-    panel('personal-court-dates', 'court', L('Ближайшие сроки', 'Next dates'), [
-      info('personal-court1', L('Ответ юриста по оплате', 'Solicitor’s answer on fees'), {
-        meta: L('если тишина, звонить', 'call if there is no answer'),
-        due: due(L('чт 26 ноя', 'Thu 26 Nov'), 'warn'),
-      }),
-      info('personal-court2', L('Предварительное слушание (пример)', 'Preliminary hearing (example)'), {
-        meta: L('лично, прийти заранее', 'in person, arrive early'),
-        due: due(L('5 окт 2027', '5 Oct 2027')),
-      }),
-      info('personal-court3', L('Основное слушание (пример)', 'Main hearing (example)'), {
-        meta: L('лично', 'in person'),
-        due: due(L('8–11 ноя 2027', '8–11 Nov 2027')),
-      }),
-    ]),
-    panel('personal-court-todo', 'court', L('Что сделать', 'To do'), [
-      task('personal-ct1', L('Разложить новые файлы по папкам', 'File the new documents into folders'), { meta: L('18 файлов', '18 files') }),
-      task('personal-ct2', L('Согласовать дату встречи с адвокатом', 'Agree the meeting date with counsel')),
-      task('personal-ct3', L('Проверить комплект документов заранее', 'Check the document bundle in advance'), {
-        due: due(L('21 сен 2027', '21 Sep 2027')),
-      }),
-    ]),
-    panel('personal-court-pay', 'court', L('Платежи по делу', 'Case payments'), [
-      info('personal-cp1', L('Консультация', 'Consultation'), { meta: L('£1,000', '£1,000'), due: due(L('Q3 2027', 'Q3 2027')) }),
-      info('personal-cp2', L('Подготовка', 'Preparation'), { meta: L('£2,000', '£2,000'), due: due(L('Q4 2027', 'Q4 2027')) }),
-      info('personal-cp3', L('Слушание', 'Hearing'), { meta: L('£5,000', '£5,000'), due: due(L('Q4 2027', 'Q4 2027')) }),
-    ]),
-    panel('personal-court-people', 'court', L('Люди', 'People'), [
-      info('personal-cpl1', L('Адвокат A', 'Counsel A'), { meta: L('ведёт дело', 'leads the case'), action: act('mail', 'ask') }),
-      info('personal-cpl2', L('Клерк A', 'Clerk A'), { meta: L('оплата и даты', 'fees and dates'), action: act('mail', 'ask') }),
-      info('personal-cpl3', L('Юрист другой стороны', 'The other side’s solicitor'), {
-        meta: L('только через своих юристов', 'only through your own lawyers'),
       }),
     ]),
     panel('personal-contracts', 'work', L('Контракты', 'Contracts'), [
