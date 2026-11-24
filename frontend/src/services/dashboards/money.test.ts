@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMinor, formatMinorParts } from './money';
+import { formatMinor, formatMinorParts, minorToInput, parseMinor } from './money';
 import { providerName, reconnectPath } from '../../components/dashboards/Money/providers';
 
 const plain = (text: string) => text.replace(/[\s\u00a0\u202f]/g, ' ');
@@ -60,5 +60,25 @@ describe('formatMinorParts', () => {
   it('has no fraction for a currency with none, and falls back to one plain part for a code it cannot write', () => {
     expect(formatMinorParts(500, 'JPY', 'en').some((part) => part.kind === 'frac')).toBe(false);
     expect(formatMinorParts(12345, 'XXQ', 'en').length).toBeGreaterThan(0);
+  });
+});
+
+describe('parseMinor', () => {
+  it('reads a typed amount as minor units, with either decimal sign and spaces, and refuses what the currency cannot hold', () => {
+    expect(parseMinor('12.99', 'GBP')).toBe(1299);
+    expect(parseMinor('12,5', 'GBP')).toBe(1250);
+    expect(parseMinor('1 234', 'GBP')).toBe(123400);
+    expect(parseMinor('500', 'JPY')).toBe(500);
+    expect(parseMinor('12.999', 'GBP')).toBeNull();
+    expect(parseMinor('0', 'GBP')).toBeNull();
+    expect(parseMinor('-3', 'GBP')).toBeNull();
+    expect(parseMinor('abc', 'GBP')).toBeNull();
+    expect(parseMinor('', 'GBP')).toBeNull();
+  });
+
+  it('writes minor units back as the text an input takes', () => {
+    expect(minorToInput(1299, 'GBP')).toBe('12.99');
+    expect(minorToInput(500, 'JPY')).toBe('500');
+    expect(parseMinor(minorToInput(1250, 'GBP'), 'GBP')).toBe(1250);
   });
 });

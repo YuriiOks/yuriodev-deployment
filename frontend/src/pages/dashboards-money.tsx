@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import { whenLabel } from '../components/dashboards/Money/labels';
+import MoneyAttention from '../components/dashboards/Money/MoneyAttention';
 import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
+import MoneyDebts from '../components/dashboards/Money/MoneyDebts';
+import { debtsOf } from '../components/dashboards/Money/recurringLabels';
 import MoneyTotals from '../components/dashboards/Money/MoneyTotals';
 import MoneyTransactions from '../components/dashboards/Money/MoneyTransactions';
+import MoneyUpcoming from '../components/dashboards/Money/MoneyUpcoming';
 import MoneyWallet from '../components/dashboards/Money/MoneyWallet';
+import RecurringManager from '../components/dashboards/Money/RecurringManager';
 import money from '../components/dashboards/Money/Money.module.css';
 import type { ProviderLogo } from '../services/dashboards/financeApi';
 import { fill } from '../services/dashboards/calendarLabels';
@@ -17,6 +22,7 @@ import { groupBanks } from '../services/dashboards/wallet';
 import { pagePath } from '../data/site';
 import { useDashboardMode } from '../hooks/useDashboardMode';
 import { useFinanceAccounts, useFinanceCategories, useFinanceSummary, useProviderLogos } from '../hooks/useFinance';
+import { useAttention, useRecurring, useUpcoming } from '../hooks/useRecurring';
 import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './dashboards-money.module.css';
 
@@ -41,6 +47,20 @@ const DashboardsMoney = () => {
   const providers = useProviderLogos(live);
   const logos = providers.value ?? NO_LOGOS;
   const [selected, setSelected] = useState<string | null>(null);
+  // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
+  const [params] = useSearchParams();
+  const managing = params.get('view') === 'recurring';
+  const [showHidden, setShowHidden] = useState(false);
+  const [days, setDays] = useState(14);
+  const attention = useAttention(showHidden, live);
+  const upcoming = useUpcoming(days, live);
+  const recurring = useRecurring(live);
+  const changed = () => {
+    attention.reload();
+    upcoming.reload();
+    recurring.reload();
+  };
+  const debts = recurring.value ? debtsOf(recurring.value.recurring) : [];
   // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
   const [mode, setMode] = useState<MoneyDisplay>(readMoneyDisplay);
   const choose = (next: MoneyDisplay) => {
@@ -78,6 +98,22 @@ const DashboardsMoney = () => {
         <p className={money.none}>{m.needsData}</p>
       ) : (
         <>
+          {managing ? (
+            <section aria-labelledby="money-recurring-title" className={money.panel}>
+              <div className={money.head}>
+                <h2 id="money-recurring-title" className={money.title}>
+                  {m.rec.managerTitle}
+                </h2>
+              </div>
+              {recurring.status === 'loading' && <LoadingBlock rows={4} />}
+              {recurring.status === 'error' && <InlineError message={m.rec.managerFailed} onRetry={recurring.reload} />}
+              {recurring.value && <RecurringManager key={params.get('edit') ?? ''} rows={recurring.value.recurring} accounts={accounts.value?.accounts ?? []} mode={mode} editId={params.get('edit')} onChanged={changed} />}
+            </section>
+          ) : (
+            <>
+          {attention.value && (
+            <MoneyAttention data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onOpenBank={setSelected} />
+          )}
           <section aria-labelledby="money-wallet-title" className={money.panel}>
             <div className={money.head}>
               <h2 id="money-wallet-title" className={money.title}>
@@ -89,6 +125,26 @@ const DashboardsMoney = () => {
             {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
             {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} logos={logos} onSelect={setSelected} />}
           </section>
+          <section aria-labelledby="money-upcoming-title" className={money.panel}>
+            <div className={money.head}>
+              <h2 id="money-upcoming-title" className={money.title}>
+                {m.rec.upcomingTitle}
+              </h2>
+            </div>
+            {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
+            {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
+            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} onDays={setDays} accounts={accounts.value?.accounts ?? []} mode={mode} />}
+          </section>
+          {debts.length > 0 && (
+            <section aria-labelledby="money-debts-title" className={money.panel}>
+              <div className={money.head}>
+                <h2 id="money-debts-title" className={money.title}>
+                  {m.rec.debtsTitle}
+                </h2>
+              </div>
+              <MoneyDebts rows={debts} mode={mode} />
+            </section>
+          )}
           <section aria-labelledby="money-spend-title" className={money.panel}>
             <div className={money.head}>
               <h2 id="money-spend-title" className={money.title}>
@@ -107,6 +163,8 @@ const DashboardsMoney = () => {
             </div>
             <MoneyTransactions banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
+            </>
+          )}
         </>
       )}
     </>

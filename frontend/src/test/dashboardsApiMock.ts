@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'recurringWrite' | 'attentionWrite';
 
 export interface Call {
   readonly method: string;
@@ -114,6 +114,12 @@ export interface FinanceData {
   display?: Record<string, unknown>;
   /** GET /finance/providers: the banks' logos (default: none). */
   providers?: Record<string, unknown>[];
+  /** GET /finance/recurring (default: none). Writes change this list in place. */
+  recurring?: Record<string, unknown>[];
+  /** GET /finance/upcoming (default: nothing due). */
+  upcoming?: Record<string, unknown>;
+  /** GET /finance/attention items (default: none); snooze, dismiss and restore change their state in place. */
+  attention?: Record<string, unknown>[];
 }
 
 export interface FakeApiOptions {
@@ -163,6 +169,48 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     if (path === '/finance/accounts') {
       if (api.fail.has('financeAccounts')) return failure();
       return json({ accounts: api.finance.accounts, connections: api.finance.connections, ...(api.finance.display ? { display: api.finance.display } : {}) });
+    }
+    if (path === '/finance/recurring' || /^\/finance\/recurring\/[\w-]+(\/paid)?$/.test(path)) {
+      const list = (api.finance.recurring ??= []);
+      if (path === '/finance/recurring' && method === 'GET') {
+        if (api.fail.has('financeRecurring')) return failure();
+        const kind = url.searchParams.get('kind');
+        return json({ recurring: list.filter((row) => !kind || row.kind === kind), display: api.finance.display ?? { currency: 'GBP', rates: {}, missing: [] } });
+      }
+      if (api.fail.has('recurringWrite')) return json({ error: 'validation_error', message: 'amount must be positive', request_id: 'test' }, 422);
+      if (path === '/finance/recurring') {
+        const created = { id: `r-new-${++counter}`, is_active: true, frequency_interval: 1, kind: 'service', frequency: 'monthly', converted: false, ...body };
+        list.push(created);
+        return json(created, 201);
+      }
+      const found = list.find((row) => row.id === path.split('/')[3]);
+      if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (path.endsWith('/paid')) {
+        found.next_payment_date = '2026-12-23';
+        return json(found);
+      }
+      Object.assign(found, body);
+      return json(found);
+    }
+    if (path === '/finance/upcoming') {
+      if (api.fail.has('financeUpcoming')) return failure();
+      return json({ from_date: '2026-11-23', to_date: '2026-12-07', items: [], totals: [], display: { currency: 'GBP', rates: {}, missing: [], complete: true, total: 0 }, ...api.finance.upcoming });
+    }
+    if (path === '/finance/attention' && method === 'GET') {
+      if (api.fail.has('financeAttention')) return failure();
+      const all = api.finance.attention ?? [];
+      const hidden = all.filter((item) => item.state !== 'active');
+      const shown = url.searchParams.get('include_hidden') === 'true' ? all : all.filter((item) => item.state === 'active');
+      return json({ items: shown, hidden: hidden.length, display: api.finance.display ?? { currency: 'GBP', rates: {}, missing: [] } });
+    }
+    const attentionAction = /^\/finance\/attention\/(snooze|dismiss|restore)$/.exec(path);
+    if (attentionAction && method === 'POST') {
+      if (api.fail.has('attentionWrite')) return failure();
+      const found = (api.finance.attention ?? []).find((item) => item.key === body?.key);
+      if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      found.state = attentionAction[1] === 'snooze' ? 'snoozed' : attentionAction[1] === 'dismiss' ? 'dismissed' : 'active';
+      found.snoozed_until = attentionAction[1] === 'snooze' ? '2026-12-01T00:00:00Z' : null;
+      return json(found);
     }
     if (path === '/finance/providers') {
       if (api.fail.has('financeProviders')) return failure();
