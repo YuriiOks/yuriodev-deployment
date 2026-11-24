@@ -412,7 +412,7 @@ async def test_recurring_payments_and_attention_state_are_checked_by_the_databas
             NEW_PAYMENT_WITH_REF,
         )
 
-    assert columns == 40
+    assert columns == 42
 
 
 async def test_a_manual_connection_has_its_own_flag_and_a_colour_pair(empty_db_url):

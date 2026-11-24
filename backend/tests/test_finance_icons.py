@@ -22,7 +22,8 @@ def serving(body, kind="image/png", status=200):
 
     def handler(request):
         seen.append(str(request.url))
-        return httpx.Response(status, content=body, headers={"content-type": kind})
+        stream = httpx.ByteStream(body)
+        return httpx.Response(status, headers={"content-type": kind}, stream=stream)
 
     return handler, seen
 
