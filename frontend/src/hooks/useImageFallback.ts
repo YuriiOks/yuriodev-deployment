@@ -19,12 +19,11 @@ function pump(): void {
   while (active < MAX_ACTIVE && waiting.length > 0) {
     const wait = lastGrant + MIN_GAP_MS - Date.now();
     if (wait > 0) {
-      if (gapTimer === null) {
-        gapTimer = setTimeout(() => {
-          gapTimer = null;
-          pump();
-        }, wait);
-      }
+      if (gapTimer !== null) clearTimeout(gapTimer);
+      gapTimer = setTimeout(() => {
+        gapTimer = null;
+        pump();
+      }, wait);
       return;
     }
     const grant = waiting.shift();
