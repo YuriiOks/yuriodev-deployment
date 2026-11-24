@@ -328,7 +328,7 @@ interface RequestOptions {
 }
 
 /** One JSON request: resolves with the parsed body (null for 204), rejects with an ApiError. */
-async function request(path: string, { method = 'GET', body, signal, timeoutMs = API_TIMEOUT_MS }: RequestOptions = {}): Promise<unknown> {
+export async function request(path: string, { method = 'GET', body, signal, timeoutMs = API_TIMEOUT_MS }: RequestOptions = {}): Promise<unknown> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) throw new ApiError('network', 0, 'aborted');

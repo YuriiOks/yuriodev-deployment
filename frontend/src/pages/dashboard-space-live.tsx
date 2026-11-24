@@ -1,6 +1,7 @@
 import AreaIcon from '../components/dashboards/AreaIcon/AreaIcon';
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useDashboardLang } from '../context/useDashboardLang';
+import { pagePath } from '../data/site';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import NotConnected from '../components/dashboards/NotConnected/NotConnected';
@@ -58,7 +59,8 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const now = useNow();
   const today = localDate(now);
   // The same tabs as the sample space (the personal one has the life areas); only the overview and areas are live.
-  const tabs = getSpace(space).tabs;
+  // On real data the personal space's Payments tab is the Money page: a link in the tab row where the tab was.
+  const tabs = space === 'personal' ? getSpace(space).tabs.filter((tab) => tab !== 'payments') : getSpace(space).tabs;
   const [selected, setSelected] = useState<TabId>('overview');
   const [area, setArea] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
@@ -251,7 +253,14 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     <>
       <div className={styles.top}>
         <SpaceHero space={space} hero={hero} />
-        <SourceTabs tabs={tabs} current={current} counts={tabCounts} onSelect={setSelected} idPrefix={space} />
+        <SourceTabs
+          tabs={tabs}
+          current={current}
+          counts={tabCounts}
+          onSelect={setSelected}
+          idPrefix={space}
+          link={space === 'personal' ? { to: pagePath('dashboards-money'), label: t.money.navLink, after: 'areas' } : undefined}
+        />
       </div>
       {workingTab && <QuickAdd placeholder={t.addTask} onSubmit={create} />}
       <div

@@ -25,8 +25,11 @@ export const SPACE_MONOGRAM: Record<SpaceId, Localized> = {
   'work-2': { ru: '2', en: '2' },
 };
 
+/** Pages that belong to a space without being its page (the personal Money page wears the personal skin). */
+const SUBPAGE_SPACE: Partial<Record<PageId, SpaceId>> = { 'dashboards-money': 'personal' };
+
 /** The space whose page is at `pathname`; undefined on the entrance and the calendar. */
 export function spaceAt(pathname: string): SpaceId | undefined {
   const id = pageAt(pathname)?.id;
-  return SPACES.find((space) => SPACE_PAGE[space] === id);
+  return SPACES.find((space) => SPACE_PAGE[space] === id) ?? (id ? SUBPAGE_SPACE[id] : undefined);
 }

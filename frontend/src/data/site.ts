@@ -74,7 +74,7 @@ export function isSectionId(id: string): id is SectionId {
 
 export type PageId =
   | 'portfolio' | 'courses' | 'dashboard' | 'community' | 'privacy'
-  | 'dashboards' | 'dashboards-personal' | 'dashboards-work-1' | 'dashboards-work-2' | 'dashboards-calendar';
+  | 'dashboards' | 'dashboards-personal' | 'dashboards-work-1' | 'dashboards-work-2' | 'dashboards-calendar' | 'dashboards-money';
 
 /** Where the header lists a page: inline, or in its More menu. */
 export type PageNav = 'primary' | 'more';
@@ -108,6 +108,7 @@ export const PAGES: readonly PageDef[] = [
   { id: 'dashboards-work-1', path: '/dashboards/work-1', label: 'Work 1 dashboard', navLabel: '--dashboards-work-1', chrome: false },
   { id: 'dashboards-work-2', path: '/dashboards/work-2', label: 'Work 2 dashboard', navLabel: '--dashboards-work-2', chrome: false },
   { id: 'dashboards-calendar', path: '/dashboards/calendar', label: 'Dashboards calendar', navLabel: '--dashboards-calendar', chrome: false },
+  { id: 'dashboards-money', path: '/dashboards/personal/money', label: 'Personal money', navLabel: '--dashboards-money', chrome: false },
 ];
 
 /** Every page the header lists, primary first: the one list the narrow-screen menu shows. */

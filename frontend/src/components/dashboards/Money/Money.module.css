@@ -1,0 +1,284 @@
+/* The Money page's parts. Panels reuse the dashboards' panel look (glass, the title led by '# ', flat rows); amounts are data,
+   so they are Fira Code with tabular figures. Money in and out is told by a sign, an arrow and a word, never by colour alone. */
+.panel {
+  composes: panel from '../Panel/Panel.module.css';
+}
+
+.head {
+  composes: head from '../Panel/Panel.module.css';
+}
+
+.title {
+  composes: title from '../Panel/Panel.module.css';
+}
+
+.count {
+  composes: count from '../Panel/Panel.module.css';
+}
+
+.empty {
+  composes: empty from '../Panel/Panel.module.css';
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.provider {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--dash-line);
+}
+
+.group:first-of-type .provider {
+  border-top: 0;
+}
+
+.providerName {
+  margin: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.link[data-status="needs_reconsent"] {
+  color: var(--dash-warn);
+  font-weight: 700;
+}
+
+.reconnect {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  margin-left: auto;
+}
+
+.hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.sub {
+  margin: var(--space-2) 0 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  font-weight: 700;
+  line-height: var(--dash-lh-meta);
+}
+
+.accounts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  min-height: var(--dash-h-row);
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--dash-line);
+}
+
+.accounts > .account:first-child {
+  border-top: 0;
+}
+
+.account[data-pot="true"] {
+  padding-left: var(--space-4);
+}
+
+.account[data-archived="true"] {
+  opacity: 0.75;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dash-t1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amount {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.note {
+  grid-column: 1 / -1;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.months {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  list-style: none;
+}
+
+.month {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-control);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cell .amount {
+  text-align: left;
+}
+
+.cellLabel {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.code {
+  grid-column: 1 / -1;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  font-weight: 700;
+  line-height: var(--dash-lh-meta);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.field {
+  composes: field from '../../../assets/styles/dashboard-forms.module.css';
+  flex: 1 1 12rem;
+}
+
+.fieldLabel {
+  composes: label from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.select {
+  composes: select from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.input {
+  composes: input from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.list {
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+.tx {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--dash-h-row);
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--dash-line);
+}
+
+.list > .tx:first-child {
+  border-top: 0;
+}
+
+.arrow {
+  color: var(--dash-t2);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.what {
+  overflow: hidden;
+  color: var(--dash-t1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.tag {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t1);
+}
+
+.tx[data-declined="true"] .what,
+.tx[data-declined="true"] .amount {
+  color: var(--dash-t2);
+  text-decoration: line-through;
+}
+
+.tx[data-pending="true"] {
+  font-style: italic;
+}
+
+.tx[data-internal="true"] .arrow {
+  color: var(--dash-t3);
+}
+
+.more {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-1);
+}
+
+.moreButton {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.moreFailed {
+  color: var(--dash-danger);
+  font-size: var(--dash-fs-meta);
+}

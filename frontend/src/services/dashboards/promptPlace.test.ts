@@ -23,6 +23,11 @@ describe('promptPlace', () => {
     expect(promptPlace('/dashboards/calendar', names)).toBe('dashboards/calendar');
   });
 
+  it('runs the Money page under the personal space, with the space\'s own name when it has one', () => {
+    expect(promptPlace('/dashboards/personal/money', names)).toBe('dashboards/personal/money');
+    expect(promptPlace('/dashboards/personal/money', { ...names, spaceName: () => 'Mine' })).toBe('dashboards/mine/money');
+  });
+
   it('uses the server\'s name for a space when it renames it, and the route slug otherwise', () => {
     expect(promptPlace('/dashboards/personal', names)).toBe('dashboards/personal');
     expect(promptPlace('/dashboards/work-1', names)).toBe('dashboards/acme-corp');

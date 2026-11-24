@@ -1,0 +1,53 @@
+/* The Money page: a head with the title and the way back, then two columns from a laptop up (accounts and this month on the left,
+   the transactions wider on the right), one column below. */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  min-height: var(--dash-h-strip);
+}
+
+.head .title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-page);
+  font-weight: 700;
+  line-height: var(--dash-lh-page);
+}
+
+.head .title::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
+.head .title::after {
+  content: none;
+}
+
+.back {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-ui);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .columns {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}

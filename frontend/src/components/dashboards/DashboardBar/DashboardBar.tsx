@@ -97,7 +97,7 @@ const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
         <nav ref={navRef} aria-label={t.navLabel} className={styles.nav} data-more={more ? 'true' : undefined} aria-busy={phase === 'placeholder' ? true : undefined}>
           {phase === 'placeholder' && SKELETON.map((key) => <span key={key} aria-hidden="true" data-skeleton="true" className={styles.skeleton} />)}
           {phase !== 'placeholder' && items.map(([id, label, mark]) => (
-            <NavLink key={id} to={pagePath(id)} end className={navClass}>
+            <NavLink key={id} to={pagePath(id)} end={id === 'dashboards'} className={navClass}>
               <Mark>{mark}</Mark>
               {label}
             </NavLink>
