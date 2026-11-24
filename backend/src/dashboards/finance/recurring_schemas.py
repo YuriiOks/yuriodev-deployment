@@ -164,10 +164,11 @@ class RowErrorOut(BaseModel):
     row: int  # 1 is the first row (the first data row of a CSV file); 0 is the file itself
     field: str | None
     message: str
+    code: str | None  # stable: date_ambiguous, amount_format, wrong_currency, required, ...
 
     @classmethod
     def of(cls, error: RowError) -> Self:
-        return cls(row=error.row, field=error.field, message=error.message)
+        return cls(row=error.row, field=error.field, message=error.message, code=error.code)
 
 
 class ImportOut(BaseModel):

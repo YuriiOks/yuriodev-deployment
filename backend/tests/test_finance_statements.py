@@ -8,11 +8,15 @@ import pytest
 from src.dashboards.finance.brands import BRANDS, MIN_CONTRAST, NEUTRAL, contrast_ratio, readable
 from src.dashboards.finance.statements import (
     CellError,
+    Context,
     Entry,
+    NotText,
     UnknownLayout,
     balance_moment,
+    bank_key,
     booked_at,
     choose_order,
+    decode_text,
     number_entries,
     parse_amount,
     parse_day,
@@ -367,3 +371,78 @@ def test_the_floor_is_three_to_one_for_a_pair_the_owner_types_in_too():
     assert readable("#0090d0", "#ffffff") is True
     assert readable("#00aeef", "#ffffff") is False  # 2.5: white on pure cyan is under the floor
     assert readable("#00aeef", "#00395d") is True
+
+
+def test_text_is_decoded_in_a_fixed_order():
+    text = "Caf\u00e9"
+    ofx_1252 = b"OFXHEADER:100\nCHARSET:1252\n<OFX>" + text.encode("cp1252")
+
+    assert decode_text(text.encode()) == (text, "utf-8")
+    assert decode_text(b"\xef\xbb\xbf" + text.encode()) == (text, "utf-8")
+    assert decode_text(b"\xff\xfe" + text.encode("utf-16-le")) == (text, "utf-16")
+    assert decode_text(b"\xfe\xff" + text.encode("utf-16-be")) == (text, "utf-16")
+    assert decode_text(ofx_1252)[1] == "cp1252"
+    assert decode_text(text.encode("cp1252")) == (text, "cp1252")
+    with pytest.raises(NotText):
+        decode_text(b"a\x00b")  # a UTF-16 file with no BOM is not guessed at
+    with pytest.raises(NotText):
+        decode_text(b"\x81\x8d")  # no meaning in Windows-1252 either
+
+
+def test_a_bank_id_is_kept_up_to_sixty_characters_then_hashed_and_a_repeat_is_numbered():
+    assert bank_key("FIT-1", 0) == "b:FIT-1"
+    assert bank_key("x" * 60, 0) == "b:" + "x" * 60
+    long = bank_key("x" * 61, 0)
+    assert long.startswith("b:sha:") and len(long) <= 64
+    assert bank_key("x" * 61, 0) != bank_key("x" * 61 + "y", 0)
+    assert bank_key("FIT-1", 2) == "b:FIT-1~2"
+    assert len(bank_key("x" * 60, 12345)) <= 64
+
+
+def test_the_same_bank_id_twice_in_a_file_is_two_transactions():
+    same = Entry(date(2026, 11, 2), None, -100, "A", None, "tx1", None)
+    other = Entry(date(2026, 11, 2), None, -200, "B", None, "tx1", None)
+
+    ids = [i for i, _ in number_entries("acct", [same, other])]
+
+    assert ids == ["b:tx1", "b:tx1~1"]
+
+
+@pytest.mark.parametrize("size", [40, 200_000])
+def test_an_unclosed_quote_is_one_error_for_the_file_in_a_small_and_a_large_file(size):
+    text = 'Date,Description,Amount\n2026-11-02,"' + "a,b\n" * size
+
+    statement = parse(text)
+
+    assert [(e.row, e.code) for e in statement.errors] == [(0, "csv_malformed")]
+
+
+def test_an_ofx_text_is_unescaped_once_and_a_wrong_account_block_is_not_taken():
+    text = OFX_SGML.replace("Corner Cafe", "Fish &amp; Chips &#39;n&#39; Co")
+    text = text.replace("FIT-1", "A&amp;B")
+
+    statement = parse(text)
+
+    assert statement.entries[0].description.startswith("Fish & Chips 'n' Co")
+    assert statement.entries[0].bank_id == "A&B"
+    assert parse_statement(text.encode(), "sample", "GBP", None, Context("1234")).entries
+
+
+def test_a_line_outside_1990_to_tomorrow_is_a_line_error():
+    context = Context(today=date(2026, 11, 22))
+    rows = "Date,Description,Amount\n1989-12-31,A,1\n2026-11-23,B,1\n2026-11-24,C,1\n"
+
+    statement = parse_statement(rows.encode(), "sample", "GBP", None, context)
+
+    assert [(e.row, e.code) for e in statement.errors] == [
+        (1, "date_out_of_range"),
+        (3, "date_out_of_range"),
+    ]
+    assert [e.description for e in statement.entries] == ["B"]
+
+
+def test_an_amount_over_the_limit_is_refused():
+    with pytest.raises(CellError) as raised:
+        parse_amount("amount", "10000000000.01", "GBP")
+
+    assert raised.value.code == "amount_too_large"

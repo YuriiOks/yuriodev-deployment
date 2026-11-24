@@ -22,6 +22,13 @@ from src.routes.dashboards import ClockDep, SessionDep, SettingsDep, ZoneDep
 router = APIRouter(prefix="/api/dashboards/v1/finance/manual", tags=["finance"])
 
 
+@router.get("/currencies")
+async def currencies() -> manual.CurrenciesOut:
+    """The currencies an account entered by hand may be in (ISO 4217), with the decimal places
+    of each, for a form's select. Any other code is refused with 422."""
+    return manual.known_currencies()
+
+
 @router.post("/connections", status_code=201)
 async def create_connection(
     body: manual.ConnectionIn, session: SessionDep, clock: ClockDep
@@ -89,19 +96,22 @@ async def upload_statement(
     apply_balance: Annotated[bool, Query()] = False,
     dry_run: Annotated[bool, Query()] = False,
 ) -> Response:
-    """Upload a downloaded statement (the request body, at most 2 MiB): OFX/QFX, a CSV in the
+    """Upload a downloaded statement (the request body, at most 1 MiB): OFX/QFX, a CSV in the
     layout of the account's bank, or a CSV with the headers date, description and amount (or debit
     and credit). All or nothing; lines already there are counted as `duplicates` and left alone,
     so a file can be loaded again. `dry_run` only reads it (check `money_in`, `money_out` and the
     dates against the bank's own statement first). `date_order=dmy|mdy` settles an ambiguous
     file. `apply_balance` sets the account's balance from the file's newest balance, unless a
-    newer one is already set. An unrecognised layout is 422 `unknown_layout`."""
+    newer one is already set. Every problem has a stable `code`. A file that cannot be used is 422
+    `empty_file`, `other_bank`, `unknown_layout` or `not_utf8` (UTF-8, UTF-16 with a BOM and
+    Windows-1252 are read; `encoding` says which), a body over 1 MiB 413 `file_too_large`.
+    `balance`, `balance_date` and `balance_would_apply` say what `apply_balance` would do."""
     require_file_type(request)
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)
         if len(data) > MAX_BYTES:
-            raise AppError(413, "payload_too_large", "The file is too large")
+            raise AppError(413, "file_too_large", "The file is larger than 1 MiB")
     result, clean = await manual.import_statement(
         session, account_id, bytes(data), clock(), zone, date_order, apply_balance, dry_run
     )
