@@ -242,7 +242,10 @@ async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty
         "('amount', 'balance', 'credit_limit', 'original_amount', 'balance_after')",
     )
 
-    assert inside == "account,connection,fx_rate,monzo_oauth_state,monzo_token,transaction"
+    assert inside == (
+        "account,attention_state,connection,fx_rate,monzo_oauth_state,monzo_token,recurring,"
+        "transaction"
+    )
     assert outside == 0
     assert money == "bigint"
 
@@ -328,7 +331,8 @@ async def test_accounts_and_transactions_get_their_presentation_and_category_col
 
     assert columns == (
         "account.goal_amount,account.kind,account.label,account.overdraft_limit,"
-        "account.parent_account_id,transaction.category,transaction.category_override"
+        "account.parent_account_id,recurring.category,recurring.kind,transaction.category,"
+        "transaction.category_override"
     )
     assert kind == "current"
     assert category is True  # worked out at startup, not by the migration
@@ -380,7 +384,7 @@ async def test_recurring_payments_and_attention_state_are_checked_by_the_databas
 
     for statement in (
         "UPDATE finance.recurring SET kind = 'gift'",
-        "UPDATE finance.recurring SET frequency = 'sometimes'",
+        "UPDATE finance.recurring SET frequency = 'never'",
         "UPDATE finance.recurring SET frequency_interval = 0",
         "UPDATE finance.recurring SET frequency_interval = 367",
         "UPDATE finance.recurring SET currency = 'gbp'",

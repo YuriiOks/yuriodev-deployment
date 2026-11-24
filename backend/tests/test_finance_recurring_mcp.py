@@ -20,7 +20,7 @@ NEW = {
 
 async def call(mcp, name, args=None):
     result = await mcp.call_tool(name, args or {})
-    return result.is_error, result.content[0].text
+    return result.is_error, result.content[0].text.removeprefix(f"Error executing tool {name}: ")
 
 
 async def test_a_payment_is_added_listed_changed_and_seen_in_upcoming(db_url, make_dashboards_app):
