@@ -1,7 +1,7 @@
 """Response shapes of the finance API. Money is an `int` in minor units next to its ISO code."""
 
-from datetime import date, datetime, timedelta
 from collections.abc import Sequence
+from datetime import date, datetime, timedelta
 from typing import Any, Literal, Self
 from uuid import UUID
 

@@ -94,7 +94,7 @@ def _svg_root(body: bytes) -> ET.Element | None:
     if re.search(r"<!\s*(doctype|entity)", text, re.IGNORECASE):
         return None
     try:
-        root = ET.fromstring(text)
+        root = ET.fromstring(text)  # noqa: S314 (no DTD reaches here: refused above)
     except ET.ParseError:
         return None
     if root.tag != f"{{{SVG_NS}}}svg":
@@ -127,7 +127,7 @@ def _svg_size(root: ET.Element) -> tuple[float, float] | None:
     return (width, height) if width and height else None
 
 
-def logo_size(value: object) -> tuple[float, float] | None | bool:
+def logo_size(value: object) -> tuple[float, float] | bool | None:
     """False for something that is not a valid logo; else its (width, height), or None when an
     SVG says no size."""
     if not isinstance(value, str) or len(value) > MAX_ICON_LENGTH:

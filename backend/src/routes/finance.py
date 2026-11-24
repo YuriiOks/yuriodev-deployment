@@ -41,6 +41,7 @@ from src.dashboards.finance.schemas import (
     TransactionOut,
     TransactionsOut,
     display_fields,
+    provider_totals,
 )
 from src.dashboards.runtime import get_runtime, unavailable
 from src.dashboards.service import guarded

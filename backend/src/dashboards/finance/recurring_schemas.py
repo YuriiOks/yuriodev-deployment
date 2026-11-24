@@ -1,8 +1,8 @@
 """Response shapes of the recurring payments, upcoming and attention endpoints. Money is an
 integer in minor units next to its ISO code; `display_*` is the same at the latest rate."""
 
-from datetime import date, datetime
 from collections.abc import Sequence
+from datetime import date, datetime
 from typing import Any, Literal, Self
 from uuid import UUID
 
