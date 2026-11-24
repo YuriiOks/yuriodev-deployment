@@ -254,7 +254,7 @@ def test_a_card_payment_gets_its_category_from_the_merchant_code_and_keeps_the_c
     shop = parse_item(mono_item("tx-1", ts(2026, 11, 20), -45_000, mcc=5411), "UAH")
     cafe = parse_item(mono_item("tx-2", ts(2026, 11, 20), -45_000, mcc=5812), "UAH")
     salary = parse_item(mono_item("tx-3", ts(2026, 11, 20), 100_000, mcc=0), "UAH")
-    unknown = parse_item(mono_item("tx-4", ts(2026, 11, 20), -100, mcc=5999), "UAH")
+    unknown = parse_item(mono_item("tx-4", ts(2026, 11, 20), -100, mcc=9999), "UAH")
 
     assert (shop.category, shop.category_code) == ("groceries", "5411")
     assert cafe.category == "eating_out"
