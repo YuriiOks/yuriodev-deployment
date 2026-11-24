@@ -140,6 +140,8 @@ def migrated_db_url(pg_server_url: str) -> Iterator[str]:
 def db_url(migrated_db_url: str) -> str:
     # DELETE, not TRUNCATE: it does not wait for readers, so a leaked transaction cannot hang it.
     statements = (
+        "DELETE FROM finance.attention_state",
+        "DELETE FROM finance.recurring",
         "DELETE FROM finance.transaction",
         "DELETE FROM finance.account",
         "DELETE FROM finance.fx_rate",
