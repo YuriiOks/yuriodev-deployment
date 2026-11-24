@@ -43,9 +43,12 @@ describe('display', () => {
   ];
 
   it('offers the display choice only when the server converted something', () => {
-    expect(hasConversion(accounts, null)).toBe(true);
-    expect(hasConversion([acct('a', 'GBP', 1, null)], null)).toBe(false);
-    expect(hasConversion([acct('a', 'GBP', 1, null)], summary({ amount: 5, currency: 'GBP' }))).toBe(true);
+    expect(hasConversion(accounts)).toBe(true);
+    expect(hasConversion([acct('a', 'GBP', 1, null)])).toBe(false);
+    // An all-pounds owner: the server sends a display figure for every account, but nothing was converted, so there is nothing to switch.
+    expect(hasConversion([acct('a', 'GBP', 1, gbp(1))])).toBe(false);
+    // A converted account that is archived does not count.
+    expect(hasConversion([acct('a', 'GBP', 1, gbp(1)), acct('b', 'USD', 5, gbp(4), { archived: true })])).toBe(false);
   });
 
   it('in pounds: sums the converted accounts into one approximate figure with the originals behind it, and leaves a currency with no rate as it is', () => {
@@ -74,5 +77,8 @@ describe('display', () => {
     expect(grandTotal(accounts, summary({ amount: 123456, currency: 'GBP' }))).toEqual({ amount: 123456, currency: 'GBP', approx: true });
     expect(grandTotal(accounts, null)).toEqual({ amount: 44300, currency: 'GBP', approx: true });
     expect(grandTotal([acct('a', 'GBP', 1, null)], null)).toBeNull();
+    // The server's total is marked approximate only when an open account was really converted (none at all: not approximate).
+    expect(grandTotal([acct('a', 'GBP', 1, gbp(1))], summary({ amount: 5, currency: 'GBP' }))).toEqual({ amount: 5, currency: 'GBP', approx: false });
+    expect(grandTotal([], summary({ amount: 0, currency: 'GBP' }))).toEqual({ amount: 0, currency: 'GBP', approx: false });
   });
 });

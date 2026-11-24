@@ -11,8 +11,13 @@ describe('making a bank entered by hand', () => {
     expect(providerIdFor('Corner Credit Union', new Set(['corner-credit-union']))).toBe('corner-credit-union-2');
     expect(providerIdFor('Corner Credit Union', new Set(['corner-credit-union', 'corner-credit-union-2']))).toBe('corner-credit-union-3');
     expect(providerIdFor('A very long name for a small bank that goes on and on', new Set())!.length).toBeLessThanOrEqual(32);
-    expect(providerIdFor('!!!', new Set())).toBeNull();
-    expect(providerIdFor('Банк', new Set())).toBeNull();
+    // A name with no Latin letter or digit still makes a bank, under a neutral id; only an empty name has none.
+    expect(providerIdFor('!!!', new Set())).toBe('bank');
+    expect(providerIdFor('Банк', new Set())).toBe('bank');
+    expect(providerIdFor('Банк', new Set(['bank']))).toBe('bank-2');
+    expect(providerIdFor('Мой банк', new Set(['bank', 'bank-2']))).toBe('bank-3');
+    expect(providerIdFor('   ', new Set())).toBeNull();
+    expect(providerIdFor('', new Set())).toBeNull();
   });
 
   it('holds the card colour and its text to the contrast the server asks for', () => {

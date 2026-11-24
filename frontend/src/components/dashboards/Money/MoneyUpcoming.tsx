@@ -79,7 +79,9 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
     else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, items: [item] });
   }
   const split = splitDue(items, (id) => truthOf(byId.get(id)?.evidence ?? null), mode);
-  const showGrand = mode === 'base' && data.grand !== null && data.totals.some((total) => total.display !== null);
+  // A grand total (and its "≈") is only for a window that has something converted in it; one currency is one figure, told once.
+  const showGrand = mode === 'base' && data.grand !== null && data.totals.some((total) => total.converted && total.display !== null);
+  const single = !showGrand && data.totals.length === 1 ? data.totals[0] : null;
   return (
     <div className={styles.body}>
       <div className={styles.toolbar}>
@@ -122,11 +124,17 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
                 {r.dueGrand}: ≈ {formatMinor(data.grand.amount, data.grand.currency, lang)}
               </strong>
             )}
-            <ul className={styles.totalList}>
-              {data.totals.map((total) => (
-                <li key={total.currency}>{formatMinor(total.amount, total.currency, lang)}</li>
-              ))}
-            </ul>
+            {single ? (
+              <strong className={styles.grandDue}>
+                {r.dueGrand}: {formatMinor(single.amount, single.currency, lang)}
+              </strong>
+            ) : (
+              <ul className={styles.totalList}>
+                {data.totals.map((total) => (
+                  <li key={total.currency}>{formatMinor(total.amount, total.currency, lang)}</li>
+                ))}
+              </ul>
+            )}
             {showGrand && data.grand && !data.grand.complete && <span className={styles.note}>{r.dueIncomplete}</span>}
             <ul className={styles.dueSplit}>
               {TRUTHS.flatMap((truth) => {

@@ -172,6 +172,8 @@ export interface Strings {
     readonly overdrawn: string;
     readonly usedOfLimit: string;
     readonly usedOfOverdraft: string;
+    readonly overLimit: string;
+    readonly limitUnknown: string;
     readonly ownLimit: string;
     readonly overdraftLimit: string;
     readonly actionAccounts: string;
@@ -459,6 +461,8 @@ export const STRINGS: Record<Lang, Strings> = {
       overdrawn: 'овердрафт',
       usedOfLimit: 'занято {percent}% лимита {limit} · свободно {free}',
       usedOfOverdraft: 'занято {percent}% овердрафта {limit} · свободно {free}',
+      overLimit: 'превышен лимит {limit} на {over}',
+      limitUnknown: 'лимит не известен',
       ownLimit: 'ваш лимит',
       overdraftLimit: 'овердрафт {amount}',
       actionAccounts: 'Счета',
@@ -761,6 +765,8 @@ export const STRINGS: Record<Lang, Strings> = {
       overdrawn: 'overdrawn',
       usedOfLimit: '{percent}% of the {limit} limit used · {free} free',
       usedOfOverdraft: '{percent}% of the {limit} overdraft used · {free} free',
+      overLimit: 'over the {limit} limit by {over}',
+      limitUnknown: 'limit not known',
       ownLimit: 'your limit',
       overdraftLimit: '{amount} overdraft limit',
       actionAccounts: 'Accounts',

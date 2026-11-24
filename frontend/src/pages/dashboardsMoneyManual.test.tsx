@@ -148,7 +148,7 @@ describe('the Money page: a bank entered by hand', () => {
     await user.clear(amount);
     await user.type(amount, 'lots');
     await user.click(form.getByRole('button', { name: 'Save balance' }));
-    expect(await form.findByRole('alert')).toHaveTextContent('Enter an amount like 1234.50');
+    expect(await form.findByRole('alert')).toHaveTextContent('Enter what is owed now');
     expect(api.callsTo('POST', '/finance/manual')).toHaveLength(0);
     await user.clear(amount);
     await user.type(amount, '120');

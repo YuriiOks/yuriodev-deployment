@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from src.core.errors import AppError
 from src.dashboards.finance import manual, service
+from src.dashboards.finance.rawbody import require_file_type
 from src.dashboards.finance.schemas import AccountOut, ConnectionOut
 from src.dashboards.finance.statements import MAX_BYTES, DateOrder
 from src.routes.dashboards import ClockDep, SessionDep, SettingsDep, ZoneDep
@@ -93,6 +94,7 @@ async def upload_statement(
     dates against the bank's own statement first). `date_order=dmy|mdy` settles an ambiguous
     file. `apply_balance` sets the account's balance from the file's newest balance, unless a
     newer one is already set. An unrecognised layout is 422 `unknown_layout`."""
+    require_file_type(request)
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)

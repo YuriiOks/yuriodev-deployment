@@ -1573,3 +1573,33 @@ async def test_an_error_of_a_later_check_names_the_row_of_the_file(db_url, make_
     assert [(e["row"], e["field"]) for e in response.json()["errors"]] == [
         (3, "completed_installments")
     ]
+
+
+@pytest.mark.parametrize(
+    ("content_type", "status"),
+    [
+        ("text/plain", 415),
+        ("text/plain; charset=utf-8", 415),
+        ("application/x-www-form-urlencoded", 415),
+        ("multipart/form-data; boundary=x", 415),
+        ("text/csv", 200),
+        ("text/csv; charset=utf-8", 200),
+        ("application/octet-stream", 200),
+        (None, 200),
+    ],
+)
+async def test_a_file_body_is_not_taken_when_it_is_what_an_html_form_sends(
+    db_url, make_dashboards_app, content_type, status
+):
+    app = make_dashboards_app(db_url)
+    headers = {"content-type": content_type} if content_type else {}
+    async with running(app, AUTH) as client:
+        response = await client.post(
+            f"{BASE}/recurring/import?dry_run=true",
+            content=b"name,amount,currency,frequency\nA,1,GBP,monthly\n",
+            headers=headers,
+        )
+
+    assert response.status_code == status
+    if status == 415:
+        assert response.json()["error"] == "unsupported_media_type"

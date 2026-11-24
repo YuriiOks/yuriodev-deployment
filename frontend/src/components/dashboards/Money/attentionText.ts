@@ -24,13 +24,15 @@ export function useSentence(item: AttentionItem, name: string, mode: MoneyDispla
   const r = t.money.rec;
   const money = (minor: number | null, code: string | null) => (minor !== null && code ? formatMinor(minor, code, lang) : null);
   const own = item.amount !== null && item.currency ? amountText(item.amount, item.currency, item.display, mode, lang) : null;
+  // A comparison (recorded against charged, a payment against what is short) is told in the payment's own currency on both sides.
+  const native = item.amount !== null && item.currency ? formatMinor(item.amount, item.currency, lang) : null;
   const f = item.facts;
   switch (item.kind) {
     case 'due_not_covered': {
       const days = num(f.due_in_days);
-      if (days === null || own === null) return item.title;
+      if (days === null || native === null) return item.title;
       const shortfall = money(num(f.shortfall), typeof f.account_currency === 'string' ? f.account_currency : null);
-      return shortfall ? fill(r.sentence.due_not_covered, { name, when: dueWhen(days, r), amount: own, short: shortfall }) : fill(r.sentenceShort, { name, when: dueWhen(days, r), amount: own });
+      return shortfall ? fill(r.sentence.due_not_covered, { name, when: dueWhen(days, r), amount: native, short: shortfall }) : fill(r.sentenceShort, { name, when: dueWhen(days, r), amount: native });
     }
     case 'missed_payment': {
       const days = num(f.days_overdue);
@@ -38,7 +40,7 @@ export function useSentence(item: AttentionItem, name: string, mode: MoneyDispla
     }
     case 'amount_changed': {
       const recorded = money(num(f.recorded_amount), item.currency);
-      return recorded === null || own === null ? item.title : fill(r.sentence.amount_changed, { name, charged: own, recorded });
+      return recorded === null || native === null ? item.title : fill(r.sentence.amount_changed, { name, charged: native, recorded });
     }
     case 'credit_high': {
       const percent = num(f.used_percent);
@@ -65,13 +67,15 @@ export function useFact(item: AttentionItem, mode: MoneyDisplay): string {
   const r = t.money.rec;
   const money = (minor: number | null, code: string | null) => (minor !== null && code ? formatMinor(minor, code, lang) : null);
   const own = item.amount !== null && item.currency ? amountText(item.amount, item.currency, item.display, mode, lang) : null;
+  // A comparison (recorded against charged, a payment against what is short) is told in the payment's own currency on both sides.
+  const native = item.amount !== null && item.currency ? formatMinor(item.amount, item.currency, lang) : null;
   const f = item.facts;
   switch (item.kind) {
     case 'due_not_covered': {
       const days = num(f.due_in_days);
-      if (days === null || own === null) return item.title;
+      if (days === null || native === null) return item.title;
       const shortfall = money(num(f.shortfall), typeof f.account_currency === 'string' ? f.account_currency : null);
-      return shortfall ? fill(r.fact.due_not_covered, { amount: own, when: dueWhen(days, r), short: shortfall }) : `${own} ${dueWhen(days, r)} · ${r.notCovered}`;
+      return shortfall ? fill(r.fact.due_not_covered, { amount: native, when: dueWhen(days, r), short: shortfall }) : `${native} ${dueWhen(days, r)} · ${r.notCovered}`;
     }
     case 'missed_payment': {
       const days = num(f.days_overdue);
@@ -79,7 +83,7 @@ export function useFact(item: AttentionItem, mode: MoneyDisplay): string {
     }
     case 'amount_changed': {
       const recorded = money(num(f.recorded_amount), item.currency);
-      return recorded === null || own === null ? item.title : fill(r.fact.amount_changed, { charged: own, recorded });
+      return recorded === null || native === null ? item.title : fill(r.fact.amount_changed, { charged: native, recorded });
     }
     case 'credit_high': {
       const percent = num(f.used_percent);
@@ -105,6 +109,8 @@ export function useCardFact(item: AttentionItem, mode: MoneyDisplay): string {
   const r = t.money.rec;
   const money = (minor: number | null, code: string | null) => (minor !== null && code ? formatMinor(minor, code, lang) : null);
   const own = item.amount !== null && item.currency ? amountText(item.amount, item.currency, item.display, mode, lang) : null;
+  // A comparison (recorded against charged, a payment against what is short) is told in the payment's own currency on both sides.
+  const native = item.amount !== null && item.currency ? formatMinor(item.amount, item.currency, lang) : null;
   const f = item.facts;
   switch (item.kind) {
     case 'due_not_covered': {
@@ -119,7 +125,7 @@ export function useCardFact(item: AttentionItem, mode: MoneyDisplay): string {
     }
     case 'amount_changed': {
       const recorded = money(num(f.recorded_amount), item.currency);
-      return recorded === null || own === null ? item.title : fill(r.card.amount_changed, { charged: own, recorded });
+      return recorded === null || native === null ? item.title : fill(r.card.amount_changed, { charged: native, recorded });
     }
     case 'credit_high': {
       const percent = num(f.used_percent);
