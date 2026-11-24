@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '../../../services/dashboards/providerBrand';
-import { buildAccountBody, hasEnoughContrast, providerIdFor, type AccountFields } from './manualCreate';
+import { buildAccountBody, hasEnoughContrast, providerIdFor, type AccountFields } from './manualCreateModel';
 
 const fields = (extra: Partial<AccountFields> = {}): AccountFields => ({ name: 'Everyday', kind: 'current', currency: 'GBP', amount: '12.50', owed: '', last4: '', asOf: '', ...extra });
 

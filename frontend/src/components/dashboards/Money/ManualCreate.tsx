@@ -3,7 +3,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { createManualAccount, createManualConnection, type ManualAccountKind } from '../../../services/dashboards/manualApi';
 import { refusal } from '../../../services/dashboards/recurringApi';
-import { buildAccountBody, hasEnoughContrast, providerIdFor, type AccountFields, type AccountProblem } from './manualCreate';
+import { buildAccountBody, hasEnoughContrast, providerIdFor, type AccountFields, type AccountProblem } from './manualCreateModel';
 import styles from './Manual.module.css';
 
 const KINDS: readonly ManualAccountKind[] = ['current', 'savings', 'business', 'credit_card'];
