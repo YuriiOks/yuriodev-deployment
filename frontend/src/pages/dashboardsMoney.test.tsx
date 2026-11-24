@@ -537,7 +537,7 @@ describe('the Money page: account kinds, goals and categories', () => {
         categories: [{ category: 'groceries', spent: 13800, previous: 9900 }],
       },
     };
-    setup({ finance: finance({ categories, display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a', 'Everyday', 'GBP', 1, { display_own_balance_minor: 1, converted: false })] }) });
+    setup({ finance: finance({ categories, display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a', 'Everyday', 'GBP', 1, { display_own_balance_minor: 1, converted: false }), acct('u', 'Hryvnia', 'UAH', 1000, { display_own_balance_minor: 19, converted: true })] }) });
     const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));

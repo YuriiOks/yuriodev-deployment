@@ -43,12 +43,21 @@ describe('useOnce', () => {
     };
     const { result } = renderHook(() => useOnce(load, true));
     await waitFor(() => expect(result.current.status).toBe('ready'));
+    // The reload is asked for in one step (so its effect runs) and awaited in the next.
+    let failing: Promise<void> = Promise.resolve();
+    act(() => {
+      failing = result.current.reload();
+    });
     await act(async () => {
-      await result.current.reload();
+      await failing;
     });
     expect(result.current.status).toBe('error');
+    let both: Promise<unknown> = Promise.resolve();
+    act(() => {
+      both = Promise.all([result.current.reload(), result.current.reload()]);
+    });
     await act(async () => {
-      await Promise.all([result.current.reload(), result.current.reload()]);
+      await both;
     });
     expect(result.current.status).toBe('ready');
   });
