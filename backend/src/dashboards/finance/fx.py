@@ -165,9 +165,7 @@ class Display:
 
 async def load_rates(session: AsyncSession, now: datetime) -> RateBook:
     rows = (await session.execute(select(FxRate))).scalars().all()
-    legs = {
-        row.base: Leg(row.rate, row.as_of, row.source) for row in rows if row.quote == PIVOT
-    }
+    legs = {row.base: Leg(row.rate, row.as_of, row.source) for row in rows if row.quote == PIVOT}
     return RateBook(legs, now)
 
 
