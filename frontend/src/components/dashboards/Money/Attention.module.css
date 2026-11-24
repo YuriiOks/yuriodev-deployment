@@ -119,8 +119,9 @@
   grid-area: right;
 }
 
+/* The arrows keep their slots (hidden, never removed): a slot that came and went would change the scroller's width at a scroll position and make the row creep. */
 .arrow[data-edge="true"] {
-  display: none;
+  visibility: hidden;
 }
 
 @media (hover: none), (pointer: coarse), (max-width: 47.99rem) {
