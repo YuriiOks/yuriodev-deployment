@@ -217,9 +217,10 @@ async def test_a_failed_refresh_changes_nothing_and_is_tried_again_in_five_minut
 ):
     answers = [json_response({}, 502), json_response([rate_row(826, rateCross=50.0)])]
     app = make_dashboards_app(db_url)
-    async with running(app, AUTH), httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda request: answers.pop(0))
-    ) as c:
+    async with (
+        running(app, AUTH),
+        httpx.AsyncClient(transport=httpx.MockTransport(lambda request: answers.pop(0))) as c,
+    ):
         sessions = app.state.dashboards.sessions
         fx = FxCollector()
         with pytest.raises(UpstreamError):
