@@ -28,13 +28,17 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; acc
   const account = item.accountId ? accounts.find((row) => row.id === item.accountId) : undefined;
   const payer = account ? fill(r.paidFrom, { account: account.name }) : item.paymentMethod;
   return (
-    <li className={styles.due} data-covered={item.covered === null ? 'unknown' : String(item.covered)}>
+    <li className={styles.due} data-covered={item.covered === null ? 'unknown' : String(item.covered)} data-overdue={item.overdue ? 'true' : undefined}>
       <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} />
       <span className={styles.dueMain}>
         <strong className={styles.dueName}>{item.name}</strong>
         <span className={styles.note}>
           {[r.kinds[item.kind], payer, coverWords(item, lang, r)].filter(Boolean).join(' · ')}
         </span>
+        {/* The shortfall above is this payment's own missing part; when earlier payments from the same account add to it, the account's whole gap is said too. */}
+        {item.covered === false && item.accountShortTotal !== null && item.shortfall !== null && item.accountShortTotal > item.shortfall && item.accountCurrency && (
+          <span className={styles.note}>{fill(r.shortTotal, { amount: formatMinor(item.accountShortTotal, item.accountCurrency, lang as 'ru' | 'en') })}</span>
+        )}
         <TruthMark evidence={evidence} />
       </span>
       <strong className={styles.dueAmount}>
@@ -72,11 +76,11 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
   const week = items.filter((item) => item.daysUntil <= UPCOMING_WEEK_DAYS);
   const bounded = (week.length > 0 ? week : items.slice(0, UPCOMING_FALLBACK_ROWS)).slice(0, UPCOMING_ROWS);
   const visible = all ? items : bounded;
-  const groups: { date: string; daysUntil: number; items: UpcomingItem[] }[] = [];
+  const groups: { date: string; daysUntil: number; overdue: boolean; items: UpcomingItem[] }[] = [];
   for (const item of visible) {
     const last = groups[groups.length - 1];
-    if (last && last.date === item.dueDate) last.items.push(item);
-    else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, items: [item] });
+    if (last && last.date === item.dueDate && last.overdue === item.overdue) last.items.push(item);
+    else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, overdue: item.overdue, items: [item] });
   }
   const split = splitDue(items, (id) => truthOf(byId.get(id)?.evidence ?? null), mode);
   // A grand total (and its "≈") is only for a window that has something converted in it; one currency is one figure, told once.
@@ -103,7 +107,7 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
           <ol className={styles.days}>
             {groups.map((group) => (
               <li key={group.date} className={styles.day}>
-                <h3 className={styles.dayHead}>{dayHeading(group.date, group.daysUntil, lang, r)}</h3>
+                <h3 className={styles.dayHead}>{dayHeading(group.date, group.daysUntil, lang, r, group.overdue)}</h3>
                 <ul className={styles.dueList}>
                   {group.items.map((item, index) => (
                     <UpcomingRow key={`${item.recurringId}-${index}`} item={item} evidence={byId.get(item.recurringId)?.evidence ?? null} accounts={accounts} mode={mode} />

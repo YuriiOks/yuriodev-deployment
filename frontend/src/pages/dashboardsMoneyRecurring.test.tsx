@@ -62,7 +62,7 @@ const rec = (id: string, name: string, extra: Record<string, unknown> = {}) => (
 });
 
 /** How the server rates each kind (the page orders by the severity an item carries). */
-const SEVERITY_OF: Record<string, string> = { due_not_covered: 'high', missed_payment: 'high', overdraft: 'high', reconsent: 'high', amount_changed: 'medium', credit_high: 'medium', stale_statement: 'medium', overdrawn: 'info' };
+const SEVERITY_OF: Record<string, string> = { due_not_covered: 'high', missed_payment: 'high', overdraft: 'high', reconsent: 'high', amount_changed: 'medium', credit_high: 'medium', stale_statement: 'medium', stale_connection: 'medium', overdrawn: 'info' };
 
 const item = (kind: string, key: string, subject: [string, string], extra: Record<string, unknown> = {}) => ({
   key,
@@ -479,20 +479,16 @@ describe('the Money page: the whole attention list', () => {
     const panel = await attentionPanel();
     const changed = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'amount_changed') as HTMLElement);
     await user.click(changed.getByRole('button', { name: 'Accept charged amounts' }));
-    await waitFor(() => expect(api.calls.filter((call) => call.method === 'PATCH' && call.path.startsWith('/finance/recurring/'))).toHaveLength(5));
-    const bodies = api.calls.filter((call) => call.method === 'PATCH').map((call) => [call.path, call.body]);
-    expect(bodies).toEqual([
-      ['/finance/recurring/r-3', { amount: 1250 }],
-      ['/finance/recurring/r-4', { amount: 2000 }],
-      ['/finance/recurring/r-5', { amount: 3000 }],
-      ['/finance/recurring/r-6', { amount: 4000 }],
-      ['/finance/recurring/r-7', { amount: 5000 }],
-    ]);
+    // One bulk request for the group, not a PATCH per payment.
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/bulk')).toHaveLength(1));
+    expect(api.callsTo('POST', '/finance/attention/bulk')[0].body).toEqual({ keys: ['c1', 'c2', 'c3', 'c4', 'c5'], action: 'accept' });
+    expect(api.calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+    await waitFor(() => expect(api.finance.recurring?.find((row) => row.id === 'r-3')?.amount).toBe(1250));
     // Snooze all: one bulk request for the group, 7 days.
     const overdraft = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'overdraft') as HTMLElement);
     await user.click(overdraft.getByRole('button', { name: 'Snooze all for 7 d' }));
-    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/bulk')).toHaveLength(1));
-    expect(api.callsTo('POST', '/finance/attention/bulk')[0].body).toEqual({ keys: ['k5', 'k9'], action: 'snooze', days: 7 });
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/bulk')).toHaveLength(2));
+    expect(api.callsTo('POST', '/finance/attention/bulk')[1].body).toEqual({ keys: ['k5', 'k9'], action: 'snooze', days: 7 });
   });
 
   it('asks before a bulk dismissal, and does nothing when it is cancelled', async () => {

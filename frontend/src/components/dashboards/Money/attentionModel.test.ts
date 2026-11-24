@@ -9,6 +9,8 @@ const item = (key: string, kind: AttentionKind, severity: Severity, state: Atten
   title: key,
   subjectType: 'account',
   subjectId: 'x',
+  subjectName: null,
+  provider: null,
   dueDate: null,
   amount: null,
   currency: null,

@@ -188,6 +188,8 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       const found = list.find((row) => row.id === path.split('/')[3]);
       if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
       if (path.endsWith('/paid')) {
+        // The date the page showed: when the payment has moved on since, nothing is done (409).
+        if (typeof body?.due_date === 'string' && body.due_date !== found.next_payment_date) return json({ error: 'conflict', message: 'This payment has already moved on', request_id: 'test' }, 409);
         found.next_payment_date = '2026-12-23';
         return json(found);
       }
@@ -211,11 +213,21 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       const all = api.finance.attention ?? [];
       const found = all.filter((entry) => keys.includes(String(entry.key)));
       const action = String(body?.action);
+      const accepted: string[] = [];
+      if (action === 'accept') {
+        for (const entry of found) {
+          const payment = (api.finance.recurring ?? []).find((row) => row.id === entry.subject_id);
+          if (entry.kind !== 'amount_changed' || !payment || typeof entry.amount !== 'number') continue;
+          payment.amount = entry.amount;
+          accepted.push(String(entry.key));
+        }
+        return json({ items: found, missing: keys.filter((key) => !found.some((entry) => entry.key === key)), accepted });
+      }
       for (const entry of found) {
         entry.state = action === 'snooze' ? 'snoozed' : action === 'dismiss' ? 'dismissed' : 'active';
         entry.snoozed_until = action === 'snooze' ? '2026-12-01T00:00:00Z' : null;
       }
-      return json({ items: found, missing: keys.filter((key) => !found.some((entry) => entry.key === key)) });
+      return json({ items: found, missing: keys.filter((key) => !found.some((entry) => entry.key === key)), accepted });
     }
     const accountPatch = /^\/finance\/accounts\/([\w-]+)$/.exec(path);
     if (accountPatch && method === 'PATCH') {

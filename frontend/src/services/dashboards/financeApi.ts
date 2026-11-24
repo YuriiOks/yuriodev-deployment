@@ -119,6 +119,11 @@ export interface FinanceConnection {
   /** Entered by hand: no collector reads it, so it has no link state, only a date its data is as of. */
   readonly manual: boolean;
   readonly displayName: string | null;
+  /** Why the last read failed (a short kind), until one works. */
+  readonly lastError: string | null;
+  /** An API bank whose balances have not been read for a long time: they are as of `staleSince`, whatever its status says. */
+  readonly stale: boolean;
+  readonly staleSince: string | null;
 }
 
 export interface FinanceAccounts {
@@ -168,6 +173,10 @@ export interface CurrencySummary {
 export interface FinanceSummary {
   readonly month: string;
   readonly asOf: string | null;
+  /** The newest balance among the accounts counted: what "updated" says. */
+  readonly asOfNewest: string | null;
+  /** The oldest balance among banks read by their own API (a hand-entered bank is as old as its last statement and is not stale): the page warns when it is far behind. */
+  readonly asOfOldest: string | null;
   readonly currencies: readonly CurrencySummary[];
   /** One grand total in the display currency (the converted parts, each converted once, added), null until the server sends it. */
   readonly total: Converted | null;
@@ -267,7 +276,7 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
     if (!isObject(raw)) return [];
     const provider = text(raw.provider);
     const status = STATUSES.find((candidate) => candidate === raw.status);
-    return provider && status ? [{ id: text(raw.id), provider, status, lastOkAt: text(raw.last_ok_at), manual: raw.manual === true, displayName: text(raw.display_name) }] : [];
+    return provider && status ? [{ id: text(raw.id), provider, status, lastOkAt: text(raw.last_ok_at), manual: raw.manual === true, displayName: text(raw.display_name), lastError: text(raw.last_error), stale: raw.stale === true, staleSince: text(raw.stale_since) }] : [];
   });
   return { accounts, connections, display };
 }
@@ -329,6 +338,8 @@ export function parseSummary(body: unknown): FinanceSummary | null {
   return {
     month: text(body.month) ?? '',
     asOf: text(body.as_of),
+    asOfNewest: text(body.as_of_newest),
+    asOfOldest: text(body.as_of_oldest),
     currencies,
     total: converted(grand?.own_balance, display?.currency ?? null),
     complete: grand?.complete === true,
@@ -384,7 +395,10 @@ export async function fetchTransactions(query: TransactionQuery, signal?: AbortS
 export interface CategorySpend {
   readonly category: Category;
   readonly spent: number;
+  /** The same category the month before, in full. */
   readonly previous: number;
+  /** The month before up to the same day and time as now (null for a month that is over, or an older server). */
+  readonly previousToDate: number | null;
 }
 
 /** Money out in one currency by category (internal transfers and declined payments left out). */
@@ -392,6 +406,7 @@ export interface CurrencyCategories {
   readonly currency: string;
   readonly spent: number;
   readonly previousSpent: number;
+  readonly previousToDateSpent: number | null;
   readonly categories: readonly CategorySpend[];
   /** Whether this currency is not the display one (its blocks are shown as they are in native mode). */
   readonly converted: boolean;
@@ -404,6 +419,7 @@ export interface DisplayCategories {
   readonly complete: boolean;
   readonly spent: number;
   readonly previousSpent: number;
+  readonly previousToDateSpent: number | null;
   readonly categories: readonly CategorySpend[];
   readonly missing: readonly string[];
   readonly rateAsOf: string | null;
@@ -412,6 +428,8 @@ export interface DisplayCategories {
 export interface FinanceCategories {
   readonly month: string;
   readonly previousMonth: string;
+  /** The day of the previous month the "to date" figures are counted up to (the same day and time as now); null unless the month is the current one. */
+  readonly previousToDateDay: string | null;
   readonly currencies: readonly CurrencyCategories[];
   readonly display: DisplayCategories | null;
 }
@@ -426,9 +444,9 @@ export function parseCategories(body: unknown): FinanceCategories | null {
     const categories = raw.categories.flatMap((entry): CategorySpend[] => {
       if (!isObject(entry) || !isCategory(entry.category)) return [];
       const value = int(entry.spent);
-      return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0 }];
+      return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0, previousToDate: int(entry.previous_to_date) }];
     });
-    return [{ currency: code, spent, previousSpent: int(raw.previous_spent) ?? 0, categories, converted: raw.converted === true }];
+    return [{ currency: code, spent, previousSpent: int(raw.previous_spent) ?? 0, previousToDateSpent: int(raw.previous_to_date_spent), categories, converted: raw.converted === true }];
   });
   const info = parseDisplayInfo(body.display);
   const root = isObject(body.display) ? body.display : null;
@@ -436,14 +454,14 @@ export function parseCategories(body: unknown): FinanceCategories | null {
     ? (root.categories as unknown[]).flatMap((entry): CategorySpend[] => {
         if (!isObject(entry) || !isCategory(entry.category)) return [];
         const value = int(entry.spent);
-        return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0 }];
+        return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0, previousToDate: int(entry.previous_to_date) }];
       })
     : [];
   const display: DisplayCategories | null =
     info && root && int(root.spent) !== null
-      ? { currency: info.currency, complete: root.complete === true, spent: int(root.spent) ?? 0, previousSpent: int(root.previous_spent) ?? 0, categories: lines, missing: info.missing, rateAsOf: oldestRate(info) }
+      ? { currency: info.currency, complete: root.complete === true, spent: int(root.spent) ?? 0, previousSpent: int(root.previous_spent) ?? 0, previousToDateSpent: int(root.previous_to_date_spent), categories: lines, missing: info.missing, rateAsOf: oldestRate(info) }
       : null;
-  return { month: text(body.month) ?? '', previousMonth: text(body.previous_month) ?? '', currencies, display };
+  return { month: text(body.month) ?? '', previousMonth: text(body.previous_month) ?? '', previousToDateDay: text(body.previous_to_date_day), currencies, display };
 }
 
 export async function fetchCategories(month?: string, signal?: AbortSignal): Promise<FinanceCategories> {

@@ -4,7 +4,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, ProviderLogo } from '../../../services/dashboards/financeApi';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { dismissAttention, markPaid, snoozeAttention, updateRecurring, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
+import { dismissAttention, markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
 import LimitForm from './LimitForm';
 import { useDetailRows, useSentence, useSubject } from './attentionText';
 import { reconnectPath } from './providers';
@@ -24,6 +24,8 @@ export interface AttentionSheetProps {
   onClose: () => void;
   /** The item was dealt with (paid, accepted, snoozed, dismissed): the page asks again and the sheet moves on. */
   onActed: (item: AttentionItem) => void | Promise<void>;
+  /** Refetches the lists without moving on (after the payment turned out to have moved already). */
+  onRefresh: () => Promise<void>;
   onOpenBank: (provider: string) => void;
 }
 
@@ -32,7 +34,7 @@ export interface AttentionSheetProps {
  * what it concerns, and the actions as buttons: the primary one for its kind, Snooze for 1, 3, 7 or 30 days, and Dismiss. Focus is held
  * inside, Escape closes it and focus returns to the card that opened it.
  */
-const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accounts, logos, mode, opener, onClose, onActed, onOpenBank }) => {
+const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accounts, logos, mode, opener, onClose, onActed, onRefresh, onOpenBank }) => {
   const { t } = useDashboardLang();
   const m = t.money;
   const r = m.rec;
@@ -43,7 +45,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
   const closeButton = useRef<HTMLButtonElement>(null);
   const [limitForm, setLimitForm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<'failed' | 'moved' | null>(null);
 
   // Focus goes in when the sheet opens and back to the card when it closes.
   useEffect(() => {
@@ -58,7 +60,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
   // A new item shows with its own form closed.
   useEffect(() => {
     setLimitForm(false);
-    setFailed(false);
+    setFailed(null);
   }, [item.key]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -83,12 +85,14 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
 
   const act = async (action: () => Promise<void>) => {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
       await action();
       await onActed(item);
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      // The payment moved on since the page showed it: nothing was done, the page is refreshed and says so (no retry).
+      if (movedOn(error)) await onRefresh().catch(() => undefined);
+      setFailed(movedOn(error) ? 'moved' : 'failed');
     } finally {
       setBusy(false);
     }
@@ -104,7 +108,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
   let primary: React.ReactNode = null;
   if ((item.kind === 'missed_payment' || item.kind === 'due_not_covered') && payment) {
     primary = (
-      <button type="button" className={styles.primary} disabled={busy} onClick={() => act(() => markPaid(payment.id))}>
+      <button type="button" className={styles.primary} disabled={busy} onClick={() => act(() => markPaid(payment.id, item.dueDate ?? payment.nextDate))}>
         {r.markPaid}
       </button>
     );
@@ -126,7 +130,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
         {m.reconnect}
       </a>
     );
-  } else if (provider && (item.kind === 'credit_high' || item.kind === 'overdraft' || item.kind === 'stale_statement' || item.kind === 'reconsent')) {
+  } else if (provider && (item.kind === 'credit_high' || item.kind === 'overdraft' || item.kind === 'stale_statement' || item.kind === 'stale_connection' || item.kind === 'reconsent')) {
     primary = (
       <a
         className={styles.primary}
@@ -214,7 +218,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
         </div>
         {failed && (
           <p role="alert" className={styles.error}>
-            {r.actionFailed}
+            {failed === 'moved' ? r.alreadyMoved : r.actionFailed}
           </p>
         )}
       </aside>

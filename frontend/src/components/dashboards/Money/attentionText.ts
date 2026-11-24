@@ -14,8 +14,9 @@ export const num = (value: unknown): number | null => (typeof value === 'number'
 export function useSubject(item: AttentionItem, recurring: readonly Recurring[], accounts: readonly FinanceAccount[], logos: Readonly<Record<string, ProviderLogo>>) {
   const payment = item.subjectType === 'recurring' ? recurring.find((row) => row.id === item.subjectId) : undefined;
   const account = item.subjectType === 'account' ? accounts.find((row) => row.id === item.subjectId) : undefined;
-  const provider = account?.provider ?? (typeof item.facts.provider === 'string' ? item.facts.provider : null);
-  return { payment, account, provider, name: payment?.name ?? account?.name ?? (provider ? bankLabel(provider, logos[provider]) : item.title) };
+  // The item names its subject and provider itself; the lists are only for what needs the whole row (the payment to act on, the account to edit).
+  const provider = item.provider ?? account?.provider ?? (typeof item.facts.provider === 'string' ? item.facts.provider : null);
+  return { payment, account, provider, name: item.subjectName ?? payment?.name ?? account?.name ?? (provider ? bankLabel(provider, logos[provider]) : item.title) };
 }
 
 /** The facts behind an item as one plain sentence in the page's language; the server's English title only when a fact is missing. */
@@ -55,8 +56,13 @@ export function useSentence(item: AttentionItem, name: string, mode: MoneyDispla
     case 'reconsent':
       return fill(r.sentence.reconsent, { bank: name });
     case 'stale_statement': {
+      if (f.no_data === true) return fill(r.noDataSentence, { bank: name });
       const days = num(f.days_old);
       return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.sentence.stale_statement, { bank: name, days, date: dayLabel(f.as_of, lang) });
+    }
+    case 'stale_connection': {
+      const hours = num(f.hours_old);
+      return hours === null || typeof f.since !== 'string' ? item.title : fill(r.sentence.stale_connection, { bank: name, hours, date: dayLabel(f.since, lang) });
     }
   }
 }
@@ -96,8 +102,13 @@ export function useFact(item: AttentionItem, mode: MoneyDisplay): string {
     case 'reconsent':
       return r.fact.reconsent;
     case 'stale_statement': {
+      if (f.no_data === true) return r.noDataFact;
       const days = num(f.days_old);
       return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.fact.stale_statement, { date: dayLabel(f.as_of, lang), days });
+    }
+    case 'stale_connection': {
+      const hours = num(f.hours_old);
+      return hours === null ? item.title : fill(r.fact.stale_connection, { hours });
     }
   }
 }
@@ -138,8 +149,13 @@ export function useCardFact(item: AttentionItem, mode: MoneyDisplay): string {
     case 'reconsent':
       return r.card.reconsent;
     case 'stale_statement': {
+      if (f.no_data === true) return r.noDataFact;
       const days = num(f.days_old);
       return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.card.stale_statement, { date: dayLabel(f.as_of, lang), days });
+    }
+    case 'stale_connection': {
+      const hours = num(f.hours_old);
+      return hours === null ? item.title : fill(r.card.stale_connection, { hours });
     }
   }
 }
@@ -172,6 +188,7 @@ export function useDetailRows(item: AttentionItem, mode: MoneyDisplay): DetailRo
     case 'missed_payment':
       add(d.overdueDays, num(f.days_overdue) === null ? null : String(num(f.days_overdue)));
       add(d.lastPaid, day(f.last_paid_on));
+      add(d.dataAsOf, day(f.data_as_of));
       break;
     case 'amount_changed':
       add(d.recorded, money(num(f.recorded_amount), item.currency));
@@ -199,6 +216,10 @@ export function useDetailRows(item: AttentionItem, mode: MoneyDisplay): DetailRo
     case 'stale_statement':
       add(d.asOf, day(f.as_of));
       add(d.daysOld, num(f.days_old) === null ? null : String(num(f.days_old)));
+      break;
+    case 'stale_connection':
+      add(d.since, day(f.since));
+      add(d.hoursOld, num(f.hours_old) === null ? null : String(num(f.hours_old)));
       break;
   }
   return rows.flatMap((row) => (row ? [row] : []));

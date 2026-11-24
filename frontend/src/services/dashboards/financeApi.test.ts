@@ -34,7 +34,7 @@ describe('finance parsers', () => {
     const parsed = parseAccounts({
       accounts: [],
       connections: [
-        { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' },
+        { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z', last_error: 'timeout', stale: true, stale_since: '2026-11-22T09:00:00Z' },
         { provider: 'globex-bank', status: 'needs_reconsent', last_ok_at: null },
         { id: 'c-9', provider: 'hand-bank', status: 'ok', last_ok_at: '2026-11-01T00:00:00Z', manual: true, display_name: 'Hand Bank' },
         { provider: 'x', status: 'on fire' },
@@ -42,9 +42,9 @@ describe('finance parsers', () => {
       ],
     });
     expect(parsed?.connections).toEqual([
-      { id: null, provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z', manual: false, displayName: null },
-      { id: null, provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null, manual: false, displayName: null },
-      { id: 'c-9', provider: 'hand-bank', status: 'ok', lastOkAt: '2026-11-01T00:00:00Z', manual: true, displayName: 'Hand Bank' },
+      { id: null, provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z', manual: false, displayName: null, lastError: 'timeout', stale: true, staleSince: '2026-11-22T09:00:00Z' },
+      { id: null, provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null, manual: false, displayName: null, lastError: null, stale: false, staleSince: null },
+      { id: 'c-9', provider: 'hand-bank', status: 'ok', lastOkAt: '2026-11-01T00:00:00Z', manual: true, displayName: 'Hand Bank', lastError: null, stale: false, staleSince: null },
     ]);
     expect(parseAccounts({ nope: [] })).toBeNull();
     expect(parseAccounts(null)).toBeNull();
@@ -147,17 +147,18 @@ describe('finance parsers', () => {
       parseCategories({
         month: '2026-11',
         previous_month: '2026-10',
-        currencies: [{ currency: 'GBP', spent: 100, previous_spent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }, { category: 'nonsense', spent: 1 }, { category: 'transport', spent: 'x' }] }, { currency: 'zz', spent: 1, categories: [] }],
+        previous_to_date_day: '2026-10-24',
+        currencies: [{ currency: 'GBP', spent: 100, previous_spent: 80, previous_to_date_spent: 40, categories: [{ category: 'groceries', spent: 60, previous: 50, previous_to_date: 20 }, { category: 'nonsense', spent: 1 }, { category: 'transport', spent: 'x' }] }, { currency: 'zz', spent: 1, categories: [] }],
       }),
-    ).toEqual({ month: '2026-11', previousMonth: '2026-10', currencies: [{ currency: 'GBP', spent: 100, previousSpent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }], converted: false }], display: null });
+    ).toEqual({ month: '2026-11', previousMonth: '2026-10', previousToDateDay: '2026-10-24', currencies: [{ currency: 'GBP', spent: 100, previousSpent: 80, previousToDateSpent: 40, categories: [{ category: 'groceries', spent: 60, previous: 50, previousToDate: 20 }], converted: false }], display: null });
     const merged = parseCategories({
       month: '2026-11',
       previous_month: '2026-10',
       currencies: [{ currency: 'UAH', spent: 100000, previous_spent: 90000, categories: [], display_spent: 1650, converted: true }],
-      display: { currency: 'GBP', rates: { UAH: { rate: '0.0165', as_of: '2026-11-24T08:00:00Z', source: 'bank' } }, missing: ['JPY'], complete: false, spent: 1650, previous_spent: 1485, categories: [{ category: 'groceries', spent: 1000, previous: 900 }, { category: 'nonsense', spent: 1, previous: 1 }] },
+      display: { currency: 'GBP', rates: { UAH: { rate: '0.0165', as_of: '2026-11-24T08:00:00Z', source: 'bank' } }, missing: ['JPY'], complete: false, spent: 1650, previous_spent: 1485, previous_to_date_spent: 700, categories: [{ category: 'groceries', spent: 1000, previous: 900, previous_to_date: 500 }, { category: 'nonsense', spent: 1, previous: 1 }] },
     });
     expect(merged?.currencies[0].converted).toBe(true);
-    expect(merged?.display).toEqual({ currency: 'GBP', complete: false, spent: 1650, previousSpent: 1485, categories: [{ category: 'groceries', spent: 1000, previous: 900 }], missing: ['JPY'], rateAsOf: '2026-11-24T08:00:00Z' });
+    expect(merged?.display).toEqual({ currency: 'GBP', complete: false, spent: 1650, previousSpent: 1485, previousToDateSpent: 700, categories: [{ category: 'groceries', spent: 1000, previous: 900, previousToDate: 500 }], missing: ['JPY'], rateAsOf: '2026-11-24T08:00:00Z' });
     expect(parseCategories({ month: '2026-11', currencies: [] })?.display).toBeNull();
     expect(parseCategories({})).toBeNull();
     expect(transactionsPath({ category: 'groceries' })).toBe('/finance/transactions?category=groceries&limit=25');
@@ -172,6 +173,9 @@ describe('finance parsers', () => {
     const summary = parseSummary({ month: '2026-11', as_of: null, currencies: [{ currency: 'GBP', accounts: 2, balance: 100, own_balance: 90, spent: 10, received: 20 }, { currency: 'zz' }] });
     expect(summary?.currencies).toEqual([{ currency: 'GBP', accounts: 2, balance: 100, ownBalance: 90, spent: 10, received: 20 }]);
     expect(summary?.month).toBe('2026-11');
+    const read = parseSummary({ currencies: [], as_of: '2026-11-20T09:00:00Z', as_of_newest: '2026-11-24T10:30:00Z', as_of_oldest: '2026-11-20T09:00:00Z' });
+    expect(read).toMatchObject({ asOf: '2026-11-20T09:00:00Z', asOfNewest: '2026-11-24T10:30:00Z', asOfOldest: '2026-11-20T09:00:00Z' });
+    expect(parseSummary({ currencies: [] })).toMatchObject({ asOfNewest: null, asOfOldest: null });
   });
 });
 
