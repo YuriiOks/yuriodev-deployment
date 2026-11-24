@@ -549,7 +549,7 @@
 .managedList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -559,9 +559,21 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: var(--dash-chip);
-  border-radius: var(--dash-r-surface);
+  border-radius: var(--dash-r-control);
+}
+
+/* The search and filters stay at the top while a long list scrolls under them. */
+.stickyTools {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  background: var(--dash-surface);
 }
 
 .managed[data-active="false"] {
@@ -570,9 +582,72 @@
 
 .managedTop {
   display: grid;
-  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto auto auto;
   align-items: center;
   column-gap: var(--space-3);
+}
+
+.managedNext {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  white-space: nowrap;
+}
+
+@media (max-width: 47.99rem) {
+  .managedTop {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto auto;
+  }
+
+  .managedNext {
+    display: none;
+  }
+}
+
+/* The row-end menu. */
+.menuWrap {
+  position: relative;
+}
+
+.menuButton {
+  min-width: var(--dash-h-control);
+  min-height: var(--dash-h-control);
+  background: transparent;
+  border: 1px solid var(--dash-border);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  padding: var(--space-1);
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+}
+
+.menuItem {
+  min-height: var(--dash-h-control);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 0;
+  color: var(--dash-t1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--dash-heading-tint);
 }
 
 .badge {
