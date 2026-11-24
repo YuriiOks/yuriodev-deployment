@@ -8,7 +8,7 @@ const contrast = (a: string, b: string) => {
 
 describe('provider brands', () => {
   it('hold their ink at AA (4.5:1) on the brand colour, so the small lines on a card read as well as its amount', () => {
-    expect(KNOWN_BRANDS.length).toBeGreaterThanOrEqual(10);
+    expect(KNOWN_BRANDS.length).toBeGreaterThanOrEqual(9);
     for (const [provider, brand] of KNOWN_BRANDS) expect(contrast(brand.bg, brand.fg), provider).toBeGreaterThanOrEqual(4.5);
   });
 

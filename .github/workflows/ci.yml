@@ -150,6 +150,8 @@ jobs:
       - run: pip install pyyaml==6.0.2
       - name: Compose invariants (targets, image tags, names, agent view, ports, proxy pin + :ro)
         run: python scripts/check-compose.py
+      - name: Reserved names are written nowhere in the repository (checked by hash)
+        run: python scripts/check-reserved-names.py
       - name: Compose files are valid
         run: |
           for f in docker-compose.yml deploy/dev/compose.yml deploy/stage/compose.yml $(ls compose.local.yml 2>/dev/null); do
