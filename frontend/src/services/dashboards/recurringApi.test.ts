@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './liveApi';
-import { iconUrl, parseAttention, parseRecurring, parseRecurringList, parseUpcoming, refusal } from './recurringApi';
+import { bulkAttention, iconUrl, markPaid, movedOn, parseAttention, parseRecurring, parseRecurringList, parseUpcoming, refusal } from './recurringApi';
 
 const row = (extra: Record<string, unknown> = {}) => ({ id: 'r-1', name: 'Streaming', kind: 'subscription', amount: 999, currency: 'GBP', frequency: 'monthly', frequency_interval: 1, ...extra });
 
@@ -42,7 +42,7 @@ describe('the recurring payments parsers', () => {
       display: { currency: 'GBP', rates: {}, missing: ['JPY'], complete: false, total: 300 },
     });
     expect(parsed?.items.map((item) => item.covered)).toEqual([true, false, null]);
-    expect(parsed?.items[1]).toMatchObject({ shortfall: 40, accountCurrency: 'GBP' });
+    expect(parsed?.items[1]).toMatchObject({ shortfall: 40, accountCurrency: 'GBP', accountShortTotal: null, overdue: false });
     expect(parsed?.grand).toEqual({ amount: 300, currency: 'GBP', complete: false });
     expect(parsed?.totals).toHaveLength(1);
     expect(parseUpcoming({})).toBeNull();
@@ -64,6 +64,42 @@ describe('the recurring payments parsers', () => {
     const rated = parseAttention({ items: [{ key: 'a', kind: 'overdraft', subject_type: 'account', subject_id: 'x', state: 'active', title: 't' }, { key: 'b', kind: 'overdrawn', severity: 'info', subject_type: 'account', subject_id: 'x', state: 'active', title: 't' }, { key: 'c', kind: 'credit_high', severity: 'urgent', subject_type: 'account', subject_id: 'x', state: 'active', title: 't' }], hidden: 0, display: null });
     expect(rated?.items.map((entry) => entry.severity)).toEqual(['high', 'info', 'medium']);
     expect(parseAttention({ hidden: 1 })).toBeNull();
+  });
+
+  it('takes a picture the server inlined as a base64 image, and refuses any other data or scheme', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(iconUrl(png)).toBe(png);
+    expect(iconUrl('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=')).not.toBeNull();
+    expect(iconUrl('data:text/html;base64,PGI+')).toBeNull();
+    expect(iconUrl('data:image/png;base64,' + 'A'.repeat(200_000))).toBeNull();
+    expect(iconUrl('javascript:alert(1)')).toBeNull();
+    expect(iconUrl('http://x.example.com/a.png')).toBeNull();
+  });
+
+  it('reads what the audit added: overdue payments, the account\'s whole gap, the subject and provider of an item, and a connection that is not read', () => {
+    const upcoming = parseUpcoming({ items: [{ recurring_id: 'r-1', name: 'A', kind: 'utility', due_date: '2026-11-20', days_until: -4, amount: 100, currency: 'GBP', covered: false, shortfall: 40, account_short_total: 90, overdue: true }], totals: [] });
+    expect(upcoming?.items[0]).toMatchObject({ daysUntil: -4, overdue: true, shortfall: 40, accountShortTotal: 90 });
+    const parsed = parseAttention({ items: [{ key: 'k', kind: 'stale_connection', subject_type: 'connection', subject_id: 'c-1', subject_name: 'Acme Bank', provider: 'acme-bank', state: 'active', title: 't', facts: { hours_old: 30 } }], hidden: 0 });
+    expect(parsed?.items[0]).toMatchObject({ kind: 'stale_connection', severity: 'medium', subjectName: 'Acme Bank', provider: 'acme-bank' });
+    expect(parseAttention({ items: [{ key: 'k', kind: 'overdraft', subject_type: 'account', subject_id: 'a', state: 'active', title: 't' }] })?.items[0]).toMatchObject({ subjectName: null, provider: null });
+  });
+
+  it('sends the due date with "paid", names a 409 as moved on, and reads the keys a bulk accept took', async () => {
+    const calls: { path: string; body: unknown }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ path: String(url), body: init.body ? JSON.parse(String(init.body)) : undefined });
+      if (String(url).endsWith('/paid') && calls.length === 2) return new Response(JSON.stringify({ error: 'conflict', message: 'This payment has already moved on' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+      if (String(url).endsWith('/bulk')) return new Response(JSON.stringify({ items: [], missing: [], accepted: ['a', 'b'] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    await markPaid('r-1', '2026-12-01');
+    expect(calls[0].body).toEqual({ due_date: '2026-12-01' });
+    let caught: unknown = null;
+    await markPaid('r-1').catch((error) => (caught = error));
+    expect(movedOn(caught)).toBe(true);
+    expect(movedOn(new ApiError('network', 0, 'network'))).toBe(false);
+    expect(await bulkAttention(['a', 'b'], 'accept')).toEqual({ accepted: ['a', 'b'] });
+    vi.unstubAllGlobals();
   });
 
   it('passes on the server\'s refusal words and nothing generic', () => {

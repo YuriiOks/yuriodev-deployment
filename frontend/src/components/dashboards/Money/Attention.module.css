@@ -64,7 +64,8 @@
 /* The row: arrows at the ends (a desktop with a pointer), the scroller between. One line high whatever the count. */
 .row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "label left scroller right all";
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -77,9 +78,10 @@
   min-width: 0;
   padding: var(--space-1) 0;
   overflow-x: auto;
+  grid-area: scroller;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: var(--space-2);
+  /* Nothing re-snaps or re-anchors the row: it moves only when the person scrolls it (no snap points, no scroll anchoring). */
+  overflow-anchor: none;
   scrollbar-width: thin;
 }
 
@@ -87,6 +89,7 @@
   display: inline-flex;
   flex: none;
   align-items: center;
+  grid-area: label;
   padding: 0 var(--space-2);
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
@@ -98,8 +101,8 @@
 .rowAll {
   composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
   flex: none;
+  grid-area: all;
   align-self: center;
-  scroll-snap-align: end;
 }
 
 .arrow {
@@ -108,13 +111,25 @@
   padding: 0;
 }
 
+.arrowLeft {
+  grid-area: left;
+}
+
+.arrowRight {
+  grid-area: right;
+}
+
+/* The arrows keep their slots (hidden, never removed): a slot that came and went would change the scroller's width at a scroll position and make the row creep. */
 .arrow[data-edge="true"] {
   visibility: hidden;
 }
 
 @media (hover: none), (pointer: coarse), (max-width: 47.99rem) {
   .row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label all"
+      "scroller scroller";
   }
 
   .row .arrow {
@@ -145,7 +160,6 @@
   font-family: var(--dash-font-ui);
   text-align: left;
   cursor: pointer;
-  scroll-snap-align: start;
 }
 
 .card[data-severity="high"] {

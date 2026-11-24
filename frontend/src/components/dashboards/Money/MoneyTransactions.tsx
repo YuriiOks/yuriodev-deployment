@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
+import CategoryMark from './CategoryMark';
 import { CATEGORIES, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
@@ -55,7 +56,10 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
               {bankLabel(account.provider, logo)} · {account.name}
             </span>
           )}
-          <span className={styles.tag}>{m.categories[item.category]}</span>
+          <span className={styles.tag} data-category={item.category}>
+            <CategoryMark category={item.category} />
+            {m.categories[item.category]}
+          </span>
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
@@ -160,7 +164,8 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
               {m.allCategories}
             </button>
             {chipCategories.map((candidate) => (
-              <button key={candidate} type="button" className={cx(styles.chip, category === candidate && styles.chipOn)} aria-pressed={category === candidate} onClick={() => setCategory(candidate)}>
+              <button key={candidate} type="button" className={cx(styles.chip, category === candidate && styles.chipOn)} data-category={candidate} aria-pressed={category === candidate} onClick={() => setCategory(candidate)}>
+                <CategoryMark category={candidate} />
                 {m.categories[candidate]}
               </button>
             ))}

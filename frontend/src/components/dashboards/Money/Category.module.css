@@ -1,0 +1,74 @@
+/* A spending category's colour is one fixed token each; the mark carries it as --cat, and so do the bar and the chip's drawing. */
+[data-category="housing_utilities"] {
+  --cat: var(--dash-cat-housing);
+}
+
+[data-category="groceries"] {
+  --cat: var(--dash-cat-groceries);
+}
+
+[data-category="eating_out"] {
+  --cat: var(--dash-cat-dining);
+}
+
+[data-category="transport"] {
+  --cat: var(--dash-cat-transport);
+}
+
+[data-category="subscriptions"] {
+  --cat: var(--dash-cat-subscriptions);
+}
+
+[data-category="health"] {
+  --cat: var(--dash-cat-health);
+}
+
+[data-category="shopping"] {
+  --cat: var(--dash-cat-shopping);
+}
+
+[data-category="entertainment"] {
+  --cat: var(--dash-cat-entertainment);
+}
+
+[data-category="debt"] {
+  --cat: var(--dash-cat-debt);
+}
+
+[data-category="income"] {
+  --cat: var(--dash-cat-income);
+}
+
+[data-category="transfers_out"] {
+  --cat: var(--dash-cat-out);
+}
+
+[data-category="transfers"] {
+  --cat: var(--dash-cat-transfers);
+}
+
+[data-category="cash"] {
+  --cat: var(--dash-cat-cash);
+}
+
+[data-category="other"] {
+  --cat: var(--dash-cat-other);
+}
+
+.tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: color-mix(in srgb, var(--cat, var(--dash-t3)) 16%, var(--dash-surface));
+  border-radius: var(--dash-r-control);
+  color: var(--cat, var(--dash-t3));
+}
+
+.inline {
+  display: inline-flex;
+  flex: none;
+  color: var(--cat, var(--dash-t3));
+}

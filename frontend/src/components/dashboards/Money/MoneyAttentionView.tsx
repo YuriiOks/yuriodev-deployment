@@ -4,7 +4,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, ProviderLogo } from '../../../services/dashboards/financeApi';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { bulkAttention, dismissAttention, markPaid, restoreAttention, snoozeAttention, updateRecurring, type Attention, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
+import { bulkAttention, dismissAttention, markPaid, movedOn, restoreAttention, snoozeAttention, updateRecurring, type Attention, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
 import DashIcon from '../DashIcon/DashIcon';
 import BankMark from './BankMark';
 import LimitForm from './LimitForm';
@@ -50,7 +50,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
   const [menu, setMenu] = useState(false);
   const [limitForm, setLimitForm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<'failed' | 'moved' | null>(null);
   const hidden = item.state !== 'active';
   const provider = subject.provider;
   const reconnect = item.kind === 'reconsent' && provider ? reconnectPath(provider) : null;
@@ -60,13 +60,15 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
 
   const act = async (action: () => Promise<void>) => {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
       await action();
       setMenu(false);
       await onChanged();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      // The payment moved on since the page showed it: nothing was done, the page is refreshed and says so (no retry).
+      if (movedOn(error)) await Promise.resolve(onChanged()).catch(() => undefined);
+      setFailed(movedOn(error) ? 'moved' : 'failed');
     } finally {
       setBusy(false);
     }
@@ -82,7 +84,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
       );
     } else if ((item.kind === 'missed_payment' || item.kind === 'due_not_covered') && payment) {
       primary = (
-        <button type="button" className={styles.small} disabled={busy} onClick={() => act(() => markPaid(payment.id))}>
+        <button type="button" className={styles.small} disabled={busy} onClick={() => act(() => markPaid(payment.id, item.dueDate ?? payment.nextDate))}>
           {r.markPaid}
         </button>
       );
@@ -98,7 +100,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
           {m.reconnect}
         </a>
       );
-    } else if (provider && (item.kind === 'credit_high' || item.kind === 'overdraft' || item.kind === 'stale_statement' || item.kind === 'reconsent')) {
+    } else if (provider && (item.kind === 'credit_high' || item.kind === 'overdraft' || item.kind === 'stale_statement' || item.kind === 'stale_connection' || item.kind === 'reconsent')) {
       primary = (
         <a className={styles.small} href="#money-wallet-title" onClick={() => onOpenBank(provider)}>
           {r.openBank}
@@ -160,7 +162,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
       )}
       {failed && (
         <p role="alert" className={styles.arowError}>
-          {r.actionFailed}
+          {failed === 'moved' ? r.alreadyMoved : r.actionFailed}
         </p>
       )}
     </li>
@@ -179,32 +181,15 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
   const shown = all ? items : items.slice(0, GROUP_ROWS);
   const payments = new Map(context.recurring.map((row) => [row.id, row]));
 
-  /** One request per item, one after the other; what fails is counted and the rest goes on. */
-  const bulk = async (each: (item: AttentionItem) => Promise<void>, list: readonly AttentionItem[] = items) => {
-    setBusy(true);
-    setFailures(0);
-    let failed = 0;
-    for (const item of list) {
-      try {
-        await each(item);
-      } catch {
-        failed += 1;
-      }
-    }
-    setFailures(failed);
-    setConfirming(false);
-    await context.onChanged();
-    setBusy(false);
-  };
-
-  /** One request for the whole group (the server's bulk endpoint); a failure is counted as the whole group. */
-  const bulkAll = async (send: (keys: string[]) => Promise<void>) => {
+  /** One request for the listed items (the server's bulk endpoint); a failure is counted as all of them, and for `accept` the keys the server did not accept are the failures. */
+  const bulkAll = async (send: (keys: string[]) => Promise<{ accepted: string[] } | void>, list: readonly AttentionItem[] = items, accepting = false) => {
     setBusy(true);
     setFailures(0);
     try {
-      await send(items.map((item) => item.key));
+      const answer = await send(list.map((item) => item.key));
+      if (accepting) setFailures(list.length - (answer ? answer.accepted.length : 0));
     } catch {
-      setFailures(items.length);
+      setFailures(list.length);
     }
     setConfirming(false);
     await context.onChanged();
@@ -223,7 +208,7 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
         {(items.length > 1 || acceptable.length > 0) && (
         <span className={styles.agroupActions}>
           {acceptable.length > 0 && (
-            <button type="button" className={styles.small} disabled={busy} onClick={() => bulk(async (item) => void (await updateRecurring(item.subjectId, { amount: item.amount ?? 0 })), acceptable)}>
+            <button type="button" className={styles.small} disabled={busy} onClick={() => bulkAll((keys) => bulkAttention(keys, 'accept'), acceptable, true)}>
               {r.acceptAll}
             </button>
           )}

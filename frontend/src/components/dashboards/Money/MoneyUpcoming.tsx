@@ -28,13 +28,17 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; acc
   const account = item.accountId ? accounts.find((row) => row.id === item.accountId) : undefined;
   const payer = account ? fill(r.paidFrom, { account: account.name }) : item.paymentMethod;
   return (
-    <li className={styles.due} data-covered={item.covered === null ? 'unknown' : String(item.covered)}>
+    <li className={styles.due} data-covered={item.covered === null ? 'unknown' : String(item.covered)} data-overdue={item.overdue ? 'true' : undefined}>
       <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} />
       <span className={styles.dueMain}>
         <strong className={styles.dueName}>{item.name}</strong>
         <span className={styles.note}>
           {[r.kinds[item.kind], payer, coverWords(item, lang, r)].filter(Boolean).join(' · ')}
         </span>
+        {/* The shortfall above is this payment's own missing part; when earlier payments from the same account add to it, the account's whole gap is said too. */}
+        {item.covered === false && item.accountShortTotal !== null && item.shortfall !== null && item.accountShortTotal > item.shortfall && item.accountCurrency && (
+          <span className={styles.note}>{fill(r.shortTotal, { amount: formatMinor(item.accountShortTotal, item.accountCurrency, lang as 'ru' | 'en') })}</span>
+        )}
         <TruthMark evidence={evidence} />
       </span>
       <strong className={styles.dueAmount}>
@@ -50,38 +54,10 @@ const UPCOMING_WEEK_DAYS = 6;
 const UPCOMING_ROWS = 8;
 const UPCOMING_FALLBACK_ROWS = 3;
 
-export interface MoneyUpcomingProps {
-  data: Upcoming;
-  days: number;
-  onDays: (days: number) => void;
-  accounts: readonly FinanceAccount[];
-  /** The payments, for how far each is verified and which plans have ended by their schedule. */
-  recurring: readonly Recurring[];
-  mode: MoneyDisplay;
-}
-
-/** The "Upcoming payments" body: the window switch, the payments grouped by day, and the totals the server added up. */
-const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accounts, recurring, mode }) => {
-  const { t, lang } = useDashboardLang();
+/** The 14 or 30 days choice and the link to all payments: always there, also while the answer is loading or failed, so the window can be changed out of a failure. */
+export const UpcomingToolbar: React.FC<{ days: number; onDays: (days: number) => void }> = ({ days, onDays }) => {
+  const { t } = useDashboardLang();
   const r = t.money.rec;
-  // By default the next 7 days, at most 8 rows (when nothing falls in the week, the first few that follow); "Show all" opens the whole window.
-  const [all, setAll] = useState(false);
-  const byId = new Map(recurring.map((row) => [row.id, row]));
-  // What its own schedule has finished is not due: it is listed apart.
-  const items = data.items.filter((item) => byId.get(item.recurringId)?.scheduleState !== 'ended_by_schedule');
-  const week = items.filter((item) => item.daysUntil <= UPCOMING_WEEK_DAYS);
-  const bounded = (week.length > 0 ? week : items.slice(0, UPCOMING_FALLBACK_ROWS)).slice(0, UPCOMING_ROWS);
-  const visible = all ? items : bounded;
-  const groups: { date: string; daysUntil: number; items: UpcomingItem[] }[] = [];
-  for (const item of visible) {
-    const last = groups[groups.length - 1];
-    if (last && last.date === item.dueDate) last.items.push(item);
-    else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, items: [item] });
-  }
-  const split = splitDue(items, (id) => truthOf(byId.get(id)?.evidence ?? null), mode);
-  // A grand total (and its "≈") is only for a window that has something converted in it; one currency is one figure, told once.
-  const showGrand = mode === 'base' && data.grand !== null && data.totals.some((total) => total.converted && total.display !== null);
-  const single = !showGrand && data.totals.length === 1 ? data.totals[0] : null;
   return (
     <div className={styles.body}>
       <div className={styles.toolbar}>
@@ -96,6 +72,53 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
           {r.allRecurring}
         </Link>
       </div>
+    </div>
+  );
+};
+
+/** How many days an answer spans (its first and last day), to tell whether it is for the window that is chosen. */
+function spanDays(data: Upcoming): number | null {
+  const from = Date.parse(`${data.from}T12:00:00`);
+  const to = Date.parse(`${data.to}T12:00:00`);
+  return Number.isNaN(from) || Number.isNaN(to) ? null : Math.round((to - from) / 86400000);
+}
+
+export interface MoneyUpcomingProps {
+  data: Upcoming;
+  days: number;
+  accounts: readonly FinanceAccount[];
+  /** The payments, for how far each is verified and which plans have ended by their schedule. */
+  recurring: readonly Recurring[];
+  mode: MoneyDisplay;
+}
+
+/** The "Upcoming payments" body: the window switch, the payments grouped by day, and the totals the server added up. */
+const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, recurring, mode }) => {
+  const { t, lang } = useDashboardLang();
+  const r = t.money.rec;
+  // By default the next 7 days, at most 8 rows (when nothing falls in the week, the first few that follow); "Show all" opens the whole window.
+  const [all, setAll] = useState(false);
+  const byId = new Map(recurring.map((row) => [row.id, row]));
+  // What its own schedule has finished is not due: it is listed apart.
+  const items = data.items.filter((item) => byId.get(item.recurringId)?.scheduleState !== 'ended_by_schedule');
+  const week = items.filter((item) => item.daysUntil <= UPCOMING_WEEK_DAYS);
+  const bounded = (week.length > 0 ? week : items.slice(0, UPCOMING_FALLBACK_ROWS)).slice(0, UPCOMING_ROWS);
+  const visible = all ? items : bounded;
+  const groups: { date: string; daysUntil: number; overdue: boolean; items: UpcomingItem[] }[] = [];
+  for (const item of visible) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === item.dueDate && last.overdue === item.overdue) last.items.push(item);
+    else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, overdue: item.overdue, items: [item] });
+  }
+  // The answer on screen is for the other window until the new one arrives: it is dimmed and marked busy, not passed off as the chosen one.
+  const span = spanDays(data);
+  const busy = span !== null && Math.abs(span - days) > 1;
+  const split = splitDue(items, (id) => truthOf(byId.get(id)?.evidence ?? null), mode);
+  // A grand total (and its "≈") is only for a window that has something converted in it; one currency is one figure, told once.
+  const showGrand = mode === 'base' && data.grand !== null && data.totals.some((total) => total.converted && total.display !== null);
+  const single = !showGrand && data.totals.length === 1 ? data.totals[0] : null;
+  return (
+    <div className={styles.body} aria-busy={busy || undefined} data-busy={busy ? 'true' : undefined}>
       {items.length === 0 ? (
         <p className={styles.none}>{fill(r.upcomingNone, { days })}</p>
       ) : (
@@ -103,7 +126,7 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
           <ol className={styles.days}>
             {groups.map((group) => (
               <li key={group.date} className={styles.day}>
-                <h3 className={styles.dayHead}>{dayHeading(group.date, group.daysUntil, lang, r)}</h3>
+                <h3 className={styles.dayHead}>{dayHeading(group.date, group.daysUntil, lang, r, group.overdue)}</h3>
                 <ul className={styles.dueList}>
                   {group.items.map((item, index) => (
                     <UpcomingRow key={`${item.recurringId}-${index}`} item={item} evidence={byId.get(item.recurringId)?.evidence ?? null} accounts={accounts} mode={mode} />

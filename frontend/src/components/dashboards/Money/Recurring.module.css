@@ -38,6 +38,10 @@
   line-height: var(--dash-lh-meta);
 }
 
+.body[data-busy="true"] {
+  opacity: 0.6;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -356,6 +360,11 @@
   line-height: var(--dash-lh-ui);
 }
 
+.due[data-overdue="true"] {
+  border-inline-start: 0.1875rem solid var(--dash-warn);
+  padding-inline-start: var(--space-2);
+}
+
 .dayHead::before,
 .dayHead::after {
   content: none;
@@ -440,6 +449,10 @@
   color: var(--dash-t1);
 }
 
+.debtList[hidden] {
+  display: none;
+}
+
 .debtList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
@@ -500,9 +513,27 @@
   border-radius: var(--radius-pill);
 }
 
+.bar {
+  display: flex;
+}
+
 .barFill {
+  flex: none;
+  min-width: 0.25rem;
   height: 100%;
   background: var(--dash-fill);
+}
+
+/* What the schedule alone adds to what the bank confirmed: the same colour, tinted. */
+.barAssumed {
+  flex: none;
+  height: 100%;
+  background: color-mix(in srgb, var(--dash-fill) 35%, transparent);
+}
+
+.note[data-late="true"] {
+  color: var(--dash-warn);
+  font-weight: 700;
 }
 
 /* The management view. */

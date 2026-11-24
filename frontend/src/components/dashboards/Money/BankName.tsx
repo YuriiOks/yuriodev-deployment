@@ -33,6 +33,17 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
   // the text name shows instead (on a brand card, in its ink; on a theme surface, in the themes that lack the variant).
   const dark = logo.onDark;
   const light = logo.onLight;
+  // A near-square wordmark (artwork with small text) is unreadable at a wordmark's height: the bank's own square mark takes its place on a card.
+  if (square && logo.mark && size === 'card') {
+    return (
+      <>
+        <span className="sr-only">{name}</span>
+        <span aria-hidden="true" className={styles.logoMark}>
+          <img src={logo.mark} alt="" draggable={false} />
+        </span>
+      </>
+    );
+  }
   if (brand) {
     const single = prefersWhiteInk(brand.bg) ? dark : light;
     if (!single) return <>{name}</>;

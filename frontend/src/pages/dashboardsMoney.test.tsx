@@ -515,7 +515,9 @@ describe('the Money page: account kinds, goals and categories', () => {
     expect(rows[0]).toHaveTextContent('Groceries');
     expect(rows[0]).toHaveTextContent('£60.00 · 60% · +£10.00 (was £50.00)');
     expect(rows[1]).toHaveTextContent('£40.00 · 40% · -£16.38 (was £56.38)');
-    expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '60%' });
+    expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '100%' });
+    // A bar is scaled to the largest category (40 of 60), not to the total.
+    expect(rows[1].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '67%' });
     expect(panel.getByText(/Transfers between your own accounts and pots are not counted/)).toBeInTheDocument();
   });
 
@@ -786,6 +788,22 @@ describe('the Money page: bank logos', () => {
     Object.defineProperty(image, 'naturalHeight', { value: 24, configurable: true });
     fireEvent.load(image);
     await waitFor(() => expect(holder).toHaveAttribute('data-shape', 'wide'));
+  });
+
+  it('shows the bank\'s square mark on its card in place of a near-square wordmark, when the server has one', async () => {
+    setup({ finance: finance({ providers: [{ id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK, mark: DARK_INK } }, { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } }] }) });
+    renderAt(PATH);
+    await banksReady();
+    const acme = bankButton('Acme bank');
+    await waitFor(() => expect(images(acme).length).toBeGreaterThan(0));
+    const image = images(acme)[0];
+    Object.defineProperty(image, 'naturalWidth', { value: 40, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 40, configurable: true });
+    fireEvent.load(image);
+    // The wordmark gives way to the mark (one image), and a wide wordmark is not replaced.
+    await waitFor(() => expect(images(acme)).toHaveLength(1));
+    expect(images(acme)[0].getAttribute('src')).toBe(DARK_INK);
+    expect(images(acme)[0].parentElement).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('shows the text names when the server has no logos or the providers answer fails', async () => {

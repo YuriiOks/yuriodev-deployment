@@ -515,6 +515,11 @@
     --dash-danger: #ff8fa0;
     --dash-warn: #ffc107;
     --dash-ok: #00ff88;
+    /* One colour per spending category (icon, tile tint, bar), 4.6:1 or more on the page, surface, chip and well; the icon and the name always go with it. */
+    --dash-cat-housing: #4c8ce6;       --dash-cat-groceries: #1dc948;     --dash-cat-dining: #db6d1f;        --dash-cat-transport: #1dc9c9;
+    --dash-cat-subscriptions: #a970eb; --dash-cat-health: #e85e75;        --dash-cat-shopping: #e651b9;      --dash-cat-entertainment: #c99e1d;
+    --dash-cat-debt: #e6614c;          --dash-cat-income: #1dc981;        --dash-cat-out: #7f8dad;           --dash-cat-transfers: #8d86b1;
+    --dash-cat-cash: #95c91d;          --dash-cat-other: #818d9c;
     --dash-prio-bg: rgba(0, 212, 255, 0.16);
     --dash-prio-edge: rgba(0, 212, 255, 0.35);
 
@@ -592,6 +597,10 @@
     --dash-danger: #be123c;
     --dash-warn: #96430a;
     --dash-ok: #047857;
+    --dash-cat-housing: #1d64c9;       --dash-cat-groceries: #127d2d;     --dash-cat-dining: #aa5518;        --dash-cat-transport: #117878;
+    --dash-cat-subscriptions: #6d1dc9; --dash-cat-health: #c91d39;        --dash-cat-shopping: #c41c92;      --dash-cat-entertainment: #866913;
+    --dash-cat-debt: #c9341d;          --dash-cat-income: #11784d;        --dash-cat-out: #5a698c;           --dash-cat-transfers: #625a8c;
+    --dash-cat-cash: #567411;          --dash-cat-other: #636e7e;
     --dash-prio-bg: rgba(14, 116, 144, 0.07);
     --dash-prio-edge: rgba(14, 116, 144, 0.35);
 

@@ -4,40 +4,57 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { CurrencyCategories, FinanceCategories } from '../../../services/dashboards/financeApi';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { formatMinor } from '../../../services/dashboards/money';
-import { monthName } from './labels';
+import CategoryMark from './CategoryMark';
+import { dayLabel, monthName } from './labels';
 import styles from './Money.module.css';
 
-const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previousMonth: string; approx?: boolean }> = ({ block, month, previousMonth, approx = false }) => {
+const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previousMonth: string; previousDay: string | null; approx?: boolean }> = ({ block, month, previousMonth, previousDay, approx = false }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const previous = monthName(previousMonth, lang);
+  // The month so far is told against the month before up to the same day ("by Oct 24"), not against all of it; a month that is over, against all of it.
+  const toDate = previousDay !== null && block.previousToDateSpent !== null;
+  const base = toDate ? (block.previousToDateSpent ?? 0) : block.previousSpent;
+  const date = previousDay ? dayLabel(previousDay, lang) : '';
   let change = '';
-  if (block.previousSpent > 0) {
-    const percent = Math.round((Math.abs(block.spent - block.previousSpent) / block.previousSpent) * 100);
-    change = percent === 0 ? fill(m.spendSame, { previous }) : fill(block.spent < block.previousSpent ? m.spendLess : m.spendMore, { percent, previous });
+  if (base > 0) {
+    const percent = Math.round((Math.abs(block.spent - base) / base) * 100);
+    const words = toDate ? { same: m.spendSameBy, less: m.spendLessBy, more: m.spendMoreBy } : { same: m.spendSame, less: m.spendLess, more: m.spendMore };
+    change = percent === 0 ? fill(words.same, { previous, date }) : fill(block.spent < base ? words.less : words.more, { percent, previous, date });
   }
   const sign = approx ? '≈ ' : '';
   const rows = block.categories.filter((row) => row.spent > 0).sort((a, b) => b.spent - a.spent);
+  // A bar is scaled to the largest category, not to the total, so the list reads as a comparison; the three largest are drawn stronger.
+  const largest = rows[0]?.spent ?? 0;
   return (
     <div className={styles.spendCurrency}>
       <p className={styles.spendHead}>
         {[monthName(month, lang), `${block.currency} ${sign}${formatMinor(block.spent, block.currency, lang)}`, change].filter(Boolean).join(' · ')}
       </p>
       <ul className={styles.spendList}>
-        {rows.map((row) => {
+        {rows.map((row, index) => {
           const share = block.spent > 0 ? Math.round((row.spent / block.spent) * 100) : 0;
-          const delta = row.spent - row.previous;
+          const rowBase = toDate ? (row.previousToDate ?? row.previous) : row.previous;
+          const delta = row.spent - rowBase;
           return (
-            <li key={row.category} className={styles.spendRow} data-category={row.category}>
+            <li key={row.category} className={styles.spendRow} data-category={row.category} data-top={index < 3 ? 'true' : undefined}>
+              <CategoryMark category={row.category} variant="tile" />
+              <div className={styles.spendBody}>
               <div className={styles.spendTop}>
                 <span className={styles.spendName}>{m.categories[row.category]}</span>
                 <span className={styles.spendNumbers}>
                   <strong>{sign}{formatMinor(row.spent, block.currency, lang)}</strong> · {share}%
-                  {row.previous > 0 && <> · {formatMinor(delta, block.currency, lang, { signed: true })} ({fill(m.vsPrevious, { amount: formatMinor(row.previous, block.currency, lang) })})</>}
+                  {rowBase > 0 && (
+                    <>
+                      {' · '}
+                      {formatMinor(delta, block.currency, lang, { signed: true })} ({toDate ? fill(m.vsPreviousBy, { amount: formatMinor(rowBase, block.currency, lang), date }) : fill(m.vsPrevious, { amount: formatMinor(row.previous, block.currency, lang) })})
+                    </>
+                  )}
                 </span>
               </div>
               <div aria-hidden="true" className={styles.spendBar}>
-                <div className={styles.spendFill} style={{ width: `${share}%` }} />
+                <div className={styles.spendFill} style={{ width: `${largest > 0 ? Math.round((row.spent / largest) * 100) : 0}%` }} />
+              </div>
               </div>
             </li>
           );
@@ -61,16 +78,17 @@ const MoneyCategories: React.FC<{ data: FinanceCategories; mode: MoneyDisplay }>
     <div className={styles.spend}>
       {merged && merged.spent > 0 && (
         <CurrencyBlock
-          block={{ currency: merged.currency, spent: merged.spent, previousSpent: merged.previousSpent, categories: merged.categories, converted: true }}
+          block={{ currency: merged.currency, spent: merged.spent, previousSpent: merged.previousSpent, previousToDateSpent: merged.previousToDateSpent, categories: merged.categories, converted: true }}
           month={data.month}
           previousMonth={data.previousMonth}
+          previousDay={data.previousToDateDay}
           approx={data.currencies.some((block) => block.converted)}
         />
       )}
       {merged && merged.missing.length > 0 && <p className={styles.spendNote}>{fill(t.money.notConverted, { list: merged.missing.join(', ') })}</p>}
       {(merged ? merged.spent === 0 : true) && blocks.length === 0 && <p className={styles.none}>{t.money.spendNothing}</p>}
       {blocks.map((block) => (
-        <CurrencyBlock key={block.currency} block={block} month={data.month} previousMonth={data.previousMonth} />
+        <CurrencyBlock key={block.currency} block={block} month={data.month} previousMonth={data.previousMonth} previousDay={data.previousToDateDay} />
       ))}
       <p className={styles.spendNote}>{t.money.spendNote}</p>
     </div>

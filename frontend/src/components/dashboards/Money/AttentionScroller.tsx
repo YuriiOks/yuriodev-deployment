@@ -5,6 +5,7 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, ProviderLogo } from '../../../services/dashboards/financeApi';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import type { AttentionItem, Recurring } from '../../../services/dashboards/recurringApi';
+import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import BankMark from './BankMark';
 import RecurringIcon from './RecurringIcon';
@@ -52,8 +53,7 @@ export interface AttentionScrollerProps extends Context {
 }
 
 /**
- * One horizontal row of small cards, one per item, in the server's severity order: a quiet label first, "All N" last. It scrolls with
- * snap, has arrow buttons on a desktop and swipes on touch, and the cards are buttons, so the keyboard reaches them (the arrow keys move
+ * One horizontal row of small cards, one per item, in the server's severity order: a quiet label before it and "All N" after it, both fixed outside the scrolling area. It scrolls with no snap points and no scroll anchoring, so it moves only when the person scrolls it. It has arrow buttons (only toward what is left to scroll to) on a desktop and swipes on touch, and the cards are buttons, so the keyboard reaches them (the arrow keys move
  * between them). It never wraps, so it is one line high whatever the count.
  */
 const AttentionScroller: React.FC<AttentionScrollerProps> = ({ items, allHref, onOpen, ...context }) => {
@@ -65,7 +65,8 @@ const AttentionScroller: React.FC<AttentionScrollerProps> = ({ items, allHref, o
   const measure = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
-    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 });
+    const next = { start: el.scrollLeft <= 1, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 };
+    setEdge((previous) => (previous.start === next.start && previous.end === next.end ? previous : next));
   }, []);
   useEffect(() => {
     measure();
@@ -95,21 +96,21 @@ const AttentionScroller: React.FC<AttentionScrollerProps> = ({ items, allHref, o
 
   return (
     <section aria-label={r.attentionTitle} className={styles.row} id="money-attention-row">
-      <button type="button" className={styles.arrow} data-edge={edge.start ? 'true' : 'false'} aria-label={r.scrollLeft} onClick={() => scrollBy(-1)}>
+      <span className={styles.rowLabel}>{fill(r.rowLabel, { n: items.length })}</span>
+      <button type="button" className={cx(styles.arrow, styles.arrowLeft)} data-edge={edge.start ? 'true' : 'false'} aria-label={r.scrollLeft} onClick={() => scrollBy(-1)}>
         <DashIcon name="prev" size={16} />
       </button>
       <div ref={scroller} className={styles.scroller} onScroll={measure} onKeyDown={onKeyDown}>
-        <span className={styles.rowLabel}>{fill(r.rowLabel, { n: items.length })}</span>
         {items.map((item) => (
           <AttentionCard key={item.key} item={item} onOpen={onOpen} {...context} />
         ))}
-        <Link className={styles.rowAll} to={allHref}>
-          {fill(r.rowAll, { n: items.length })}
-        </Link>
       </div>
-      <button type="button" className={styles.arrow} data-edge={edge.end ? 'true' : 'false'} aria-label={r.scrollRight} onClick={() => scrollBy(1)}>
+      <button type="button" className={cx(styles.arrow, styles.arrowRight)} data-edge={edge.end ? 'true' : 'false'} aria-label={r.scrollRight} onClick={() => scrollBy(1)}>
         <DashIcon name="next" size={16} />
       </button>
+      <Link className={styles.rowAll} to={allHref}>
+        {fill(r.rowAll, { n: items.length })}
+      </Link>
     </section>
   );
 };

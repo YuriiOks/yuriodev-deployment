@@ -59,6 +59,17 @@ export const PATHS = {
   document: ['M6.5 3.5h7l4 4v13h-11v-17Z', 'M13.5 3.5v4h4', 'M9 12h6', 'M9 15.5h6'],
   'arrow-down-left': ['M17 7 7 17', 'M17 17H7V7'],
   'arrow-up-right': ['M7 17 17 7', 'M7 7h10v10'],
+  // Spending categories (the ones the set has not drawn already: home, heart-pulse, arrow-down-left and arrow-up-right serve housing, health, income and money out).
+  'cat-groceries': ['M4 9.5h16l-1.6 9a1.5 1.5 0 0 1-1.5 1.2H7.1a1.5 1.5 0 0 1-1.5-1.2L4 9.5Z', 'M8.5 9.5 11 4', 'M15.5 9.5 13 4'],
+  'cat-dining': ['M6 3.5v6a2 2 0 0 0 4 0v-6', 'M8 3.5v17', 'M16.5 20.5v-17c-2.2 1.2-3.5 3.6-3.5 6.5 0 1.6.9 2.6 2 2.8h1.5'],
+  'cat-transport': ['M5 5.5A1.5 1.5 0 0 1 6.5 4h11A1.5 1.5 0 0 1 19 5.5v11a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 16.5v-11Z', 'M5 11h14', 'M7.5 18v2', 'M16.5 18v2', 'M8.5 14.5h.01', 'M15.5 14.5h.01'],
+  'cat-subscriptions': ['M4 11V9.5A2.5 2.5 0 0 1 6.5 7H20', 'M17 4l3 3-3 3', 'M20 13v1.5a2.5 2.5 0 0 1-2.5 2.5H4', 'M7 14l-3 3 3 3'],
+  'cat-shopping': ['M5 8h14l-1 12H6L5 8Z', 'M9 8V6.5a3 3 0 0 1 6 0V8'],
+  'cat-entertainment': ['M3.5 8.5A1.5 1.5 0 0 1 5 7h14a1.5 1.5 0 0 1 1.5 1.5v1.2a2.3 2.3 0 0 0 0 4.6v1.2A1.5 1.5 0 0 1 19 17H5a1.5 1.5 0 0 1-1.5-1.5v-1.2a2.3 2.3 0 0 0 0-4.6V8.5Z', 'M14 8.5v1', 'M14 11.5v1', 'M14 14.5v1'],
+  'cat-debt': ['M3.5 7.5A1.5 1.5 0 0 1 5 6h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 18H5a1.5 1.5 0 0 1-1.5-1.5v-9Z', 'M3.5 10.5h17', 'M7 14.5h3'],
+  'cat-cash': ['M3.5 7.5A1.5 1.5 0 0 1 5 6h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 18H5a1.5 1.5 0 0 1-1.5-1.5v-9Z', 'M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z', 'M6.5 12h.01', 'M17.5 12h.01'],
+  'cat-transfers': ['M5 8h13', 'M15 5l3 3-3 3', 'M19 16H6', 'M9 13l-3 3 3 3'],
+  'cat-other': ['M6 12h.01', 'M12 12h.01', 'M18 12h.01'],
   grid: ['M4.5 4.5h6v6h-6Z', 'M13.5 4.5h6v6h-6Z', 'M4.5 13.5h6v6h-6Z', 'M13.5 13.5h6v6h-6Z'],
   calendar: ['M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z', 'M4 10h16', 'M8 3v4', 'M16 3v4'],
 } as const satisfies Record<string, readonly string[]>;

@@ -522,6 +522,9 @@
 }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   min-height: var(--dash-h-control);
   padding: 0 var(--space-3);
   background: transparent;
@@ -611,6 +614,9 @@
 }
 
 .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   padding: 0 var(--space-2);
   border: 1px solid var(--dash-edge);
   border-radius: var(--radius-pill);
@@ -675,6 +681,20 @@
 /* A bank's wordmark in place of its name: sized by height (about the name's cap height), with a ceiling on its width so a long
    wordmark never pushes the balance. A neutral card shows the variant for the theme (dark by default, the light theme swaps them);
    a brand card is dark and always shows the dark one. */
+.logoMark {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--dash-r-tag);
+  overflow: hidden;
+}
+
+.logoMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .logos {
   display: inline-flex;
   align-items: center;
@@ -821,18 +841,34 @@
 }
 
 .spendList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Two columns once there is room for them (a row never stretches across the whole page). */
+@media (min-width: 64rem) {
+  .spendList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .spendRow {
   display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.spendBody {
+  display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .spendTop {
@@ -864,7 +900,29 @@
 
 .spendFill {
   height: 100%;
-  background: var(--dash-accent);
+  background: var(--cat, var(--dash-accent));
+}
+
+/* On a phone the name has the line to itself and the numbers sit under it. */
+@media (max-width: 47.99rem) {
+  .spendTop {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .spendNumbers {
+    text-align: left;
+  }
+}
+
+/* The three largest categories are drawn stronger: a thicker bar and the amount in the strongest ink. */
+.spendRow[data-top="true"] .spendBar {
+  height: 0.875rem;
+}
+
+.spendRow[data-top="true"] .spendNumbers strong {
+  color: var(--dash-t1);
 }
 
 .spendNote {
