@@ -8,7 +8,13 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from src.dashboards.finance.fx import Display
-from src.dashboards.finance.recurring import Frequency, Kind, RowError
+from src.dashboards.finance.recurring import (
+    Frequency,
+    Kind,
+    RowError,
+    ScheduleState,
+    schedule_state,
+)
 from src.dashboards.finance.schemas import DisplayOut
 
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
@@ -26,6 +32,19 @@ AttentionKind = Literal[
 Severity = Literal["high", "medium", "info"]
 ItemState = Literal["active", "snoozed", "dismissed"]
 Fact = str | int | bool | None
+
+
+class EvidenceOut(BaseModel):
+    """What the bank's own lines say about a payment whose paying account we collect: the last
+    transaction that matched it, and how many of its last three due dates had a match (a date
+    that has passed with none counts as a miss). The owner's "paid" is not evidence."""
+
+    model_config = _RESPONSE
+
+    last_matched_on: date | None
+    last_matched_amount: int | None
+    matched_of_last: int
+    checked: int  # how many due dates that is, up to three
 
 
 class RecurringOut(BaseModel):
@@ -56,7 +75,11 @@ class RecurringOut(BaseModel):
     is_installment: bool
     total_installments: int | None
     completed_installments: int | None
-    remaining_installments: int | None
+    remaining_installments: int | None  # the total less the confirmed ones
+    assumed_installments: int  # passed by the schedule only, never seen in a line
+    scheduled_installments: int | None  # confirmed plus assumed, at most the total
+    schedule_state: ScheduleState | None  # null for a payment that is switched off
+    evidence: EvidenceOut | None  # null when no account of ours pays it
     total_owed: int | None
     remaining_balance: int | None
     creditor: str | None
@@ -73,9 +96,12 @@ class RecurringOut(BaseModel):
     converted: bool
 
     @classmethod
-    def from_row(cls, row: Any, display: Display | None = None) -> Self:
+    def from_row(cls, row: Any, display: Display | None, today: date) -> Self:
         derived = (
             "remaining_installments",
+            "scheduled_installments",
+            "schedule_state",
+            "evidence",
             "display_amount",
             "display_total_owed",
             "display_remaining_balance",
@@ -84,6 +110,23 @@ class RecurringOut(BaseModel):
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
         total, done = row.total_installments, row.completed_installments
         values["remaining_installments"] = None if total is None else max(total - (done or 0), 0)
+        values["scheduled_installments"] = (
+            None if total is None else min(total, (done or 0) + row.assumed_installments)
+        )
+        values["schedule_state"] = state = schedule_state(row, today)
+        values["evidence"] = None
+        if row.account_id is not None:
+            outcomes = row.recent_outcomes
+            late = row.next_payment_date is not None and row.next_payment_date < today
+            if row.is_active and late and state != "ended_by_schedule":
+                outcomes += "0"  # the date has passed and nothing matched
+            outcomes = outcomes[-3:]
+            values["evidence"] = EvidenceOut(
+                last_matched_on=row.last_matched_on,
+                last_matched_amount=row.last_charged_amount if row.last_matched_on else None,
+                matched_of_last=outcomes.count("1"),
+                checked=len(outcomes),
+            )
 
         def shown(amount: int | None) -> int | None:
             if amount is None or display is None:

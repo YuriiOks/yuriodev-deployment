@@ -43,9 +43,12 @@ from src.dashboards.finance.recurring import (
     advance,
     amount_differs,
     anchor_of,
+    frequency_of,
     instalments_agree,
+    last_installment_date,
     occurrences,
     problem_row,
+    schedule_state,
     text_matches,
 )
 from src.dashboards.finance.recurring_schemas import (
@@ -197,6 +200,8 @@ async def update_recurring(
             raise AppError(409, "conflict", "A payment with this reference exists")
     for name, value in changes.items():
         setattr(row, name, value)
+    if "completed_installments" in changes:
+        row.assumed_installments = 0  # his figure is the new starting point
     row.updated_at = now
     await session.commit()
     return row
@@ -211,18 +216,73 @@ async def delete_recurring(session: AsyncSession, recurring_id: uuid.UUID) -> No
     await session.commit()
 
 
-def _step(row: Recurring) -> None:
-    """Move to the next date, or finish a payment that happens once."""
+def _following(row: Recurring, current: date) -> date | None:
+    """The date after `current`, or None for a payment that happens once, or after the last
+    instalment of a plan (a plan never runs past its last date)."""
+    frequency = frequency_of(row.kind, row.frequency)
+    following = advance(
+        current, frequency, row.frequency_interval, anchor_of(row.start_date, current)
+    )
+    if following is None or not row.is_installment:
+        return following
+    last = last_installment_date(
+        row.start_date, frequency, row.frequency_interval, row.total_installments
+    )
+    return None if last is not None and following > last else following
+
+
+def _step(row: Recurring, end_once: bool = True) -> bool:
+    """Move to the next date (True), or, with nothing after it, finish a payment that happens
+    once (only when `end_once`: the owner or a matching line says it was paid). A plan at its
+    last instalment stays there. Returns whether the date moved."""
     current = row.next_payment_date
     if current is None:
-        return
-    following = advance(
-        current, row.frequency, row.frequency_interval, anchor_of(row.start_date, current)
-    )
+        return False
+    following = _following(row, current)
     if following is None:
-        row.is_active = False
-    else:
-        row.next_payment_date = following
+        if end_once and frequency_of(row.kind, row.frequency) == "once":
+            row.is_active = False
+        return False
+    row.next_payment_date = following
+    return True
+
+
+def _confirm(row: Recurring) -> None:
+    """An instalment is confirmed paid (by a matching line, or by the owner): the count and the
+    balance that is left move on by one instalment."""
+    if not row.is_installment:
+        return
+    total, done = row.total_installments, row.completed_installments
+    if total is not None or done is not None:
+        row.completed_installments = min((done or 0) + 1, total) if total else (done or 0) + 1
+    if row.remaining_balance is not None:
+        row.remaining_balance = max(row.remaining_balance - row.amount, 0)
+
+
+def _assume(row: Recurring) -> None:
+    """An instalment was only passed by the schedule: nothing confirms it, so it is counted apart
+    (at most up to the plan's total)."""
+    if not row.is_installment:
+        return
+    total = row.total_installments
+    if total is None or (row.completed_installments or 0) + row.assumed_installments < total:
+        row.assumed_installments += 1
+
+
+def _finish_by_schedule(row: Recurring) -> None:
+    """The last instalment's date has passed unseen: by the schedule the plan is complete (the
+    same figure however often this runs)."""
+    total = row.total_installments
+    if row.is_installment and total is not None:
+        row.assumed_installments = max(
+            row.assumed_installments, total - (row.completed_installments or 0)
+        )
+
+
+def _outcome(row: Recurring, matched: bool) -> None:
+    """Remember the outcome of a due date of a payment whose account we collect (last three)."""
+    if row.account_id is not None:
+        row.recent_outcomes = (row.recent_outcomes + ("1" if matched else "0"))[-3:]
 
 
 @guarded
@@ -234,11 +294,14 @@ async def mark_paid(
     paid_on: date | None = None,
 ) -> Recurring:
     """The owner says it was paid: the next date moves on one step (a payment that happens once
-    ends). No figure of his (instalments, balances) is changed on a guess."""
+    ends), and an instalment plan's confirmed count and balance move on with it. It is his word,
+    not a match: it is no evidence."""
     row = await session.get(Recurring, recurring_id, with_for_update=True)
     if row is None:
         raise _not_found()
     row.last_paid_on = paid_on or _today(now, zone)
+    _confirm(row)
+    _outcome(row, matched=False)  # the owner's word is not a match
     _step(row)
     row.updated_at = now
     await session.commit()
@@ -267,6 +330,7 @@ async def load_recurring(
     errors: Sequence[RowError],
     ignored: Sequence[str],
     now: datetime,
+    today: date,
     display: Display,
     on_conflict: Literal["skip", "update"] = "skip",
     dry_run: bool = False,
@@ -303,6 +367,7 @@ async def load_recurring(
             elif found is not None:
                 for name, value in item.model_dump().items():
                     setattr(found, name, value)
+                found.assumed_installments = 0  # the file is the new starting point
                 found.updated_at = now
                 updated.append(found)
             else:
@@ -313,6 +378,8 @@ async def load_recurring(
             await session.rollback()
         else:
             await session.commit()
+    rows = [] if dry_run else created + updated
+    shown = [RecurringOut.from_row(r, display, today) for r in rows]
     answer = ImportOut(
         dry_run=dry_run,
         created=len(created),
@@ -320,7 +387,7 @@ async def load_recurring(
         skipped=skipped,
         errors=[RowErrorOut.of(e) for e in problems],
         ignored_columns=list(ignored),
-        recurring=[] if dry_run else [RecurringOut.from_row(r, display) for r in created + updated],
+        recurring=shown,
     )
     return answer, not problems
 
@@ -394,25 +461,33 @@ async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> in
             due = row.next_payment_date
             if due is None or not row.is_active or today < due - timedelta(days=EARLY_DAYS):
                 break
-            following = advance(
-                due, row.frequency, row.frequency_interval, anchor_of(row.start_date, due)
-            )
+            following = _following(row, due)
             if following is not None and following <= today:
-                _step(row)  # more than one period ago: not looked up, only rolled past
+                _assume(row)  # more than one period ago: not looked up, only rolled past
+                _step(row)
                 row.updated_at = now
                 moved += 1
                 continue
             found = await _match(session, row, due, zone, used)
             if found is not None:
                 used.add(found.id)
-                row.last_paid_on = found.booked_at.astimezone(zone).date()
+                row.last_paid_on = row.last_matched_on = found.booked_at.astimezone(zone).date()
                 row.last_charged_amount = -found.amount
                 row.last_transaction_id = found.id
+                _confirm(row)
+                _outcome(row, matched=True)
             elif row.account_id is not None or today <= due:
+                break  # waiting for a line, or not due yet
+            elif following is None:
+                _finish_by_schedule(row)  # the last date has passed and nobody can see it
                 break
-            _step(row)
+            else:
+                _assume(row)  # nobody can see it: passed by the schedule
+            progressed = _step(row)
             row.updated_at = now
             moved += 1
+            if not progressed:
+                break  # a payment that happens once, or a plan at its last instalment
     await session.commit()  # also ends the transaction that holds the row locks
     return moved
 
@@ -439,8 +514,17 @@ async def _occurrences(
         first = row.next_payment_date
         if first is None:
             continue
+        frequency = frequency_of(row.kind, row.frequency)
+        until, limit = end, 400
+        if row.is_installment:  # a plan has no occurrence beyond its last instalment
+            total = row.total_installments
+            if total:
+                limit = total - (row.completed_installments or 0) - row.assumed_installments
+            last = last_installment_date(row.start_date, frequency, row.frequency_interval, total)
+            if last is not None:
+                until = min(until, last)
         anchor = anchor_of(row.start_date, first)
-        for day in occurrences(first, row.frequency, row.frequency_interval, anchor, end):
+        for day in occurrences(first, frequency, row.frequency_interval, anchor, until, limit):
             if day >= today:
                 entries.append((day, row))
     entries.sort(key=lambda entry: (entry[0], entry[1].name, str(entry[1].id)))
@@ -600,7 +684,8 @@ async def _conditions(
     recurring = (await session.scalars(active)).all()
     for row in recurring:
         due = row.next_payment_date
-        if due is not None and row.account_id is not None and due < today:
+        ended = schedule_state(row, today) == "ended_by_schedule"
+        if due is not None and row.account_id is not None and due < today and not ended:
             items.append(
                 _item(
                     display,

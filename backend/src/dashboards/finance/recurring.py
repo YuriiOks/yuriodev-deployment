@@ -271,6 +271,59 @@ def occurrences(
     return found
 
 
+def frequency_of(kind: str, frequency: str) -> str:
+    """How often a payment really repeats: a one-time payment never does, whatever it says."""
+    return "once" if kind == "one_time" else frequency
+
+
+MAX_PLAN = 1200  # instalments: more than this and the last date is not worked out
+
+
+def last_installment_date(
+    start: date | None, frequency: str, interval: int, total: int | None
+) -> date | None:
+    """The date of the last instalment of a plan (the first is on `start`), or None when it
+    cannot be told (no start or count, or a plan of more than `MAX_PLAN`)."""
+    if start is None or not total or total > MAX_PLAN:
+        return None
+    day = start
+    for _ in range(total - 1):
+        following = advance(day, frequency, interval, start.day)
+        if following is None:
+            return None
+        day = following
+    return day
+
+
+ScheduleState = Literal["on_track", "ended_by_schedule", "unknown"]
+
+
+def schedule_state(row: Any, today: date) -> ScheduleState | None:
+    """What the owner's own list says about a payment, with nothing sent to a bank: an instalment
+    plan whose last instalment (start date plus count) or count is behind it, and a payment that
+    happens once whose date is behind it, are `ended_by_schedule`; a plan that cannot be worked
+    out, or that the bank's lines contradict (a match after its supposed last date), is
+    `unknown`. None for a payment the owner switched off."""
+    if not row.is_active:
+        return None
+    frequency = frequency_of(row.kind, row.frequency)
+    if frequency == "once":
+        if row.next_payment_date is None:
+            return "unknown"
+        return "ended_by_schedule" if row.next_payment_date < today else "on_track"
+    if not row.is_installment:
+        return "on_track"
+    total = row.total_installments
+    if not total:
+        return "unknown"
+    last = last_installment_date(row.start_date, frequency, row.frequency_interval, total)
+    counted = (row.completed_installments or 0) + row.assumed_installments >= total
+    if (last is not None and last < today) or counted:
+        proven_later = last is not None and row.last_matched_on and row.last_matched_on > last
+        return "unknown" if proven_later else "ended_by_schedule"
+    return "on_track" if last is not None else "unknown"
+
+
 def squash(text: str | None) -> str:
     return ALNUM.sub("", (text or "").casefold())
 
