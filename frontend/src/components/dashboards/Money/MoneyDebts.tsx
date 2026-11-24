@@ -7,7 +7,7 @@ import type { Recurring } from '../../../services/dashboards/recurringApi';
 import Amount from './Amount';
 import { dayLabel } from './labels';
 import RecurringIcon from './RecurringIcon';
-import { frequencyLabel } from './recurringLabels';
+import { frequencyLabel, remainingTotals } from './recurringLabels';
 import styles from './Recurring.module.css';
 
 /** How far a debt is paid, as a share 0 to 100 and in words: installments done of the total, else the part of the amount owed that is repaid; null when neither is known. */
@@ -64,20 +64,6 @@ const DebtCard: React.FC<{ row: Recurring; mode: MoneyDisplay }> = ({ row, mode 
     </li>
   );
 };
-
-/** What is still owed across the debts, as one figure per currency (in pounds mode the converted figure where the server has one, marked "≈"). */
-export function remainingTotals(rows: readonly Recurring[], mode: MoneyDisplay): { amount: number; currency: string; approx: boolean }[] {
-  const totals = new Map<string, { amount: number; approx: boolean }>();
-  for (const row of rows) {
-    if (row.remainingBalance === null) continue;
-    const useDisplay = mode === 'base' && row.displayRemaining !== null && row.displayRemaining.currency !== row.currency;
-    const code = useDisplay && row.displayRemaining ? row.displayRemaining.currency : row.currency;
-    const amount = useDisplay && row.displayRemaining ? row.displayRemaining.amount : row.remainingBalance;
-    const entry = totals.get(code) ?? { amount: 0, approx: false };
-    totals.set(code, { amount: entry.amount + amount, approx: entry.approx || useDisplay });
-  }
-  return [...totals.entries()].map(([currency, entry]) => ({ currency, ...entry }));
-}
 
 /** The debts: collapsed to one summary row (how many, how much is left), the cards one click away. */
 const MoneyDebts: React.FC<{ rows: readonly Recurring[]; mode: MoneyDisplay }> = ({ rows, mode }) => {

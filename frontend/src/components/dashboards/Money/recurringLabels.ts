@@ -39,3 +39,17 @@ export function debtsOf(recurring: readonly Recurring[]): Recurring[] {
 
 /** The windows the upcoming payments can be asked for, in days. */
 export const WINDOWS = [14, 30] as const;
+
+/** What is still owed across the debts, as one figure per currency (in pounds mode the converted figure where the server has one, marked "≈"). */
+export function remainingTotals(rows: readonly Recurring[], mode: MoneyDisplay): { amount: number; currency: string; approx: boolean }[] {
+  const totals = new Map<string, { amount: number; approx: boolean }>();
+  for (const row of rows) {
+    if (row.remainingBalance === null) continue;
+    const useDisplay = mode === 'base' && row.displayRemaining !== null && row.displayRemaining.currency !== row.currency;
+    const code = useDisplay && row.displayRemaining ? row.displayRemaining.currency : row.currency;
+    const amount = useDisplay && row.displayRemaining ? row.displayRemaining.amount : row.remainingBalance;
+    const entry = totals.get(code) ?? { amount: 0, approx: false };
+    totals.set(code, { amount: entry.amount + amount, approx: entry.approx || useDisplay });
+  }
+  return [...totals.entries()].map(([currency, entry]) => ({ currency, ...entry }));
+}
