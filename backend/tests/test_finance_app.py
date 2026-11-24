@@ -55,7 +55,7 @@ async def test_a_token_starts_the_collector_and_the_first_tick_lists_the_account
         await asyncio.wait_for(manager.ticked.wait(), timeout=30)
         accounts = await client.get(f"{BASE}/accounts")
 
-    assert manager.describe() == ["monobank", "fx"]  # the rates come with a bank collector
+    assert manager.describe() == ["monobank", "fx", "icons"]  # they come with a bank
     assert app.state.collectors is None  # the task collectors have no credential
     assert fake.calls == [("client-info",)]
     (account,) = accounts.json()["accounts"]

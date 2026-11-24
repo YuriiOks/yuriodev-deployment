@@ -1187,6 +1187,7 @@ is a line error `category_unknown`). A payee (counterparty, any case) whose cate
 before keeps it on later statement lines.
 MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set_manual_balance`,
 `finance_update_manual_account` (archive with `archived: true`).
+Payment icons (migration `dashboards_0021`): the page's content security policy allows images from the site itself and `data:` only, so a payment's `icon_url` (https, as before) is fetched once by the backend, never by the browser: the finance loop's `icons` collector takes up to five payments per tick whose address it has not looked at, asks for the URL (no redirects, at most 36 KiB, `image/png` or `image/svg+xml`, not a host inside a network such as localhost, a private or link-local address or a name with no dot; a name that resolves to one is the case it cannot see), checks the image like a bank logo (a real PNG, or an SVG with no script or external reference) and stores it. Every payment (and upcoming item) has `icon_data`, a data URI the page puts in an `<img>`, or null until the fetch has run (within one poll interval of saving) and when the address gave no safe image; a changed `icon_url` shows null until it is fetched. It only runs when a bank collector does.
 `GET /finance/providers` now returns for every built-in brand, every id with a logo and every
 provider with a connection: `{id, name, colors: {background, foreground}, logo, entry: "api" |
 "manual", reconnect: "oauth" | "token" | null, reconnect_path}`; `name` is null when there is neither

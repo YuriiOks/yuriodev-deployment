@@ -466,5 +466,5 @@ def test_the_rates_collector_exists_only_next_to_a_bank_collector(make_settings)
     with_bank = make_settings(database_url="postgresql://u:p@h/d", monobank_token=key)
     without = make_settings(database_url="postgresql://u:p@h/d")
 
-    assert [c.name for c in build_finance_collectors(with_bank)] == ["monobank", "fx"]
+    assert [c.name for c in build_finance_collectors(with_bank)] == ["monobank", "fx", "icons"]
     assert build_finance_collectors(without) == []  # nothing to convert: no outbound call

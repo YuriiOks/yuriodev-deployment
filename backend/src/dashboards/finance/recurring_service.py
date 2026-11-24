@@ -69,6 +69,7 @@ from src.dashboards.finance.recurring_schemas import (
     UpcomingItem,
     UpcomingOut,
     UpcomingTotal,
+    shown_icon,
 )
 from src.dashboards.finance.schemas import (
     API_STALE_AFTER,
@@ -678,6 +679,7 @@ async def _occurrences(
             account_id=row.account_id,
             payment_method=row.payment_method,
             icon_url=row.icon_url,
+            icon_data=shown_icon(row),
             color=row.color,
             covered=covered,
             shortfall=shortfall,
