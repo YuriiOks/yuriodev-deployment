@@ -172,7 +172,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       if (api.fail.has('financeAccounts')) return failure();
       return json({ accounts: api.finance.accounts, connections: api.finance.connections, ...(api.finance.display ? { display: api.finance.display } : {}) });
     }
-    if (path === '/finance/recurring' || /^\/finance\/recurring\/[\w-]+(\/paid|\/icon\/refresh)?$/.test(path)) {
+    if (path === '/finance/recurring' || /^\/finance\/recurring\/[\w-]+(\/paid|\/icon\/refresh|\/icon)?$/.test(path)) {
       const list = (api.finance.recurring ??= []);
       if (path === '/finance/recurring' && method === 'GET') {
         if (api.fail.has('financeRecurring')) return failure();
@@ -189,7 +189,14 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
       if (path.endsWith('/icon/refresh')) {
         found.icon_state = 'pending';
-        found.icon_data = null;
+        found.icon_url = null;
+        return json(found);
+      }
+      if (path.endsWith('/icon') && method === 'POST') {
+        const kind = (call.headers['Content-Type'] ?? call.headers['content-type'] ?? '').split(';')[0];
+        if (kind !== 'image/png' && kind !== 'image/svg+xml') return json({ error: 'unsupported_media_type', message: 'Send image/png or image/svg+xml', request_id: 'test' }, 415);
+        found.icon_url = `/api/dashboards/v1/finance/recurring/${found.id}/icon?v=0a1b2c3d`;
+        found.icon_state = 'ok';
         return json(found);
       }
       if (path.endsWith('/paid')) {

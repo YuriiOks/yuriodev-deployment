@@ -5,9 +5,10 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { minorToInput, parseMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { createRecurring, FREQUENCIES, RECURRING_KINDS, refreshIcon, refusal, updateRecurring, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
+import { createRecurring, FREQUENCIES, RECURRING_KINDS, refreshIcon, refusal, updateRecurring, uploadIcon, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
 import type { LoadStatus } from '../../../hooks/useFinance';
 import InlineError from '../InlineError/InlineError';
+import { ApiError } from '../../../services/dashboards/liveApi';
 import Amount from './Amount';
 import { dayLabel } from './labels';
 import RecurringIcon from './RecurringIcon';
@@ -28,34 +29,69 @@ interface FormProps {
   onIconRefreshed?: () => void;
 }
 
-/** "Refresh icon": asks the server to look for the payment's icon again; says when it is being looked for or could not be found. */
+/** The short code the server gives for a failed fetch, as words (a code we do not know says so; `blocked_status_NNN` is a refusal by the site). */
+function iconReason(code: string | null, reasons: Readonly<Record<string, string>>): string {
+  if (!code) return reasons.other;
+  if (code.startsWith('blocked_status_') && !(code in reasons)) return reasons.blocked_status_403;
+  return reasons[code] ?? reasons.other;
+}
+
+/** "Refresh icon" asks the server to look for the payment's icon again; "Upload icon" sets one by hand (PNG or SVG). Says when it is being looked for or why it failed. */
 const RefreshIcon: React.FC<{ row: Recurring; onDone?: () => void }> = ({ row, onDone }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const ask = async () => {
+  const [failed, setFailed] = useState<string | null>(null);
+  const file = useRef<HTMLInputElement>(null);
+  const run = async (action: () => Promise<unknown>, why: (error: unknown) => string) => {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
-      await refreshIcon(row.id);
+      await action();
       onDone?.();
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailed(why(error));
     } finally {
       setBusy(false);
     }
   };
+  const uploadWhy = (error: unknown): string => {
+    const status = error instanceof ApiError ? error.status : 0;
+    if (status === 415) return r.iconUploadErrors.type;
+    if (status === 413) return r.iconUploadErrors.size;
+    if (status === 422 && error instanceof ApiError && error.code === 'invalid_icon') return r.iconUploadErrors.invalid;
+    return r.iconUploadErrors.failed;
+  };
   return (
     <>
-      <button type="button" className={styles.ghost} disabled={busy} onClick={() => void ask()}>
+      <button type="button" className={styles.ghost} disabled={busy} onClick={() => void run(() => refreshIcon(row.id), () => r.actionFailed)}>
         {r.refreshIcon}
       </button>
+      <button type="button" className={styles.ghost} disabled={busy} onClick={() => file.current?.click()}>
+        {r.uploadIcon}
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept="image/png,image/svg+xml"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label={r.uploadIcon}
+        onChange={(event) => {
+          const chosen = event.target.files?.[0];
+          event.target.value = '';
+          if (chosen) void run(() => uploadIcon(row.id, chosen), uploadWhy);
+        }}
+      />
       {row.iconState === 'pending' && <span className={styles.note}>{r.iconPending}</span>}
-      {row.iconState === 'failed' && <span className={styles.note}>{r.iconFailed}</span>}
+      {row.iconState === 'failed' && (
+        <span className={styles.note}>
+          {r.iconFailed}: {iconReason(row.iconError, r.iconReason)}
+        </span>
+      )}
       {failed && (
         <span role="alert" className={styles.error}>
-          {r.actionFailed}
+          {failed}
         </span>
       )}
     </>

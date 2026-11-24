@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { ProviderLogo } from '../../../services/dashboards/financeApi';
+import { useImageFallback } from '../../../hooks/useImageFallback';
 import { brandFor, wordmarkIsWhite } from '../../../services/dashboards/providerBrand';
 import { bankLabel } from './providers';
 import styles from './Money.module.css';
@@ -22,7 +23,9 @@ export interface BankNameProps {
 const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) => {
   const [square, setSquare] = useState(false);
   const name = bankLabel(provider, logo);
-  if (!logo || (!logo.onDark && !logo.onLight)) return <>{name}</>;
+  // Pictures that cannot be loaded (the server was restarting) give way to the text name at once and are asked for once more a few seconds later.
+  const image = useImageFallback(`${logo?.onDark ?? ''}|${logo?.onLight ?? ''}|${logo?.mark ?? ''}`);
+  if (!logo || (!logo.onDark && !logo.onLight) || image.failed) return <>{name}</>;
   // A chip sits on the theme's own surface, not on a brand colour, so it follows the theme like a neutral card.
   const brand = size === 'chip' ? null : brandFor(provider, logo);
   const watch = (event: React.SyntheticEvent<HTMLImageElement>) => {
@@ -39,7 +42,7 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
       <>
         <span className="sr-only">{name}</span>
         <span aria-hidden="true" className={styles.logoMark}>
-          <img src={logo.mark} alt="" draggable={false} />
+          <img key={image.attempt} onError={image.onError} src={logo.mark} alt="" draggable={false} />
         </span>
       </>
     );
@@ -51,7 +54,7 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
       <>
         <span className="sr-only">{name}</span>
         <span aria-hidden="true" className={styles.logos} data-surface="brand" data-shape={square ? 'square' : 'wide'} data-size={size}>
-          <img className={styles.logoOnDark} src={single} alt="" draggable={false} onLoad={watch} />
+          <img key={image.attempt} onError={image.onError} className={styles.logoOnDark} src={single} alt="" draggable={false} onLoad={watch} />
         </span>
       </>
     );
@@ -61,8 +64,8 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
     <>
       <span className="sr-only">{name}</span>
       <span aria-hidden="true" className={styles.logos} data-surface="theme" data-missing={!light ? 'light' : !dark ? 'dark' : undefined} data-shape={square ? 'square' : 'wide'} data-size={size}>
-        {dark && <img className={styles.logoOnDark} src={dark} alt="" draggable={false} onLoad={watch} />}
-        {light && <img className={styles.logoOnLight} src={light} alt="" draggable={false} onLoad={watch} />}
+        {dark && <img key={`dark-${image.attempt}`} onError={image.onError} className={styles.logoOnDark} src={dark} alt="" draggable={false} onLoad={watch} />}
+        {light && <img key={`light-${image.attempt}`} onError={image.onError} className={styles.logoOnLight} src={light} alt="" draggable={false} onLoad={watch} />}
         {(!dark || !light) && <span className={styles.logoText}>{name}</span>}
       </span>
     </>

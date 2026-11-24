@@ -35,8 +35,12 @@ const oneOf = <T extends string>(list: readonly T[], value: unknown): T | null =
 const ICON_DATA = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/]+=*$/;
 const ICON_DATA_MAX = 150_000;
 
+/** A payment's picture served by address: a path under the recurring routes of this site (`.../recurring/<id>/icon`), with the version query the server adds. */
+const ICON_PATH = /^\/api\/dashboards\/v1\/finance\/recurring\/[A-Za-z0-9-]{1,64}\/icon(?:\?v=[0-9A-Za-z]{1,32})?$/;
+
 export const iconUrl = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
+  if (value.length <= 200 && ICON_PATH.test(value)) return value;
   if (value.length <= 500 && ICON_URL.test(value)) return value;
   return value.length <= ICON_DATA_MAX && ICON_DATA.test(value) ? value : null;
 };
@@ -94,10 +98,12 @@ export interface Recurring {
   readonly totalOwed: number | null;
   readonly remainingBalance: number | null;
   readonly creditor: string | null;
-  /** The picture the server fetched and inlined (`icon_data`: a PNG or SVG data URI), null while there is none. */
+  /** The picture the server fetched, at a path on this site (`icon_url`), null while there is none. */
   readonly iconUrl: string | null;
   /** none (nothing to fetch), pending, ok or failed: while it is not ok the payment shows its colour tile. */
   readonly iconState: 'none' | 'pending' | 'ok' | 'failed';
+  /** Why the last fetch of the icon failed (a short code, only when `iconState` is failed). */
+  readonly iconError: string | null;
   /** A host such as example.com, whose own icon the server looks for. */
   readonly website: string | null;
   readonly color: string | null;
@@ -146,8 +152,9 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
     totalOwed: int(raw.total_owed),
     remainingBalance: int(raw.remaining_balance),
     creditor: text(raw.creditor),
-    iconUrl: iconUrl(raw.icon_data),
+    iconUrl: iconUrl(raw.icon_url ?? raw.icon_data),
     iconState: oneOf(['none', 'pending', 'ok', 'failed'] as const, raw.icon_state) ?? 'none',
+    iconError: text(raw.icon_error),
     website: text(raw.website),
     color: color(raw.color),
     notes: text(raw.notes),
@@ -244,7 +251,7 @@ export function parseUpcoming(body: unknown): Upcoming | null {
         converted: raw.converted === true,
         accountId: text(raw.account_id),
         paymentMethod: text(raw.payment_method),
-        iconUrl: iconUrl(raw.icon_data),
+        iconUrl: iconUrl(raw.icon_url ?? raw.icon_data),
         color: color(raw.color),
         covered: typeof raw.covered === 'boolean' ? raw.covered : null,
         shortfall: int(raw.shortfall),
@@ -437,6 +444,13 @@ export async function createRecurring(body: RecurringBody): Promise<Recurring> {
 /** Looks for the payment's icon again: it goes back to pending and is fetched after the answer. */
 export async function refreshIcon(id: string): Promise<Recurring> {
   const parsed = parseRecurring(await request(`/finance/recurring/${encodeURIComponent(id)}/icon/refresh`, { method: 'POST', body: {} }));
+  if (!parsed) throw BAD('the payment');
+  return parsed;
+}
+
+/** Sets the payment's icon by hand: a PNG or SVG of at most 256 KiB, sent as it is; it wins over the website until the icon is refreshed. */
+export async function uploadIcon(id: string, file: { arrayBuffer(): Promise<ArrayBuffer>; type: string }): Promise<Recurring> {
+  const parsed = parseRecurring(await request(`/finance/recurring/${encodeURIComponent(id)}/icon`, { method: 'POST', raw: { data: await file.arrayBuffer(), contentType: file.type } }));
   if (!parsed) throw BAD('the payment');
   return parsed;
 }

@@ -249,7 +249,7 @@ const logoUri = (value: unknown): string | null => {
   return value.length <= MAX_LOGO_PATH && LOGO_PATH.test(value) && !value.includes('..') && !value.includes('//') ? value : null;
 };
 
-/** A consent path: on the server's own finance routes, no host, no dot segments, no query. */
+/** A consent path: on the server's own finance routes, no host, no dot segments, and only a version query. */
 const CONNECT_PATH = /^\/api\/dashboards\/v1\/finance\/[A-Za-z0-9_/-]+$/;
 
 const hexColor = (value: unknown): string | null => (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : null);

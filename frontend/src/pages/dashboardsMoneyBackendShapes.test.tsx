@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
 import { resetBootstrap } from '../services/dashboards/bootstrapStore';
+import { parseRecurring, parseUpcoming } from '../services/dashboards/recurringApi';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
 import { installFakeApi, type FakeApi, type FakeApiOptions, type FinanceData } from '../test/dashboardsApiMock';
@@ -349,19 +350,19 @@ describe('the Money page: loading, error and refresh states', () => {
 });
 
 describe('the Money page: what the backend added after the audit', () => {
-  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  const ICON = '/api/dashboards/v1/finance/recurring/r-1/icon?v=0a1b2c3d';
 
   it('shows a payment\'s inlined icon, the colour tile while it is pending, and offers a website and "Refresh icon" in the form', async () => {
     const api = setup({
       finance: {
-        recurring: [payment('r-1', 'Streaming', { icon_data: PNG, icon_state: 'ok', website: 'streaming.example.com' }), payment('r-2', 'Gym', { icon_data: null, icon_state: 'pending', color: '#3366cc' })],
+        recurring: [payment('r-1', 'Streaming', { icon_url: ICON, icon_state: 'ok', icon_error: null, website: 'streaming.example.com' }), payment('r-2', 'Gym', { icon_url: null, icon_state: 'pending', icon_error: null, color: '#3366cc' })],
       },
     });
     const user = userEvent.setup();
     renderAt(`${PATH}?view=recurring`);
     const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
     const streaming = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
-    expect(streaming.querySelector('img')).toHaveAttribute('src', PNG);
+    expect(streaming.querySelector('img')).toHaveAttribute('src', ICON);
     const gym = panel.getByText('Gym').closest('li') as HTMLElement;
     expect(gym.querySelector('img')).toBeNull();
     expect(gym).toHaveTextContent('G');
@@ -426,6 +427,37 @@ describe('the Money page: what the backend added after the audit', () => {
     await user.click(within(dayOnly).getByRole('button', { name: 'Mark as a move between my accounts' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/transactions/t-1')[0]?.body).toEqual({ internal_transfer: true }));
     expect(await within((await panel.findByText('Corner Cafe')).closest('li') as HTMLElement).findByRole('button', { name: 'Not a move between my accounts' })).toBeInTheDocument();
+  });
+});
+
+describe('the Money page: payment icons by address and uploads', () => {
+  it('reads the live shape of a payment icon (a path with ?v=, icon_state, icon_error) and refuses any other address', () => {
+    const live = { id: 'r-1', name: 'Streaming', kind: 'subscription', amount: 999, currency: 'GBP', frequency: 'monthly', icon_url: '/api/dashboards/v1/finance/recurring/r-1/icon?v=0a1b2c3d', icon_state: 'ok', icon_error: null, website: 'streaming.example.com' };
+    expect(parseRecurring(live)).toMatchObject({ iconUrl: '/api/dashboards/v1/finance/recurring/r-1/icon?v=0a1b2c3d', iconState: 'ok', iconError: null, website: 'streaming.example.com' });
+    expect(parseRecurring({ ...live, icon_url: null, icon_state: 'failed', icon_error: 'timeout' })).toMatchObject({ iconUrl: null, iconState: 'failed', iconError: 'timeout' });
+    for (const bad of ['/api/dashboards/v1/finance/recurring/r-1/icon?x=1', '/api/dashboards/v1/finance/recurring/../tasks/icon', '//evil.example.com/icon', 'http://x.example.com/a.png']) {
+      expect(parseRecurring({ ...live, icon_url: bad })?.iconUrl, bad).toBeNull();
+    }
+    const upcoming = parseUpcoming({ items: [{ recurring_id: 'r-1', name: 'A', kind: 'utility', due_date: '2026-11-24', days_until: 0, amount: 100, currency: 'GBP', icon_url: live.icon_url, icon_state: 'ok', overdue: false }], totals: [] });
+    expect(upcoming?.items[0].iconUrl).toBe(live.icon_url);
+  });
+
+  it('says why a fetch failed next to "Refresh icon", and uploads an icon by hand (PNG or SVG), saying a refusal in words', async () => {
+    const api = setup({ finance: { recurring: [payment('r-1', 'Streaming', { icon_url: null, icon_state: 'failed', icon_error: 'timeout', website: 'streaming.example.com' })] } });
+    const user = userEvent.setup({ applyAccept: false });
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    const row = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: /^Actions: / }));
+    await user.click(within(row).getByRole('menuitem', { name: 'Edit' }));
+    expect(panel.getByText(/No icon found: the site did not answer in time/)).toBeInTheDocument();
+    const input = panel.getByLabelText('Upload icon', { selector: 'input' }) as HTMLInputElement;
+    // A file of a type the server refuses: its refusal is told in words.
+    await user.upload(input, new File(['x'], 'icon.gif', { type: 'image/gif' }));
+    expect(await panel.findByText('Send a PNG or SVG file.')).toBeInTheDocument();
+    await user.upload(input, new File([new Uint8Array([137, 80, 78, 71])], 'icon.png', { type: 'image/png' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-1/icon').length).toBe(2));
+    expect(api.callsTo('POST', '/finance/recurring/r-1/icon')[1].headers['Content-Type']).toBe('image/png');
   });
 });
 

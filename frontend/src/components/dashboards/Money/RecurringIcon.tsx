@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useImageFallback } from '../../../hooks/useImageFallback';
 import { prefersWhiteInk } from '../../../services/dashboards/providerBrand';
 import styles from './Recurring.module.css';
 
@@ -7,11 +8,11 @@ import styles from './Recurring.module.css';
  * with its first letter. Decorative: the name is beside it.
  */
 const RecurringIcon: React.FC<{ name: string; iconUrl: string | null; color: string | null }> = ({ name, iconUrl, color }) => {
-  const [failed, setFailed] = useState(false);
-  if (iconUrl && !failed) {
+  const image = useImageFallback(iconUrl);
+  if (iconUrl && !image.failed) {
     return (
       <span aria-hidden="true" className={styles.icon}>
-        <img src={iconUrl} alt="" referrerPolicy="no-referrer" loading="lazy" draggable={false} onError={() => setFailed(true)} />
+        <img key={image.attempt} src={iconUrl} alt="" referrerPolicy="no-referrer" loading="lazy" draggable={false} onError={image.onError} />
       </span>
     );
   }

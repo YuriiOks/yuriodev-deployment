@@ -180,6 +180,9 @@ export interface RecurringStrings {
   readonly refreshIcon: string;
   readonly iconPending: string;
   readonly iconFailed: string;
+  readonly uploadIcon: string;
+  readonly iconReason: Readonly<Record<string, string>>;
+  readonly iconUploadErrors: { readonly type: string; readonly size: string; readonly invalid: string; readonly failed: string };
   readonly matchHint: string;
   readonly invalidAmount: string;
   readonly invalidDate: string;
@@ -397,6 +400,19 @@ export const RECURRING_RU: RecurringStrings = {
   refreshIcon: 'Обновить значок',
   iconPending: 'Значок ищется…',
   iconFailed: 'Значок не нашёлся',
+  uploadIcon: 'Загрузить значок',
+  iconReason: {
+    not_public: 'сайт недоступен для проверки (адрес не публичный)',
+    timeout: 'сайт не ответил вовремя',
+    blocked_status_403: 'сайт закрыл доступ',
+    too_large: 'файл слишком большой',
+    not_an_image: 'это не картинка',
+    unsafe_svg: 'небезопасный SVG',
+    bitmap_ico: 'значок .ico без PNG внутри',
+    no_icon_found: 'на сайте значок не найден',
+    other: 'причина неизвестна',
+  },
+  iconUploadErrors: { type: 'Нужен файл PNG или SVG.', size: 'Файл больше 256 КБ.', invalid: 'Файл не подходит как значок.', failed: 'Не удалось загрузить значок.' },
   matchHint: 'Что содержит текст операции в банке, если это не название',
   invalidAmount: 'Введите сумму вроде 12.99',
   invalidDate: 'Дата в виде ГГГГ-ММ-ДД',
@@ -614,6 +630,19 @@ export const RECURRING_EN: RecurringStrings = {
   refreshIcon: 'Refresh icon',
   iconPending: 'Looking for the icon…',
   iconFailed: 'No icon found',
+  uploadIcon: 'Upload icon',
+  iconReason: {
+    not_public: 'the site could not be checked (not a public address)',
+    timeout: 'the site did not answer in time',
+    blocked_status_403: 'the site refused access',
+    too_large: 'the file is too large',
+    not_an_image: 'it is not an image',
+    unsafe_svg: 'the SVG is not safe',
+    bitmap_ico: 'an .ico without a PNG inside',
+    no_icon_found: 'no icon found on the site',
+    other: 'the reason is not known',
+  },
+  iconUploadErrors: { type: 'Send a PNG or SVG file.', size: 'The file is larger than 256 KiB.', invalid: 'The file is not accepted as an icon.', failed: 'Could not upload the icon.' },
   matchHint: 'What its bank text contains, when that differs from the name',
   invalidAmount: 'Enter an amount like 12.99',
   invalidDate: 'A date as YYYY-MM-DD',
