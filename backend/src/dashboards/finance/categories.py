@@ -96,6 +96,7 @@ MCC_RANGES: tuple[tuple[int, int, str], ...] = (
     (7011, 7011, "entertainment"),  # lodging: hotels
 )
 
+
 def category_from_monzo(code: str | None) -> str | None:
     return MONZO_CATEGORIES.get(code) if code else None
 
