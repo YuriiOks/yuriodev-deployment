@@ -1,7 +1,8 @@
 name: CI
 
 # Every pushed branch is checked; a green push is what images.yml builds and deploys
-# (master -> stage; the repository owner's other branches -> dev). Dependabot and
+# (master -> stage and dev; a dev/* branch -> dev; the repository owner's other branches are
+# built and scanned only). Dependabot and
 # production are checked through their pull requests only, and never deploy.
 on:
   push:

@@ -13,9 +13,10 @@ flowchart LR
     master["push / merge to master"] --> ci
     ci -->|green push| build["Images: build once per commit\npush by digest, Trivy, then tag\nsha-&lt;commit&gt; / dev-&lt;commit&gt;\n(reused if already scanned)"]
     build --> retag["Images: retag\nonly when both services exist"]
-    retag -->|branch still at that commit| devtag[":dev\n(last build to finish wins)"]
+    retag -->|newest built master head| devtag[":dev\n(follows master)"]
     retag -->|newest built master head| stagetag[":stage"]
-    redeploy["gh workflow run images.yml\n-f branch=&lt;name&gt;"] -.->|no rebuild| devtag
+    retag -->|dev/* branch still at that commit\n(explicit preview)| devtag
+    redeploy["gh workflow run images.yml\n-f branch=&lt;name or master&gt;"] -.->|no rebuild| devtag
 
     rctag["rc tag, optional\nvX.Y.Z-rc.N"] -.->|older master commit| stagetag
     reltag["release tag\nvX.Y.Z"] --> approval["production\nenvironment approval"]
@@ -58,12 +59,15 @@ public nginx image pinned by digest and is only ever recreated by hand (see
    tags it immutably: `dev-<commit>` for a branch, `sha-<commit>` for
    `master`. A commit that already has a scanned image is reused, never
    rebuilt (a branch takes `sha-<commit>` or an earlier `dev-<commit>`;
-   `master` only `sha-<commit>`). Its `retag` job then points `:dev` at the
-   commit, but only once both services exist and only if the commit is still
-   the branch's head (`:stage` for `master`, step 2). The deploy agent picks
-   up `:dev` on its next run (within a minute), so about 5-7 minutes after
-   the push `dev.yuriodev.co.uk` runs the branch — no manual step. See
-   "Branch previews on dev" below.
+   `master` only `sha-<commit>`). A branch is built and scanned but moves no
+   tag by itself: its `retag` job runs only for `master` (step 2) and for a
+   branch named `dev/<name>`, the explicit preview, which points `:dev` at the
+   commit once both services exist and only if the commit is still the
+   branch's head. The deploy agent picks up `:dev` on its next run (within a
+   minute), so about 5-7 minutes after the push of a `dev/*` branch
+   `dev.yuriodev.co.uk` runs it. Any other built branch is put on dev by hand
+   (`gh workflow run images.yml -f branch=<name>`). See "Branch previews on
+   dev" below.
 2. **Merge to `master`: stage follows by itself.** A `master` push (a merged
    PR or a direct push, whoever pushed it) is built the same way and tagged
    `sha-<commit>`; its `retag` job then points `:stage` at the newest
@@ -127,13 +131,24 @@ only the moves of `:dev` and `:stage` are serialised (job-level groups
 
 ## Branch previews on dev
 
-Dev has one slot: `:dev` points at the branch whose build finished last —
-**the last build to finish wins** (usually the last push, but a slow build
-can land after a faster, later one). The retag only takes dev if the built
-commit is still that branch's head, so a branch that has moved on, or a
-re-run of an old build, never takes dev back. CI cancels a branch's older run
-when a newer push to it arrives. Only the repository owner's branch pushes
-build and deploy to dev; anyone else's push (bots included) gets CI only.
+**Dev follows `master` by default**: every `master` build moves `:dev` and
+`:stage` to the same newest built head, so dev and stage run the same thing
+and a push to a feature branch never restarts dev. Every owner branch is still
+built and scanned (so a preview needs no rebuild), but only two things put a
+branch on dev, explicitly:
+
+- push a branch named `dev/<name>` (the repository owner only): its build
+  moves `:dev` to it, and the retag only takes dev if the built commit is still
+  that branch's head, so a `dev/*` branch that has moved on, or a re-run of an
+  old build, never takes dev back. With two `dev/*` branches **the last build
+  to finish wins**.
+- dispatch `images.yml` by hand for any branch that is already built (below).
+
+A preview lasts until the next `master` build, which puts dev back on master.
+`gh workflow run images.yml -f branch=master` does the same at once, without
+waiting for a merge. CI cancels a branch's older run when a newer push to it
+arrives. Only the repository owner's branch pushes build; anyone else's push
+(bots included) gets CI only.
 
 A preview swaps only the images. Dev keeps running `master`'s
 `deploy/dev/compose.yml`, `env/dev.env` and proxy config from the box's
@@ -151,8 +166,8 @@ pushing again:
 gh workflow run images.yml -f branch=<name>   # retags :dev to the branch head's scanned images; nothing is built
 gh run list --workflow=images.yml --limit 3    # "Images: put <name> back on dev"; the deploy agent follows within a minute
 ```
-That `redeploy-dev` job (same `retag-dev` lock) refuses `master` (it runs on
-stage), `production` and `dependabot/*`, and fails unless the branch's head
+That `redeploy-dev` job (same `retag-dev` lock) takes `master` (dev back on
+the master head) or any branch except `production` and `dependabot/*`, and fails unless the branch's head
 commit already has scanned images for both services (`dev-<sha>` or
 `sha-<sha>`): push the branch, or wait for its build. Stage following
 `master` is the only behaviour: the old `STAGE_AUTO_PROMOTE` repo variable is
@@ -1249,7 +1264,7 @@ After the switch:
 |---|---|---|
 | 502/504 on a vhost (prod/dev/stage) | The upstream container for that env is down or unhealthy | `docker compose ps` (prod) or `docker compose -f deploy/<env>/compose.yml ps`; `docker compose logs --tail 200 <svc>` |
 | 401 on dev/stage | Basic auth working as intended, or wrong/missing credentials | Expected without credentials; with credentials, compare against `~/.config/yuriodev/basic-auth.txt` and `nginx-proxy/auth/envs.htpasswd` |
-| dev not running a branch after its push | CI or the build failed (or CI was cancelled by a newer push to that branch), the pusher isn't the repository owner (CI only, no build), another branch's build finished after it (the last build to finish wins), the branch moved on before the retag, or the agent is paused/not running | CI: `gh run list --workflow=ci.yml --branch <name>` (push-triggered, so `--branch` works); Images: `gh run list --workflow=images.yml --limit 10` and read the titles (`Images: <name> @ <sha>`; never `--branch`/`--commit`, those runs are filed under master's tip); whether `dev-<sha>`/`sha-<sha>` exists (`docker buildx imagetools inspect`); dev's `/api/health` `ref`/`revision`; `ls ~/.yuriodev-deploy-paused`; heartbeat freshness; `tail ~/.local/state/yuriodev-deploy.log`. `gh workflow run images.yml -f branch=<name>` puts an already-built branch back |
+| dev not running a branch after its push | only a branch named `dev/*` moves dev by itself (any other branch is built and scanned, and put on dev with `gh workflow run images.yml -f branch=<name>`), CI or the build failed (or CI was cancelled by a newer push to that branch), the pusher isn't the repository owner (CI only, no build), another `dev/*` branch's build finished after it (the last build to finish wins), a `master` build ended the preview, the branch moved on before the retag, or the agent is paused/not running | CI: `gh run list --workflow=ci.yml --branch <name>` (push-triggered, so `--branch` works); Images: `gh run list --workflow=images.yml --limit 10` and read the titles (`Images: <name> @ <sha>`; never `--branch`/`--commit`, those runs are filed under master's tip); whether `dev-<sha>`/`sha-<sha>` exists (`docker buildx imagetools inspect`); dev's `/api/health` `ref`/`revision`; `ls ~/.yuriodev-deploy-paused`; heartbeat freshness; `tail ~/.local/state/yuriodev-deploy.log`. `gh workflow run images.yml -f branch=<name>` puts an already-built branch back |
 | stage not following a `master` push | CI or the build failed for that commit (no `sha-<commit>` for both services yet), or the agent is paused/not running (an rc tag pins stage only until the next `master` build) | `gh run list --workflow=ci.yml --branch master`; Images by title as above; `docker buildx imagetools inspect` of `sha-<commit>` vs `:stage`; stage's `/api/health` `revision`; the agent checks as above |
 | stage not moving on an rc tag | Tag doesn't match the rc regex, CI not green for that SHA, its `sha-<commit>` images not built within ~15 minutes, or `promote-stage.yml` failed | `gh run list --workflow=promote-stage.yml`; confirm the tag is exactly `vX.Y.Z-rc.N`; confirm the tagged commit is on `master`, `CI` succeeded for it and `sha-<commit>` exists for both services |
 | production promotion blocked at the gate ("tag the master commit stage is running") | After waiting up to ~15 minutes, `:stage` still isn't running the digest of the tagged commit (a newer `master` build moved it on, or that commit was never built as `sha-<commit>`) | Release the commit stage runs now (`/deploy-check`), or pin stage to the tagged commit with an rc tag, then retag `vX.Y.Z` |

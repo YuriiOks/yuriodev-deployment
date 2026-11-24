@@ -3,7 +3,7 @@ description: Release runbook for yuriodev.co.uk - verify the master commit stage
 argument-hint: "[vX.Y.Z]"
 disable-model-invocation: true
 ---
-Release `$ARGUMENTS` (a `vX.Y.Z`; ask which version if missing). App code ships by moving registry tags through GitHub Actions — images are built once per commit, Trivy-scanned, tagged `sha-<commit>` (master) or `dev-<commit>` (branch), and only ever retagged after that: the owner's branch -> `:dev`, the newest built `master` head -> `:stage` by itself, a release tag + approval -> `:production`. The registry tags are the source of truth; Images runs are filed under master's tip, so find them by title (`Images: <branch> @ <sha>`), never by `--commit`/`--branch`. Each state-changing command below triggers a permission prompt: that prompt is Yurii's approval, so show him what happens first.
+Release `$ARGUMENTS` (a `vX.Y.Z`; ask which version if missing). App code ships by moving registry tags through GitHub Actions — images are built once per commit, Trivy-scanned, tagged `sha-<commit>` (master) or `dev-<commit>` (branch), and only ever retagged after that: the newest built `master` head -> `:stage` and `:dev` by itself (a `dev/*` branch or a manual dispatch puts a preview on `:dev` meanwhile), a release tag + approval -> `:production`. The registry tags are the source of truth; Images runs are filed under master's tip, so find them by title (`Images: <branch> @ <sha>`), never by `--commit`/`--branch`. Each state-changing command below triggers a permission prompt: that prompt is Yurii's approval, so show him what happens first.
 
 ## Release
 
