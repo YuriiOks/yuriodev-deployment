@@ -200,7 +200,7 @@ async def test_after_the_five_minutes_only_the_last_90_days_are_asked_for(
     assert 0 < stored < len(fake.transactions)
 
 
-async def test_a_new_consent_restarts_the_history_walk(db_url, make_dashboards_app, clock):
+async def test_a_new_consent_restarts_a_walk_that_stopped_short(db_url, make_dashboards_app, clock):
     fake = FakeMonzo(clock)
     fake.transactions = long_history(clock)
     app = make_dashboards_app(db_url)
@@ -208,11 +208,17 @@ async def test_a_new_consent_restarts_the_history_walk(db_url, make_dashboards_a
         await consent(app, fake, clock)
         sessions = app.state.dashboards.sessions
         await drive(collector_for(app, clock), client, sessions, clock, 1)
-        await execute(db_url, "UPDATE finance.account SET backfill_done = true")
+        await consent(app, fake, clock)
+        finished = await account_field(db_url, "backfill_done")  # a finished walk stays so
+        await execute(
+            db_url,
+            "UPDATE finance.account SET backfill_done = true, "
+            "backfilled_from = opened_at + interval '30 days'",
+        )  # one that stopped short of the opening date does not
         await consent(app, fake, clock)
         done = await account_field(db_url, "backfill_done")
 
-    assert done is False
+    assert (finished, done) == (True, False)
 
 
 async def test_the_token_is_refreshed_ahead_of_its_expiry_once(db_url, make_dashboards_app, clock):
