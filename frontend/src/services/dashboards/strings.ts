@@ -174,6 +174,11 @@ export interface Strings {
     readonly categories: Readonly<Record<Category, string>>;
     readonly categoryFilter: string;
     readonly allCategories: string;
+    readonly incomeMonth: string;
+    readonly incomeLatest: string;
+    readonly incomeNone: string;
+    readonly incomeFailed: string;
+    readonly incomeAll: string;
     readonly spendTitle: string;
     readonly spendLess: string;
     readonly spendMore: string;
@@ -464,6 +469,11 @@ export const STRINGS: Record<Lang, Strings> = {
       },
       categoryFilter: 'Категория',
       allCategories: 'Все категории',
+      incomeMonth: 'Доход в этом месяце',
+      incomeLatest: 'Последние поступления',
+      incomeNone: 'Поступлений пока нет.',
+      incomeFailed: 'Не удалось загрузить доходы.',
+      incomeAll: 'Все операции в «Деньги»',
       spendTitle: 'Траты по категориям',
       spendLess: 'на {percent}% меньше, чем за {previous}',
       spendMore: 'на {percent}% больше, чем за {previous}',
@@ -754,6 +764,11 @@ export const STRINGS: Record<Lang, Strings> = {
       },
       categoryFilter: 'Category',
       allCategories: 'All categories',
+      incomeMonth: 'Income this month',
+      incomeLatest: 'Latest incoming',
+      incomeNone: 'No income yet.',
+      incomeFailed: 'Could not load the income.',
+      incomeAll: 'All transactions in Money',
       spendTitle: 'Spend by category',
       spendLess: '{percent}% less than {previous}',
       spendMore: '{percent}% more than {previous}',

@@ -276,16 +276,19 @@ export async function fetchFinanceSummary(signal?: AbortSignal): Promise<Finance
 export interface TransactionQuery {
   readonly account?: string | null;
   readonly category?: Category | null;
+  /** The first day wanted, "YYYY-MM-DD" (days in the server's time zone, both ends included). */
+  readonly from?: string | null;
   readonly q?: string;
   readonly cursor?: string | null;
   readonly limit?: number;
 }
 
 /** The query string of a transactions request: only what is set. */
-export function transactionsPath({ account, category, q, cursor, limit = 25 }: TransactionQuery): string {
+export function transactionsPath({ account, category, from, q, cursor, limit = 25 }: TransactionQuery): string {
   const params = new URLSearchParams();
   if (account) params.set('account', account);
   if (category) params.set('category', category);
+  if (from) params.set('from', from);
   const query = q?.trim();
   if (query) params.set('q', query);
   if (cursor) params.set('cursor', cursor);
