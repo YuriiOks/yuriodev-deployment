@@ -286,13 +286,13 @@ def test_a_day_is_booked_at_noon_local_time_unless_the_file_has_a_time():
 PAYPAL_FILE = (
     '"Date","Time","TimeZone","Name","Type","Status","Currency","Gross","Fee","Net",'
     '"From Email Address","To Email Address","Transaction ID","Balance"\n'
-    '"25/11/2026","10:15:00","GMT","Acme Shop","Express Checkout Payment","Completed","GBP",'
+    '"15/11/2026","10:15:00","GMT","Acme Shop","Express Checkout Payment","Completed","GBP",'
     '"-20.00","0.00","-20.00","me@example.test","shop@example.test","TX1","80.00"\n'
-    '"26/11/2026","11:00:00","GMT","Seller Ltd","Payment Received","Completed","GBP",'
+    '"16/11/2026","11:00:00","GMT","Seller Ltd","Payment Received","Completed","GBP",'
     '"10.00","-0.50","9.50","buyer@example.test","me@example.test","TX2","89.50"\n'
-    '"26/11/2026","12:00:00","GMT","Gadget Co","Express Checkout Payment","Pending","GBP",'
+    '"16/11/2026","12:00:00","GMT","Gadget Co","Express Checkout Payment","Pending","GBP",'
     '"-5.00","0.00","-5.00","me@example.test","gadget@example.test","TX3",""\n'
-    '"27/11/2026","08:00:00","GMT","Gadget Co","Express Checkout Payment","Denied","GBP",'
+    '"17/11/2026","08:00:00","GMT","Gadget Co","Express Checkout Payment","Denied","GBP",'
     '"-5.00","0.00","-5.00","me@example.test","gadget@example.test","TX4",""\n'
 )
 
@@ -308,7 +308,7 @@ def test_a_paypal_activity_download_is_read_by_its_published_columns():
         (-500, "TX4", False, True),
     ]
     first = statement.entries[0]
-    assert (first.day, first.at, first.counterparty) == (date(2026, 11, 25), None, "Acme Shop")
+    assert (first.day, first.at, first.counterparty) == (date(2026, 11, 15), None, "Acme Shop")
     assert first.description == "Acme Shop Express Checkout Payment"
     assert (first.balance, statement.entries[2].balance) == (8_000, None)
 
