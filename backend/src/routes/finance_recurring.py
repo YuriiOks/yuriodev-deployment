@@ -5,6 +5,8 @@ is sent to a bank): payments he enters by hand, the dates they move to once a ma
 transaction is seen, and what he did with an attention item.
 """
 
+import base64
+import hashlib
 from datetime import date
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
@@ -18,7 +20,7 @@ from src.core.errors import AppError
 from src.core.http import build_http_client
 from src.dashboards.finance import recurring_service as service
 from src.dashboards.finance.fx import Display
-from src.dashboards.finance.icons import fill_in_background
+from src.dashboards.finance.icons import MAX_ICON_BYTES, fill_in_background, to_data_uri
 from src.dashboards.finance.rawbody import require_file_type
 from src.dashboards.finance.recurring import (
     MAX_CSV_BYTES,
@@ -206,6 +208,56 @@ async def refresh_icon(
     back to `pending` and is fetched after this answer. Nothing else about the payment changes."""
     row = await service.reset_icon(session, recurring_id, clock(), zone)
     icons_later(background, request, settings)
+    display = await _display(session, settings, clock)
+    return RecurringOut.from_row(row, display, _today(clock, zone))
+
+
+@router.get("/recurring/{recurring_id}/icon")
+async def get_icon(recurring_id: UUID, request: Request, session: SessionDep) -> Response:
+    """The payment's icon as an image, cached by the browser (`Cache-Control: private`, an ETag).
+    404 when it has none."""
+    data = await service.icon_of(session, recurring_id)
+    if data is None:
+        raise AppError(404, "not_found", "Icon not found")
+    tag = '"' + hashlib.sha256(data.encode()).hexdigest()[:16] + '"'
+    headers = {
+        "Cache-Control": "private, max-age=86400",
+        "ETag": tag,
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    }
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    prefix, _, payload = data.partition(";base64,")
+    return Response(
+        base64.b64decode(payload), media_type=prefix.removeprefix("data:"), headers=headers
+    )
+
+
+@router.post("/recurring/{recurring_id}/icon")
+async def upload_icon(
+    recurring_id: UUID,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
+    zone: ZoneDep,
+) -> RecurringOut:
+    """Set the payment's icon by hand: the request body is a PNG or an SVG (`Content-Type:
+    image/png` or `image/svg+xml`, at most 256 KiB, the same checks as a bank logo). It wins over
+    the website and is left alone by the fetcher until `POST .../icon/refresh`."""
+    kind = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if kind not in ("image/png", "image/svg+xml"):
+        raise AppError(415, "unsupported_media_type", "Send image/png or image/svg+xml")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_ICON_BYTES:
+            raise AppError(413, "file_too_large", "The icon is larger than 256 KiB")
+    uri, why = to_data_uri(bytes(body))
+    if uri is None:
+        raise AppError(422, "invalid_icon", f"The file is not an accepted icon: {why}")
+    row = await service.set_icon(session, recurring_id, uri, clock())
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, _today(clock, zone))
 

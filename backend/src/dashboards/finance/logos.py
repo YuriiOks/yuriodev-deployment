@@ -130,14 +130,14 @@ def _svg_size(root: ET.Element) -> tuple[float, float] | None:
 
 
 def logo_check(
-    value: object, square: bool = False
+    value: object, square: bool = False, limit: int = MAX_ICON_LENGTH
 ) -> tuple[tuple[float, float] | None, str | None]:
     """(its (width, height) or None when an SVG says no size, None) for a valid logo, else
     (None, why it is not one)."""
     if not isinstance(value, str) or not value.startswith(("data:image/png", "data:image/svg")):
         return None, "not a data URI of a PNG or an SVG"
-    if len(value) > MAX_ICON_LENGTH:
-        return None, "over 48 KiB"
+    if len(value) > limit:
+        return None, f"over {limit // 1024} KiB"
     prefix = PNG if value.startswith(PNG) else SVG if value.startswith(SVG) else None
     if prefix is None:
         return None, "not a base64 data URI of a PNG or an SVG"
@@ -163,11 +163,11 @@ def logo_check(
     return size, None
 
 
-def valid_logo(value: object, square: bool = False) -> bool:
+def valid_logo(value: object, square: bool = False, limit: int = MAX_ICON_LENGTH) -> bool:
     """Is it a PNG (a real header with a size) or an SVG that parses, has only allowed elements,
     and reaches nothing outside itself? A `square` one (a mark) must be as wide as it is high
     when its size is known."""
-    return logo_check(value, square)[1] is None
+    return logo_check(value, square, limit)[1] is None
 
 
 def aspect(value: object) -> float | None:

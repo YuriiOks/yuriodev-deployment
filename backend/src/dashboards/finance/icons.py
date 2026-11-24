@@ -15,8 +15,13 @@ drawing) and keeps it as a data URI in `recurring.icon_data`. The raw address is
   deadline, a body read as a capped stream. The one hop allowed is the home page's own redirect
   to or from its `www.` form, which goes through the same path. Nothing about a URL is logged.
 - A PNG or SVG is kept as it is; an ICO file is not converted but its embedded PNG image (what
-  modern .ico files hold) is taken out as it is; a bitmap-only ICO, and any image over 36 KiB
-  (no way to scale it down without an imaging library), is refused.
+  modern .ico files hold) is taken out as it is; a bitmap-only ICO, and any image over 256 KiB
+  (no way to scale it down without an imaging library), is refused. A candidate that fails is
+  skipped for the next one. Only the start of the home page is read (its head holds the links).
+- Why a fetch failed is kept in `icon_error` (not_public, timeout, blocked_status_403, too_large,
+  not_an_image, unsafe_svg, bitmap_ico, no_icon_found, ...): never a URL or a header.
+- The owner may set an icon by hand (`POST /recurring/{id}/icon`, `icon_manual`): it wins over
+  the website and is left alone by the fetcher until `refresh` clears it.
 - `icon_checked_url` remembers which source (the URL, or `site:<host>`) the stored data (or the
   refusal) is for, so a changed source is looked at again and a refused one is not asked for every
   minute; `POST /recurring/{id}/icon/refresh` clears it. `icon_state` is none (nothing to fetch),
@@ -43,10 +48,28 @@ from src.dashboards.finance.models import Recurring
 
 logger = logging.getLogger("yuriodev.finance")
 
-MAX_ICON_BYTES = 36 * 1024  # base64 grows it by a third: 48 KiB in all, the logo limit
-MAX_PAGE_BYTES = 256 * 1024
+MAX_ICON_BYTES = 256 * 1024
+MAX_DATA_URI = 360_000  # a 256 KiB image as base64, with its prefix
+MAX_PAGE_BYTES = 192 * 1024  # only the start of the page is read: the head is all that is wanted
 MAX_MANIFEST_BYTES = 64 * 1024
-MAX_REQUESTS = 8  # for one site: the page, the manifest, and the icons tried
+MAX_REQUESTS = 10  # for one site: the page, the manifest, and the icons tried
+# What an ordinary client sends, and no more: some sites answer 403 to a bare one. Nothing here
+# tries to get past a site that refuses.
+BROWSER_AGENT = "Mozilla/5.0 (compatible; icon-fetch/1.0)"
+PAGE_HEADERS = {
+    "User-Agent": BROWSER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en",
+}
+IMAGE_HEADERS = {
+    "User-Agent": BROWSER_AGENT,
+    "Accept": "image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+    "Accept-Language": "en",
+}
+JSON_HEADERS = {
+    "User-Agent": BROWSER_AGENT,
+    "Accept": "application/manifest+json,application/json;q=0.9,*/*;q=0.5",
+}
 PER_TICK = 5
 SITE = "site:"
 HEAD_ICON = {"apple-touch-icon", "apple-touch-icon-precomposed"}
@@ -59,8 +82,28 @@ def source_of(icon_url: str | None, website: str | None) -> str | None:
     return SITE + website if website else None
 
 
+def reason_of(exc: UpstreamError) -> str:
+    """A short code for why a fetch failed (never a URL or a header)."""
+    if exc.kind == "blocked":
+        return "not_public"
+    if exc.status in (301, 302, 303, 307, 308):
+        return "redirect"
+    if exc.status is not None and exc.status != 200:
+        refused = exc.status in (401, 403, 429)
+        return f"blocked_status_{exc.status}" if refused else f"status_{exc.status}"
+    return {
+        "timeout": "timeout",
+        "connect": "connect_failed",
+        "too_large": "too_large",
+        "bad_content_type": "not_an_image",
+        "bad_encoding": "not_an_image",
+    }.get(exc.kind, exc.kind)
+
+
 def icon_state(row: Any) -> str:
     """none (nothing to fetch), pending, ok or failed."""
+    if row.icon_manual and row.icon_data:
+        return "ok"
     source = source_of(row.icon_url, row.website)
     if source is None:
         return "none"
@@ -101,38 +144,41 @@ def ico_png(body: bytes) -> bytes | None:
     return best
 
 
-def to_data_uri(body: bytes) -> str | None:
-    """A PNG, an SVG or the PNG inside an ICO as a data URI that passes the logo checks."""
+def to_data_uri(body: bytes) -> tuple[str | None, str | None]:
+    """A PNG, an SVG or the PNG inside an ICO as a data URI that passes the logo checks, else the
+    reason: bitmap_ico, not_an_image or unsafe_svg."""
     if body.startswith(b"\x00\x00\x01\x00"):
         inner = ico_png(body)
         if inner is None:
-            return None
+            return None, "bitmap_ico"
         body = inner
     if body.startswith(PNG_SIGNATURE):
         prefix = PNG
     elif b"<svg" in body[:2000].lower():
         prefix = SVG
     else:
-        return None
+        return None, "not_an_image"
     uri = prefix + base64.b64encode(body).decode()
-    return uri if valid_logo(uri) else None
+    if valid_logo(uri, limit=MAX_DATA_URI):
+        return uri, None
+    return None, "unsafe_svg" if prefix == SVG else "not_an_image"
 
 
 async def fetch_icon(
     client: httpx.AsyncClient, url: str, resolver: Resolver = resolve_host
-) -> str | None:
-    """The data URI of the image at `url`, or None when it cannot be had or is not safe."""
+) -> tuple[str | None, str | None]:
+    """(the data URI of the image at `url`, None), or (None, why it could not be had)."""
     try:
         body, _ = await get_public(
             client,
             url,
             resolver=resolver,
-            headers={"Accept": "image/png, image/svg+xml, image/*;q=0.5"},
+            headers=IMAGE_HEADERS,
             max_bytes=MAX_ICON_BYTES,
             accepts=is_image,
         )
-    except UpstreamError:
-        return None
+    except UpstreamError as exc:
+        return None, reason_of(exc)
     return to_data_uri(body)
 
 
@@ -216,20 +262,24 @@ def _same_site(first: str, second: str) -> bool:
 
 async def _home(
     client: httpx.AsyncClient, host: str, resolver: Resolver
-) -> tuple[bytes, str] | None:
-    """The home page and the address it was read at (one hop to the other `www.` form)."""
+) -> tuple[bytes, str] | str:
+    """The start of the home page and the address it was read at (one hop to the other `www.`
+    form), or the reason it could not be read."""
     url = f"https://{host}/"
+    reason = "no_page"
     for _ in range(2):
         try:
             body, _ = await get_public(
                 client,
                 url,
                 resolver=resolver,
-                headers={"Accept": "text/html"},
+                headers=PAGE_HEADERS,
                 max_bytes=MAX_PAGE_BYTES,
                 accepts=is_page,
+                truncate=True,
             )
         except UpstreamError as exc:
+            reason = reason_of(exc)
             moved = exc.headers.get("location") if exc.status in (301, 302, 307, 308) else None
             target = urljoin(url, moved) if moved else None
             next_host = urlsplit(target).hostname if target else None
@@ -240,22 +290,27 @@ async def _home(
             ):
                 url = f"https://{next_host.lower()}/"
                 continue
-            return None
+            return reason
         return body, url
-    return None
+    return reason
 
 
 async def discover_icon(
     client: httpx.AsyncClient, host: str, resolver: Resolver = resolve_host
-) -> str | None:
-    """The site's own declared icon (see the module's order), or None."""
+) -> tuple[str | None, str | None]:
+    """(the site's own declared icon, None), or (None, why not): the first reason a candidate
+    failed, `no_icon_found` when the site declares nothing."""
     home = await _home(client, host, resolver)
-    base = home[1] if home else f"https://{host}/"
+    errors: list[str] = []
     candidates: list[str] = []
     manifest: str | None = None
-    if home:
+    if isinstance(home, str):
+        errors.append(home)
+        base = f"https://{host}/"
+    else:
+        base = home[1]
         candidates, manifest = page_candidates(home[0], base)
-    budget = MAX_REQUESTS - (1 if home else 0)
+    budget = MAX_REQUESTS - (0 if isinstance(home, str) else 1)
     tried: set[str] = set()
 
     async def attempt(url: str) -> str | None:
@@ -264,11 +319,14 @@ async def discover_icon(
             return None
         tried.add(url)
         budget -= 1
-        return await fetch_icon(client, url, resolver)
+        uri, why = await fetch_icon(client, url, resolver)
+        if why is not None:
+            errors.append(why)
+        return uri
 
     for url in candidates:
         if (uri := await attempt(url)) is not None:
-            return uri
+            return uri, None
     if manifest and budget > 0:
         budget -= 1
         try:
@@ -276,24 +334,26 @@ async def discover_icon(
                 client,
                 manifest,
                 resolver=resolver,
-                headers={"Accept": "application/manifest+json, application/json"},
+                headers=JSON_HEADERS,
                 max_bytes=MAX_MANIFEST_BYTES,
                 accepts=is_json_media,
             )
-        except UpstreamError:
+        except UpstreamError as exc:
+            errors.append(reason_of(exc))
             raw = b""
         for url in manifest_candidates(raw, manifest):
             if (uri := await attempt(url)) is not None:
-                return uri
+                return uri, None
     for url in (urljoin(base, "/apple-touch-icon.png"), urljoin(base, "/favicon.ico")):
         if (uri := await attempt(url)) is not None:
-            return uri
-    return None
+            return uri, None
+    real = [why for why in errors if why != "status_404"]
+    return None, real[0] if real else "no_icon_found"
 
 
 async def resolve_source(
     client: httpx.AsyncClient, source: str, resolver: Resolver = resolve_host
-) -> str | None:
+) -> tuple[str | None, str | None]:
     if source.startswith(SITE):
         return await discover_icon(client, source.removeprefix(SITE), resolver)
     return await fetch_icon(client, source, resolver)
@@ -305,18 +365,19 @@ async def fill_pending(
     resolver: Resolver = resolve_host,
     limit: int = PER_TICK,
 ) -> dict[str, int]:
-    """Fetch the icons of up to `limit` payments whose source has not been looked at. A failure
-    keeps the row and stores no icon."""
+    """Fetch the icons of up to `limit` payments whose source has not been looked at (a payment
+    whose icon the owner set by hand is left alone). A failure keeps the row, stores no icon and
+    records why in `icon_error`."""
     async with sessions() as session:
         waiting = await _waiting(session, limit)
     stored = failed = 0
     for row_id, source in waiting:
-        icon = await resolve_source(client, source, resolver)
+        icon, error = await resolve_source(client, source, resolver)
         async with sessions() as session, session.begin():
             await session.execute(
                 update(Recurring)
                 .where(Recurring.id == row_id, _source() == source)
-                .values(icon_data=icon, icon_checked_url=source)
+                .values(icon_data=icon, icon_checked_url=source, icon_error=error)
             )
         stored += icon is not None
         failed += icon is None
@@ -331,7 +392,11 @@ async def _waiting(session: AsyncSession, limit: int) -> list[tuple[uuid.UUID, s
     source = _source()
     rows = await session.execute(
         select(Recurring.id, source)
-        .where(source.is_not(None), Recurring.icon_checked_url.is_distinct_from(source))
+        .where(
+            source.is_not(None),
+            Recurring.icon_manual.is_(False),
+            Recurring.icon_checked_url.is_distinct_from(source),
+        )
         .order_by(Recurring.updated_at)
         .limit(limit)
     )
