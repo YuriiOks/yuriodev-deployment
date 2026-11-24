@@ -1,0 +1,390 @@
+/* The Money page's stage-2 parts: what needs attention, the upcoming payments, the debts and the management view of recurring
+   payments. Same language as the wallet: glass panels, flat rows on the chip surface, amounts in Fira Code; a state is always
+   said in words (a covered payment, a snoozed item), never by colour alone. */
+.panel {
+  composes: panel from '../Panel/Panel.module.css';
+}
+
+.head {
+  composes: head from '../Panel/Panel.module.css';
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.title {
+  composes: title from '../Panel/Panel.module.css';
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.none {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-3);
+  color: var(--dash-t2);
+}
+
+.note {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.segment {
+  composes: segment from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.segmentOption {
+  composes: option from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.segmentOn {
+  composes: optionOn from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.primary {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.secondary {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.ghost {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.select {
+  composes: select from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.input {
+  composes: input from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.field {
+  composes: field from '../../../assets/styles/dashboard-forms.module.css';
+  flex: 1 1 12rem;
+}
+
+.fieldLabel {
+  composes: label from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.check {
+  composes: check from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.error {
+  composes: error from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.actions {
+  composes: actions from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+
+.formFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* A payment's picture: an image, or a tile in its colour with its first letter. */
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  overflow: hidden;
+  background: var(--tile-bg, var(--dash-well));
+  border-radius: var(--dash-r-control);
+  color: var(--tile-fg, var(--dash-t1));
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+}
+
+.icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Needs attention. */
+.hiddenLine {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.attentionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  list-style: none;
+}
+
+.attention {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-surface);
+}
+
+.attention[data-state="snoozed"],
+.attention[data-state="dismissed"] {
+  opacity: 0.8;
+}
+
+.attentionMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--dash-warn);
+}
+
+.attentionBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.attentionText {
+  margin: 0;
+  color: var(--dash-t1);
+  overflow-wrap: anywhere;
+}
+
+.snooze {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.snoozeLabel {
+  display: inline-flex;
+}
+
+.snooze .select {
+  width: auto;
+}
+
+/* Upcoming payments. */
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dayHead {
+  margin: 0 0 var(--space-1);
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+.dayHead::before,
+.dayHead::after {
+  content: none;
+}
+
+.dueList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.due {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-surface);
+}
+
+.dueMain {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dueName {
+  overflow: hidden;
+  color: var(--dash-t1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dueAmount {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  text-align: right;
+}
+
+.dueTotals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--dash-line);
+}
+
+.grandDue {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  line-height: var(--dash-lh-title);
+}
+
+.totalList {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t2);
+  list-style: none;
+}
+
+/* Debts and installments. */
+.debtList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  list-style: none;
+}
+
+.debt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-surface);
+}
+
+.debtTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.debtLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+.debtAmount {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  line-height: var(--dash-lh-title);
+}
+
+.bar {
+  height: 0.5rem;
+  overflow: hidden;
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+}
+
+.barFill {
+  height: 100%;
+  background: var(--dash-fill);
+}
+
+/* The management view. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--dash-well);
+  border-radius: var(--dash-r-surface);
+}
+
+.managedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.managed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-surface);
+}
+
+.managed[data-active="false"] {
+  opacity: 0.8;
+}
+
+.managedTop {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.badge {
+  color: var(--dash-t2);
+  font-weight: 400;
+}

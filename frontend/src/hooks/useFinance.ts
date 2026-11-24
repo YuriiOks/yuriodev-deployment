@@ -9,7 +9,7 @@ interface Slot<T> {
 }
 
 /** One GET kept in state: asked on mount and on `reload`; `value` is null while loading and on an error. */
-function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: boolean): { status: LoadStatus; value: T | null; reload: () => void } {
+export function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: boolean): { status: LoadStatus; value: T | null; reload: () => void } {
   const [token, setToken] = useState(0);
   const [slot, setSlot] = useState<Slot<T> | null>(null);
   useEffect(() => {

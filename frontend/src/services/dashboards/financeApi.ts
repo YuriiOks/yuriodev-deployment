@@ -166,14 +166,14 @@ export interface FinanceSummary {
   readonly rateAsOf: string | null;
 }
 
-type Json = Record<string, unknown>;
-const isObject = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
-const text = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value : null);
-const int = (value: unknown): number | null => (typeof value === 'number' && Number.isSafeInteger(value) ? value : null);
+export type Json = Record<string, unknown>;
+export const isObject = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
+export const text = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value : null);
+export const int = (value: unknown): number | null => (typeof value === 'number' && Number.isSafeInteger(value) ? value : null);
 const CURRENCY = /^[A-Z]{3}$/;
-const currency = (value: unknown): string | null => (typeof value === 'string' && CURRENCY.test(value) ? value : null);
+export const currency = (value: unknown): string | null => (typeof value === 'string' && CURRENCY.test(value) ? value : null);
 
-const converted = (amount: unknown, code: string | null): Converted | null => {
+export const converted = (amount: unknown, code: string | null): Converted | null => {
   const value = int(amount);
   return value !== null && code ? { amount: value, currency: code } : null;
 };

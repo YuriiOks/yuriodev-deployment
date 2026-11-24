@@ -1,6 +1,7 @@
 import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
 import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
+import { RECURRING_EN, RECURRING_RU, type RecurringStrings } from './recurringStrings';
 
 /** The page a document title is for. */
 export type TitleKey = SpaceId | 'hub' | 'calendar' | 'money';
@@ -131,6 +132,7 @@ export interface Strings {
   readonly titles: Record<TitleKey, string>;
   /** The Money page of the personal space (read-only, from the finance API). */
   readonly money: {
+    readonly rec: RecurringStrings;
     readonly navLink: string;
     readonly title: string;
     readonly back: string;
@@ -416,6 +418,7 @@ export const STRINGS: Record<Lang, Strings> = {
     themeToDark: 'Включить тёмную тему',
     titles: { hub: 'Дашборды', personal: 'Личное', 'work-1': 'Работа 1', 'work-2': 'Работа 2', calendar: 'Календарь', money: 'Деньги' },
     money: {
+      rec: RECURRING_RU,
       navLink: 'Деньги',
       title: 'Деньги',
       back: 'К личному',
@@ -715,6 +718,7 @@ export const STRINGS: Record<Lang, Strings> = {
     themeToDark: 'Switch to dark theme',
     titles: { hub: 'Dashboards', personal: 'Personal', 'work-1': 'Work 1', 'work-2': 'Work 2', calendar: 'Calendar', money: 'Money' },
     money: {
+      rec: RECURRING_EN,
       navLink: 'Money',
       title: 'Money',
       back: 'Back to Personal',

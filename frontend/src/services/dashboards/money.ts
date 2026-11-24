@@ -1,7 +1,7 @@
 import type { Lang } from './types';
 
 /** How many decimal places a currency has (2 for most, 0 for the yen, 3 for the dinar), from the platform's own tables. */
-function digitsOf(code: string): number {
+export function digitsOf(code: string): number {
   try {
     return new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits ?? 2;
   } catch {
@@ -60,4 +60,24 @@ export function formatMinorParts(minor: number, code: string, lang: Lang): Amoun
   } catch {
     return [{ kind: 'int', text: `${value.toFixed(digits)} ${code}` }];
   }
+}
+
+/**
+ * A typed amount ("12.99", "12,99", "1 234.5") as minor units of a currency, or null when it is not a positive number with no more
+ * decimals than the currency has. No rounding: an amount the currency cannot hold is refused, as the server does.
+ */
+export function parseMinor(input: string, code: string): number | null {
+  const value = input.replace(/[\s\u00a0]/g, '').replace(',', '.');
+  if (!/^\d+(\.\d+)?$/.test(value)) return null;
+  const digits = digitsOf(code);
+  const [whole, fraction = ''] = value.split('.');
+  if (fraction.length > digits) return null;
+  const minor = Number(whole + fraction.padEnd(digits, '0'));
+  return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
+}
+
+/** Minor units as the plain decimal text an input takes ("1299" in pounds is "12.99"). */
+export function minorToInput(minor: number, code: string): string {
+  const digits = digitsOf(code);
+  return digits === 0 ? String(minor) : (minor / 10 ** digits).toFixed(digits);
 }
