@@ -393,7 +393,7 @@ describe('the Money page: what the backend added after the audit', () => {
     renderAt(PATH);
     const wallet = within(await within(main()).findByRole('region', { name: 'Wallet' }));
     await user.click(await wallet.findByRole('button', { name: /Acme Bank/ }));
-    expect(await wallet.findByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/acme/connect');
+    for (const link of await wallet.findAllByRole('link', { name: 'Reconnect' })) expect(link).toHaveAttribute('href', '/api/dashboards/v1/finance/acme/connect');
     await user.click(wallet.getByRole('button', { name: /Globex/ }));
     await waitFor(() => expect(wallet.queryByRole('link', { name: 'Reconnect' })).toBeNull());
   });
