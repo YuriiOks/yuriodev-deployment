@@ -45,6 +45,8 @@ export interface TransactionsState {
   readonly loadingMore: boolean;
   /** The last "load more" failed (the list stays as it was). */
   readonly moreFailed: boolean;
+  /** How many pages have been read (the first is 1). */
+  readonly pages: number;
   readonly reload: () => void;
   readonly loadMore: () => void;
 }
@@ -54,6 +56,7 @@ interface Pages {
   readonly ok: boolean;
   readonly items: readonly FinanceTransaction[];
   readonly cursor: string | null;
+  readonly pages: number;
 }
 
 /**
@@ -71,10 +74,10 @@ export function useTransactions(account: string | null, q: string, enabled: bool
     const controller = new AbortController();
     fetchTransactions({ account, q }, controller.signal).then(
       (page) => {
-        if (!controller.signal.aborted) setPages({ key, ok: true, items: page.transactions, cursor: page.nextCursor });
+        if (!controller.signal.aborted) setPages({ key, ok: true, items: page.transactions, cursor: page.nextCursor, pages: 1 });
       },
       () => {
-        if (!controller.signal.aborted) setPages({ key, ok: false, items: [], cursor: null });
+        if (!controller.signal.aborted) setPages({ key, ok: false, items: [], cursor: null, pages: 0 });
       },
     );
     return () => controller.abort();
@@ -87,7 +90,7 @@ export function useTransactions(account: string | null, q: string, enabled: bool
     setMore({ key, busy: true, failed: false });
     fetchTransactions({ account, q, cursor }).then(
       (page) => {
-        setPages((previous) => (previous && previous.key === key ? { key, ok: true, items: [...previous.items, ...page.transactions], cursor: page.nextCursor } : previous));
+        setPages((previous) => (previous && previous.key === key ? { key, ok: true, items: [...previous.items, ...page.transactions], cursor: page.nextCursor, pages: previous.pages + 1 } : previous));
         setMore({ key, busy: false, failed: false });
       },
       () => setMore({ key, busy: false, failed: true }),
@@ -101,6 +104,7 @@ export function useTransactions(account: string | null, q: string, enabled: bool
     hasMore: current?.cursor != null,
     loadingMore: mine && more.busy,
     moreFailed: mine && more.failed,
+    pages: current?.pages ?? 0,
     reload: () => setToken((n) => n + 1),
     loadMore,
   };

@@ -41,8 +41,8 @@ describe('finance parsers', () => {
       ],
     });
     expect(parsed?.connections).toEqual([
-      { provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z' },
-      { provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null },
+      { provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z', logo: null },
+      { provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null, logo: null },
     ]);
     expect(parseAccounts({ nope: [] })).toBeNull();
     expect(parseAccounts(null)).toBeNull();
@@ -66,6 +66,22 @@ describe('finance parsers', () => {
     expect(parseTransaction(tx)).toMatchObject({ id: 't1', amount: -450, originalAmount: -600, originalCurrency: 'USD', pending: true, declined: false, internalTransfer: true, counterparty: 'Corner Cafe' });
     expect(parseTransaction({ ...tx, original_currency: null })).toMatchObject({ originalAmount: null, originalCurrency: null });
     for (const bad of [{ ...tx, amount: '5' }, { ...tx, booked_at: 'yesterday' }, { ...tx, currency: 'gbp' }, { ...tx, id: '' }, null, 7]) expect(parseTransaction(bad)).toBeNull();
+  });
+
+  it('read the converted figures and the logos when the server sends them, and drop what is not valid', () => {
+    const accounts = parseAccounts({
+      accounts: [account({ display_balance: 12500, display_currency: 'GBP' }), account({ id: 'b', display_balance: 1.5, display_currency: 'GBP' }), account({ id: 'c', display_balance: 5, display_currency: 'pounds' })],
+      connections: [
+        { provider: 'a', status: 'ok', logo: { light: 'data:image/png;base64,AAAA', dark: 'https://example.com/x.png' } },
+        { provider: 'b', status: 'ok', logo: { light: 'nope', dark: 5 } },
+        { provider: 'c', status: 'ok' },
+      ],
+    });
+    expect(accounts?.accounts.map((item) => item.display)).toEqual([{ amount: 12500, currency: 'GBP' }, null, null]);
+    expect(accounts?.connections.map((item) => item.logo)).toEqual([{ light: 'data:image/png;base64,AAAA', dark: null }, null, null]);
+    expect(parseTransaction({ id: 't', account_id: 'a', booked_at: '2026-11-22T12:00:00Z', amount: -100, currency: 'UAH', display_amount: -2, display_currency: 'GBP' })?.display).toEqual({ amount: -2, currency: 'GBP' });
+    expect(parseSummary({ currencies: [], display_total: 74350, display_currency: 'GBP', rate_as_of: '2026-11-24T08:00:00Z' })).toMatchObject({ total: { amount: 74350, currency: 'GBP' }, rateAsOf: '2026-11-24T08:00:00Z' });
+    expect(parseSummary({ currencies: [] })).toMatchObject({ total: null, rateAsOf: null });
   });
 
   it('read a page of transactions with its cursor, and a summary per currency', () => {

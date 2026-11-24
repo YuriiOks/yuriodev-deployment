@@ -14,12 +14,12 @@ export interface MoneyOptions {
   readonly signed?: boolean;
 }
 
-/** An amount in minor units as text in the page's language: "1 234,50 ₴". Falls back to "1234.50 XYZ" for a code the platform does not know. */
+/** An amount in minor units as text in the page's language, with the currency's own symbol in both languages ("1 234,50 ₴", "₴1,234.50"; never "UAH 1,234.50"). Falls back to "1234.50 XYZ" for a code the platform does not know. */
 export function formatMinor(minor: number, code: string, lang: Lang, { signed = false }: MoneyOptions = {}): string {
   const digits = digitsOf(code);
   const value = minor / 10 ** digits;
   try {
-    return new Intl.NumberFormat(lang, { style: 'currency', currency: code, signDisplay: signed ? 'exceptZero' : 'auto' }).format(value);
+    return new Intl.NumberFormat(lang, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', signDisplay: signed ? 'exceptZero' : 'auto' }).format(value);
   } catch {
     return `${value.toFixed(digits)} ${code}`;
   }

@@ -3,17 +3,26 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, FinanceTransaction } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
+import type { MoneyDisplay } from '../../../services/dashboards/preferences';
+import Amount from './Amount';
 import { useTransactions } from '../../../hooks/useFinance';
+import type { Bank } from '../../../services/dashboards/wallet';
+import { cx } from '../../../utils/cx';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import ProjectIcon from '../ProjectIcon/ProjectIcon';
+import BankMark from './BankMark';
 import { whenLabel } from './labels';
+import { providerName } from './providers';
 import styles from './Money.module.css';
 
 const SEARCH_DELAY_MS = 300;
+/** A bank chip filters the loaded pages (the API filters by one account); more pages are fetched on its own until this many show or this many pages were read. */
+const WANTED_ROWS = 15;
+const MAX_AUTO_PAGES = 6;
 
-/** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when and where, and its marks. */
-const TransactionRow: React.FC<{ item: FinanceTransaction; accountName: string }> = ({ item, accountName }) => {
+/** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when, which bank and account, and its marks. */
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; mode: MoneyDisplay }> = ({ item, account, mode }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const incoming = item.amount > 0;
@@ -30,13 +39,18 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; accountName: string }
       <span aria-hidden="true" className={styles.arrow}>
         {item.amount !== 0 && <ProjectIcon name={incoming ? 'arrow-down-left' : 'arrow-up-right'} size={16} />}
       </span>
+      {account && <BankMark provider={account.provider} />}
       <span className={styles.main}>
         <span className={styles.what} title={detail ? `${what}: ${detail}` : what}>
           {what}
         </span>
         <span className={styles.meta}>
           <span>{whenLabel(item.bookedAt, lang)}</span>
-          <span>{accountName}</span>
+          {account && (
+            <span>
+              {providerName(account.provider)} · {account.name}
+            </span>
+          )}
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
@@ -47,25 +61,27 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; accountName: string }
       </span>
       <span className={styles.amount}>
         {item.amount !== 0 && <span className="sr-only">{incoming ? m.moneyIn : m.moneyOut}: </span>}
-        {formatMinor(item.amount, item.currency, lang, { signed: true })}
+        <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} signed />
       </span>
     </li>
   );
 };
 
 export interface MoneyTransactionsProps {
-  accounts: readonly FinanceAccount[];
+  banks: readonly Bank[];
+  mode: MoneyDisplay;
   enabled: boolean;
 }
 
 /**
- * The transactions, newest first: an account filter, a text search (applied after a short pause in typing) and "Load more" by the
- * server's cursor. Changing the filter or the search starts again from the newest.
+ * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
+ * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ accounts, enabled }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enabled }) => {
   const { t } = useDashboardLang();
   const m = t.money;
   const id = useId();
+  const [provider, setProvider] = useState<string | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState('');
@@ -73,47 +89,87 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ accounts, enabled
     const timer = setTimeout(() => setQuery(typed.trim()), SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [typed]);
+
+  const allAccounts = banks.flatMap((bank) => bank.accounts);
+  const byId = new Map(allAccounts.map((item) => [item.id, item]));
+  const bank = banks.find((candidate) => candidate.provider === provider) ?? null;
   const list = useTransactions(account, query, enabled);
-  const names = new Map(accounts.map((item) => [item.id, item.name]));
+  const inBank = bank ? new Set(bank.accounts.map((item) => item.id)) : null;
+  const shown = list.transactions.filter((item) => !inBank || inBank.has(item.accountId));
+
+  // A bank filter is applied to what is loaded, so it reads further pages on its own until enough rows show (a few pages at most).
+  const { status, hasMore, loadingMore, moreFailed, loadMore, pages } = list;
+  const wantMore = status === 'ready' && inBank !== null && account === null && hasMore && !loadingMore && !moreFailed && shown.length < WANTED_ROWS && pages < MAX_AUTO_PAGES;
+  useEffect(() => {
+    if (wantMore) loadMore();
+  }, [wantMore, loadMore, pages]);
+
+  const chooseBank = (next: string | null) => {
+    setProvider(next);
+    setAccount(null);
+  };
 
   return (
     <>
       <div className={styles.tools}>
-        <div className={styles.field}>
-          <label htmlFor={`${id}-account`} className={styles.fieldLabel}>
-            {m.accountFilter}
-          </label>
-          <select id={`${id}-account`} className={styles.select} value={account ?? ''} onChange={(event) => setAccount(event.target.value || null)}>
-            <option value="">{m.allAccounts}</option>
-            {accounts.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} ({item.currency})
-              </option>
+        <div role="group" aria-label={m.bankFilter} className={styles.chips}>
+          <button type="button" className={cx(styles.chip, provider === null && styles.chipOn)} aria-pressed={provider === null} onClick={() => chooseBank(null)}>
+            {m.allBanks}
+          </button>
+          {banks
+            .filter((candidate) => candidate.accounts.length > 0)
+            .map((candidate) => (
+              <button
+                key={candidate.provider}
+                type="button"
+                className={cx(styles.chip, provider === candidate.provider && styles.chipOn)}
+                aria-pressed={provider === candidate.provider}
+                onClick={() => chooseBank(candidate.provider)}
+              >
+                {providerName(candidate.provider)}
+              </button>
             ))}
-          </select>
         </div>
-        <div className={styles.field}>
-          <label htmlFor={`${id}-search`} className={styles.fieldLabel}>
-            {m.search}
-          </label>
-          <input
-            id={`${id}-search`}
-            type="search"
-            className={styles.input}
-            value={typed}
-            maxLength={200}
-            placeholder={m.searchPlaceholder}
-            onChange={(event) => setTyped(event.target.value)}
-          />
+        <div className={styles.fields}>
+          {bank && (
+            <div className={styles.field}>
+              <label htmlFor={`${id}-account`} className={styles.fieldLabel}>
+                {m.accountFilter}
+              </label>
+              <select id={`${id}-account`} className={styles.select} value={account ?? ''} onChange={(event) => setAccount(event.target.value || null)}>
+                <option value="">{m.allAccounts}</option>
+                {bank.accounts.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.currency}
+                    {item.maskLast4 ? ` ····${item.maskLast4}` : ''})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className={styles.field}>
+            <label htmlFor={`${id}-search`} className={styles.fieldLabel}>
+              {m.search}
+            </label>
+            <input
+              id={`${id}-search`}
+              type="search"
+              className={styles.input}
+              value={typed}
+              maxLength={200}
+              placeholder={m.searchPlaceholder}
+              onChange={(event) => setTyped(event.target.value)}
+            />
+          </div>
         </div>
       </div>
       {list.status === 'loading' && <LoadingBlock rows={4} />}
       {list.status === 'error' && <InlineError message={m.failed} onRetry={list.reload} />}
-      {list.status === 'ready' && list.transactions.length === 0 && <p className={styles.empty}>{m.empty}</p>}
-      {list.status === 'ready' && list.transactions.length > 0 && (
+      {list.status === 'ready' && shown.length === 0 && !loadingMore && !wantMore && <p className={styles.none}>{m.empty}</p>}
+      {list.status === 'ready' && shown.length > 0 && (
         <ul className={styles.list}>
-          {list.transactions.map((item) => (
-            <TransactionRow key={item.id} item={item} accountName={names.get(item.accountId) ?? ''} />
+          {shown.map((item) => (
+            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} mode={mode} />
           ))}
         </ul>
       )}

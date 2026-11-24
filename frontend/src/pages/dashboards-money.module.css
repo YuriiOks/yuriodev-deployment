@@ -1,15 +1,26 @@
-/* The Money page: a head with the title and the way back, then two columns from a laptop up (accounts and this month on the left,
-   the transactions wider on the right), one column below. */
-.head {
+/* The Money page: a header strip (the title and the way back at the left, the totals per currency at the right), then the wallet and
+   the transactions as full-width panels, like the other dashboards pages. */
+.header {
+  composes: glassDash from '../assets/styles/recipes.module.css';
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-3) var(--space-5);
   min-height: var(--dash-h-strip);
+  padding: var(--space-3) var(--space-4);
+  box-sizing: border-box;
+  border-color: color-mix(in srgb, var(--dash-accent) 40%, transparent);
+  border-radius: var(--dash-r-surface);
 }
 
-.head .title {
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title {
   margin: 0;
   padding: 0;
   color: var(--dash-heading);
@@ -18,36 +29,28 @@
   line-height: var(--dash-lh-page);
 }
 
-.head .title::before {
+.title::before {
   content: '# ';
   color: var(--dash-accent);
 }
 
-.head .title::after {
+.title::after {
   content: none;
+}
+
+.sub {
+  margin: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
 }
 
 .back {
   color: var(--dash-t2);
-  font-size: var(--dash-fs-ui);
 }
 
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: start;
-}
-
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
-@media (min-width: 64rem) {
-  .columns {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  }
+.hint {
+  margin-left: auto;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
 }
