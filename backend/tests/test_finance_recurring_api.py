@@ -1094,6 +1094,74 @@ async def test_a_stale_occurrence_on_a_collected_account_is_checked_once_its_win
     }
 
 
+@pytest.mark.parametrize(
+    ("kind", "severity"),
+    [
+        ("due_not_covered", "high"),
+        ("missed_payment", "high"),
+        ("amount_changed", "medium"),
+        ("credit_high", "medium"),
+        ("overdraft", "high"),
+        ("overdrawn", "info"),
+        ("reconsent", "high"),
+        ("stale_statement", "medium"),
+    ],
+)
+def test_every_kind_has_a_severity(kind, severity):
+    assert SEVERITY[kind] == severity
+
+
+async def test_several_items_are_dismissed_snoozed_and_restored_in_one_call(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(db_url, "UPDATE finance.connection SET status = 'needs_reconsent'")
+        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
+        keys = [i["key"] for i in (await attention(client))["items"]]
+        url = f"{BASE}/attention/bulk"
+        everything = {"keys": [*keys, "nothing:here"], "action": "dismiss"}
+        dismissed = await client.post(url, json=everything)
+        hidden = await attention(client)
+        restored = await client.post(url, json={"keys": keys[:1], "action": "restore"})
+        snoozed = await client.post(url, json={"keys": keys[1:], "action": "snooze", "days": 2})
+        shown = await attention(client)
+        after = await attention(client, "?include_hidden=true")
+
+    assert len(keys) == 2
+    assert dismissed.status_code == 200
+    assert [i["state"] for i in dismissed.json()["items"]] == ["dismissed", "dismissed"]
+    assert dismissed.json()["missing"] == ["nothing:here"]
+    assert (hidden["items"], hidden["hidden"]) == ([], 2)
+    assert [i["state"] for i in restored.json()["items"]] == ["active"]
+    assert [i["state"] for i in snoozed.json()["items"]] == ["snoozed"]
+    assert [i["key"] for i in shown["items"]] == keys[:1]
+    assert sorted(i["state"] for i in after["items"]) == ["active", "snoozed"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"keys": [], "action": "dismiss"},
+        {"keys": ["k"] * 201, "action": "dismiss"},
+        {"keys": [""], "action": "dismiss"},
+        {"keys": ["k"], "action": "delete"},
+        {"keys": ["k"], "action": "snooze"},
+        {"keys": ["k"], "action": "snooze", "days": 0},
+        {"keys": ["k"], "action": "dismiss", "days": 3},
+        {"keys": ["k"], "action": "dismiss", "extra": 1},
+        {"action": "dismiss"},
+    ],
+)
+async def test_a_bad_bulk_state_change_is_refused(db_url, make_dashboards_app, body):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        response = await client.post(f"{BASE}/attention/bulk", json=body)
+
+    assert response.status_code == 422
+
+
 def plan(**extra):
     """An instalment plan of ten pounds a month, twelve payments from 30 January, three paid."""
     return {

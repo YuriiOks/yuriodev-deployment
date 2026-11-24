@@ -26,6 +26,7 @@ from src.dashboards.finance.recurring import (
     text_matches,
 )
 
+
 def items(text):
     """The inputs of a file (without their row numbers), the errors and the ignored columns."""
     pairs, errors, ignored = parse_csv(text)
