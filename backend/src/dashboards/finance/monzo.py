@@ -312,6 +312,7 @@ def parse_current(row_id: str, row: dict[str, Any], balance: Any) -> AccountData
         kind=account_kind,
         overdraft_limit=overdraft if account_kind == "current" else None,
         label=type_label(kind),
+        name_generated=True,
     )
 
 
@@ -326,10 +327,11 @@ def parse_pots(body: Any, parent: str | None = None) -> list[AccountData]:
         if row.get("deleted") is True:
             continue
         currency = iso_code(row.get("currency"))
+        title = text(row.get("name"), 100)
         pots.append(
             AccountData(
                 external_id=safe_id(row.get("id")),
-                name=text(row.get("name"), 100) or f"Pot {currency}",
+                name=title or f"Pot {currency}",
                 type="pot",
                 currency=currency,
                 mask_last4=None,
@@ -340,6 +342,7 @@ def parse_pots(body: Any, parent: str | None = None) -> list[AccountData]:
                 parent_external_id=parent,
                 goal_amount=goal_of(row),
                 label="Pot",
+                name_generated=title is None,
             )
         )
     return pots

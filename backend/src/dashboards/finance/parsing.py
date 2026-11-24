@@ -24,12 +24,19 @@ def whole(value: object) -> int:
     raise bad()
 
 
+# Characters that are not "printable" to Python (format characters) but belong to emoji: the
+# joiner of a family or a profession, and the tag characters that spell a regional flag
+# (England, Scotland, Wales) with their cancel tag. U+FE0F is a printable mark already.
+EMOJI_FORMAT = frozenset({"\u200d"} | {chr(code) for code in range(0xE0020, 0xE0080)})
+
+
 def text(value: object, limit: int) -> str | None:
-    """One printable line, cut to `limit`; None when nothing is left."""
+    """One printable line, cut to `limit`; None when nothing is left. Emoji sequences keep the
+    joiners and tags they are made of (other format and bidi characters are dropped)."""
     if not isinstance(value, str):
         return None
     line = " ".join(value.split())
-    line = "".join(ch for ch in line if ch.isprintable())[:limit].strip()
+    line = "".join(ch for ch in line if ch.isprintable() or ch in EMOJI_FORMAT)[:limit].strip()
     return line or None
 
 

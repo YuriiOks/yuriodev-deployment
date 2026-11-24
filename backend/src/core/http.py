@@ -9,14 +9,22 @@
 - Bodies are asked for uncompressed. If a server compresses anyway (gzip or deflate), the body
   is inflated here in bounded steps, so a compression bomb costs at most the cap in memory;
   any other encoding is refused.
+- An address the owner typed (a payment's website or icon) is fetched only through
+  `get_public`: the name is resolved here, every address must be a public one, and the request
+  goes to that checked address (the name stays in the Host header and the TLS server name), so
+  nothing can be re-resolved to an inside address between the check and the connection.
 """
 
 import asyncio
+import ipaddress
 import json
+import re
+import socket
 import zlib
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
+from urllib.parse import SplitResult, urlsplit
 
 import httpx
 
@@ -198,6 +206,7 @@ async def request_capped(
     deadline: float = TOTAL_DEADLINE_SECONDS,
     accepts: Callable[[str], bool] = is_json,
     not_modified_ok: bool = False,
+    extensions: Mapping[str, Any] | None = None,
 ) -> tuple[int, bytes, httpx.Headers]:
     """Send the request and return (status, body, headers) of a 200 answer whose media type
     `accepts` and whose body is at most `max_bytes`; raise UpstreamError otherwise.
@@ -210,7 +219,13 @@ async def request_capped(
         async with (
             asyncio.timeout(deadline),
             client.stream(
-                method, url, headers=headers, params=params, json=json_body, data=form
+                method,
+                url,
+                headers=headers,
+                params=params,
+                json=json_body,
+                data=form,
+                extensions=dict(extensions) if extensions else None,
             ) as response,
         ):
             if response.status_code == 304 and not_modified_ok:
@@ -266,3 +281,109 @@ def _inflater(content_encoding: str) -> zlib._Decompress | None:
     if encoding == "deflate":
         return zlib.decompressobj()
     raise UpstreamError("bad_encoding", 200)
+
+
+# ---- addresses the owner typed ----------------------------------------------------------------
+
+Resolver = Callable[[str], Awaitable[list[str]]]
+# A DNS name with at least two labels (so not `localhost` or an intranet name), letters, digits
+# and hyphens only, at most 253 characters.
+HOST_NAME = re.compile(
+    r"(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+"
+)
+
+
+async def resolve_host(host: str) -> list[str]:
+    """Every address the name has (IPv4 and IPv6) for https."""
+    found = await asyncio.get_running_loop().getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    return sorted({str(item[4][0]) for item in found})
+
+
+def public_address(text: str) -> bool:
+    """A globally routable address: not loopback, private, link-local (the cloud metadata
+    address), CGNAT, multicast, reserved or unspecified; an IPv4 address inside IPv6 must be
+    public too."""
+    try:
+        address = ipaddress.ip_address(text.split("%", 1)[0])
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address):
+        for inner in (address.ipv4_mapped, address.sixtofour, getattr(address, "teredo", None)):
+            if isinstance(inner, ipaddress.IPv4Address) and not inner.is_global:
+                return False
+            if isinstance(inner, tuple) and not all(a.is_global for a in inner):
+                return False
+    return address.is_global and not address.is_multicast
+
+
+def public_host(url: str) -> tuple[str, SplitResult] | None:
+    """The normalised host of an https URL that may be fetched, or None: https only, no
+    credentials, port 443 only, a name (lower-case, no trailing dot, IDNA) or a public IP
+    literal."""
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+        port = parts.port
+    except ValueError:
+        return None
+    if parts.scheme != "https" or not host or parts.username is not None or parts.password:
+        return None
+    if port not in (None, 443):
+        return None
+    host = host.rstrip(".").lower()
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        try:
+            host = host.encode("idna").decode("ascii")
+        except UnicodeError:
+            return None
+        if HOST_NAME.fullmatch(host) is None:
+            return None
+        return host, parts
+    return (host, parts) if public_address(str(address)) else None
+
+
+async def get_public(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    resolver: Resolver = resolve_host,
+    headers: Mapping[str, str] | None = None,
+    max_bytes: int,
+    accepts: Callable[[str], bool],
+    deadline: float = 6.0,
+) -> tuple[bytes, httpx.Headers]:
+    """One GET of an address the owner typed. The name is resolved here; every address it has must
+    be public (else UpstreamError "blocked"); the request is sent to the first one, with the name
+    as Host and TLS server name. No redirect is followed (a 3xx is an error carrying its
+    `location`), no cookie or credential is sent, and nothing is logged."""
+    checked = public_host(url)
+    if checked is None:
+        raise UpstreamError("blocked")
+    host, parts = checked
+    try:
+        ipaddress.ip_address(host)
+        found = [host]  # an address, already checked by public_host
+    except ValueError:
+        try:
+            found = await resolver(host)
+        except OSError:
+            raise UpstreamError("connect") from None
+    if not found or not all(public_address(address) for address in found):
+        raise UpstreamError("blocked")
+    address = found[0]
+    netloc = f"[{address}]" if ":" in address else address
+    path = parts.path or "/"
+    target = f"https://{netloc}{path}" + (f"?{parts.query}" if parts.query else "")
+    _, body, answer = await request_capped(
+        client,
+        "GET",
+        target,
+        headers={**(headers or {}), "Host": host},
+        max_bytes=max_bytes,
+        deadline=deadline,
+        accepts=accepts,
+        extensions={"sni_hostname": host},
+    )
+    return body, answer

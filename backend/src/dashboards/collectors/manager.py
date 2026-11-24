@@ -35,6 +35,7 @@ from src.dashboards.collectors.ical import CalendarCollector, split_feeds
 from src.dashboards.collectors.linear import LinearCollector
 from src.dashboards.finance.base import FinanceCollector
 from src.dashboards.finance.fx import FxCollector
+from src.dashboards.finance.icons import IconCollector
 from src.dashboards.finance.monobank import MonobankProvider
 from src.dashboards.finance.monzo import MonzoProvider
 from src.dashboards.runtime import DashboardsRuntime
@@ -218,6 +219,7 @@ def build_finance_collectors(
         collectors.append(FinanceCollector(monzo, months, sleep))
     if collectors:  # the rates are only fetched when there is something to convert
         collectors.append(FxCollector())
+        collectors.append(IconCollector())
     return collectors
 
 

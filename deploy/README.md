@@ -918,8 +918,9 @@ configured depth, or, for an account whose opening date the bank does not give, 
 observed in use; the documentation names none) is taken to have more behind it and the window
 is asked again for the rest. A window is fetched whole in memory and written in one transaction
 with its cursor, so a failed or partial fetch changes nothing and the window is asked again. A
-429 pauses the collector for the time the source asked (at least a minute). Jars (savings pots) are kept as accounts
-of type `jar`. The stored `balance` is exactly what the bank sends (with a credit card it includes
+429 pauses the collector for the time the source asked (at least a minute). Jars are kept as accounts
+of type `jar` and kind `pot` (like Monzo's pots), with `goal_amount` from the jar's `goal` when it has
+one; a jar has a statement like any other account. The stored `balance` is exactly what the bank sends (with a credit card it includes
 the credit limit); `GET /finance/accounts` adds `own_balance_minor` (balance minus credit limit)
 and the summary adds `own_balance` per currency, so a page never shows a limit as money. A
 transaction is marked `internal_transfer` when its counterparty is another account of the same
@@ -949,9 +950,12 @@ in `category_code`); a transfer between your own accounts and pots is always `tr
 never spending. Money sent to another person (a money-transfer code, MCC 4829 or 6538-6540, money
 out) is `transfers_out` and is spending; the same code with money in is `income`. Monobank does
 not say that a card-to-card move is between your own cards, so the two legs are paired (equal and
-opposite amounts in one currency, on two different accounts, within 2 minutes, both money-transfer
-lines, each the only candidate of the other; two lookalike sends and one receipt are paired with
-nothing), at startup for everything stored and after every refresh for the last 7 days; both
+opposite amounts in one currency, or in two currencies when the bank states the other amount
+(`original_amount`) or the converted amount is within 3% at the current rate; on two different
+accounts, within 2 minutes, both money-transfer lines, each the only candidate of the other, lines
+already internal counting as candidates; two lookalike sends and one receipt are paired with
+nothing), and only once every open account of the provider has been read past the legs' time plus
+the 2 minutes (a leg whose rival has not arrived yet decides nothing), at startup for everything stored and after every refresh for the last 7 days; both
 legs become internal (`transfers`, out of spend and income). A line once internal stays so when its
 window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM`
 gives money out per currency and category with the month before beside it, and, for the month in
@@ -966,8 +970,16 @@ pre-authorisation) is marked declined and stops counting as money out. An overdr
 bank's) only counts towards `available_minor` of a current or business account, and only those can
 be given one. You can change one transaction's category
 (`PATCH /finance/transactions/{id}`, or the MCP tool `finance_set_category`); that is a note on our
-copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
-categories existed are categorised when the backend next starts.
+copy only (nothing is sent to a bank) and a re-import keeps it. The same PATCH takes
+`internal_transfer: true|false` (with `counterpart_id`, the other leg on another account and the
+other way, both are marked): your decision sticks, no refetch or pairing changes it again
+(`internal_transfer_by_owner` in every row). At every start the categories of the lines that carry
+a provider code are worked out again (only where the result differs; an override is a separate
+column and is never touched), so a corrected or extended rule (more merchant codes: hotels, car
+rental, dealers, insurance, hosting, retail) reaches old lines. `display.categories[].converted`
+is true when a currency other than the display currency is in that line. Every row has
+`time_known` (false for a statement line that had only a day: it is booked at noon). `GET
+/transactions` takes `account` more than once, and `provider=<id>`.
 
 Overdraft limit you set yourself. Monzo sends no overdraft limit, so set it by hand:
 `PATCH /api/dashboards/v1/finance/accounts/{id}` with `{"overdraft_limit": 100000}` (minor units,
@@ -1124,10 +1136,15 @@ account from a bank's API takes only `overdraft_limit`. A connection's `last_ok_
 newest data is as of (a balance's date, or the newest line of a statement), never the day it was
 uploaded; with an open account and data older than 30 days there is a `stale_statement` attention
 item.
+`GET /manual/currencies` lists the currencies an account may be in (ISO 4217, `{code, exponent}`,
+for a form's select; any other code is 422 with `fields: ["currency"]`); `as_of` in the future is
+422 `as_of_future`.
 Statements: `POST /manual/accounts/{id}/statement` with the downloaded file as the body (at most
-2 MiB; `?dry_run=true`, `?date_order=dmy|mdy`, `?apply_balance=true`). Formats: (1) OFX or QFX
+1 MiB, because the proxy takes no more: a bigger body is 413 `file_too_large`; `?dry_run=true`, `?date_order=dmy|mdy`, `?apply_balance=true`). Formats: (1) OFX or QFX
 (the open OFX specification; v1 SGML and v2 XML; `FITID` is the transaction id, `LEDGERBAL` the
-balance, `CURDEF` must equal the account's currency); (2) a CSV with the headers `date`,
+balance, `CURDEF` must equal the account's currency; with several accounts in one file only the
+one whose `ACCTID` ends with the account's `mask_last4` is read, else 422 `ofx_several_accounts`;
+`&amp;`-style escapes are read back and a time with `[offset:TZ]` goes to the local clock); (2) a CSV with the headers `date`,
 `description` and `amount` (or `debit` and `credit`), and optionally `time`, `counterparty`,
 `balance`, `currency`, `id` (any order, any case; a file from any bank can be reshaped into it);
 (3) PayPal's Activity Download, the one bank export whose columns the provider itself publishes
@@ -1138,25 +1155,48 @@ cash effect of a line is Net; Pending and Denied are marked; only for an account
 or documentation describes the file (checked on 2026-11-24; third-party converters do, with
 different dates and no guarantee), so no layout of theirs is built in: use OFX where the bank
 offers it, or reshape the CSV into the generic one; a file in no known layout is 422
-`unknown_layout`, never guessed. Adding one is a few lines in `statements.LAYOUTS` once the header
+`unknown_layout` (an empty one `empty_file`, another bank's PayPal layout `other_bank`, never
+guessed; bytes that are no text `not_utf8`). Adding one is a few lines in `statements.LAYOUTS` once the header
 row of your own file is seen. Rules: amounts are plain decimals (`-12.50`, `1,234.56`; a comma is
 never a decimal point) with no more decimals than the currency has and in the account's currency;
 dates are `YYYY-MM-DD` or `DD/MM/YYYY` or `MM/DD/YYYY`, the order read from the file when a day
 over 12 settles it, else given with `date_order`, else the file is refused; a line with no time is
-booked at noon of its day (local zone). All or nothing: any bad line writes nothing and the 422
-body lists every line (`errors: [{row, field, message}]`). A line already there (same bank id, or
-same date, amount, text and place among identical lines) is a `duplicate` and left as it is, so
+booked at noon of its day (local zone), no earlier than 1990 and no later than tomorrow; a line
+with an amount over 10^12 minor units, a cell with a line break or a bank id with a control
+character is refused (control characters in a description become a space). The file is read as
+UTF-8 (a BOM is fine), UTF-16 with a BOM, the OFX header's charset or Windows-1252, and the
+answer's `encoding` says which; a CSV with a bad quote is one row-0 error `csv_malformed`.
+All or nothing: any bad line writes nothing and the 422
+body lists every line (`errors: [{row, field, message, code}]`; `code` is stable: `date_ambiguous`,
+`date_mixed_order`, `date_out_of_range`, `not_a_date`, `not_a_time`, `amount_format`,
+`amount_decimals`, `amount_too_large`, `wrong_currency`, `debit_credit_both`, `required`,
+`cell_line_break`, `control_character`, `csv_malformed`, `too_many_lines`, `no_lines`,
+`ofx_several_accounts`; the recurring import has its own). A line already there (same bank id, or
+same date, amount, text and place among identical lines) is a `duplicate` and left as it is (a
+bank id repeated within one file is told apart by its order, one over 60 characters is stored
+as a hash; `created` is what the database took), so
 the same or an overlapping file can be loaded again. The answer has `parsed`, `created`,
 `duplicates`, `first_date`, `last_date`, `money_in`, `money_out` (declined lines excluded): check
 them against the bank's own statement with `dry_run` first. `apply_balance` sets the account's
 balance from the file's newest balance unless a newer one is already set (`balance_applied`);
+`balance`, `balance_date` and `balance_would_apply` tell what it would do, on a dry run too;
 a credit card's balance is set by its own endpoint. Imported lines get the category `income` or
-`other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again).
+`other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again), or
+the file's own: a generic CSV may have a `category` column with one of the 14 names (anything else
+is a line error `category_unknown`). A payee (counterparty, any case) whose category you changed
+before keeps it on later statement lines.
 MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set_manual_balance`,
 `finance_update_manual_account` (archive with `archived: true`).
+Payment icons (migration `dashboards_0021`): the page's content security policy allows images from the site itself and `data:` only, so the backend fetches icons, never the browser, and the raw `icon_url` is no longer served. A payment has an optional `icon_url` (https, as before) and an optional `website` (a bare host or an https URL, normalised to a lower-case host; POST, PATCH, bulk, CSV column `website`, MCP). Without an `icon_url` the server looks for the site's own declared icon: the home page's `apple-touch-icon` (largest first), its `icon` links (SVG, PNG, then ICO), the web manifest's icons, then `/apple-touch-icon.png` and `/favicon.ico`; at most 8 requests per site, no third-party favicon service. A PNG or SVG is kept as it is and checked like a bank logo (a real PNG; an SVG that is only drawing); an ICO is not converted but its embedded PNG is taken out as it is (a bitmap-only ICO is skipped); an image over 36 KiB is refused (nothing here can scale it down without an imaging library). Every request goes through `core.http.get_public`: https and port 443 only, no credentials in the URL, the name is resolved by the backend and EVERY address must be global (loopback, private, link-local including the metadata address, CGNAT, multicast, reserved and IPv4-in-IPv6 are refused), the request is sent to that checked address with the name as Host and TLS server name (so it cannot be re-resolved to an inside address in between), no redirect is followed (the one exception is the home page's hop between the bare and the `www.` name of the same site, which goes through the same check), no cookie or token is sent, a 6 second deadline, the body is read as a capped stream, and nothing about the URL is logged. The fetch runs after the write has been answered (a background task; the finance loop's `icons` collector is the safety net and also converts every row that already had an `icon_url`, at most 5 per tick). Each payment has `icon_data` (a PNG or SVG data URI for an `<img>`, or null) and `icon_state`: `none` (no `icon_url` or `website`), `pending`, `ok` or `failed` (the row is kept, the page shows its colour tile); a changed `icon_url` or `website` is `pending` again and `POST /finance/recurring/{id}/icon/refresh` asks again.
 `GET /finance/providers` now returns for every built-in brand, every id with a logo and every
 provider with a connection: `{id, name, colors: {background, foreground}, logo, entry: "api" |
-"manual"}`. The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,
+"manual", reconnect: "oauth" | "token" | null, reconnect_path}`; `name` is null when there is neither
+your name nor a built-in brand (a page writes its own), `reconnect` says how a link that needs
+approving again is mended (`oauth`: open `reconnect_path`, Monzo; `token`: replace the token in the
+server's settings, Monobank; null for a bank by hand). `GET /finance/accounts` rows have
+`name_generated`: true when the name is one the collector made up ("Black card UAH", "Pot GBP"), so
+a page can write its own from `type`, `label` and `currency` (rows stored before it was added say
+false until the next refresh). The built-in brands (Aqua, Barclays, Lloyds Bank, monobank, Monzo, PayPal, Revolut,
 Starling Bank, Wise) have a name and a brand colour pair in code (`finance/brands.py`), each with
 a contrast of at least 3:1, the WCAG floor for large text (on a card the only text is the name and
 a big bold amount; a test checks it), with the brand's own signature colour as the background and
@@ -1255,7 +1295,7 @@ Your steps (the secrets are typed by you into the secrets file, never into chat 
    `https://dev.yuriodev.co.uk/api/dashboards/v1/finance/monzo/connect`. It sends you to Monzo:
    log in with your email.
 4. **Approve in the Monzo app within 15 minutes** (a push notification asks for your PIN,
-   fingerprint or face). The browser then lands on `/dashboards?monzo=connected` (or `denied`,
+   fingerprint or face). The browser then lands on `/dashboards/personal/money?monzo=connected` (or `denied`,
    `invalid_state`, `failed`).
 
 Strong customer authentication decides what can be read: right after you approve, the whole

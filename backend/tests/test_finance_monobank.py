@@ -235,7 +235,7 @@ async def test_a_counterparty_that_is_one_of_the_owners_own_accounts_is_an_inter
     assert own_iban not in repr(found)  # the counterparty's IBAN is compared, never kept
 
 
-def test_a_card_with_a_credit_limit_is_a_credit_card_a_fop_is_business_and_a_jar_is_savings():
+def test_a_card_with_a_credit_limit_is_a_credit_card_a_fop_is_business_and_a_jar_is_a_pot():
     black = parse_account(mono_account())
     credit = parse_account(mono_account("acc-credit", kind="platinum", credit=7_000_000))
     fop = parse_account(mono_account("acc-fop", kind="fop", pan=None))
@@ -246,7 +246,8 @@ def test_a_card_with_a_credit_limit_is_a_credit_card_a_fop_is_business_and_a_jar
     assert (black.kind, black.label) == ("current", "Black")
     assert (credit.kind, credit.label) == ("credit_card", "Platinum")
     assert (fop.kind, fop.label) == ("business", "Business")
-    assert (jar.kind, jar.label) == ("savings", "Jar")
+    assert (jar.kind, jar.label) == ("pot", "Jar")
+    assert jar.name_generated is True  # no title: the name was made up
     assert (black.overdraft_limit, black.parent_external_id) == (None, None)
 
 
@@ -254,7 +255,7 @@ def test_a_card_payment_gets_its_category_from_the_merchant_code_and_keeps_the_c
     shop = parse_item(mono_item("tx-1", ts(2026, 11, 20), -45_000, mcc=5411), "UAH")
     cafe = parse_item(mono_item("tx-2", ts(2026, 11, 20), -45_000, mcc=5812), "UAH")
     salary = parse_item(mono_item("tx-3", ts(2026, 11, 20), 100_000, mcc=0), "UAH")
-    unknown = parse_item(mono_item("tx-4", ts(2026, 11, 20), -100, mcc=5999), "UAH")
+    unknown = parse_item(mono_item("tx-4", ts(2026, 11, 20), -100, mcc=9999), "UAH")
 
     assert (shop.category, shop.category_code) == ("groceries", "5411")
     assert cafe.category == "eating_out"
@@ -269,3 +270,20 @@ def test_a_move_between_own_accounts_is_a_transfer_not_spending():
     item = parse_item(row, "UAH", own)
 
     assert (item.internal_transfer, item.category) == (True, "transfers")
+
+
+def test_a_jar_has_its_goal_and_a_given_name_is_not_generated():
+    body = {
+        "accounts": [{"id": "a1", "balance": 1, "currencyCode": 980, "type": "black"}],
+        "jars": [
+            {"id": "j1", "title": "Holiday", "currencyCode": 980, "balance": 5, "goal": 100_000},
+            {"id": "j2", "title": "Spare", "currencyCode": 980, "balance": 5, "goal": 0},
+        ],
+    }
+
+    card, holiday, spare = parse_accounts(body)
+
+    assert (holiday.kind, holiday.goal_amount, holiday.name_generated) == ("pot", 100_000, False)
+    assert (spare.goal_amount, card.name_generated) == (None, True)
+    with pytest.raises(UpstreamError):
+        parse_accounts({"accounts": [], "jars": [{"id": "j", "balance": 1, "goal": 1.5}]})

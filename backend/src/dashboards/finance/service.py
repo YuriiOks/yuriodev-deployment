@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
 from src.dashboards.finance.brands import Brand
-from src.dashboards.finance.categories import CATEGORIES, REFUNDABLE
+from src.dashboards.finance.categories import CATEGORIES, REFUNDABLE, categorize
 from src.dashboards.finance.fx import Display, load_rates
 from src.dashboards.finance.models import OVERDRAFT_KINDS, Account, Connection, Transaction
 from src.dashboards.finance.schemas import (
@@ -46,6 +46,8 @@ class TransactionFilter:
     min_amount: int | None = None  # minor units, signed: money out is negative
     max_amount: int | None = None
     category: str | None = None  # the effective category: the override, else the normalised one
+    accounts: tuple[uuid.UUID, ...] = ()  # any of these accounts (with `account`, all of them)
+    provider: str | None = None  # the accounts of one provider
 
 
 def invalid(message: str) -> AppError:
@@ -195,11 +197,18 @@ async def list_transactions(
     if flt.text is not None and len(flt.text) > MAX_TEXT:
         raise invalid("Search text is too long")
     after = decode_cursor(cursor) if cursor else None
-    if flt.account is not None and await session.get(Account, flt.account) is None:
-        raise AppError(404, "not_found", "Account not found")
+    wanted = tuple(dict.fromkeys(([flt.account] if flt.account else []) + list(flt.accounts)))
+    if wanted:
+        known = set(await session.scalars(select(Account.id).where(Account.id.in_(wanted))))
+        if known != set(wanted):
+            raise AppError(404, "not_found", "Account not found")
     query = select(Transaction)
-    if flt.account is not None:
-        query = query.where(Transaction.account_id == flt.account)
+    if wanted:
+        query = query.where(Transaction.account_id.in_(wanted))
+    if flt.provider is not None:
+        query = query.where(
+            Transaction.account_id.in_(select(Account.id).where(Account.provider == flt.provider))
+        )
     if flt.start is not None:
         query = query.where(Transaction.booked_at >= day_start(flt.start, zone))
     if flt.end is not None:
@@ -424,7 +433,8 @@ async def categories_report(
         if spent or previous:
             grouped.setdefault(currency, []).append((name, spent, previous, so_far))
     currencies = []
-    merged: dict[str, list[int]] = {}  # per category, display currency: spent, previous, to date
+    # per category, display currency: spent, previous, to date, 1 when another currency is in it
+    merged: dict[str, list[int]] = {}
     for currency in sorted(grouped):
         lines = []
         ordered = sorted(grouped[currency], key=lambda line: (-line[1], line[0]))
@@ -444,7 +454,8 @@ async def categories_report(
                 )
             )
             if shown_spent is not None and shown_previous is not None:
-                entry = merged.setdefault(name, [0, 0, 0])
+                entry = merged.setdefault(name, [0, 0, 0, 0])
+                entry[3] = entry[3] or int(display.converted(currency))
                 entry[0] += shown_spent
                 entry[1] += shown_previous
                 entry[2] += shown_so_far or 0
@@ -489,11 +500,51 @@ async def categories_report(
                     spent=entry[0],
                     previous=entry[1],
                     previous_to_date=entry[2] if cutoff else None,
+                    converted=bool(entry[3]),
                 )
                 for name, entry in ranked
             ],
         ),
     )
+
+
+@guarded
+async def set_internal_transfer(
+    session: AsyncSession,
+    transaction_id: uuid.UUID,
+    value: bool,
+    counterpart_id: uuid.UUID | None = None,
+) -> Transaction:
+    """The owner says a line is (or is not) a move between their own accounts. It sticks: a
+    refetch and the pairing leave such a line alone. Marking can name the other leg
+    (`counterpart_id`: another account, the opposite sign) and marks both. A line made internal
+    is `transfers`; one cleared gets the category the rules give it."""
+    row = await session.get(Transaction, transaction_id, with_for_update=True)
+    if row is None:
+        raise AppError(404, "not_found", "Transaction not found")
+    other: Transaction | None = None
+    if counterpart_id is not None:
+        if not value or counterpart_id == transaction_id:
+            raise invalid("A counterpart goes with a move to mark")
+        other = await session.get(Transaction, counterpart_id, with_for_update=True)
+        if other is None:
+            raise AppError(404, "not_found", "Transaction not found")
+        if other.account_id == row.account_id or (other.amount > 0) == (row.amount > 0):
+            raise invalid("The counterpart must be on another account and go the other way")
+    for line in (row, other):
+        if line is None:
+            continue
+        line.internal_transfer = value
+        line.transfer_locked = True
+        if value:
+            line.category = "transfers"
+        else:
+            provider = await session.scalar(
+                select(Account.provider).where(Account.id == line.account_id)
+            )
+            line.category = categorize(provider or "", line.category_code, line.amount, False)
+    await session.commit()
+    return row
 
 
 @guarded

@@ -120,8 +120,10 @@ async def test_a_payment_is_created_read_listed_and_shown_in_the_display_currenc
 
     assert made.status_code == 201
     assert set(body) == OUTPUT_FIELDS
-    assert read == body
-    assert everything["recurring"] == [body]
+    assert body["icon_state"] == "pending"  # fetched after the answer: this site has no icon
+    later = {**body, "icon_state": "failed"}
+    assert read == later
+    assert everything["recurring"] == [later]
     assert (body["amount"], body["currency"], body["kind"]) == (50_000, "UAH", "debt")
     assert (body["frequency"], body["frequency_interval"]) == ("monthly", 1)
     assert body["color"] == "#ffaa00"  # normalised
@@ -467,7 +469,7 @@ async def test_the_owners_csv_loads_once_and_a_second_time_changes_nothing(
     streaming = next(r for r in first.json()["recurring"] if r["name"] == "Acme Streaming")
     assert (streaming["amount"], streaming["color"]) == (999, "#ffaa00")
     assert streaming["auto_renew"] is True
-    assert streaming["icon_url"] == "https://example.test/acme.png"
+    assert "icon_url" not in streaming  # the address is fetched by the server, not served
     loan = next(r for r in first.json()["recurring"] if r["name"] == "Example Loan")
     assert (loan["kind"], loan["payment_type"], loan["total_owed"]) == ("debt", "loan", 360_000)
     assert (loan["remaining_balance"], loan["remaining_installments"]) == (270_000, 18)

@@ -29,6 +29,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -109,6 +110,8 @@ class Account(FinanceBase):
     # whatever the bank sends.
     overdraft_limit_override: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     label: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # True when the collector made the name up (from the type and currency): a page writes its own.
+    name_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     synced_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     backfilled_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -155,6 +158,11 @@ class Transaction(FinanceBase):
     internal_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     declined: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # False for a statement line that had only a day: it is booked at noon of that day.
+    time_known: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+    # True once the owner set or cleared internal_transfer by hand: a refetch or the pairing of
+    # own-card moves never changes it again.
+    transfer_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     # The normalised category (null until worked out) and the owner's override, which no collector
     # writes: what a page shows is the override, else the category, else "other".
     category: Mapped[str | None] = mapped_column(String(24), nullable=True)
@@ -286,6 +294,10 @@ class Recurring(FinanceBase):
     match_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
     reminder_days: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     icon_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # The image the server fetched from icon_url (a data URI) and the URL that was for.
+    icon_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon_checked_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     is_installment: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     total_installments: Mapped[int | None] = mapped_column(Integer, nullable=True)

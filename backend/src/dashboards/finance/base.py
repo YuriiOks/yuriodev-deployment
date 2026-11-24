@@ -68,6 +68,7 @@ class AccountData:
     goal_amount: int | None = None  # a pot's goal, when the provider gives one (minor units)
     overdraft_limit: int | None = None  # a current account's agreed overdraft (minor units)
     label: str | None = None  # a neutral sub-type ("Joint", "Platinum"), never a holder's name
+    name_generated: bool = False  # `name` was made up from the type and currency, not given
 
 
 @dataclass(frozen=True)
@@ -434,8 +435,10 @@ class FinanceCollector:
                 }
                 # A line once found to be a move between the owner's own accounts (by the
                 # provider, or by pairing) stays one when the window is fetched again.
-                fresh["internal_transfer"] = or_(
-                    Transaction.internal_transfer, chunk.excluded.internal_transfer
+                # (what the owner decided by hand, `transfer_locked`, is never changed.)
+                fresh["internal_transfer"] = case(
+                    (Transaction.transfer_locked, Transaction.internal_transfer),
+                    else_=or_(Transaction.internal_transfer, chunk.excluded.internal_transfer),
                 )
                 fresh["category"] = case(
                     (Transaction.internal_transfer, Transaction.category),
@@ -541,6 +544,7 @@ class FinanceCollector:
                     "goal_amount": data.goal_amount,
                     "overdraft_limit": data.overdraft_limit,
                     "label": data.label,
+                    "name_generated": data.name_generated,
                     "archived": False,
                     "updated_at": now,
                 }

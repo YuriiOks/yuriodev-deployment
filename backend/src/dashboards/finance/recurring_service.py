@@ -69,6 +69,7 @@ from src.dashboards.finance.recurring_schemas import (
     UpcomingItem,
     UpcomingOut,
     UpcomingTotal,
+    shown_icon,
 )
 from src.dashboards.finance.schemas import (
     API_STALE_AFTER,
@@ -247,6 +248,21 @@ async def update_recurring(
 
 
 @guarded
+async def reset_icon(
+    session: AsyncSession, recurring_id: uuid.UUID, now: datetime, zone: tzinfo
+) -> Recurring:
+    """Forget what was fetched for the payment's icon, so it is looked for again."""
+    row = await session.get(Recurring, recurring_id, with_for_update=True)
+    if row is None:
+        raise _not_found()
+    row.icon_data = None
+    row.icon_checked_url = None
+    row.updated_at = now
+    await session.commit()
+    return row
+
+
+@guarded
 async def delete_recurring(session: AsyncSession, recurring_id: uuid.UUID) -> None:
     row = await session.get(Recurring, recurring_id)
     if row is None:
@@ -409,12 +425,14 @@ async def load_recurring(
     seen: set[str] = set()
     for number, item in inputs:
         if item.account_id in unknown:
-            problems.append(RowError(number, "account_id", "unknown account"))
+            problems.append(RowError(number, "account_id", "unknown account", "unknown_account"))
         if not instalments_agree(item.model_dump()):
-            problems.append(RowError(number, "completed_installments", "more than the total"))
+            message = "more than the total"
+            problems.append(RowError(number, "completed_installments", message, "over_total"))
         if item.external_ref:
             if item.external_ref in seen:
-                problems.append(RowError(number, "external_ref", "the same reference twice"))
+                message = "the same reference twice"
+                problems.append(RowError(number, "external_ref", message, "duplicate_reference"))
             seen.add(item.external_ref)
     created: list[Recurring] = []
     updated: list[Recurring] = []
@@ -675,7 +693,7 @@ async def _occurrences(
             converted=display.converted(row.currency),
             account_id=row.account_id,
             payment_method=row.payment_method,
-            icon_url=row.icon_url,
+            icon_data=shown_icon(row),
             color=row.color,
             covered=covered,
             shortfall=shortfall,

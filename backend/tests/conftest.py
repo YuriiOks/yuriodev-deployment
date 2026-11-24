@@ -11,6 +11,7 @@ import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -163,6 +164,11 @@ def clock() -> FakeClock:
     return fixed_clock()
 
 
+async def fake_public_resolver(host: str) -> list[str]:
+    """Every name is a public address (no test makes a DNS query)."""
+    return ["93.184.216.34"]
+
+
 @pytest.fixture
 def make_dashboards_app(
     make_settings: Callable[..., Settings], clock: FakeClock
@@ -171,6 +177,10 @@ def make_dashboards_app(
 
     def _make(database_url: str, **overrides: Any) -> Any:
         values = {"database_url": database_url, "dashboards_api_token": CRED, **overrides}
-        return create_app(make_settings(**values), clock=clock)
+        app = create_app(make_settings(**values), clock=clock)
+        # No test reaches a real site: the icon fetch after a write meets a fake that has no icon.
+        app.state.icon_transport = httpx.MockTransport(lambda request: httpx.Response(404))
+        app.state.icon_resolver = fake_public_resolver
+        return app
 
     return _make

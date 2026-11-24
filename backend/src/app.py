@@ -18,6 +18,7 @@ from starlette.routing import Route
 from src.core.clock import Clock, utc_now
 from src.core.config import Settings, get_settings
 from src.core.errors import install_exception_handlers
+from src.core.http import resolve_host
 from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
 from src.dashboards.collectors.manager import (
@@ -28,9 +29,8 @@ from src.dashboards.collectors.manager import (
 )
 from src.dashboards.finance.maintenance import (
     PAIRING_PROVIDERS,
-    fill_categories,
     pair_own_transfers,
-    recategorize_transfers,
+    recompute_categories,
 )
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
@@ -107,8 +107,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 async def after_migrate(sessions: async_sessionmaker[AsyncSession]) -> None:
     """What runs once the schema is at head: the projects' schemas, the categories still missing."""
     await upgrade_projects(sessions)
-    await fill_categories(sessions)
-    await recategorize_transfers(sessions)
+    await recompute_categories(sessions)
     for provider in PAIRING_PROVIDERS:
         await pair_own_transfers(sessions, provider)
 
@@ -203,6 +202,9 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.finance_collectors = None  # the finance loop, set by the lifespan
     app.state.finance_http = None  # its HTTP client, for the consent routes
     app.state.collector_transport = None
+    # Seams for the icon fetch after a write (tests give a fake transport and a fake resolver).
+    app.state.icon_transport = None
+    app.state.icon_resolver = resolve_host
     app.state.finance_sleep = asyncio.sleep  # a test seam: the pauses between provider requests
 
     # Added first, so innermost: a CORS preflight is answered before it, and its own 401/503

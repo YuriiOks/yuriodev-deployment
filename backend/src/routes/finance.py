@@ -7,19 +7,19 @@ bank data only ever arrives through the collector.
 
 import logging
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Self
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.config import Settings
 from src.core.errors import AppError
 from src.core.http import UpstreamError
 from src.dashboards.finance import manual, monzo_auth, service
-from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL
+from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL, RECONNECT
 from src.dashboards.finance.categories import Category
 from src.dashboards.finance.logos import VARIANTS
 from src.dashboards.finance.manual import MANUAL_FIELDS, ManualAccountPatch
@@ -44,7 +44,7 @@ from src.routes.dashboards import ClockDep, SessionDep, SettingsDep, ZoneDep
 
 logger = logging.getLogger("yuriodev.finance")
 router = APIRouter(prefix="/api/dashboards/v1/finance", tags=["finance"])
-DASHBOARDS_PAGE = "/dashboards"  # where the browser lands after the consent, with ?monzo=<status>
+DASHBOARDS_PAGE = "/dashboards/personal/money"  # where the browser lands after the consent
 
 
 @router.get("/accounts")
@@ -104,7 +104,8 @@ async def transactions(
     zone: ZoneDep,
     settings: SettingsDep,
     clock: ClockDep,
-    account: Annotated[UUID | None, Query()] = None,
+    account: Annotated[list[UUID] | None, Query(max_length=20)] = None,
+    provider: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,32}$")] = None,
     start: Annotated[date | None, Query(alias="from")] = None,
     end: Annotated[date | None, Query(alias="to")] = None,
     q: Annotated[str | None, Query(max_length=service.MAX_TEXT)] = None,
@@ -114,10 +115,13 @@ async def transactions(
     cursor: Annotated[str | None, Query(max_length=200)] = None,
     category: Annotated[Category | None, Query()] = None,
 ) -> TransactionsOut:
-    """Newest first, of one account or all. `from` and `to` are days (both included) in the
-    configured time zone; amounts are minor units, signed (money out is negative); `category`
+    """Newest first, of all accounts, of any of the accounts named (`account` may be repeated), or
+    of one `provider`'s. `from` and `to` are days (both included) in the configured time zone;
+    amounts are minor units, signed (money out is negative); `category`
     is the effective one (the owner's override, else the normalised one)."""
-    flt = service.TransactionFilter(account, start, end, q, min_amount, max_amount, category)
+    flt = service.TransactionFilter(
+        None, start, end, q, min_amount, max_amount, category, tuple(account or ()), provider
+    )
     rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)
     display = await service.display_for(session, settings.finance_display_currency, clock())
     return TransactionsOut(
@@ -128,11 +132,24 @@ async def transactions(
 
 
 class TransactionPatch(BaseModel):
-    """The only thing a page may change about a transaction: its category (null clears it)."""
+    """What the owner may change about a transaction: its `category` (null clears it) and whether
+    it is a move between their own accounts (`internal_transfer`; with `counterpart_id`, the other
+    leg, both are marked). A change of `internal_transfer` sticks: no refetch or pairing undoes
+    it."""
 
     model_config = ConfigDict(extra="forbid")
 
-    category: Category | None
+    category: Category | None = None
+    internal_transfer: bool | None = Field(default=None, strict=True)
+    counterpart_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _something(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("nothing to change")
+        if self.internal_transfer is None and "internal_transfer" in self.model_fields_set:
+            raise ValueError("internal_transfer is true or false")
+        return self
 
 
 @router.patch("/transactions/{transaction_id}")
@@ -144,7 +161,16 @@ async def set_transaction_category(
     clock: ClockDep,
 ) -> TransactionOut:
     """The owner's category for one transaction; a note on our copy only, kept on re-import."""
-    row = await service.set_category(session, transaction_id, body.category)
+    changes = body.model_fields_set
+    row = None
+    if "internal_transfer" in changes and body.internal_transfer is not None:
+        row = await service.set_internal_transfer(
+            session, transaction_id, body.internal_transfer, body.counterpart_id
+        )
+    if "category" in changes:
+        row = await service.set_category(session, transaction_id, body.category)
+    if row is None:
+        raise AppError(422, "validation_error", "Nothing to change")
     display = await service.display_for(session, settings.finance_display_currency, clock())
     return TransactionOut.from_row(row, display)
 
@@ -177,14 +203,17 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
     found: list[ProviderOut] = []
     for name in sorted(names):
         brand, own = BRANDS.get(name), styles.get(name)
+        reconnect = RECONNECT.get(name)
         colors = own.colors if own and own.colors else brand or NEUTRAL
         found.append(
             ProviderOut(
                 id=name,
-                name=(own.name if own and own.name else brand.name if brand else name),
+                name=(own.name if own and own.name else brand.name if brand else None),
                 colors=ColorsOut(background=colors.background, foreground=colors.foreground),
                 logo=LogoOut(**{v: logos.get(name, {}).get(v) for v in VARIANTS}),
                 entry="api" if name in COLLECTOR_PROVIDERS else "manual",
+                reconnect=reconnect[0] if reconnect else None,
+                reconnect_path=reconnect[1] if reconnect else None,
             )
         )
     return ProvidersOut(providers=found)

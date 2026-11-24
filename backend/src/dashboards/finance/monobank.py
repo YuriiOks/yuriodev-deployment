@@ -165,16 +165,21 @@ def parse_jar(row: Any) -> AccountData:
     if not isinstance(row, dict):
         raise bad()
     currency = currency_code(row.get("currencyCode"))
+    title = text(row.get("title"), 100)
+    raw_goal = row.get("goal")  # documented as the target amount in minor units, may be absent
+    goal = whole(raw_goal) if raw_goal is not None else None
     return AccountData(
         external_id=safe_id(row.get("id")),
-        name=text(row.get("title"), 100) or f"Jar {currency}",
+        name=title or f"Jar {currency}",
         type="jar",
         currency=currency,
         mask_last4=None,
         balance=whole(row.get("balance")),
         credit_limit=0,
-        kind="savings",
+        kind="pot",
+        goal_amount=goal if goal else None,
         label="Jar",
+        name_generated=title is None,
     )
 
 
@@ -210,6 +215,7 @@ def parse_account(row: Any) -> AccountData:
         credit_limit=limit,
         kind=account_kind,
         label=TIER_LABELS.get(kind or ""),
+        name_generated=True,
     )
 
 

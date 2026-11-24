@@ -66,6 +66,9 @@ class AccountOut(BaseModel):
     archived: bool
     kind: AccountKind  # what the page can rely on to present it
     label: str | None  # a neutral sub-type ("Joint", "Platinum"): never a holder's name
+    # True when the name is one the collector made up ("Black card UAH"): a page may write its
+    # own words from `type`, `label` and `currency`. A name from the bank or you is false.
+    name_generated: bool
     parent_id: UUID | None  # a pot's current account
     goal_amount: int | None  # a pot's goal, when the provider gives one
     overdraft_limit: int | None  # the one in force: the owner's if set, else the bank's
@@ -182,6 +185,8 @@ class TransactionOut(BaseModel):
     balance_after: int | None
     pending: bool
     internal_transfer: bool  # the counterparty is another account of the same owner
+    internal_transfer_by_owner: bool  # the owner set or cleared it: nothing changes it again
+    time_known: bool  # false for a statement line that had only a day (booked at noon)
     declined: bool  # refused by the bank: not money that moved, never counted as spent
     settled_at: datetime | None
     category: str  # the owner's override, else the normalised one (never null)
@@ -191,8 +196,15 @@ class TransactionOut(BaseModel):
 
     @classmethod
     def from_row(cls, row: Any, display: Display | None = None) -> Self:
-        derived = ("category", "category_overridden", "display_amount_minor", "converted")
+        derived = (
+            "category",
+            "category_overridden",
+            "display_amount_minor",
+            "converted",
+            "internal_transfer_by_owner",
+        )
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
+        values["internal_transfer_by_owner"] = row.transfer_locked
         values["category"] = row.category_override or row.category or "other"
         values["category_overridden"] = row.category_override is not None
         converted = display.convert(row.amount, row.currency) if display else None
@@ -292,6 +304,7 @@ class DisplayCategory(BaseModel):
     spent: int
     previous: int
     previous_to_date: int | None
+    converted: bool  # a currency other than the display currency is in these figures
 
 
 class CategoriesDisplay(DisplayOut):
@@ -341,10 +354,14 @@ class ProviderOut(BaseModel):
     model_config = _RESPONSE
 
     id: str
-    name: str  # the owner's name for it, else the built-in brand's, else the id
+    name: str | None  # the owner's name for it, else the built-in brand's, else null
     colors: ColorsOut
     logo: LogoOut
     entry: Literal["api", "manual"]  # connected through its API, or entered by hand
+    # How a link that needs approving again is mended: `oauth` (open `reconnect_path` in a
+    # browser) or `token` (replace the token in the server's settings); null for a bank by hand.
+    reconnect: Literal["oauth", "token"] | None
+    reconnect_path: str | None
 
 
 class ProvidersOut(BaseModel):

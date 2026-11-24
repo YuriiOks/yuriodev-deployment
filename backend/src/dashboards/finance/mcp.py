@@ -90,8 +90,10 @@ def register(
         limit: int = service.DEFAULT_LIMIT,
         cursor: str | None = None,
         category: str | None = None,
+        provider: str | None = None,
     ) -> str:
-        """Search transactions, newest first. query is a case-insensitive text found in the
+        """Search transactions, newest first. provider (such as monobank) limits them to that
+        provider's accounts. query is a case-insensitive text found in the
         description or the counterparty; account is an account id from finance_accounts;
         from_date and to_date are YYYY-MM-DD (both days included); min_amount and max_amount
         are signed minor units (money out is negative, so max_amount=-5000 finds payments of 50
@@ -102,7 +104,14 @@ def register(
         except ValueError:
             raise ToolError("Invalid account id") from None
         flt = service.TransactionFilter(
-            account_id, from_date, to_date, query, min_amount, max_amount, category
+            account_id,
+            from_date,
+            to_date,
+            query,
+            min_amount,
+            max_amount,
+            category,
+            provider=provider,
         )
         async with scope("finance_transactions") as (session, now):
             rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)
@@ -189,7 +198,8 @@ def register(
         housing, service, one_time), frequency (once, daily, weekly, monthly, yearly),
         frequency_interval, start_date and next_payment_date (YYYY-MM-DD), account_id (an id from
         finance_accounts), payment_method (free text), notes, reminder_days, match_text (what its
-        bank text contains), icon_url (https), color (#rrggbb), is_active, and for debts
+        bank text contains), icon_url (https) or website (a host such as example.com: its own icon
+        is fetched), color (#rrggbb), is_active, and for debts
         is_installment, total_installments, completed_installments, total_owed,
         remaining_balance, creditor."""
         try:

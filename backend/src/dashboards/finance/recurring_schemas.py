@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from src.dashboards.finance.fx import Display
+from src.dashboards.finance.icons import icon_state, source_of
 from src.dashboards.finance.recurring import (
     Frequency,
     Kind,
@@ -72,7 +73,13 @@ class RecurringOut(BaseModel):
     account_id: UUID | None  # the paying account, when it is one we collect
     match_text: str | None
     reminder_days: int | None
-    icon_url: str | None  # an https URL, served only when it passed the checks on the way in
+    # The raw `icon_url` is never served (the server fetches it). The image is `icon_data`, a PNG
+    # or SVG data URI (null until fetched, and when the address could not be had or was not a safe
+    # image); `icon_state` is none (nothing to fetch), pending, ok or failed. `website` is the
+    # host of the payment's own site, the source of its icon when there is no icon_url.
+    website: str | None
+    icon_data: str | None
+    icon_state: Literal["none", "pending", "ok", "failed"]
     color: str | None  # #rrggbb
     is_installment: bool
     total_installments: int | None
@@ -103,6 +110,8 @@ class RecurringOut(BaseModel):
     @classmethod
     def from_row(cls, row: Any, display: Display | None, today: date) -> Self:
         derived = (
+            "icon_data",
+            "icon_state",
             "remaining_installments",
             "scheduled_installments",
             "scheduled_remaining_balance",
@@ -115,6 +124,8 @@ class RecurringOut(BaseModel):
         )
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
         total, done = row.total_installments, row.completed_installments
+        values["icon_data"] = shown_icon(row)
+        values["icon_state"] = icon_state(row)
         values["remaining_installments"] = None if total is None else max(total - (done or 0), 0)
         values["scheduled_installments"] = (
             None if total is None else min(total, (done or 0) + row.assumed_installments)
@@ -158,16 +169,26 @@ class RecurringListOut(BaseModel):
     display: DisplayOut
 
 
+def shown_icon(row: Any) -> str | None:
+    """The fetched image of a payment, only while it is the one for the address it has now."""
+    if row.icon_checked_url is not None and row.icon_checked_url == source_of(
+        row.icon_url, row.website
+    ):
+        return str(row.icon_data) if row.icon_data else None
+    return None
+
+
 class RowErrorOut(BaseModel):
     model_config = _RESPONSE
 
     row: int  # 1 is the first row (the first data row of a CSV file); 0 is the file itself
     field: str | None
     message: str
+    code: str | None  # stable: date_ambiguous, amount_format, wrong_currency, required, ...
 
     @classmethod
     def of(cls, error: RowError) -> Self:
-        return cls(row=error.row, field=error.field, message=error.message)
+        return cls(row=error.row, field=error.field, message=error.message, code=error.code)
 
 
 class ImportOut(BaseModel):
@@ -203,7 +224,7 @@ class UpcomingItem(BaseModel):
     converted: bool
     account_id: UUID | None
     payment_method: str | None
-    icon_url: str | None
+    icon_data: str | None
     color: str | None
     # Can the paying account cover it (balance plus overdraft, or a card's room), counting the
     # earlier payments of the window from the same account? null when no account of ours pays,
