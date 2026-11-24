@@ -61,9 +61,13 @@ const rec = (id: string, name: string, extra: Record<string, unknown> = {}) => (
   ...extra,
 });
 
+/** How the server rates each kind (the page orders by the severity an item carries). */
+const SEVERITY_OF: Record<string, string> = { due_not_covered: 'high', missed_payment: 'high', overdraft: 'high', reconsent: 'high', amount_changed: 'medium', credit_high: 'medium', stale_statement: 'medium', overdrawn: 'info' };
+
 const item = (kind: string, key: string, subject: [string, string], extra: Record<string, unknown> = {}) => ({
   key,
   kind,
+  severity: SEVERITY_OF[kind] ?? 'medium',
   title: 'The server\'s own English title',
   subject_type: subject[0],
   subject_id: subject[1],
@@ -160,7 +164,7 @@ describe('the Money page: needs attention', () => {
     const panel = await attentionPanel();
     expect(panel.getByText('12')).toBeInTheDocument();
     const chips = panel.getAllByRole('listitem').map((chip) => chip.textContent);
-    expect(chips).toEqual(['2 overdrawn', '1 payment not covered', '1 missed payment', '1 connection to approve', '1 card near its limit', '1 bank out of date', '5 amounts changed']);
+    expect(chips).toEqual(['2 past the overdraft', '1 payment not covered', '1 missed payment', '1 connection to approve', '1 card near its limit', '1 bank out of date', '5 amounts changed']);
     // The most urgent one, as a sentence: the first overdraft.
     expect(panel.getByText('Everyday is £40.00 past its overdraft.')).toBeInTheDocument();
     expect(panel.getByRole('button', { name: 'Show' })).toHaveAttribute('aria-expanded', 'false');
@@ -201,7 +205,7 @@ describe('the Money page: needs attention', () => {
     const panel = await openStrip(user);
     const groups = panel.getAllByRole('group').filter((group) => group.getAttribute('data-kind'));
     expect(groups.map((group) => group.getAttribute('data-kind'))).toEqual(['overdraft', 'due_not_covered', 'missed_payment', 'reconsent', 'credit_high', 'stale_statement', 'amount_changed']);
-    expect(within(groups[0]).getByRole('heading', { level: 3 })).toHaveTextContent('Overdrawn 2');
+    expect(within(groups[0]).getByRole('heading', { level: 3 })).toHaveTextContent('Past the overdraft 2');
     const overdraft = within(groups[0]).getAllByRole('listitem');
     expect(overdraft[0]).toHaveTextContent('Everyday');
     expect(overdraft[0]).toHaveTextContent('£40.00 past the overdraft');
@@ -279,11 +283,11 @@ describe('the Money page: needs attention', () => {
       ['/finance/recurring/r-6', { amount: 4000 }],
       ['/finance/recurring/r-7', { amount: 5000 }],
     ]);
-    // Snooze all: one request per item, 7 days.
+    // Snooze all: one bulk request for the group, 7 days.
     const overdraft = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'overdraft') as HTMLElement);
     await user.click(overdraft.getByRole('button', { name: 'Snooze all for 7 d' }));
-    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/snooze')).toHaveLength(2));
-    expect(api.callsTo('POST', '/finance/attention/snooze').map((call) => call.body)).toEqual([{ key: 'k5', days: 7 }, { key: 'k9', days: 7 }]);
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/bulk')).toHaveLength(1));
+    expect(api.callsTo('POST', '/finance/attention/bulk')[0].body).toEqual({ keys: ['k5', 'k9'], action: 'snooze', days: 7 });
   });
 
   it('asks before a bulk dismissal, and does nothing when it is cancelled', async () => {
@@ -299,7 +303,9 @@ describe('the Money page: needs attention', () => {
     expect(api.callsTo('POST', '/finance/attention/dismiss')).toHaveLength(0);
     await user.click(changed.getByRole('button', { name: 'Dismiss all' }));
     await user.click(changed.getByRole('button', { name: 'Yes, dismiss' }));
-    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/dismiss')).toHaveLength(5));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/bulk')).toHaveLength(1));
+    expect(api.callsTo('POST', '/finance/attention/bulk')[0].body).toEqual({ keys: ['c1', 'c2', 'c3', 'c4', 'c5'], action: 'dismiss' });
+    expect(api.callsTo('POST', '/finance/attention/dismiss')).toHaveLength(0);
   });
 
   it('counts the hidden ones at the end, lists them on request and restores one', async () => {
@@ -346,6 +352,55 @@ describe('the Money page: needs attention', () => {
     expect((await overdraft.findAllByRole('alert'))[0]).toHaveTextContent('That did not work');
     await user.click(overdraft.getByRole('button', { name: 'Snooze all for 7 d' }));
     expect(await overdraft.findByText('Some could not be changed: 2. Try again.')).toBeInTheDocument();
+  });
+
+  it('orders the groups by the severity the server gives, then by kind: a plain fact (info) comes after a changed amount (medium)', async () => {
+    setup({
+      finance: {
+        recurring: mixedPayments(),
+        attention: [
+          item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } }),
+          item('amount_changed', 'c1', ['recurring', 'r-3'], { amount: 1250, currency: 'GBP', facts: { recorded_amount: 1000, charged_amount: 1250 } }),
+          item('overdraft', 'k5', ['account', 'a-card'], { amount: 4000, currency: 'GBP' }),
+          // A kind rated higher than its usual place: the server's rating wins.
+          item('stale_statement', 'k8', ['connection', 'c-2'], { severity: 'high', facts: { provider: 'hand-bank', as_of: '2026-10-01', days_old: 54 } }),
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openStrip(user);
+    expect(panel.getAllByRole('group').filter((group) => group.getAttribute('data-kind')).map((group) => group.getAttribute('data-kind'))).toEqual(['overdraft', 'stale_statement', 'amount_changed', 'overdrawn']);
+  });
+
+  it('says an overdrawn account with no limit on record, and sets the limit from the row (the owner\'s figure goes to the account)', async () => {
+    const api = setup({ finance: { attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openStrip(user);
+    const row = within(panel.getByRole('listitem'));
+    expect(row.getByText('Everyday')).toBeInTheDocument();
+    expect(row.getByText('£25.00 overdrawn · no limit set')).toBeInTheDocument();
+    await user.click(row.getByRole('button', { name: 'Set limit' }));
+    const form = within(row.getByRole('form', { name: 'Set limit: Everyday' }));
+    await user.type(form.getByLabelText(/Overdraft limit/), 'many');
+    await user.click(form.getByRole('button', { name: 'Save limit' }));
+    expect(await form.findByRole('alert')).toHaveTextContent('Enter an amount like 500');
+    expect(api.callsTo('PATCH', '/finance/accounts/a-current')).toHaveLength(0);
+    await user.clear(form.getByLabelText(/Overdraft limit/));
+    await user.type(form.getByLabelText(/Overdraft limit/), '500');
+    await user.click(form.getByRole('button', { name: 'Save limit' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/accounts/a-current')).toHaveLength(1));
+    expect(api.callsTo('PATCH', '/finance/accounts/a-current')[0].body).toEqual({ overdraft_limit: 50000 });
+  });
+
+  it('tells the overdrawn item in a sentence in the strip', async () => {
+    setup({ finance: { attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
+    renderAt(PATH);
+    const panel = await attentionPanel();
+    expect(panel.getByText('1 overdrawn, no limit')).toBeInTheDocument();
+    // Rated info: a plain fact, so the strip shows the chip and no alarm sentence.
+    expect(panel.queryByText(/no overdraft limit is set/)).toBeNull();
   });
 
   it('speaks Russian: the chips with the right plural form, the groups and the facts', async () => {

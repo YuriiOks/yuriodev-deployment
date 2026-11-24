@@ -205,6 +205,26 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       const shown = url.searchParams.get('include_hidden') === 'true' ? all : all.filter((item) => item.state === 'active');
       return json({ items: shown, hidden: hidden.length, display: api.finance.display ?? { currency: 'GBP', rates: {}, missing: [] } });
     }
+    if (path === '/finance/attention/bulk' && method === 'POST') {
+      if (api.fail.has('attentionWrite')) return failure();
+      const keys = Array.isArray(body?.keys) ? (body.keys as string[]) : [];
+      const all = api.finance.attention ?? [];
+      const found = all.filter((entry) => keys.includes(String(entry.key)));
+      const action = String(body?.action);
+      for (const entry of found) {
+        entry.state = action === 'snooze' ? 'snoozed' : action === 'dismiss' ? 'dismissed' : 'active';
+        entry.snoozed_until = action === 'snooze' ? '2026-12-01T00:00:00Z' : null;
+      }
+      return json({ items: found, missing: keys.filter((key) => !found.some((entry) => entry.key === key)) });
+    }
+    const accountPatch = /^\/finance\/accounts\/([\w-]+)$/.exec(path);
+    if (accountPatch && method === 'PATCH') {
+      if (api.fail.has('attentionWrite')) return failure();
+      const account = api.finance.accounts.find((row) => row.id === accountPatch[1]);
+      if (!account) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      Object.assign(account, body);
+      return json(account);
+    }
     const attentionAction = /^\/finance\/attention\/(snooze|dismiss|restore)$/.exec(path);
     if (attentionAction && method === 'POST') {
       if (api.fail.has('attentionWrite')) return failure();

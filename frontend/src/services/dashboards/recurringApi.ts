@@ -13,8 +13,15 @@ export type RecurringKind = (typeof RECURRING_KINDS)[number];
 export const FREQUENCIES = ['once', 'daily', 'weekly', 'monthly', 'yearly'] as const;
 export type Frequency = (typeof FREQUENCIES)[number];
 
-export const ATTENTION_KINDS = ['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'reconsent', 'stale_statement'] as const;
+export const ATTENTION_KINDS = ['due_not_covered', 'missed_payment', 'amount_changed', 'credit_high', 'overdraft', 'overdrawn', 'reconsent', 'stale_statement'] as const;
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
+
+/** How much an item matters, as the server sets it: high acts now, medium looks soon, info is a plain fact. */
+export const SEVERITIES = ['high', 'medium', 'info'] as const;
+export type Severity = (typeof SEVERITIES)[number];
+
+/** What an older server's item (no `severity`) is taken to be, by its kind: the same as the server's own table. */
+const FALLBACK_SEVERITY: Readonly<Record<AttentionKind, Severity>> = { due_not_covered: 'high', missed_payment: 'high', overdraft: 'high', reconsent: 'high', amount_changed: 'medium', credit_high: 'medium', stale_statement: 'medium', overdrawn: 'info' };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const COLOR = /^#[0-9a-f]{6}$/;
@@ -209,6 +216,7 @@ export type Fact = string | number | boolean | null;
 export interface AttentionItem {
   readonly key: string;
   readonly kind: AttentionKind;
+  readonly severity: Severity;
   /** The server's English sentence: the page tells it in its own words from `facts` and keeps this only as a last resort. */
   readonly title: string;
   readonly subjectType: 'recurring' | 'account' | 'connection';
@@ -247,6 +255,7 @@ export function parseAttentionItem(raw: unknown, displayCurrency: string | null 
   return {
     key,
     kind,
+    severity: oneOf(SEVERITIES, raw.severity) ?? FALLBACK_SEVERITY[kind],
     title: text(raw.title) ?? '',
     subjectType,
     subjectId,
@@ -301,6 +310,18 @@ export async function markPaid(id: string): Promise<void> {
 
 export async function snoozeAttention(key: string, days: number): Promise<void> {
   await request('/finance/attention/snooze', { method: 'POST', body: { key, days } });
+}
+
+/** Dismiss, snooze (`days`) or restore many items at once (the server takes at most 200 keys per request: longer lists go in several). Keys that are no longer an item are left alone. */
+export async function bulkAttention(keys: readonly string[], action: 'dismiss' | 'snooze' | 'restore', days?: number): Promise<void> {
+  for (let start = 0; start < keys.length; start += 200) {
+    await request('/finance/attention/bulk', { method: 'POST', body: { keys: keys.slice(start, start + 200), action, ...(action === 'snooze' && days ? { days } : {}) } });
+  }
+}
+
+/** Sets the overdraft limit the owner gives an account (minor units, 0 or more): it wins over a limit the bank sends. */
+export async function setOverdraftLimit(accountId: string, limit: number): Promise<void> {
+  await request(`/finance/accounts/${encodeURIComponent(accountId)}`, { method: 'PATCH', body: { overdraft_limit: limit } });
 }
 
 export async function dismissAttention(key: string): Promise<void> {

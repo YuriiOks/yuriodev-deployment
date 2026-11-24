@@ -32,18 +32,18 @@ const DebtCard: React.FC<{ row: Recurring; mode: MoneyDisplay }> = ({ row, mode 
       <div className={styles.debtTop}>
         <RecurringIcon name={row.name} iconUrl={row.iconUrl} color={row.color} />
         <span className={styles.dueMain}>
-          <strong className={styles.dueName}>{row.name}</strong>
+          <strong className={styles.debtName}>{row.name}</strong>
           <span className={styles.note}>{[row.creditor ? fill(r.creditor, { name: row.creditor }) : '', frequencyLabel(row, r)].filter(Boolean).join(' · ')}</span>
         </span>
-        {row.remainingBalance !== null && (
-          <span className={styles.debtLeft}>
-            <span className={styles.note}>{r.remaining}</span>
-            <strong className={styles.debtAmount}>
-              <Amount amount={row.remainingBalance} currency={row.currency} display={row.displayRemaining} mode={mode} />
-            </strong>
-          </span>
-        )}
       </div>
+      {row.remainingBalance !== null && (
+        <div className={styles.debtLeft}>
+          <span className={styles.note}>{r.remaining}</span>
+          <strong className={styles.debtAmount}>
+            <Amount amount={row.remainingBalance} currency={row.currency} display={row.displayRemaining} mode={mode} />
+          </strong>
+        </div>
+      )}
       {progress && (
         <>
           <div aria-hidden="true" className={styles.bar}>
