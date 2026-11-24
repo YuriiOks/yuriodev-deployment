@@ -325,6 +325,9 @@ describe('the Money page: where it lives', () => {
     const first = renderAt('/dashboards/personal');
     const link = await within(main()).findByRole('link', { name: /Money/ });
     expect(link).toHaveAttribute('href', PATH);
+    // It takes the Payments tab's place: right after Life areas, and there is no Payments tab on real data.
+    expect(link.previousElementSibling).toBe(within(main()).getByRole('tab', { name: 'Life areas' }));
+    expect(within(main()).queryByRole('tab', { name: /Payments/ })).toBeNull();
     await user.click(link);
     expect(await within(main()).findByRole('heading', { level: 1, name: 'Money' })).toBeInTheDocument();
     first.unmount();
