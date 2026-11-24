@@ -755,10 +755,11 @@ describe('the Money page: managing recurring payments', () => {
     await user.click(await screen.findByRole('link', { name: 'All recurring payments' }));
     const panel = await managerPanel();
     const names = () => panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-payment')).map((row) => row.querySelector('strong')?.textContent);
-    await waitFor(() => expect(names()).toEqual(['Streaming', 'Gym', 'Broadband']));
-    expect(panel.getByText('from Everyday')).toBeInTheDocument();
-    expect(panel.getByText('Visa ending 0000')).toBeInTheDocument();
-    expect(panel.getAllByText('not linked to an account').length).toBeGreaterThan(0);
+    // By next date (all the same here), then by name.
+    await waitFor(() => expect(names()).toEqual(['Broadband', 'Gym', 'Streaming']));
+    expect(panel.getByText(/from Everyday/)).toBeInTheDocument();
+    expect(panel.getByText(/Visa ending 0000/)).toBeInTheDocument();
+    expect(panel.getAllByText(/not linked to an account/).length).toBeGreaterThan(0);
     await user.type(panel.getByRole('searchbox', { name: 'Search payments' }), 'streamco');
     expect(names()).toEqual(['Streaming']);
     await user.clear(panel.getByRole('searchbox', { name: 'Search payments' }));
@@ -778,7 +779,8 @@ describe('the Money page: managing recurring payments', () => {
     renderAt(`${PATH}?view=recurring`);
     const panel = await managerPanel();
     const row = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
-    await user.click(within(row).getByRole('button', { name: 'Edit' }));
+    await user.click(within(row).getByRole('button', { name: /^Actions: / }));
+    await user.click(within(row).getByRole('menuitem', { name: 'Edit' }));
     const form = within(within(row).getByRole('form', { name: 'Edit: Streaming' }));
     await user.selectOptions(form.getByLabelText('Paying account'), 'a-current');
     const amount = form.getByLabelText('Amount');
@@ -834,7 +836,8 @@ describe('the Money page: managing recurring payments', () => {
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring')).toHaveLength(1));
     expect(api.callsTo('POST', '/finance/recurring')[0].body).toEqual({ name: 'Water bill', amount: 1800, currency: 'GBP', kind: 'utility', frequency: 'monthly', frequency_interval: 1 });
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
-    await user.click(within(gym).getByRole('button', { name: 'Deactivate' }));
+    await user.click(within(gym).getByRole('button', { name: /^Actions: / }));
+    await user.click(within(gym).getByRole('menuitem', { name: 'Deactivate' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-2')[0]?.body).toEqual({ is_active: false }));
   });
 });
