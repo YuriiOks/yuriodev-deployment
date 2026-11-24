@@ -27,12 +27,12 @@ from src.dashboards.collectors.manager import (
     build_collectors,
     build_finance_collectors,
 )
+from src.dashboards.finance.icons import IconWorker
 from src.dashboards.finance.maintenance import (
     PAIRING_PROVIDERS,
     pair_own_transfers,
     recompute_categories,
 )
-from src.dashboards.finance.icons import IconWorker
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.projects import upgrade_projects

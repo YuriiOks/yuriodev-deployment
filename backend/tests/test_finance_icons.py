@@ -23,7 +23,7 @@ from src.dashboards.finance.icons import (
     ico_png,
     is_image,
 )
-from tests.dashboards_support import AUTH, execute, running, scalar
+from tests.dashboards_support import AUTH, running, scalar
 from tests.test_finance_recurring_api import add
 
 pytestmark = pytest.mark.anyio
@@ -618,8 +618,10 @@ async def test_a_failed_site_says_why_even_on_a_timeout_and_is_left_alone_for_ho
 
     assert first == {"icons": 0, "refused": 1}
     assert (row["icon_state"], row["icon_error"]) == ("failed", "timeout")
-    assert again == {"icons": 0, "refused": 0} and asked == 1
-    assert later == {"icons": 0, "refused": 1} and len(calls) == 2
+    assert again == {"icons": 0, "refused": 0}
+    assert asked == 1
+    assert later == {"icons": 0, "refused": 1}
+    assert len(calls) == 2
 
 
 async def test_an_unexpected_error_still_leaves_a_reason_and_a_refusal_waits_a_day(

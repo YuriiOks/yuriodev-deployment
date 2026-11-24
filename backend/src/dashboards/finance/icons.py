@@ -33,6 +33,7 @@ drawing) and keeps it as a data URI in `recurring.icon_data`. The raw address is
 
 import asyncio
 import base64
+import contextlib
 import json
 import logging
 import uuid
@@ -415,10 +416,8 @@ class IconWorker:
 
     async def run_forever(self) -> None:
         while True:
-            try:
+            with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._wake.wait(), IDLE_SECONDS)
-            except TimeoutError:
-                pass
             self._wake.clear()
             try:
                 await self.drain()
