@@ -20,7 +20,6 @@ export type TabId =
   | 'overview'
   | 'areas'
   | 'payments'
-  | 'court'
   | 'work'
   | 'mail'
   | 'telegram'

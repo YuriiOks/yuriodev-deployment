@@ -112,7 +112,8 @@ export interface FinanceData {
 
 export interface FakeApiOptions {
   readonly finance?: Partial<FinanceData>;
-
+  /** The server's next event per space, when a test needs other than the default (Work 1's stand-up). */
+  readonly nextEvents?: Record<string, { title: string; starts_at: string } | null>;
   readonly enabled?: boolean;
   readonly tasks?: Record<string, unknown>[];
   readonly events?: Record<string, unknown>[];
@@ -124,7 +125,7 @@ export interface FakeApiOptions {
   readonly spaceIcons?: Record<string, string>;
 }
 
-export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {} }: FakeApiOptions = {}): FakeApi {
+export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {}, nextEvents = {} }: FakeApiOptions = {}): FakeApi {
   const api: FakeApi = {
     calls: [],
     tasks,
@@ -183,7 +184,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
           open: open.length,
           priority: open.filter((t) => t.priority).length,
           overdue: open.filter((t) => typeof t.due_date === 'string' && t.due_date < dayOffset(0)).length,
-          next_event: id === 'work-1' ? { title: 'Team stand-up', starts_at: new Date(Date.now() + 47 * 60000).toISOString() } : null,
+          next_event: id in nextEvents ? nextEvents[id] : id === 'work-1' ? { title: 'Team stand-up', starts_at: new Date(Date.now() + 47 * 60000).toISOString() } : null,
         };
       }
       return json({ spaces });

@@ -33,7 +33,7 @@ describe('the data source', () => {
   });
 
   it('has the tabs of each space exactly as designed', () => {
-    expect(getSpace('personal').tabs).toEqual(['overview', 'areas', 'payments', 'court', 'work', 'mail', 'telegram']);
+    expect(getSpace('personal').tabs).toEqual(['overview', 'areas', 'payments', 'work', 'mail', 'telegram']);
     expect(getSpace('work-1').tabs).toEqual(['overview', 'github', 'linear', 'slack', 'notion', 'posthog', 'grafana', 'meetings']);
     expect(getSpace('work-2').tabs).toEqual(['overview', 'github', 'jira', 'teams']);
   });

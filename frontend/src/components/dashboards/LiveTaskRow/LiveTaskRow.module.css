@@ -40,3 +40,14 @@ li[data-editing="true"]:hover + li::before {
   align-items: center;
   gap: var(--space-1);
 }
+
+/* A real task's title may take two lines before it is cut (the whole title is in the tooltip), so the groups in the narrower
+   columns show it instead of an early ellipsis. */
+.row .wrap {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

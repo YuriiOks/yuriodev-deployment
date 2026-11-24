@@ -65,7 +65,7 @@ describe('the hub header', () => {
     expect(header).toHaveTextContent('Next: 10:00 Team stand-up');
   });
 
-  it('on real data totals the open tasks of the three spaces and names the nearest next event, from the summary alone', async () => {
+  it('on real data totals the open tasks of the three spaces and names the nearest next event', async () => {
     const api = liveSetup();
     renderHub();
     const header = (await screen.findByRole('heading', { level: 1, name: 'Дашборды' })).closest('[data-scheme]') as HTMLElement;
@@ -74,8 +74,8 @@ describe('the hub header', () => {
     expect(header).toHaveTextContent('Дальше:');
     expect(header).toHaveTextContent('Team stand-up');
     expect(within(header).getByText(expectedDate)).toBeInTheDocument();
-    // It asks for nothing of its own: bootstrap, summary and the projects the section below needs.
-    expect(api.calls.map((call) => call.path).sort()).toEqual(['/bootstrap', '/projects', '/summary']);
+    // It asks for the bootstrap, the summary, the events of the next days (the next-event strips go through the calendar's rule for copies of work meetings) and the projects the section below needs.
+    expect(api.calls.map((call) => call.path).sort()).toEqual(['/bootstrap', '/events', '/projects', '/summary']);
   });
 
   it('keeps the title and the date, and leaves the totals out, while the summary is not there', async () => {
