@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ProviderLogo } from '../../../services/dashboards/financeApi';
-import { brandFor, prefersWhiteInk } from '../../../services/dashboards/providerBrand';
+import { brandFor, wordmarkIsWhite } from '../../../services/dashboards/providerBrand';
 import { bankLabel } from './providers';
 import styles from './Money.module.css';
 
@@ -45,7 +45,7 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
     );
   }
   if (brand) {
-    const single = prefersWhiteInk(brand.bg) ? dark : light;
+    const single = wordmarkIsWhite(brand) ? dark : light;
     if (!single) return <>{name}</>;
     return (
       <>
