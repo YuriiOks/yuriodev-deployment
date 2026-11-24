@@ -30,6 +30,7 @@ TOOLS = {
     "finance_transactions",
     "finance_categories",
     "finance_set_category",
+    "finance_set_overdraft",
 }
 
 
