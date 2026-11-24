@@ -110,6 +110,8 @@ export interface ProviderLogo {
 }
 
 export interface FinanceConnection {
+  /** The connection's id (what an account of a bank entered by hand is added to), when the server sends it. */
+  readonly id: string | null;
   readonly provider: string;
   readonly status: ConnectionStatus;
   /** For a bank entered by hand: the date its newest data is as of (never the day it was uploaded). */
@@ -265,7 +267,7 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
     if (!isObject(raw)) return [];
     const provider = text(raw.provider);
     const status = STATUSES.find((candidate) => candidate === raw.status);
-    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at), manual: raw.manual === true, displayName: text(raw.display_name) }] : [];
+    return provider && status ? [{ id: text(raw.id), provider, status, lastOkAt: text(raw.last_ok_at), manual: raw.manual === true, displayName: text(raw.display_name) }] : [];
   });
   return { accounts, connections, display };
 }

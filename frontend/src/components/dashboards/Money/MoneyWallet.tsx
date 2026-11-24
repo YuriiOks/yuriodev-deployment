@@ -13,8 +13,9 @@ import { brandStyle } from './brandStyle';
 import BankName from './BankName';
 import HeroAmount from './HeroAmount';
 import { dayLabel, whenLabel } from './labels';
+import { AddAccountForm, AddBankForm } from './ManualCreate';
 import ManualTools from './ManualTools';
-import { reconnectPath } from './providers';
+import { bankLabel, reconnectPath } from './providers';
 import styles from './Money.module.css';
 
 /** The link's state in words, with when it last worked (for a bank entered by hand: the date its balance is as of). */
@@ -201,6 +202,8 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
   const potsSum = pots.length > 0 ? totals.filter((total) => total.pots !== 0) : [];
   const reconnect = bank.connection?.status === 'needs_reconsent' ? reconnectPath(bank.provider) : null;
   const manual = bank.connection?.manual === true;
+  const connectionId = bank.connection?.id ?? null;
+  const [addingAccount, setAddingAccount] = useState(false);
   const id = `money-bank-${bank.provider}`;
 
   return (
@@ -227,6 +230,22 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
         </div>
       </header>
       <div className={styles.detailBody}>
+        {manual && connectionId && (
+          <div className={styles.addAccount}>
+            <button type="button" className={styles.addButton} aria-expanded={addingAccount} onClick={() => setAddingAccount((open) => !open)}>
+              {m.manual.addAccount}
+            </button>
+            {addingAccount && (
+              <AddAccountForm
+                connectionId={connectionId}
+                onDone={(saved) => {
+                  setAddingAccount(false);
+                  if (saved) onChanged();
+                }}
+              />
+            )}
+          </div>
+        )}
         {bank.connection?.status === 'needs_reconsent' && (
           <div role="alert" className={styles.reconsent}>
             <span>{m.reconnectHint}</span>
@@ -318,20 +337,57 @@ export interface MoneyWalletProps {
 /** The wallet: every bank as a coloured card in a stack, and the selected bank opened beside it (below it on a phone). */
 const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, onSelect, onChanged }) => {
   const { t } = useDashboardLang();
+  const [adding, setAdding] = useState(false);
   const banks = groupBanks(data.accounts, data.connections);
-  if (banks.length === 0) return <p className={styles.none}>{t.money.noAccounts}</p>;
+  // The banks the server lists as ones to enter by hand and that are not in the wallet yet, then "another bank".
+  const taken = new Set([...banks.map((bank) => bank.provider), ...Object.keys(logos)]);
+  const candidates = Object.entries(logos)
+    .filter(([provider, info]) => info.entry === 'manual' && !banks.some((bank) => bank.provider === provider))
+    .map(([provider, info]) => ({ id: provider, name: bankLabel(provider, info) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const tools = (
+    <div className={styles.walletTools}>
+      <button type="button" className={styles.addButton} aria-expanded={adding} onClick={() => setAdding((open) => !open)}>
+        {t.money.manual.addBank}
+      </button>
+      {adding && (
+        <AddBankForm
+          candidates={candidates}
+          taken={taken}
+          onDone={(provider) => {
+            setAdding(false);
+            if (provider) {
+              onSelect(provider);
+              onChanged();
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+  if (banks.length === 0) {
+    return (
+      <>
+        {tools}
+        <p className={styles.none}>{t.money.noAccounts}</p>
+      </>
+    );
+  }
   const current = banks.find((bank) => bank.provider === selected) ?? banks[0];
   // The open bank sits at the bottom of the stack, fully shown; the others keep their order above it.
   const stacked = [...banks.filter((bank) => bank !== current), current];
   return (
-    <div className={styles.wallet}>
-      <div role="group" aria-label={t.money.walletLabel} className={styles.stack}>
-        {stacked.map((bank, index) => (
-          <BankCard key={bank.provider} bank={bank} logo={logos[bank.provider]} first={index === 0} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
-        ))}
+    <>
+      {tools}
+      <div className={styles.wallet}>
+        <div role="group" aria-label={t.money.walletLabel} className={styles.stack}>
+          {stacked.map((bank, index) => (
+            <BankCard key={bank.provider} bank={bank} logo={logos[bank.provider]} first={index === 0} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
+          ))}
+        </div>
+        <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} onChanged={onChanged} />
       </div>
-      <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} onChanged={onChanged} />
-    </div>
+    </>
   );
 };
 

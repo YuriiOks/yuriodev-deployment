@@ -65,6 +65,7 @@ const DashboardsMoney = () => {
   const dataChanged = () => {
     accounts.reload();
     summary.reload();
+    providers.reload();
     changed();
     setTxKey((n) => n + 1);
   };
