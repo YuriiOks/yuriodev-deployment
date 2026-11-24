@@ -9,7 +9,8 @@ import AttentionScroller from '../components/dashboards/Money/AttentionScroller'
 import AttentionSheet from '../components/dashboards/Money/AttentionSheet';
 import MoneyAttentionView from '../components/dashboards/Money/MoneyAttentionView';
 import MoneyToday from '../components/dashboards/Money/MoneyToday';
-import MoneyViewSwitch, { MONEY_VIEWS, type MoneyView } from '../components/dashboards/Money/MoneyViewSwitch';
+import MoneyViewSwitch from '../components/dashboards/Money/MoneyViewSwitch';
+import { MONEY_VIEWS, type MoneyView } from '../components/dashboards/Money/moneyViews';
 import { orderedActive } from '../components/dashboards/Money/attentionModel';
 import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
 import MoneyDebts from '../components/dashboards/Money/MoneyDebts';
