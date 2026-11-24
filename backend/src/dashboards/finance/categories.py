@@ -79,15 +79,20 @@ MCC_RANGES: tuple[tuple[int, int, str], ...] = (
     (4784, 4784, "transport"),  # tolls and bridge fees
     (5541, 5542, "transport"),  # service stations, fuel
     (7511, 7523, "transport"),  # truck stops, car rental, parking
-    (3000, 3299, "transport"),  # airlines
+    (7531, 7549, "transport"),  # auto body and repair, car wash, towing
+    (5511, 5599, "transport"),  # car and motorcycle dealers, auto parts (fuel is above)
+    (3000, 3350, "transport"),  # airlines (the carriers' own codes)
+    (3351, 3441, "transport"),  # car rental companies (their own codes)
     (4511, 4511, "transport"),  # airlines and air carriers
     (5411, 5411, "groceries"),  # grocery stores and supermarkets
     (5422, 5499, "groceries"),  # meat, dairy, bakeries, miscellaneous food stores
     (5300, 5300, "groceries"),  # wholesale clubs
     (5811, 5814, "eating_out"),  # caterers, restaurants, bars, fast food
+    (5921, 5921, "groceries"),  # package stores: beer, wine, liquor
     (5912, 5912, "health"),  # drug stores and pharmacies
     (8011, 8099, "health"),  # doctors, dentists, hospitals, medical services
-    (7230, 7299, "health"),  # beauty and barber shops, spas
+    (7230, 7230, "health"),  # beauty and barber shops
+    (7297, 7298, "health"),  # massage parlours, health and beauty spas
     (7832, 7841, "entertainment"),  # cinemas, video rental
     (7911, 7999, "entertainment"),  # amusement, recreation, sports
     (5815, 5815, "subscriptions"),  # digital media: books, movies, music
@@ -97,10 +102,15 @@ MCC_RANGES: tuple[tuple[int, int, str], ...] = (
     (5310, 5399, "shopping"),  # discount and department stores, general merchandise
     (5611, 5699, "shopping"),  # clothing
     (5712, 5735, "shopping"),  # furniture, appliances, electronics, music stores
-    (5942, 5949, "shopping"),  # books, jewellery, toys, gifts
+    (5940, 5949, "shopping"),  # bicycle and sporting goods, books, jewellery, toys, gifts
+    (5968, 5968, "subscriptions"),  # direct marketing: continuity and subscription merchants
+    (5950, 5999, "shopping"),  # glassware, art, florists, pet shops, miscellaneous retail
     (5200, 5261, "shopping"),  # home supply and garden
-    (5732, 5734, "shopping"),  # electronics, computer software
+    (4816, 4816, "subscriptions"),  # computer network and information services (hosting)
+    (6300, 6300, "housing_utilities"),  # insurance sales and underwriting
+    (8211, 8299, "other"),  # schools and education: no category of its own, said on purpose
     (4722, 4722, "entertainment"),  # travel agencies
+    (3501, 3999, "entertainment"),  # hotel and motel chains (their own codes)
     (7011, 7011, "entertainment"),  # lodging: hotels
 )
 

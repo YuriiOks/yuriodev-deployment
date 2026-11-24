@@ -2,19 +2,21 @@
 (equal and opposite, two accounts, two minutes, each the other's only candidate); a payment to a
 person keeps its own category. Every name and amount is invented."""
 
+import uuid
 from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
 
-from src.dashboards.finance.maintenance import pair_own_transfers, recategorize_transfers
+from src.dashboards.finance.maintenance import pair_own_transfers, recompute_categories
 from src.dashboards.finance.models import Transaction
-from tests.dashboards_support import AUTH, running, scalar
+from tests.dashboards_support import AUTH, execute, running, scalar
 from tests.finance_support import (
     ACC_A,
     ACC_B,
     ACC_C,
     FakeMonobank,
+    account,
     at,
     client_for,
     collector,
@@ -22,6 +24,7 @@ from tests.finance_support import (
     mono_account,
     mono_item,
     seed,
+    seed_rates,
     ts,
     tx,
 )
@@ -34,6 +37,8 @@ MOVES = (
     "ORDER BY external_id) FROM finance.transaction WHERE external_id IN ('out-1', 'in-1')"
 )
 NOON = at(11, 20, 12, 0)
+ACC_D = uuid.UUID(int=13)  # UAH, open, added by the tests that need a third account
+SYNCED = "UPDATE finance.account SET synced_until = '2026-11-22T12:00:00Z'"
 
 
 def leg(n, account, when, amount, **extra):
@@ -80,6 +85,7 @@ async def test_two_equal_opposite_lines_on_two_accounts_within_two_minutes_are_o
             leg(52, ACC_A, NOON + timedelta(hours=7), -800, declined=True),  # refused
             leg(53, ACC_C, NOON + timedelta(hours=7, seconds=5), 800),
         )
+        await execute(db_url, SYNCED)
         first = await pair_own_transfers(sessions, "sample")
         again = await pair_own_transfers(sessions, "sample")
         state = await stored(app, *range(40, 54))
@@ -102,6 +108,7 @@ async def test_the_pairing_can_look_at_the_newest_lines_only_and_keeps_the_owner
             leg(40, ACC_A, NOON, -50_000),
             leg(41, ACC_C, NOON + timedelta(seconds=10), 50_000, category_override="health"),
         )
+        await execute(db_url, SYNCED)
         too_new = await pair_own_transfers(sessions, "sample", since=NOON + timedelta(days=1))
         found = await pair_own_transfers(sessions, "sample", since=NOON - timedelta(days=1))
         override = await scalar(
@@ -122,13 +129,14 @@ async def test_a_different_currency_or_provider_is_never_paired(db_url, make_das
             leg(40, ACC_A, NOON, -5_000),
             leg(41, ACC_B, NOON + timedelta(seconds=5), 5_000),  # euros
         )
+        await execute(db_url, SYNCED)
         same_provider = await pair_own_transfers(sessions, "sample")
         other_provider = await pair_own_transfers(sessions, "elsewhere")
 
     assert (same_provider, other_provider) == (0, 0)
 
 
-async def test_old_transfers_that_were_not_between_own_accounts_get_their_new_category(
+async def test_a_changed_rule_reaches_the_lines_already_stored_and_leaves_the_rest(
     db_url, make_dashboards_app
 ):
     app = make_dashboards_app(db_url)
@@ -140,13 +148,170 @@ async def test_old_transfers_that_were_not_between_own_accounts_get_their_new_ca
             leg(40, ACC_A, NOON, -5_000, category="transfers"),  # to a person
             leg(41, ACC_C, NOON, 5_000, category="transfers"),  # from a person
             leg(42, ACC_A, NOON, -3_000, category="transfers", internal_transfer=True),
+            tx(43, ACC_A, NOON, -900, "Pets", category_code="5995", category="other"),
+            tx(
+                44,
+                ACC_A,
+                NOON,
+                -800,
+                "Own pick",
+                category_code="5995",
+                category="other",
+                category_override="health",
+            ),
+            tx(45, ACC_A, NOON, -700, "From a file", category="entertainment"),  # no code
         )
-        changed = await recategorize_transfers(sessions)
-        again = await recategorize_transfers(sessions)
+        changed = await recompute_categories(sessions)
+        again = await recompute_categories(sessions)
+        state = await stored(app, 40, 41, 42, 43, 44, 45)
+        override = await scalar(
+            db_url, "SELECT category_override FROM finance.transaction WHERE external_id = 'ext-44'"
+        )
+
+    assert (changed, again) == (4, 0)
+    assert state == {
+        40: (False, "transfers_out"),
+        41: (False, "income"),
+        42: (True, "transfers"),
+        43: (False, "shopping"),
+        44: (False, "shopping"),  # the shown category is the override, kept apart
+        45: (False, "entertainment"),
+    }
+    assert override == "health"
+
+
+async def test_nothing_is_paired_until_every_account_has_been_read_past_the_legs(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH):
+        sessions = app.state.dashboards.sessions
+        await seed(app)
+        await add(app, account(ACC_D, "Third", "UAH", 1))
+        await add(
+            app,
+            leg(40, ACC_A, NOON, -50_000),
+            leg(41, ACC_C, NOON + timedelta(seconds=10), 50_000),
+        )
+        await execute(db_url, SYNCED)
+        await execute(db_url, "UPDATE finance.account SET synced_until = NULL WHERE name = 'Third'")
+        never = await pair_own_transfers(sessions, "sample")  # one account was never read
+        await execute(db_url, "UPDATE finance.account SET synced_until = '2026-11-20T12:01:00Z'")
+        short = await pair_own_transfers(sessions, "sample")  # read to 12:01, window to 12:02:10
+        await execute(db_url, "UPDATE finance.account SET synced_until = '2026-11-20T12:03:00Z'")
+        done = await pair_own_transfers(sessions, "sample")
+
+    assert (never, short, done) == (0, 0, 1)
+
+
+async def test_a_late_rival_leg_stops_a_pair_that_looked_certain(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH):
+        sessions = app.state.dashboards.sessions
+        await seed(app)
+        await add(app, account(ACC_D, "Third", "UAH", 1))
+        await add(
+            app,
+            leg(40, ACC_A, NOON, -50_000),
+            leg(41, ACC_C, NOON + timedelta(seconds=10), 50_000),
+            leg(42, ACC_D, NOON + timedelta(seconds=20), 50_000),  # read last: a rival
+        )
+        await execute(db_url, SYNCED)
+        found = await pair_own_transfers(sessions, "sample")
         state = await stored(app, 40, 41, 42)
 
-    assert (changed, again) == (2, 0)
-    assert state == {40: (False, "transfers_out"), 41: (False, "income"), 42: (True, "transfers")}
+    assert found == 0
+    assert {internal for internal, _ in state.values()} == {False}
+
+
+async def test_a_line_already_paired_still_counts_as_a_candidate(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH):
+        sessions = app.state.dashboards.sessions
+        await seed(app)
+        await add(app, account(ACC_D, "Third", "UAH", 1))
+        await add(
+            app,
+            leg(40, ACC_A, NOON, -50_000, internal_transfer=True, category="transfers"),
+            leg(
+                41,
+                ACC_C,
+                NOON + timedelta(seconds=10),
+                50_000,
+                internal_transfer=True,
+                category="transfers",
+            ),
+            leg(42, ACC_D, NOON + timedelta(seconds=20), -50_000),  # a lookalike out
+        )
+        await execute(db_url, SYNCED)
+        found = await pair_own_transfers(sessions, "sample")
+        state = await stored(app, 42)
+
+    assert (found, state) == (0, {42: (False, "transfers_out")})
+
+
+async def test_the_owners_decision_is_never_overturned_by_pairing(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH):
+        sessions = app.state.dashboards.sessions
+        await seed(app)
+        await add(
+            app,
+            leg(40, ACC_A, NOON, -50_000, transfer_locked=True),  # the owner said: not mine
+            leg(41, ACC_C, NOON + timedelta(seconds=10), 50_000),
+        )
+        await execute(db_url, SYNCED)
+        found = await pair_own_transfers(sessions, "sample")
+
+    assert found == 0
+
+
+async def test_a_move_between_two_currencies_is_paired_by_the_banks_own_amount(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH):
+        sessions = app.state.dashboards.sessions
+        await seed(app)
+        await add(
+            app,
+            leg(40, ACC_A, NOON, -43_700, original_amount=-1_000, original_currency="EUR"),
+            leg(41, ACC_B, NOON + timedelta(seconds=10), 1_000),
+            leg(42, ACC_A, NOON + timedelta(hours=1), -43_700),  # no amount stated, no rates
+            leg(43, ACC_B, NOON + timedelta(hours=1, seconds=10), 1_000),
+        )
+        await execute(db_url, SYNCED)
+        found = await pair_own_transfers(sessions, "sample")
+        state = await stored(app, 40, 41, 42, 43)
+
+    assert found == 1
+    assert state[40] == state[41] == (True, "transfers")
+    assert state[42][0] is False
+    assert state[43][0] is False
+
+
+async def test_a_move_between_two_currencies_is_paired_when_the_converted_amount_is_close(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH):
+        sessions = app.state.dashboards.sessions
+        await seed(app)
+        await seed_rates(app)  # one euro is 43.75 hryvnia
+        await add(
+            app,
+            leg(40, ACC_A, NOON, -44_000),  # 1 005.7 euro cents-wise: within 3%
+            leg(41, ACC_B, NOON + timedelta(seconds=10), 1_000),
+            leg(42, ACC_A, NOON + timedelta(hours=1), -60_000),  # far from 1 000 euro
+            leg(43, ACC_B, NOON + timedelta(hours=1, seconds=10), 1_000),
+        )
+        await execute(db_url, SYNCED)
+        found = await pair_own_transfers(sessions, "sample", now=NOON)
+        state = await stored(app, 40, 41, 42, 43)
+
+    assert found == 1
+    assert (state[40][0], state[41][0]) == (True, True)
+    assert (state[42][0], state[43][0]) == (False, False)
 
 
 async def test_the_collector_pairs_own_card_moves_and_a_refetch_keeps_them(

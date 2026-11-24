@@ -6,7 +6,7 @@ import pytest
 from mcp import Client
 
 from src.dashboards.finance.categories import CATEGORIES, categorize
-from src.dashboards.finance.maintenance import fill_categories
+from src.dashboards.finance.maintenance import recompute_categories
 from tests.dashboards_support import AUTH, execute, running, scalar
 from tests.finance_support import money, seed
 
@@ -71,7 +71,28 @@ def test_the_set_is_the_agreed_fourteen():
         ("6012", "debt"),
         ("4829", "transfers_out"),  # money sent to someone: spending
         ("6538", "transfers_out"),
-        ("5999", "other"),
+        ("5999", "shopping"),
+        ("3351", "transport"),
+        ("3441", "transport"),
+        ("3350", "transport"),
+        ("3501", "entertainment"),
+        ("3999", "entertainment"),
+        ("5921", "groceries"),
+        ("5941", "shopping"),
+        ("5977", "shopping"),
+        ("5992", "shopping"),
+        ("5968", "subscriptions"),
+        ("4816", "subscriptions"),
+        ("5511", "transport"),
+        ("5599", "transport"),
+        ("7531", "transport"),
+        ("7549", "transport"),
+        ("6300", "housing_utilities"),
+        ("8220", "other"),
+        ("7297", "health"),
+        ("7273", "other"),  # dating services are not a beauty shop
+        ("7276", "other"),
+        ("5733", "shopping"),
         ("0", "other"),
         ("abc", "other"),
         ("", "other"),
@@ -255,8 +276,8 @@ async def test_every_transaction_without_a_category_gets_one_at_startup(
         await seed(app)
         await execute(db_url, "UPDATE finance.transaction SET category = NULL")
         shown = await client.get(f"{BASE}/transactions")
-        filled = await fill_categories(app.state.dashboards.sessions)
-        again = await fill_categories(app.state.dashboards.sessions)
+        filled = await recompute_categories(app.state.dashboards.sessions)
+        again = await recompute_categories(app.state.dashboards.sessions)
         rows = await scalar(
             db_url,
             "SELECT string_agg(external_id || '=' || category, ',' ORDER BY external_id) "

@@ -37,6 +37,7 @@ from datetime import UTC, date, datetime, time, timedelta, timezone, tzinfo
 from decimal import Decimal
 from typing import Any, Literal
 
+from src.dashboards.finance.categories import CATEGORIES
 from src.dashboards.finance.fx import exponent
 from src.dashboards.finance.recurring import MAX_MINOR, RowError
 
@@ -94,6 +95,7 @@ class Entry:
     balance: int | None
     pending: bool = False
     declined: bool = False
+    category: str | None = None  # one of `CATEGORIES`, when the file says so
 
 
 @dataclass
@@ -122,6 +124,7 @@ class Layout:
     balance: str | None = None
     currency: str | None = None  # a column with the currency of each row
     bank_id: str | None = None
+    category: str | None = None  # a column naming one of the categories
     state: str | None = None
     declined_states: frozenset[str] = frozenset()
     pending_states: frozenset[str] = frozenset()
@@ -142,6 +145,7 @@ GENERIC = Layout(
     balance="balance",
     currency="currency",
     bank_id="id",
+    category="category",
 )
 # PayPal's Activity Download is the one export whose columns the provider itself publishes
 # (https://developer.paypal.com/docs/reports/online-reports/activity-download/): the first 13 of
@@ -418,7 +422,11 @@ def _entry(
     bank_id = row.get(layout.bank_id or "") or None
     if bank_id and CONTROL.search(bank_id):
         raise CellError("id", "the id has a control character", "control_character")
+    named = row.get(layout.category or "", "").lower() or None
+    if named is not None and named not in CATEGORIES:
+        raise CellError("category", "not one of the categories", "category_unknown")
     return Entry(
+        category=named,
         day=day,
         at=at,
         amount=amount,

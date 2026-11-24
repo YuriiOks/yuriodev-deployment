@@ -56,6 +56,8 @@ TRANSACTION_FIELDS = {
     "balance_after",
     "pending",
     "internal_transfer",
+    "internal_transfer_by_owner",
+    "time_known",
     "declined",
     "settled_at",
     "category",
