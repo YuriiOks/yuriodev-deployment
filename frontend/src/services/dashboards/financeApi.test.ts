@@ -195,7 +195,15 @@ describe('logo addresses', () => {
     expect(logos({ on_light: png })?.onLight).toBe(png);
     const path = '/api/dashboards/v1/finance/providers/acme-bank/logo/on_light.svg';
     expect(logos({ on_light: path, mark: path })).toMatchObject({ onLight: path, mark: path });
+    // The shape the server really sends: a version query, and the size hints beside the three addresses.
+    const versioned = '/api/dashboards/v1/finance/providers/acme-bank/logo/on_dark?v=e6140d0d';
+    expect(
+      logos({ on_light: null, on_dark: versioned, mark: versioned.replace('on_dark', 'mark'), aspect: { on_dark: 4.5, mark: 1 }, scale: 1, mono: false }),
+    ).toMatchObject({ onLight: null, onDark: versioned, mark: '/api/dashboards/v1/finance/providers/acme-bank/logo/mark?v=e6140d0d' });
     for (const bad of [
+      '/api/dashboards/v1/finance/providers/acme-bank/logo/on_dark?v=e6140d0d&next=//example.com',
+      '/api/dashboards/v1/finance/providers/acme-bank/logo/on_dark?v=',
+      '/api/dashboards/v1/finance/providers/acme-bank/logo/on_dark?V=E6140D0D',
       'https://example.com/logo.png',
       '//example.com/logo.png',
       '/api/dashboards/v1/finance/providers/../../tasks',

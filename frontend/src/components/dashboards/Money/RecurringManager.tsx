@@ -74,7 +74,8 @@ const RefreshIcon: React.FC<{ row: Recurring; onDone?: () => void }> = ({ row, o
         ref={file}
         type="file"
         accept="image/png,image/svg+xml"
-        hidden
+        className="sr-only"
+        tabIndex={-1}
         aria-label={r.uploadIcon}
         onChange={(event) => {
           const chosen = event.target.files?.[0];

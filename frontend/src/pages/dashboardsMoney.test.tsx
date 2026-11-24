@@ -968,3 +968,19 @@ describe('the personal Work and income tab', () => {
     expect(await month.findByText('£2,530.00')).toBeInTheDocument();
   });
 });
+
+describe('the Money page: pictures that cannot be loaded', () => {
+  const DARK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const WHITE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
+
+  it('falls back to the bank\'s name at once when its wordmark fails to load, not a broken-image box', async () => {
+    setup({ finance: finance({ providers: [{ id: 'acme-bank', logo: { on_light: DARK, on_dark: WHITE } }] }) });
+    renderAt(PATH);
+    await banksReady();
+    const card = bankButton('Acme bank');
+    await waitFor(() => expect(card.querySelectorAll('img').length).toBeGreaterThan(0));
+    fireEvent.error(card.querySelector('img') as HTMLImageElement);
+    await waitFor(() => expect(card.querySelectorAll('img')).toHaveLength(0));
+    expect(card).toHaveTextContent('Acme bank');
+  });
+});

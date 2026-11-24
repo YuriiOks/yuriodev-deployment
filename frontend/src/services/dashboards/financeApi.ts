@@ -235,8 +235,8 @@ const DATA_URI = /^data:image\/(?:png|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/;
 const MAX_LOGO_LENGTH = 72 * 1024;
 
 /** A logo address on the server's own provider route: a path (no scheme, no host, no dot segments, no query), so it can only point back at the same origin. */
-/** ...with, as the server writes them, a version query (`?v=e6140d0d`) after the path and nothing else. */
-const LOGO_PATH = /^\/api\/dashboards\/v1\/finance\/providers\/[A-Za-z0-9._~/-]+(?:\?v=[0-9A-Za-z]{1,32})?$/;
+// The server adds a version to the address (`?v=<hex>`, so a changed image is fetched again): that one query, nothing else.
+const LOGO_PATH = /^\/api\/dashboards\/v1\/finance\/providers\/[A-Za-z0-9._~/-]+(\?v=[0-9a-f]{1,64})?$/;
 const MAX_LOGO_PATH = 300;
 
 /**
