@@ -131,6 +131,14 @@ describe('dashboards design rules', () => {
     expect(bar).toMatch(/padding:\s*0 var\(--dash-gutter\)/);
   });
 
+  it('lays the hub\'s project cards on the very grid of its space cards: one definition, composed, never a second column count', () => {
+    const projects = files.find(([file]) => file.endsWith('/ProjectCards/ProjectCards.module.css'))?.[1] ?? '';
+    const hub = files.find(([file]) => file.endsWith('/pages/dashboards.module.css'))?.[1] ?? '';
+    expect(projects).toMatch(/composes:\s*cards from '\.\.\/\.\.\/\.\.\/pages\/dashboards\.module\.css'/);
+    expect(projects).not.toMatch(/grid-template-columns/);
+    expect(hub).toMatch(/repeat\(3, minmax\(0, 1fr\)\)/);
+  });
+
   it('makes glass only through the recipe: no backdrop-filter outside recipes.module.css (design-budget.test.ts) and no own glass fill', () => {
     expect(find(/backdrop-filter/)).toEqual([]);
     expect(find(/background(-color)?\s*:\s*var\(--dash-glass\)/)).toEqual([]);

@@ -2,6 +2,7 @@ import { useDashboardLang } from '../context/useDashboardLang';
 import HubHeader from '../components/dashboards/HubHeader/HubHeader';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
+import SectionStrip from '../components/dashboards/SectionStrip/SectionStrip';
 import ProjectCards from '../components/dashboards/ProjectCards/ProjectCards';
 import SpaceCard from '../components/dashboards/SpaceCard/SpaceCard';
 import { useDashboardMode } from '../hooks/useDashboardMode';
@@ -16,6 +17,7 @@ import styles from './dashboards.module.css';
 
 /** The entrance on the bundled sample data: the header, then three cards. */
 const SampleHub = ({ title }: { title: string }) => {
+  const { t } = useDashboardLang();
   const spaces = useSpaces();
   const now = new Date();
   const totalOpen = spaces.reduce((sum, space) => sum + summarize(space).open, 0);
@@ -23,6 +25,7 @@ const SampleHub = ({ title }: { title: string }) => {
   return (
     <>
       <HubHeader title={title} totalOpen={totalOpen} next={{ at: soonest.hero.at, title: soonest.hero.title }} now={now} />
+      <SectionStrip id="dashboards-spaces-title" title={t.spacesTitle} count={spaces.length} />
       <div className={styles.cards}>
         {spaces.map((space) => (
           <SpaceCard key={space.id} space={space.id} summary={summarize(space)} next={{ at: space.hero.at, title: space.hero.title }} />
@@ -50,6 +53,7 @@ const LiveHub = ({ title }: { title: string }) => {
         next={soonest ? { ...nextAtLabel(soonest.startsAt, now, t), title: { ru: soonest.title, en: soonest.title } } : null}
         now={now}
       />
+      <SectionStrip id="dashboards-spaces-title" title={t.spacesTitle} count={SPACES.length} />
       {status === 'error' && <InlineError message={t.summaryFailed} onRetry={reload} />}
       {(status === 'loading' || (status === 'ready' && !ready)) && (
         <div className={styles.cards}>

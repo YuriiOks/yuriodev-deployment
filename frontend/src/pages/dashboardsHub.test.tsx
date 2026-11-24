@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
 import { resetBootstrap } from '../services/dashboards/bootstrapStore';
@@ -121,6 +122,28 @@ describe('the hub cards carry their colour scheme', () => {
       expect(within(card).queryAllByRole('button')).toHaveLength(0);
       expect(card.querySelectorAll('[onclick]')).toHaveLength(0);
     }
+  });
+
+  it('gives each row of cards a section strip in the top strip\'s family: Spaces with its count, Projects with its count and the New project button', async () => {
+    liveSetup({ projects: [{ id: 'garden', name: 'Garden' }, { id: 'side-project', name: 'Side project' }] });
+    renderHub();
+    const spaces = await within(main()).findByRole('heading', { level: 2, name: 'Пространства' });
+    expect(spaces.parentElement).toHaveTextContent('3');
+    const projects = within(main()).getByRole('region', { name: 'Проекты' });
+    const strip = within(projects).getByRole('heading', { level: 2, name: 'Проекты' }).parentElement as HTMLElement;
+    await waitFor(() => expect(strip).toHaveTextContent('2'));
+    expect(within(strip).getByRole('button', { name: /Новый проект/ })).toHaveAttribute('aria-expanded', 'false');
+    // No dashed "new project" card any more: the cards are the projects, and the form opens as one more cell.
+    expect(within(projects).getAllByRole('region')).toHaveLength(2);
+    await userEvent.setup().click(within(strip).getByRole('button', { name: /Новый проект/ }));
+    expect(within(projects).getByRole('form', { name: 'Новый проект' })).toBeInTheDocument();
+    expect(within(strip).getByRole('button', { name: /Новый проект/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('says there are no projects in one line when there are none', async () => {
+    liveSetup({ projects: [] });
+    renderHub();
+    expect(await within(main()).findByText('Проектов пока нет.')).toBeInTheDocument();
   });
 
   it('the new-project tile and its form carry no scheme', async () => {

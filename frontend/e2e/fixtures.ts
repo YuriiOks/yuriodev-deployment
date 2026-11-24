@@ -25,6 +25,8 @@ export async function mockApi(page: Page, posts: Options['posts'] = 'feed'): Pro
     if (pathname === '/api/posts' && posts === 'feed') return route.fulfill({ json: POSTS_FEED });
     if (pathname === '/api/posts' && posts === 'disabled') return route.fulfill({ json: POSTS_DISABLED });
     if (pathname === '/api/health') return route.fulfill({ json: HEALTH });
+    // The dashboards' first request: a server with no database answers `enabled: false`, and the pages run as the labelled demo.
+    if (pathname === '/api/dashboards/v1/bootstrap') return route.fulfill({ json: { enabled: false } });
     return route.fulfill({ status: 404, json: { error: 'not_found' } });
   });
 }

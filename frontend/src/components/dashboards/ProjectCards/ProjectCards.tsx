@@ -5,33 +5,28 @@ import { projectPath } from '../../../data/site';
 import { useProjects } from '../../../hooks/useProjects';
 import { ApiError } from '../../../services/dashboards/liveApi';
 import { cx } from '../../../utils/cx';
+import SectionStrip from '../SectionStrip/SectionStrip';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import IconPicker from '../IconPicker/IconPicker';
 import ProjectTile from '../ProjectTile/ProjectTile';
 import styles from './ProjectCards.module.css';
 
-/** The "new project" tile: a button that opens a one-field form in place, and creates the project on Enter or Create. */
-const NewProject: React.FC<{ onCreate: (name: string, icon: string | null) => Promise<string | null> }> = ({ onCreate }) => {
+/** The "new project" form: a card in the grid with a name, an icon and Create; the strip's button opens it. */
+const NewProjectForm: React.FC<{ onCreate: (name: string, icon: string | null) => Promise<string | null>; onClose: () => void }> = ({ onCreate, onClose }) => {
   const { t } = useDashboardLang();
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    inputRef.current?.focus();
+  }, []);
 
-  const close = () => {
-    setOpen(false);
-    setName('');
-    setIcon(null);
-    setError(null);
-  };
+  const close = onClose;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -47,21 +42,6 @@ const NewProject: React.FC<{ onCreate: (name: string, icon: string | null) => Pr
       inputRef.current?.focus();
     }
   };
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className={styles.newTile}
-        onClick={() => setOpen(true)}
-      >
-        <span aria-hidden="true" className={styles.plus}>
-          +
-        </span>
-        {t.newProject}
-      </button>
-    );
-  }
 
   return (
     <form
@@ -104,12 +84,14 @@ const NewProject: React.FC<{ onCreate: (name: string, icon: string | null) => Pr
 
 /**
  * The hub's Projects section (real data only): one card per project that is not archived (its name and three
- * plain counters, the whole card a link to its page), then the "new project" tile. It has its own loading and
+ * plain counters, the whole card a link to its page) under a section strip that carries the count and the "New project"
+ * button (its form opens as one more cell of the same grid). It has its own loading and
  * error state with a retry, so a failure here leaves the three spaces above it alone.
  */
 const ProjectCards: React.FC = () => {
   const { t } = useDashboardLang();
   const { status, active: visible, reload, create } = useProjects({ fresh: true });
+  const [creating, setCreating] = useState(false);
 
   const createNamed = async (name: string, icon: string | null): Promise<string | null> => {
     const result = await create(name, icon);
@@ -119,9 +101,18 @@ const ProjectCards: React.FC = () => {
 
   return (
     <section aria-labelledby="dashboards-projects-title" className={styles.section}>
-      <h2 id="dashboards-projects-title" className={styles.title}>
-        {t.projectsTitle}
-      </h2>
+      <SectionStrip
+        id="dashboards-projects-title"
+        title={t.projectsTitle}
+        count={status === 'ready' ? visible.length : undefined}
+        action={
+          status === 'ready' ? (
+            <button type="button" className={styles.add} aria-expanded={creating} onClick={() => setCreating((open) => !open)}>
+              <span aria-hidden="true">+</span> {t.newProject}
+            </button>
+          ) : undefined
+        }
+      />
       {status === 'error' && <InlineError message={t.projectsFailed} onRetry={reload} />}
       {status === 'loading' && (
         <div className={styles.cards}>
@@ -158,7 +149,8 @@ const ProjectCards: React.FC = () => {
               </section>
             );
           })}
-          <NewProject onCreate={createNamed} />
+          {creating && <NewProjectForm onCreate={createNamed} onClose={() => setCreating(false)} />}
+          {visible.length === 0 && !creating && <p className={styles.none}>{t.noProjects}</p>}
         </div>
       )}
     </section>
