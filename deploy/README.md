@@ -629,6 +629,14 @@ in `env/dev.env`: nginx basic auth already ran; never set it in prod) or when
 the header `X-Dashboards-Token` equals `DASHBOARDS_API_TOKEN` (not
 `Authorization`, which basic auth owns on dev). With neither configured every
 request is 401. Production stays off until Cloudflare Access sits in front of it.
+Cross-site writes: where nginx basic auth is trusted, the browser sends the cached credentials with a
+form posted from any page, so a write (anything but GET, HEAD, OPTIONS) is refused with 403
+`cross_site` when the browser says another site sent it (`Sec-Fetch-Site` other than `same-origin`
+or `none`, or an `Origin` that is not `DASHBOARDS_PUBLIC_BASE_URL`, else the host asked); scripts and
+`curl` send neither header and are not affected, nor is a request with a valid token header. The two
+file-upload routes (`/finance/recurring/import`, `/finance/manual/accounts/{id}/statement`) also
+answer 415 to `text/plain`, `application/x-www-form-urlencoded` and `multipart/form-data` (what an
+HTML form can send): give `curl --data-binary` a `-H 'Content-Type: text/csv'`.
 
 Space names: the page calls the spaces "Personal", "Work 1" and "Work 2". To show real names
 without putting them in the public repo, add one line to the environment's secrets file (invented

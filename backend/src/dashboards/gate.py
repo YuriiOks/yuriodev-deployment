@@ -10,11 +10,19 @@ routes and the MCP endpoint. For every request under those paths it:
    DASHBOARDS_TRUST_PROXY_AUTH=true (dev and stage: nginx basic auth already ran), or the
    `X-Dashboards-Token` header equals DASHBOARDS_API_TOKEN. With neither configured every
    request is refused (closed by default). The header is not `Authorization`, which basic
-   auth owns on dev and stage.
+   auth owns on dev and stage;
+4. on the proxy-trust path only, refuses (403 `cross_site`) a request that changes something
+   (not GET, HEAD or OPTIONS) when the browser says another site sent it: `Sec-Fetch-Site` is
+   anything but `same-origin` or `none`, or an `Origin` is present that is not this site
+   (DASHBOARDS_PUBLIC_BASE_URL when set, else the request's own host). The browser attaches the
+   cached basic-auth credentials to a form posted from any page, so without this a page the
+   owner visits could post to the API. A request that carries the token header proves it was
+   not a plain form and is not checked.
 """
 
 import hashlib
 import hmac
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr
 from starlette.datastructures import Headers, MutableHeaders
@@ -27,6 +35,7 @@ ACCESS_HEADER = "X-Dashboards-Token"  # named for the value it carries, a shared
 BOOTSTRAP_PATH = "/api/dashboards/v1/bootstrap"
 MCP_PATH = "/api/mcp"
 _GATED = ("/api/dashboards", MCP_PATH)
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def covers(path: str) -> bool:
@@ -54,6 +63,21 @@ def is_authenticated(settings: Settings, headers: Headers) -> bool:
     return token_matches(settings.dashboards_api_token, headers.get(ACCESS_HEADER))
 
 
+def cross_site(settings: Settings, headers: Headers) -> bool:
+    """Did the browser send this on behalf of another site? Absent headers (a script, curl) say
+    nothing: those clients are not what the check is for."""
+    site = headers.get("sec-fetch-site")
+    if site is not None and site not in ("same-origin", "none"):
+        return True
+    origin = headers.get("origin")
+    if origin is None:
+        return False
+    base = settings.public_base_url
+    if base is not None:
+        return origin.rstrip("/") != base
+    return urlsplit(origin).netloc != headers.get("host", "")
+
+
 class DashboardsGate:
     def __init__(self, app: ASGIApp, settings: Settings) -> None:
         self.app = app
@@ -79,4 +103,15 @@ class DashboardsGate:
             response = error_response(401, "unauthorized", "Unauthorized")
             await response(scope, receive, send_no_store)
             return
+        if (
+            settings.dashboards_enabled
+            and settings.dashboards_trust_proxy_auth
+            and scope["method"] not in SAFE_METHODS
+        ):
+            headers = Headers(scope=scope)
+            proves = token_matches(settings.dashboards_api_token, headers.get(ACCESS_HEADER))
+            if not proves and cross_site(settings, headers):
+                response = error_response(403, "cross_site", "Cross-site request refused")
+                await response(scope, receive, send_no_store)
+                return
         await self.app(scope, receive, send_no_store)

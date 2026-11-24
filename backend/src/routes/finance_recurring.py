@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.core.errors import AppError
 from src.dashboards.finance import recurring_service as service
 from src.dashboards.finance.fx import Display
+from src.dashboards.finance.rawbody import require_file_type
 from src.dashboards.finance.recurring import (
     MAX_CSV_BYTES,
     MAX_ROWS,
@@ -130,6 +131,7 @@ async def import_recurring(
     total_installments, completed_installments, total_owed, remaining_balance, creditor,
     target_amount, current_saved, recipient; also kind, match_text and external_ref. Other
     columns are ignored and named in the answer. All or nothing, like `bulk`."""
+    require_file_type(request)
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)
