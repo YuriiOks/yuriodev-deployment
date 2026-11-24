@@ -274,12 +274,13 @@ class CategoriesOut(BaseModel):
 
 class LogoOut(BaseModel):
     """A bank's logo as data URIs, for an `<img>`: `on_light` for a light card, `on_dark` for a
-    dark one; either may be null."""
+    dark one, `mark` the square icon for small places; each may be null."""
 
     model_config = _RESPONSE
 
     on_light: str | None
     on_dark: str | None
+    mark: str | None
 
 
 class ProviderOut(BaseModel):
