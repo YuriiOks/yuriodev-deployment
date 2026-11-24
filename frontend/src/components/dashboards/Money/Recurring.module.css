@@ -371,6 +371,28 @@
   padding: 0 var(--space-2);
 }
 
+.limitForm {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding-bottom: var(--space-1);
+}
+
+.limitLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.limitInput {
+  composes: input from '../../../assets/styles/dashboard-forms.module.css';
+  width: 8rem;
+}
+
 .more,
 .linkButton {
   composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
@@ -517,11 +539,23 @@
   gap: var(--space-3);
 }
 
+.debtName {
+  color: var(--dash-t1);
+  overflow-wrap: anywhere;
+  /* The whole name, on up to two lines. */
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* What remains: its label at the left, the figure at the right, always on one line. */
 .debtLeft {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  margin-left: auto;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .debtAmount {
@@ -529,6 +563,7 @@
   color: var(--dash-t1);
   font-size: var(--dash-fs-title);
   line-height: var(--dash-lh-title);
+  white-space: nowrap;
 }
 
 .bar {

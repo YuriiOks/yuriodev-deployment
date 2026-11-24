@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
-import { formatMinor } from '../../../services/dashboards/money';
+import { formatMinor, parseMinor } from '../../../services/dashboards/money';
 import { readAttentionOpen, writeAttentionOpen, type MoneyDisplay } from '../../../services/dashboards/preferences';
 import type { ProviderLogo } from '../../../services/dashboards/financeApi';
-import { dismissAttention, markPaid, restoreAttention, snoozeAttention, updateRecurring, type Attention, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
+import { bulkAttention, dismissAttention, markPaid, restoreAttention, setOverdraftLimit, snoozeAttention, updateRecurring, type Attention, type AttentionItem, type Recurring } from '../../../services/dashboards/recurringApi';
 import DashIcon from '../DashIcon/DashIcon';
 import BankMark from './BankMark';
 import RecurringIcon from './RecurringIcon';
@@ -76,6 +76,8 @@ function useSentence(item: AttentionItem, name: string, mode: MoneyDisplay): str
     }
     case 'overdraft':
       return own === null ? item.title : fill(r.sentence.overdraft, { name, over: own });
+    case 'overdrawn':
+      return own === null ? item.title : fill(r.sentence.overdrawn, { name, over: own });
     case 'reconsent':
       return fill(r.sentence.reconsent, { bank: name });
     case 'stale_statement': {
@@ -113,6 +115,8 @@ function useFact(item: AttentionItem, mode: MoneyDisplay): string {
     }
     case 'overdraft':
       return own === null ? item.title : fill(r.fact.overdraft, { over: own });
+    case 'overdrawn':
+      return own === null ? item.title : fill(r.fact.overdrawn, { over: own });
     case 'reconsent':
       return r.fact.reconsent;
     case 'stale_statement': {
@@ -121,6 +125,48 @@ function useFact(item: AttentionItem, mode: MoneyDisplay): string {
     }
   }
 }
+
+/** The overdraft limit of an account that has none on record: one field and Save (the owner's figure wins over a bank's). */
+const LimitForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) => void }> = ({ account, onDone }) => {
+  const { t } = useDashboardLang();
+  const r = t.money.rec;
+  const [value, setValue] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const minor = parseMinor(value, account.currency, { signed: true });
+    if (minor === null || minor < 0) return setProblem(r.limitInvalid);
+    setBusy(true);
+    setProblem(null);
+    try {
+      await setOverdraftLimit(account.id, minor);
+      onDone(true);
+    } catch {
+      setProblem(r.actionFailed);
+      setBusy(false);
+    }
+  };
+  return (
+    <form className={styles.limitForm} onSubmit={submit} aria-label={`${r.setLimit}: ${account.name}`}>
+      <label className={styles.limitLabel}>
+        <span>{fill(r.fLimit, { currency: account.currency })}</span>
+        <input className={styles.limitInput} inputMode="decimal" value={value} onChange={(event) => setValue(event.target.value)} />
+      </label>
+      <button type="submit" className={styles.small} disabled={busy}>
+        {r.saveLimit}
+      </button>
+      <button type="button" className={styles.small} disabled={busy} onClick={() => onDone(false)}>
+        {r.cancel}
+      </button>
+      {problem && (
+        <p role="alert" className={styles.arowError}>
+          {problem}
+        </p>
+      )}
+    </form>
+  );
+};
 
 type RowContext = Omit<MoneyAttentionProps, 'data' | 'showHidden' | 'onToggleHidden'>;
 
@@ -132,6 +178,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
   const subject = useSubject(item, recurring, accounts, logos);
   const fact = useFact(item, mode);
   const [menu, setMenu] = useState(false);
+  const [limitForm, setLimitForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const hidden = item.state !== 'active';
@@ -167,6 +214,12 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
       primary = (
         <button type="button" className={styles.small} disabled={busy} onClick={() => act(() => markPaid(payment.id))}>
           {r.markPaid}
+        </button>
+      );
+    } else if (item.kind === 'overdrawn' && subject.account) {
+      primary = (
+        <button type="button" className={styles.small} aria-expanded={limitForm} onClick={() => setLimitForm((open) => !open)}>
+          {r.setLimit}
         </button>
       );
     } else if (reconnect) {
@@ -215,6 +268,9 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
           </button>
         )}
       </span>
+      {limitForm && !hidden && subject.account && (
+        <LimitForm account={subject.account} onDone={(saved) => { setLimitForm(false); if (saved) onChanged(); }} />
+      )}
       {menu && !hidden && (
         <div role="group" aria-label={fill(r.more, { name: subject.name })} className={styles.arowMenu}>
           {paymentLink && (
@@ -271,6 +327,20 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
     context.onChanged();
   };
 
+  /** One request for the whole group (the server's bulk endpoint); a failure is counted as the whole group. */
+  const bulkAll = async (send: (keys: string[]) => Promise<void>) => {
+    setBusy(true);
+    setFailures(0);
+    try {
+      await send(items.map((item) => item.key));
+    } catch {
+      setFailures(items.length);
+    }
+    setConfirming(false);
+    setBusy(false);
+    context.onChanged();
+  };
+
   const acceptable = group.kind === 'amount_changed' ? items.filter((item) => item.amount !== null && item.amount > 0 && payments.get(item.subjectId)?.currency === item.currency) : [];
   const titleId = `money-attention-${group.kind}`;
   return (
@@ -289,13 +359,13 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
           )}
           {items.length > 1 && (
             <>
-          <button type="button" className={styles.small} disabled={busy} onClick={() => bulk((item) => snoozeAttention(item.key, SNOOZE_ALL_DAYS))}>
+          <button type="button" className={styles.small} disabled={busy} onClick={() => bulkAll((keys) => bulkAttention(keys, 'snooze', SNOOZE_ALL_DAYS))}>
             {r.snoozeAll}
           </button>
           {confirming ? (
             <span role="group" aria-label={fill(r.confirmDismiss, { n: items.length })} className={styles.confirm}>
               <span>{fill(r.confirmDismiss, { n: items.length })}</span>
-              <button type="button" className={styles.small} disabled={busy} onClick={() => bulk((item) => dismissAttention(item.key))}>
+              <button type="button" className={styles.small} disabled={busy} onClick={() => bulkAll((keys) => bulkAttention(keys, 'dismiss'))}>
                 {r.confirmYes}
               </button>
               <button type="button" className={styles.small} disabled={busy} onClick={() => setConfirming(false)}>
@@ -380,7 +450,7 @@ const MoneyAttention: React.FC<MoneyAttentionProps> = ({ data, showHidden, onTog
           <>
             <ul className={styles.stripChips}>
               {groups.map((group) => (
-                <li key={group.kind} className={styles.stripChip} data-kind={group.kind} data-urgent={isUrgent(group.kind) ? 'true' : 'false'}>
+                <li key={group.kind} className={styles.stripChip} data-kind={group.kind} data-urgent={isUrgent(group.items[0]) ? 'true' : 'false'}>
                   {fill(pluralForm(r.chip[group.kind], group.items.length, lang), { n: group.items.length })}
                 </li>
               ))}

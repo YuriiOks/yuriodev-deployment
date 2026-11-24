@@ -52,6 +52,9 @@ describe('the recurring payments parsers', () => {
     expect(parsed?.items).toHaveLength(1);
     expect(parsed?.items[0].facts).toEqual({ over_by: 100 });
     expect(parsed?.hidden).toBe(2);
+    // No severity from an older server: the server's own table by kind; a given one is kept; an unknown one falls back too.
+    const rated = parseAttention({ items: [{ key: 'a', kind: 'overdraft', subject_type: 'account', subject_id: 'x', state: 'active', title: 't' }, { key: 'b', kind: 'overdrawn', severity: 'info', subject_type: 'account', subject_id: 'x', state: 'active', title: 't' }, { key: 'c', kind: 'credit_high', severity: 'urgent', subject_type: 'account', subject_id: 'x', state: 'active', title: 't' }], hidden: 0, display: null });
+    expect(rated?.items.map((entry) => entry.severity)).toEqual(['high', 'info', 'medium']);
     expect(parseAttention({ hidden: 1 })).toBeNull();
   });
 
