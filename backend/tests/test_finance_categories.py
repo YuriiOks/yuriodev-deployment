@@ -116,9 +116,7 @@ def test_an_unknown_provider_uses_the_card_code():
     assert categorize("sample", "5411", -100, False) == "groceries"
 
 
-async def test_the_month_report_per_currency_with_the_month_before(
-    db_url, make_dashboards_app
-):
+async def test_the_month_report_per_currency_with_the_month_before(db_url, make_dashboards_app):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         await seed(app)
