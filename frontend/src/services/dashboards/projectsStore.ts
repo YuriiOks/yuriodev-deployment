@@ -1,3 +1,4 @@
+import { updateBarCacheProjects } from './bootstrapStore';
 import { ApiError, createProject, fetchProjects, patchProject, type LiveProject } from './liveApi';
 
 /**
@@ -21,6 +22,7 @@ const listeners = new Set<() => void>();
 
 function set(next: ProjectsSnapshot) {
   snapshot = next;
+  if (next.status === 'ready') updateBarCacheProjects(next.projects.filter((project) => !project.archived).map(({ id, name, icon }) => ({ id, name, icon })));
   listeners.forEach((listener) => listener());
 }
 

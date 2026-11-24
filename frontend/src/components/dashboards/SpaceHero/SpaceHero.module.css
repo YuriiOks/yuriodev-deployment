@@ -9,7 +9,7 @@
   align-items: center;
   column-gap: var(--space-3);
   min-height: var(--dash-h-strip);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   box-sizing: border-box;
   border-color: color-mix(in srgb, var(--dash-accent) 40%, transparent);
   border-radius: var(--dash-r-surface);
