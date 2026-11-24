@@ -879,7 +879,7 @@ a Postgres advisory lock of its own, so it never holds up the task collectors), 
 31 days, refreshes accounts and balances every 20 minutes, then each account's newest window
 (starting 3 days before the previous one ended, so a hold that settles is updated, never
 duplicated), and only when nothing is due walks the history back one window per request until the
-configured depth, or until three empty windows in a row. A statement answer of 500 items (the cap
+configured depth, or, for an account whose opening date the bank does not give, until three empty windows in a row. A statement answer of 500 items (the cap
 observed in use; the documentation names none) is taken to have more behind it and the window
 is asked again for the rest. A window is fetched whole in memory and written in one transaction
 with its cursor, so a failed or partial fetch changes nothing and the window is asked again. A
@@ -949,8 +949,10 @@ can, newest to oldest, one 90-day window at a time, one request a second (the do
 no limit; a 429 pauses the collector). A window is written whole or not at all, so an interrupted
 walk simply continues. Once the five minutes are over it never asks for anything older than 90
 days and keeps the last 90 days fresh with a 3-day overlap, as for Monobank. If the five minutes
-were missed (the server was down), open the connect address again: a new consent resets the walk
-and opens a new full-history window. `collector.synced` for `monzo` logs counts only.
+were missed (the server was down) or the walk stopped short, open the connect address again: a
+new consent continues every unfinished account from where it stopped (to its opening date) inside
+a new full-history window. An account with a known opening date is walked back to it even through
+months without a single transaction. `collector.synced` for `monzo` logs counts only.
 
 Tokens. The access token (about six hours) and the refresh token live in
 `finance.monzo_token`, a table of this provider (never a shared one), stored as Monzo issued

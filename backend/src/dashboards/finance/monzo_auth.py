@@ -35,7 +35,7 @@ from uuid import UUID
 
 import httpx
 from pydantic import SecretStr
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -200,9 +200,16 @@ async def store_consent(
             .values(connection_id=link, **values)
             .on_conflict_do_update(index_elements=[MonzoToken.connection_id], set_=values)
         )
+        # An account whose walk stopped short of its opening date (or whose date is unknown)
+        # is walked again from where it stopped, inside the new approval's full-history window.
+        unfinished = or_(
+            Account.opened_at.is_(None),
+            Account.backfilled_from.is_(None),
+            Account.backfilled_from > Account.opened_at,
+        )
         await session.execute(
             update(Account)
-            .where(Account.provider == PROVIDER)
+            .where(Account.provider == PROVIDER, unfinished)
             .values(backfill_done=False, empty_streak=0)
         )
 

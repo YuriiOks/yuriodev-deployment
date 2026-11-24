@@ -23,6 +23,7 @@ from tests.monzo_support import (
     FakeMonzo,
     monzo_tx,
     no_sleep,
+    stamp,
 )
 
 pytestmark = pytest.mark.anyio
@@ -356,3 +357,116 @@ async def test_the_steady_loop_keeps_recent_days_fresh_and_updates_what_settles(
     assert results[0]["accounts"] == 2
     assert sum(r["added"] for r in results) == 1
     assert sum(r["updated"] for r in results) >= 1
+
+
+async def test_a_quiet_stretch_does_not_end_the_walk_of_an_account_with_an_opening_date(
+    db_url, make_dashboards_app, clock
+):
+    now = clock.now
+    fake = FakeMonzo(clock)
+    fake.accounts[0]["created"] = stamp(now - timedelta(days=700))
+    # Nothing at all for the first 600 days, then two payments near the opening.
+    fake.transactions = [
+        monzo_tx(1, now - timedelta(days=650), -900),
+        monzo_tx(2, now - timedelta(days=690), -800),
+    ]
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH), client_for(fake) as client:
+        await consent(app, fake, clock)
+        sessions = app.state.dashboards.sessions
+        results = await drive(collector_for(app, clock), client, sessions, clock, 2)
+
+    assert await scalar(db_url, COUNT) == 2  # the old payments were found past 6 empty windows
+    assert await account_field(db_url, "backfill_done") is True
+    reached = await account_field(db_url, "backfilled_from <= opened_at")
+    assert reached is True  # it walked back to the opening date
+    assert results[1]["calls"] == 0  # and then it is silent
+
+
+async def test_a_new_consent_resumes_only_the_accounts_that_stopped_short_of_their_opening(
+    db_url, make_dashboards_app, clock
+):
+    now = clock.now
+    fake = FakeMonzo(clock)
+    fake.transactions = [
+        monzo_tx(1, now - timedelta(days=10), -100),
+        monzo_tx(2, now - timedelta(days=300), -200),
+        monzo_tx(3, now - timedelta(days=500), -300),
+    ]
+    fake.accounts[0]["created"] = stamp(now - timedelta(days=600))
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH), client_for(fake) as client:
+        await consent(app, fake, clock)
+        sessions = app.state.dashboards.sessions
+        finance = collector_for(app, clock)
+        await drive(finance, client, sessions, clock, 1)
+        complete = await scalar(db_url, COUNT)
+        await consent(app, fake, clock)  # a walk that is finished stays finished
+        kept = await account_field(db_url, "backfill_done")
+        # The walk stopped early, as it did on dev: only the newest 100 days were fetched.
+        cut = (now - timedelta(days=100)).isoformat()
+        await execute(
+            db_url,
+            "UPDATE finance.account SET backfill_done = true, empty_streak = 3, "
+            "backfilled_from = 'CUT' WHERE type = 'uk_retail'".replace("CUT", cut),
+        )
+        await execute(
+            db_url,
+            "DELETE FROM finance.transaction WHERE booked_at < 'CUT'".replace("CUT", cut),
+        )
+        fake.approved_at = None  # the owner consents and approves again
+        await consent(app, fake, clock)
+        cleared = await account_field(db_url, "backfill_done")
+        await drive(finance, client, sessions, clock, 1)
+        resumed = await scalar(db_url, COUNT)
+
+    assert (complete, kept) == (3, True)
+    assert cleared is False  # stopped short of its opening date: walked again
+    assert resumed == 3  # from where it stopped, inside the new window
+    assert await account_field(db_url, "backfill_done") is True
+
+
+async def test_a_slow_answer_while_waiting_for_the_approval_does_not_end_the_wait(
+    db_url, make_dashboards_app, clock
+):
+    fake = FakeMonzo(clock)
+    fake.approve_after = 1
+    fake.accounts_errors = [httpx.ReadTimeout("slow")]  # the first ask times out
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH), client_for(fake) as client:
+        await consent(app, fake, clock)
+        result = await collector_for(app, clock).collect(
+            client, app.state.dashboards.sessions, clock.now
+        )
+
+    assert result["accounts"] == 2  # it asked again, was refused once, then approved
+    assert await scalar(db_url, "SELECT approved_at IS NOT NULL FROM finance.monzo_token") is True
+
+
+async def test_the_edge_of_the_five_minutes_is_not_a_refused_token(
+    db_url, make_dashboards_app, clock
+):
+    now = clock.now
+    fake = FakeMonzo(clock)
+    # Monzo's five minutes ended a minute before we noticed the approval.
+    fake.approved_at = now - timedelta(minutes=6)
+    fake.transactions = [
+        monzo_tx(1, now - timedelta(days=10), -100),
+        monzo_tx(2, now - timedelta(days=200), -200),
+    ]
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH), client_for(fake) as client:
+        await consent(app, fake, clock)
+        sessions = app.state.dashboards.sessions
+        finance = collector_for(app, clock)
+        with pytest.raises(UpstreamError) as closed:
+            await finance.collect(client, sessions, clock.now)
+        status = await scalar(db_url, "SELECT status FROM finance.connection")
+        clock.now += timedelta(seconds=90)
+        again = await finance.collect(client, sessions, clock.now)
+
+    assert closed.value.kind == "history_closed"
+    assert status == "ok"  # the link is fine, the history beyond 90 days is just gone
+    assert again["calls"] == 0  # the walk ended at the 90-day limit, nothing is retried
+    assert await scalar(db_url, COUNT) == 1
+    assert await account_field(db_url, "backfill_done") is True

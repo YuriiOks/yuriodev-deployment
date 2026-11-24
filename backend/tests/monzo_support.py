@@ -96,6 +96,7 @@ class FakeMonzo:
         self.transactions: list[dict[str, Any]] = []
         self.order = "ascending"
         self.calls: list[tuple[str, str, dict[str, str]]] = []
+        self.accounts_errors: list[Exception] = []  # raised by /accounts, one per call, first
 
     def new_pair(self) -> TokenPair:
         self.issued += 1
@@ -158,6 +159,8 @@ class FakeMonzo:
         return json_response({"error": "unsupported_grant_type"}, 400)
 
     def _accounts(self, params: dict[str, str]) -> httpx.Response:
+        if self.accounts_errors:
+            raise self.accounts_errors.pop(0)
         self.accounts_calls += 1
         waiting = self.approved_at is None and self.approve_after is not None
         if waiting and self.accounts_calls > (self.approve_after or 0):
