@@ -28,7 +28,7 @@ def read_text_file(path: str | None) -> str | None:
     if 0 < info.st_size <= MAX_FILE_BYTES:
         try:
             text = Path(path).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+        except OSError, UnicodeDecodeError:
             text = None
     _cache[path] = (stamp, text)
     return text
