@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'recurringWrite' | 'attentionWrite' | 'manualWrite';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'recurringWrite' | 'attentionWrite' | 'manualWrite' | 'manualConnection' | 'manualAccount';
 
 export interface Call {
   readonly method: string;
@@ -213,6 +213,25 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       found.state = attentionAction[1] === 'snooze' ? 'snoozed' : attentionAction[1] === 'dismiss' ? 'dismissed' : 'active';
       found.snoozed_until = attentionAction[1] === 'snooze' ? '2026-12-01T00:00:00Z' : null;
       return json(found);
+    }
+    if (path === '/finance/manual/connections' && method === 'POST') {
+      if (api.fail.has('manualConnection')) return json({ error: 'validation_error', message: 'that bank is already entered', request_id: 'test' }, 422);
+      const link = { id: `conn-${++counter}`, provider: String(body?.provider), status: 'ok', status_changed_at: null, last_ok_at: '2026-11-24T12:00:00Z', manual: true, display_name: typeof body?.display_name === 'string' ? body.display_name : null };
+      api.finance.connections.push(link);
+      if (typeof body?.brand_bg === 'string') {
+        (api.finance.providers ??= []).push({ id: link.provider, name: link.display_name ?? link.provider, entry: 'manual', colors: { background: body.brand_bg, foreground: body.brand_fg }, logo: { on_light: null, on_dark: null, mark: null } });
+      }
+      return json(link, 201);
+    }
+    if (path === '/finance/manual/accounts' && method === 'POST') {
+      if (api.fail.has('manualAccount')) return json({ error: 'validation_error', message: 'a credit card needs credit_limit above 0', request_id: 'test' }, 422);
+      const link = api.finance.connections.find((row) => row.id === body?.connection_id);
+      if (!link) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      const card = body?.kind === 'credit_card';
+      const balance = card ? (body?.credit_limit as number) - (body?.owed as number) : (body?.balance as number);
+      const created = { id: `acc-${++counter}`, connection_id: link.id, provider: link.provider, type: card ? 'credit' : 'current', kind: body?.kind, name: body?.name, currency: body?.currency, balance, credit_limit: card ? body?.credit_limit : 0, own_balance_minor: card ? -(body?.owed as number) : balance, mask_last4: body?.mask_last4 ?? null, balance_at: '2026-11-24T12:00:00Z', history_from: null, archived: false };
+      api.finance.accounts.push(created);
+      return json(created, 201);
     }
     const manualCall = /^\/finance\/manual\/accounts\/([\w-]+)\/(balance|statement)$/.exec(path);
     if (manualCall && method === 'POST') {

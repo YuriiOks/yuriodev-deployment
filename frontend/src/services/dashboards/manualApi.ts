@@ -86,3 +86,33 @@ export async function uploadStatement(accountId: string, data: ArrayBuffer, { dr
     throw error;
   }
 }
+
+/** A bank entered by hand: a built-in brand's id, or a neutral id of the owner's own with a name and colours. Resolves with the new connection's id. */
+export async function createManualConnection(body: { provider: string; displayName?: string; brandBg?: string; brandFg?: string }): Promise<string> {
+  const answer = await request('/finance/manual/connections', {
+    method: 'POST',
+    body: { provider: body.provider, ...(body.displayName ? { display_name: body.displayName } : {}), ...(body.brandBg ? { brand_bg: body.brandBg } : {}), ...(body.brandFg ? { brand_fg: body.brandFg } : {}) },
+  });
+  const id = isObject(answer) ? text(answer.id) : null;
+  if (!id) throw new Error('manual: unreadable connection answer');
+  return id;
+}
+
+export type ManualAccountKind = 'current' | 'savings' | 'business' | 'credit_card';
+
+/** What an account of a bank entered by hand is made from (a card: its limit and what is owed; any other: its balance, which may be below nothing). */
+export interface ManualAccountBody {
+  readonly connection_id: string;
+  readonly name: string;
+  readonly kind: ManualAccountKind;
+  readonly currency: string;
+  readonly balance?: number;
+  readonly credit_limit?: number;
+  readonly owed?: number;
+  readonly as_of?: string;
+  readonly mask_last4?: string;
+}
+
+export async function createManualAccount(body: ManualAccountBody): Promise<void> {
+  await request('/finance/manual/accounts', { method: 'POST', body });
+}

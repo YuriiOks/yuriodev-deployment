@@ -103,3 +103,26 @@
   color: var(--dash-t1);
   list-style: none;
 }
+
+.colorInput {
+  width: 100%;
+  height: var(--dash-h-input);
+  padding: 0 var(--space-1);
+  box-sizing: border-box;
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+  cursor: pointer;
+}
+
+/* The new bank's card colours, as they will be (its name on its colour). */
+.swatch {
+  display: flex;
+  flex: 1 1 12rem;
+  align-items: center;
+  min-height: var(--dash-h-input);
+  padding: 0 var(--space-4);
+  border-radius: var(--dash-r-control);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+}

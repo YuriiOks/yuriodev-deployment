@@ -52,6 +52,12 @@ export function luminance(hex: string): number {
   return 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2);
 }
 
+/** The WCAG contrast ratio of two #rrggbb colours (1 to 21). */
+export function contrastRatio(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
 /** Whether white ink reads better than dark ink on this background (the logo variant is chosen by the card's real background, not the theme). */
 export const prefersWhiteInk = (bg: string): boolean => luminance(bg) < 0.18;
 

@@ -37,6 +37,37 @@ export interface ManualStrings {
   readonly uploadRefused: string;
   readonly uploadFailed: string;
   readonly close: string;
+  readonly addBank: string;
+  readonly addAccount: string;
+  readonly fBank: string;
+  readonly otherBank: string;
+  readonly fBankName: string;
+  readonly fBgColor: string;
+  readonly fFgColor: string;
+  readonly contrastLow: string;
+  readonly fAccountName: string;
+  readonly fKind: string;
+  readonly kindCurrent: string;
+  readonly kindSavings: string;
+  readonly kindBusiness: string;
+  readonly kindCard: string;
+  readonly fCurrency: string;
+  readonly fCreditLimit: string;
+  readonly fOwedNow: string;
+  readonly fLast4: string;
+  readonly fAsOfOptional: string;
+  readonly createBank: string;
+  readonly createAccount: string;
+  readonly creating: string;
+  readonly nameRequired: string;
+  readonly currencyInvalid: string;
+  readonly limitInvalid: string;
+  readonly owedInvalid: string;
+  readonly last4Invalid: string;
+  readonly createFailed: string;
+  readonly createRefused: string;
+  readonly accountAfterBank: string;
+  readonly defaultAccountName: string;
 }
 
 export const MANUAL_RU: ManualStrings = {
@@ -77,6 +108,37 @@ export const MANUAL_RU: ManualStrings = {
   uploadRefused: 'Файл не принят: {why}',
   uploadFailed: 'Не удалось загрузить файл. Повторите.',
   close: 'Закрыть',
+  addBank: 'Добавить банк',
+  addAccount: 'Добавить счёт',
+  fBank: 'Банк',
+  otherBank: 'Другой банк…',
+  fBankName: 'Название банка',
+  fBgColor: 'Цвет карточки',
+  fFgColor: 'Цвет текста',
+  contrastLow: 'Выберите цвета контрастнее (не меньше 4.5 к 1).',
+  fAccountName: 'Название счёта',
+  fKind: 'Тип',
+  kindCurrent: 'Текущий счёт',
+  kindSavings: 'Накопительный',
+  kindBusiness: 'Бизнес',
+  kindCard: 'Кредитная карта',
+  fCurrency: 'Валюта',
+  fCreditLimit: 'Кредитный лимит',
+  fOwedNow: 'Долг сейчас',
+  fLast4: 'Последние 4 цифры (необязательно)',
+  fAsOfOptional: 'На дату (необязательно)',
+  createBank: 'Добавить банк',
+  createAccount: 'Добавить счёт',
+  creating: 'Добавляю…',
+  nameRequired: 'Введите название.',
+  currencyInvalid: 'Три заглавные буквы, например GBP',
+  limitInvalid: 'Введите лимит больше нуля',
+  owedInvalid: 'Введите долг вроде 120.50 или оставьте пустым',
+  last4Invalid: 'Ровно четыре цифры',
+  createFailed: 'Не удалось добавить. Повторите.',
+  createRefused: 'Не удалось добавить: {why}',
+  accountAfterBank: 'Банк добавлен, а счёт нет: {why}. Попробуйте добавить счёт ещё раз.',
+  defaultAccountName: 'Текущий счёт',
 };
 
 export const MANUAL_EN: ManualStrings = {
@@ -117,4 +179,35 @@ export const MANUAL_EN: ManualStrings = {
   uploadRefused: 'The file was refused: {why}',
   uploadFailed: 'Could not upload the file. Try again.',
   close: 'Close',
+  addBank: 'Add a bank',
+  addAccount: 'Add an account',
+  fBank: 'Bank',
+  otherBank: 'Another bank…',
+  fBankName: 'Bank name',
+  fBgColor: 'Card colour',
+  fFgColor: 'Text colour',
+  contrastLow: 'Choose colours with more contrast (at least 4.5 to 1).',
+  fAccountName: 'Account name',
+  fKind: 'Type',
+  kindCurrent: 'Current account',
+  kindSavings: 'Savings',
+  kindBusiness: 'Business',
+  kindCard: 'Credit card',
+  fCurrency: 'Currency',
+  fCreditLimit: 'Credit limit',
+  fOwedNow: 'Owed now',
+  fLast4: 'Last four digits (optional)',
+  fAsOfOptional: 'As of (optional)',
+  createBank: 'Add bank',
+  createAccount: 'Add account',
+  creating: 'Adding…',
+  nameRequired: 'Enter a name.',
+  currencyInvalid: 'Three capital letters, like GBP',
+  limitInvalid: 'Enter a limit above zero',
+  owedInvalid: 'Enter what is owed, like 120.50, or leave it empty',
+  last4Invalid: 'Exactly four digits',
+  createFailed: 'Could not add it. Try again.',
+  createRefused: 'Could not add it: {why}',
+  accountAfterBank: 'The bank was added but its account was not: {why}. Try adding the account again.',
+  defaultAccountName: 'Current account',
 };
