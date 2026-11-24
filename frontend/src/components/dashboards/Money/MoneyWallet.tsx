@@ -9,7 +9,8 @@ import { creditUse, groupBanks, potParts, sharedNames, splitBank, type Bank } fr
 import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import Amount, { ShownAmount } from './Amount';
-import BankMark, { brandStyle } from './BankMark';
+import BankMark from './BankMark';
+import { brandStyle } from './brandStyle';
 import BankName from './BankName';
 import { dayLabel, whenLabel } from './labels';
 import { reconnectPath } from './providers';
