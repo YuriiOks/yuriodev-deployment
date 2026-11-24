@@ -236,7 +236,7 @@ describe('the Money page: Today', () => {
     expect(within(main()).getByText('Due in 14 days')).toBeInTheDocument();
     expect(within(main()).getByText('£1,071.99')).toBeInTheDocument();
     expect(within(main()).getByText(/of which confirmed by the bank: £0\.00/)).toBeInTheDocument();
-    const breakdown = within((await within(main()).findByRole('heading', { level: 3, name: 'Where the money went' })).closest('div') as HTMLElement);
+    const breakdown = within(await within(main()).findByRole('region', { name: 'Where the money went' }));
     expect(breakdown.getAllByRole('listitem')).toHaveLength(4);
     expect(breakdown.getByText('What rose: Entertainment')).toBeInTheDocument();
     expect(breakdown.getByText(/By Oct 24, 2026 last month it was £37\.00, now £460\.00/)).toBeInTheDocument();
@@ -245,7 +245,7 @@ describe('the Money page: Today', () => {
   it('lists the banks with how fresh each one\'s data is', async () => {
     setup();
     renderAt(PATH);
-    const banks = within((await within(main()).findByRole('heading', { level: 3, name: 'Banks today' })).closest('div') as HTMLElement);
+    const banks = within(await within(main()).findByRole('region', { name: 'Banks today' }));
     expect(await banks.findByText(/updated 5 minutes ago/)).toBeInTheDocument();
     expect(banks.getByText(/Acme bank · £1,500\.00/)).toBeInTheDocument();
     expect(banks.getByRole('link', { name: 'Wallet →' })).toHaveAttribute('href', expect.stringContaining('view=wallet'));

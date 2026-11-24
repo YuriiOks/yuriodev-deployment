@@ -227,21 +227,23 @@ describe('the Money page: the sections switch', () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
     renderAt(PATH);
-    const nav = within(await within(main()).findByRole('navigation', { name: 'Money sections' }));
-    expect(nav.getAllByRole('link').map((link) => link.textContent)).toEqual(['Today', 'Wallet', 'Payments', 'Spending', 'Transactions']);
-    expect(nav.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+    // The tabs move with the view, so they are looked up afresh each time.
+    const nav = () => within(screen.getByRole('navigation', { name: 'Money sections' }));
+    await within(main()).findByRole('navigation', { name: 'Money sections' });
+    expect(nav().getAllByRole('link').map((link) => link.textContent)).toEqual(['Today', 'Wallet', 'Payments', 'Spending', 'Transactions']);
+    expect(nav().getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
     // Today does not carry the other sections.
     expect(within(main()).queryByRole('region', { name: 'Wallet' })).toBeNull();
-    await user.click(nav.getByRole('link', { name: 'Wallet' }));
+    await user.click(nav().getByRole('link', { name: 'Wallet' }));
     expect(await within(main()).findByRole('region', { name: 'Wallet' })).toBeInTheDocument();
     expect(within(main()).queryByRole('region', { name: 'Spend by category' })).toBeNull();
-    await user.click(nav.getByRole('link', { name: 'Payments' }));
+    await user.click(nav().getByRole('link', { name: 'Payments' }));
     expect(await within(main()).findByRole('region', { name: 'Upcoming payments' })).toBeInTheDocument();
-    await user.click(nav.getByRole('link', { name: 'Spending' }));
+    await user.click(nav().getByRole('link', { name: 'Spending' }));
     expect(await within(main()).findByRole('region', { name: 'Spend by category' })).toBeInTheDocument();
-    await user.click(nav.getByRole('link', { name: 'Transactions' }));
+    await user.click(nav().getByRole('link', { name: 'Transactions' }));
     expect(await within(main()).findByRole('region', { name: 'Transactions' })).toBeInTheDocument();
-    await user.click(nav.getByRole('link', { name: 'Today' }));
+    await user.click(nav().getByRole('link', { name: 'Today' }));
     expect(await within(main()).findByRole('heading', { level: 3, name: /First this/ })).toBeInTheDocument();
     // The whole attention list and the payments list are reached from Today's queue and from Payments.
     await user.click(within(main()).getByRole('link', { name: 'All 12' }));
@@ -789,7 +791,7 @@ describe('the Money page: managing recurring payments', () => {
     expect(names().some((name) => name?.startsWith('Old magazine'))).toBe(true);
     expect(panel.getByText('· inactive')).toBeInTheDocument();
     await user.click(panel.getByRole('link', { name: 'Back to Money' }));
-    expect(await within(main()).findByRole('region', { name: 'Wallet' })).toBeInTheDocument();
+    expect(await within(main()).findByRole('region', { name: /First this/ })).toBeInTheDocument();
   });
 
   it('edits the account, the amount, the next date and the match text, sending only what changed', async () => {

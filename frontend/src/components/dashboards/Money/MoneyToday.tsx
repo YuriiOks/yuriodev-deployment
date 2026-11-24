@@ -205,7 +205,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
       }}
       soon={{ title: td.soonTitle, linkLabel: td.soonLink, linkTo: '?view=payments', rows: soon.map((item) => <SoonRow key={`${item.recurringId}-${item.dueDate}`} item={item} mode={mode} onChanged={onChanged} />), shown: soon.length, empty: td.soonEmpty }}
       stats={[
-        { key: 'spent', label: fill(td.stats.spentIn, { month }), value: view ? `${view.approx ? '≈ ' : ''}${formatMinor(view.spent, view.currency, lang)}` : '—', note: view ? spentNote : td.breakdown.empty },
+        { key: 'spent', label: fill(td.stats.spentIn, { month }), value: view ? `${view.approx ? '≈ ' : ''}${formatMinor(view.spent, view.currency, lang)}` : '—', note: view ? spentNote : '' },
         { key: 'due', label: fill(td.stats.dueIn, { days: DUE_DAYS }), value: dueText, note: fill(td.stats.dueConfirmed, { amount: confirmedText }) },
       ]}
       breakdown={{

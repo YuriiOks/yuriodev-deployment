@@ -209,7 +209,7 @@ export default TodayLayout;
 
 /** A card of the right column: a title, an optional link to the full view, and rows. */
 export const SideCard: React.FC<{ title: string; linkLabel?: string; linkTo?: string; children: React.ReactNode }> = ({ title, linkLabel, linkTo, children }) => (
-  <div className={styles.sideCard}>
+  <div className={styles.sideCard} role="region" aria-label={title}>
     <div className={styles.sectionHead}>
       <h3 className={styles.sectionTitle}>{title}</h3>
       {linkTo && linkLabel && (
