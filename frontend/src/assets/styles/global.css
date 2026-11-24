@@ -220,3 +220,9 @@ h2::after {
     height: 0.125rem;
     background: linear-gradient(90deg, transparent, var(--cyan-edge), var(--amber-edge), transparent);
 }
+
+/* A dashboards page (no site chrome) clips its horizontal overflow instead of hiding it, so the body is not a scroll container and
+   position: sticky inside the page sticks to the window. */
+body:has(main[class*="bareContent"]) {
+    overflow-x: clip;
+}
