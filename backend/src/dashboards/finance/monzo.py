@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.http import UpstreamError, get_json_capped
 from src.dashboards.finance.base import AccountData, ProviderDefaults, TransactionData
+from src.dashboards.finance.categories import categorize
 from src.dashboards.finance.monzo_auth import (
     API_URL,
     TokenView,
@@ -44,7 +45,6 @@ from src.dashboards.finance.monzo_auth import (
     token_view,
     usable_token,
 )
-from src.dashboards.finance.categories import categorize
 from src.dashboards.finance.parsing import (
     bad,
     iso_code,

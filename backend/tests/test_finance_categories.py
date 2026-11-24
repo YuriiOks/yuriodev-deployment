@@ -277,6 +277,9 @@ async def test_the_tools(db_url, make_dashboards_app):
     assert '"month":"2026-10"' in report.content[0].text
     assert found.content[0].text.count('"category":"groceries"') == 2
     assert '"category":"health"' in noted.content[0].text
-    assert bad_id.is_error and "Invalid transaction id" in bad_id.content[0].text
-    assert bad_category.is_error and "Invalid category" in bad_category.content[0].text
-    assert bad_month.is_error and "Invalid month" in bad_month.content[0].text
+    assert bad_id.is_error
+    assert "Invalid transaction id" in bad_id.content[0].text
+    assert bad_category.is_error
+    assert "Invalid category" in bad_category.content[0].text
+    assert bad_month.is_error
+    assert "Invalid month" in bad_month.content[0].text

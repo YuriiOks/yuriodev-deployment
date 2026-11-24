@@ -198,10 +198,7 @@ def parse_account(row: Any) -> AccountData:
     label = ACCOUNT_LABELS.get(kind or "", "Account")
     credit = row.get("creditLimit")
     limit = 0 if credit is None else whole(credit)
-    if kind == "fop":
-        account_kind = "business"
-    else:
-        account_kind = "credit_card" if limit > 0 else "current"
+    account_kind = "business" if kind == "fop" else "credit_card" if limit > 0 else "current"
     return AccountData(
         external_id=external_id,
         name=f"{label} {currency}",
