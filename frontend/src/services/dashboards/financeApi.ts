@@ -47,6 +47,7 @@ export const CATEGORIES = [
   'debt',
   'income',
   'transfers',
+  'transfers_out',
   'cash',
   'other',
 ] as const;

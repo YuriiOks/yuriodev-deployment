@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { formatMinor } from '../../../services/dashboards/money';
@@ -65,12 +65,44 @@ const DebtCard: React.FC<{ row: Recurring; mode: MoneyDisplay }> = ({ row, mode 
   );
 };
 
-const MoneyDebts: React.FC<{ rows: readonly Recurring[]; mode: MoneyDisplay }> = ({ rows, mode }) => (
-  <ul className={styles.debtList}>
-    {rows.map((row) => (
-      <DebtCard key={row.id} row={row} mode={mode} />
-    ))}
-  </ul>
-);
+/** What is still owed across the debts, as one figure per currency (in pounds mode the converted figure where the server has one, marked "≈"). */
+export function remainingTotals(rows: readonly Recurring[], mode: MoneyDisplay): { amount: number; currency: string; approx: boolean }[] {
+  const totals = new Map<string, { amount: number; approx: boolean }>();
+  for (const row of rows) {
+    if (row.remainingBalance === null) continue;
+    const useDisplay = mode === 'base' && row.displayRemaining !== null && row.displayRemaining.currency !== row.currency;
+    const code = useDisplay && row.displayRemaining ? row.displayRemaining.currency : row.currency;
+    const amount = useDisplay && row.displayRemaining ? row.displayRemaining.amount : row.remainingBalance;
+    const entry = totals.get(code) ?? { amount: 0, approx: false };
+    totals.set(code, { amount: entry.amount + amount, approx: entry.approx || useDisplay });
+  }
+  return [...totals.entries()].map(([currency, entry]) => ({ currency, ...entry }));
+}
+
+/** The debts: collapsed to one summary row (how many, how much is left), the cards one click away. */
+const MoneyDebts: React.FC<{ rows: readonly Recurring[]; mode: MoneyDisplay }> = ({ rows, mode }) => {
+  const { t, lang } = useDashboardLang();
+  const r = t.money.rec;
+  const [open, setOpen] = useState(false);
+  const totals = remainingTotals(rows, mode);
+  const amount = totals.map((total) => `${total.approx ? '≈ ' : ''}${formatMinor(total.amount, total.currency, lang)}`).join(' · ');
+  return (
+    <>
+      <div className={styles.debtSummary}>
+        <span className={styles.debtSummaryText}>{totals.length > 0 ? fill(r.debtsSummary, { n: rows.length, amount }) : String(rows.length)}</span>
+        <button type="button" className={styles.more} aria-expanded={open} aria-controls="money-debts-list" onClick={() => setOpen((on) => !on)}>
+          {open ? r.debtsHide : r.debtsShow}
+        </button>
+      </div>
+      {open && (
+        <ul id="money-debts-list" className={styles.debtList}>
+          {rows.map((row) => (
+            <DebtCard key={row.id} row={row} mode={mode} />
+          ))}
+        </ul>
+      )}
+    </>
+  );
+};
 
 export default MoneyDebts;

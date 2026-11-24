@@ -131,77 +131,263 @@
   object-fit: contain;
 }
 
-/* Needs attention. */
-.hiddenLine {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: auto;
-  color: var(--dash-t2);
-  font-size: var(--dash-fs-meta);
-}
-
-.attentionList {
+/* Needs attention: one compact strip (collapsed by default), opened into groups of dense rows. */
+.strip {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin: 0;
-  padding: 0 var(--space-3) var(--space-3);
-  list-style: none;
-}
-
-.attention {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--dash-chip);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  box-sizing: border-box;
   border-radius: var(--dash-r-surface);
 }
 
-.attention[data-state="snoozed"],
-.attention[data-state="dismissed"] {
-  opacity: 0.8;
+.stripHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.attentionMark {
-  display: inline-flex;
+.stripTitle {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+.stripTitle::before {
+  content: '# ';
+  color: var(--dash-accent);
+}
+
+.stripTitle::after {
+  content: none;
+}
+
+.stripCount {
+  composes: count from '../Panel/Panel.module.css';
+}
+
+.stripToggle {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  margin-left: auto;
+}
+
+.stripChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stripChip {
+  padding: 0 var(--space-2);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-ui);
+  white-space: nowrap;
+}
+
+.stripChip[data-urgent="true"] {
+  border-color: var(--dash-warn);
+}
+
+.urgent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+}
+
+.urgent svg {
   flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  margin-top: var(--space-1);
   color: var(--dash-warn);
 }
 
-.attentionBody {
+.agroups {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
+  gap: var(--space-3);
 }
 
-.attentionText {
-  margin: 0;
-  color: var(--dash-t1);
-  overflow-wrap: anywhere;
-}
-
-.snooze {
-  display: inline-flex;
-  align-items: center;
+.agroup {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-1);
 }
 
-.snoozeLabel {
-  display: inline-flex;
+.agroupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
 }
 
-.snooze .select {
-  width: auto;
+.agroupTitle {
+  margin: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+.agroupTitle::before,
+.agroupTitle::after {
+  content: none;
+}
+
+.agroupCount {
+  color: var(--dash-t2);
+  font-weight: 400;
+}
+
+.agroupActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-meta);
+}
+
+.arows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One row, about 40px: the subject's icon, the name with the fact in short form, the primary action and the menu button. */
+.arow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-height: 2.5rem;
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--dash-line);
+}
+
+.arows > .arow:first-child {
+  border-top: 0;
+}
+
+.arowIcon {
+  display: inline-flex;
+  flex: none;
+}
+
+.arowIcon > span {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: var(--dash-fs-meta);
+}
+
+.arowAlert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dash-warn);
+}
+
+.arowMain {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  min-width: 0;
+}
+
+.arowName {
+  overflow: hidden;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arowFact {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.arowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.arowMenu {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding-bottom: var(--space-1);
+}
+
+.arowError {
+  composes: error from '../../../assets/styles/dashboard-forms.module.css';
+  flex-basis: 100%;
+}
+
+/* A small button: the control radius at 32px, the secondary look. */
+.small {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  height: 2rem;
+  padding: 0 var(--space-3);
+  font-size: var(--dash-fs-meta);
+}
+
+.dots {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  height: 2rem;
+  min-width: 2rem;
+  padding: 0 var(--space-2);
+}
+
+.more,
+.linkButton {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  align-self: flex-start;
+  height: 2rem;
+  font-size: var(--dash-fs-meta);
+}
+
+.hiddenLine {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  white-space: nowrap;
 }
 
 /* Upcoming payments. */
@@ -292,7 +478,20 @@
   list-style: none;
 }
 
-/* Debts and installments. */
+/* Debts and installments: a summary row, the cards on request. */
+.debtSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.debtSummaryText {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+}
+
 .debtList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
