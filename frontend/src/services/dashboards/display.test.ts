@@ -21,8 +21,11 @@ const acct = (id: string, currency: string, own: number, display: FinanceAccount
   parentId: null,
   goalAmount: null,
   overdraftLimit: null,
+  overdraftSource: null,
+  overdraftBank: null,
   availableMinor: own,
   display,
+  converted: display !== null && display.currency !== currency,
   ...extra,
 });
 

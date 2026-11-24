@@ -21,8 +21,11 @@ const acct = (id: string, extra: Partial<FinanceAccount> = {}): FinanceAccount =
   parentId: null,
   goalAmount: null,
   overdraftLimit: null,
+  overdraftSource: null,
+  overdraftBank: null,
   availableMinor: 1000,
   display: null,
+  converted: false,
   ...extra,
 });
 

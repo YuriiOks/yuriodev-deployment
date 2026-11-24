@@ -28,7 +28,7 @@ const MoneyTotals: React.FC<MoneyTotalsProps> = ({ accounts, summary, mode }) =>
   if (natives.length === 0) return null;
   const grand = mode === 'base' ? grandTotal(accounts, summary) : null;
   const rate = summary?.rateAsOf ? whenLabel(summary.rateAsOf, lang) : '';
-  const missing = grand ? unconvertedCurrencies(accounts) : [];
+  const missing = grand ? (summary?.display?.missing ?? unconvertedCurrencies(accounts)) : [];
   const counts = new Map<string, number>();
   for (const account of accounts) if (!account.archived) counts.set(account.currency, (counts.get(account.currency) ?? 0) + 1);
 

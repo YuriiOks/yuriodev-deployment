@@ -1,4 +1,4 @@
-import { isIconUri, request } from './liveApi';
+import { request } from './liveApi';
 
 /*
  * The read-only finance API (GET /api/dashboards/v1/finance/...): accounts with their balances and the state of each bank
@@ -8,6 +8,21 @@ import { isIconUri, request } from './liveApi';
  */
 
 export type ConnectionStatus = 'ok' | 'needs_reconsent' | 'paused';
+
+/** The rate a currency was converted with: display units per one unit of it (exact decimal text), as of the source's own time. */
+export interface FxRate {
+  readonly rate: string;
+  readonly asOf: string | null;
+  readonly source: string;
+}
+
+/** The root `display` block of an answer that converts: the display currency, the rates used and the currencies with no usable rate. */
+export interface DisplayInfo {
+  readonly currency: string;
+  readonly rates: Readonly<Record<string, FxRate>>;
+  /** Currencies with no rate (none, or older than three days): their display fields are null and nothing is guessed. */
+  readonly missing: readonly string[];
+}
 
 /** An amount converted into the display currency (pounds) at the server's latest rate. */
 export interface Converted {
@@ -67,29 +82,35 @@ export interface FinanceAccount {
   readonly goalAmount: number | null;
   /** A current account's agreed overdraft, when known. */
   readonly overdraftLimit: number | null;
+  /** Whose overdraft limit is in force: the owner's own setting, or the bank's (null: none known). */
+  readonly overdraftSource: 'owner' | 'bank' | null;
+  /** What the bank itself sent, whether or not the owner overrides it. */
+  readonly overdraftBank: number | null;
   /** What can be spent: the balance plus the overdraft. */
   readonly availableMinor: number;
   /** The owner's own money converted into the display currency, when the server has a rate for this currency (null: show the original only). */
   readonly display: Converted | null;
+  /** The display figure is an approximation (another currency than the display one). */
+  readonly converted: boolean;
 }
 
-/** A bank's official wordmark, one image for a dark card and one for a light one (data URIs the server keeps in its settings). */
+/** A bank's official wordmark: one image with dark ink for a light card and one with white ink for a dark one (data URIs, from GET /finance/providers). */
 export interface ProviderLogo {
-  readonly light: string | null;
-  readonly dark: string | null;
+  readonly onLight: string | null;
+  readonly onDark: string | null;
 }
 
 export interface FinanceConnection {
   readonly provider: string;
   readonly status: ConnectionStatus;
   readonly lastOkAt: string | null;
-  /** The provider's logo when the server has one; null: the text name is shown. */
-  readonly logo: ProviderLogo | null;
 }
 
 export interface FinanceAccounts {
   readonly accounts: readonly FinanceAccount[];
   readonly connections: readonly FinanceConnection[];
+  /** The conversion block, when the server sends one. */
+  readonly display: DisplayInfo | null;
 }
 
 export interface FinanceTransaction {
@@ -108,6 +129,7 @@ export interface FinanceTransaction {
   readonly internalTransfer: boolean;
   /** The amount in the display currency (null: no rate, or already in it). */
   readonly display: Converted | null;
+  readonly converted: boolean;
   /** The owner's override, else the normalised category (never missing: "other" when the server sends none). */
   readonly category: Category;
   readonly categoryOverridden: boolean;
@@ -116,6 +138,7 @@ export interface FinanceTransaction {
 export interface TransactionsPage {
   readonly transactions: readonly FinanceTransaction[];
   readonly nextCursor: string | null;
+  readonly display: DisplayInfo | null;
 }
 
 export interface CurrencySummary {
@@ -131,8 +154,13 @@ export interface FinanceSummary {
   readonly month: string;
   readonly asOf: string | null;
   readonly currencies: readonly CurrencySummary[];
-  /** One total in the display currency, and when the rate behind it is from (null until the server sends them). */
+  /** One grand total in the display currency (the converted parts, each converted once, added), null until the server sends it. */
   readonly total: Converted | null;
+  /** False when a currency with no rate was left out of the grand total. */
+  readonly complete: boolean;
+  /** The conversion block (rates used, currencies with no rate). */
+  readonly display: DisplayInfo | null;
+  /** The oldest rate time among the rates used, shown once beside the total. */
   readonly rateAsOf: string | null;
 }
 
@@ -143,28 +171,45 @@ const int = (value: unknown): number | null => (typeof value === 'number' && Num
 const CURRENCY = /^[A-Z]{3}$/;
 const currency = (value: unknown): string | null => (typeof value === 'string' && CURRENCY.test(value) ? value : null);
 
-/*
- * The converted figures and the logos are read under the names the server is expected to use (`display_balance` and `display_amount` with
- * `display_currency`, a summary `display_total`, `rate_as_of`, a connection `logo` with `light` and `dark`); until the server sends them
- * every field is null and the page shows the originals and the text names. A wrong or missing field only drops that one slot.
- */
-const converted = (amount: unknown, code: unknown): Converted | null => {
+const converted = (amount: unknown, code: string | null): Converted | null => {
   const value = int(amount);
-  const cur = currency(code);
-  return value !== null && cur ? { amount: value, currency: cur } : null;
+  return value !== null && code ? { amount: value, currency: code } : null;
 };
 
-const logoOf = (raw: unknown): ProviderLogo | null => {
+/** The root `display` block of an answer that converts, or null when the server sends none (an older one). */
+export function parseDisplayInfo(raw: unknown): DisplayInfo | null {
   if (!isObject(raw)) return null;
-  const light = isIconUri(raw.light) ? raw.light : null;
-  const dark = isIconUri(raw.dark) ? raw.dark : null;
-  return light || dark ? { light, dark } : null;
-};
+  const code = currency(raw.currency);
+  if (!code) return null;
+  const rates: Record<string, FxRate> = {};
+  if (isObject(raw.rates)) {
+    for (const [name, entry] of Object.entries(raw.rates)) {
+      if (CURRENCY.test(name) && isObject(entry) && typeof entry.rate === 'string' && /^\d+(\.\d+)?$/.test(entry.rate)) {
+        rates[name] = { rate: entry.rate, asOf: text(entry.as_of), source: text(entry.source) ?? '' };
+      }
+    }
+  }
+  const missing = Array.isArray(raw.missing) ? raw.missing.flatMap((entry) => (currency(entry) ? [entry as string] : [])) : [];
+  return { currency: code, rates, missing };
+}
+
+/** The oldest rate time among the rates used (the one the grand total is as old as). */
+export function oldestRate(display: DisplayInfo | null): string | null {
+  const times = Object.values(display?.rates ?? {}).flatMap((rate) => (rate.asOf && !Number.isNaN(Date.parse(rate.asOf)) ? [rate.asOf] : []));
+  return times.sort()[0] ?? null;
+}
+
+const DATA_URI = /^data:image\/(?:png|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/;
+const MAX_LOGO_LENGTH = 72 * 1024;
+
+/** A logo is a base64 PNG or SVG data URI of a sane size: never a link, so it can only be an image the server vetted. */
+const logoUri = (value: unknown): string | null => (typeof value === 'string' && value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value) ? value : null);
 
 const STATUSES: readonly ConnectionStatus[] = ['ok', 'needs_reconsent', 'paused'];
 
 export function parseAccounts(body: unknown): FinanceAccounts | null {
   if (!isObject(body) || !Array.isArray(body.accounts)) return null;
+  const display = parseDisplayInfo(body.display);
   const accounts = body.accounts.flatMap((raw): FinanceAccount[] => {
     if (!isObject(raw)) return [];
     const id = text(raw.id);
@@ -193,8 +238,11 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
         parentId: text(raw.parent_id),
         goalAmount: int(raw.goal_amount),
         overdraftLimit: int(raw.overdraft_limit),
+        overdraftSource: raw.overdraft_limit_source === 'owner' || raw.overdraft_limit_source === 'bank' ? raw.overdraft_limit_source : null,
+        overdraftBank: int(raw.overdraft_limit_bank),
         availableMinor: int(raw.available_minor) ?? balance,
-        display: converted(raw.display_balance, raw.display_currency),
+        display: converted(raw.display_own_balance_minor, display?.currency ?? null),
+        converted: raw.converted === true,
       },
     ];
   });
@@ -202,12 +250,12 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
     if (!isObject(raw)) return [];
     const provider = text(raw.provider);
     const status = STATUSES.find((candidate) => candidate === raw.status);
-    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at), logo: logoOf(raw.logo) }] : [];
+    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at) }] : [];
   });
-  return { accounts, connections };
+  return { accounts, connections, display };
 }
 
-export function parseTransaction(raw: unknown): FinanceTransaction | null {
+export function parseTransaction(raw: unknown, displayCurrency: string | null = null): FinanceTransaction | null {
   if (!isObject(raw)) return null;
   const id = text(raw.id);
   const accountId = text(raw.account_id);
@@ -230,7 +278,8 @@ export function parseTransaction(raw: unknown): FinanceTransaction | null {
     pending: raw.pending === true,
     declined: raw.declined === true,
     internalTransfer: raw.internal_transfer === true,
-    display: converted(raw.display_amount, raw.display_currency),
+    display: converted(raw.display_amount_minor, displayCurrency),
+    converted: raw.converted === true,
     category: isCategory(raw.category) ? raw.category : 'other',
     categoryOverridden: raw.category_overridden === true,
   };
@@ -238,12 +287,14 @@ export function parseTransaction(raw: unknown): FinanceTransaction | null {
 
 export function parseTransactions(body: unknown): TransactionsPage | null {
   if (!isObject(body) || !Array.isArray(body.transactions)) return null;
+  const display = parseDisplayInfo(body.display);
   return {
     transactions: body.transactions.flatMap((raw) => {
-      const parsed = parseTransaction(raw);
+      const parsed = parseTransaction(raw, display?.currency ?? null);
       return parsed ? [parsed] : [];
     }),
     nextCursor: text(body.next_cursor),
+    display,
   };
 }
 
@@ -256,7 +307,17 @@ export function parseSummary(body: unknown): FinanceSummary | null {
     if (!code || balance === null) return [];
     return [{ currency: code, accounts: int(raw.accounts) ?? 0, balance, ownBalance: int(raw.own_balance) ?? balance, spent: int(raw.spent) ?? 0, received: int(raw.received) ?? 0 }];
   });
-  return { month: text(body.month) ?? '', asOf: text(body.as_of), currencies, total: converted(body.display_total, body.display_currency), rateAsOf: text(body.rate_as_of) };
+  const display = parseDisplayInfo(body.display);
+  const grand = isObject(body.display) ? body.display : null;
+  return {
+    month: text(body.month) ?? '',
+    asOf: text(body.as_of),
+    currencies,
+    total: converted(grand?.own_balance, display?.currency ?? null),
+    complete: grand?.complete === true,
+    display,
+    rateAsOf: oldestRate(display),
+  };
 }
 
 const BAD = (what: string) => new Error(`finance: unreadable ${what}`);
@@ -315,12 +376,27 @@ export interface CurrencyCategories {
   readonly spent: number;
   readonly previousSpent: number;
   readonly categories: readonly CategorySpend[];
+  /** Whether this currency is not the display one (its blocks are shown as they are in native mode). */
+  readonly converted: boolean;
+}
+
+/** The categories of all currencies converted (each line once) and added per category, biggest first: what the pounds view shows. */
+export interface DisplayCategories {
+  readonly currency: string;
+  /** False when a currency with no rate was left out. */
+  readonly complete: boolean;
+  readonly spent: number;
+  readonly previousSpent: number;
+  readonly categories: readonly CategorySpend[];
+  readonly missing: readonly string[];
+  readonly rateAsOf: string | null;
 }
 
 export interface FinanceCategories {
   readonly month: string;
   readonly previousMonth: string;
   readonly currencies: readonly CurrencyCategories[];
+  readonly display: DisplayCategories | null;
 }
 
 export function parseCategories(body: unknown): FinanceCategories | null {
@@ -335,13 +411,46 @@ export function parseCategories(body: unknown): FinanceCategories | null {
       const value = int(entry.spent);
       return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0 }];
     });
-    return [{ currency: code, spent, previousSpent: int(raw.previous_spent) ?? 0, categories }];
+    return [{ currency: code, spent, previousSpent: int(raw.previous_spent) ?? 0, categories, converted: raw.converted === true }];
   });
-  return { month: text(body.month) ?? '', previousMonth: text(body.previous_month) ?? '', currencies };
+  const info = parseDisplayInfo(body.display);
+  const root = isObject(body.display) ? body.display : null;
+  const lines = Array.isArray(root?.categories)
+    ? (root.categories as unknown[]).flatMap((entry): CategorySpend[] => {
+        if (!isObject(entry) || !isCategory(entry.category)) return [];
+        const value = int(entry.spent);
+        return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0 }];
+      })
+    : [];
+  const display: DisplayCategories | null =
+    info && root && int(root.spent) !== null
+      ? { currency: info.currency, complete: root.complete === true, spent: int(root.spent) ?? 0, previousSpent: int(root.previous_spent) ?? 0, categories: lines, missing: info.missing, rateAsOf: oldestRate(info) }
+      : null;
+  return { month: text(body.month) ?? '', previousMonth: text(body.previous_month) ?? '', currencies, display };
 }
 
 export async function fetchCategories(month?: string, signal?: AbortSignal): Promise<FinanceCategories> {
   const parsed = parseCategories(await request(month ? `/finance/categories?month=${encodeURIComponent(month)}` : '/finance/categories', { signal }));
   if (!parsed) throw BAD('categories');
+  return parsed;
+}
+
+/** The banks' logos by provider id, from GET /finance/providers (fetched once: the data URIs are big and the accounts answer does not repeat them). */
+export function parseProviders(body: unknown): Record<string, ProviderLogo> | null {
+  if (!isObject(body) || !Array.isArray(body.providers)) return null;
+  const logos: Record<string, ProviderLogo> = {};
+  for (const raw of body.providers) {
+    if (!isObject(raw) || !isObject(raw.logo)) continue;
+    const id = text(raw.id);
+    const onLight = logoUri(raw.logo.on_light);
+    const onDark = logoUri(raw.logo.on_dark);
+    if (id && (onLight || onDark)) logos[id] = { onLight, onDark };
+  }
+  return logos;
+}
+
+export async function fetchProviders(signal?: AbortSignal): Promise<Record<string, ProviderLogo>> {
+  const parsed = parseProviders(await request('/finance/providers', { signal }));
+  if (!parsed) throw BAD('providers');
   return parsed;
 }

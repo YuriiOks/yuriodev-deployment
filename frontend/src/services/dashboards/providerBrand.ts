@@ -27,3 +27,15 @@ export const KNOWN_BRANDS: ReadonlyArray<readonly [string, Brand]> = Object.entr
 export function markOf(provider: string): string {
   return brandOf(provider)?.mark ?? (Array.from(provider.trim())[0] ?? '?').toLocaleUpperCase();
 }
+
+/** The relative luminance (WCAG) of a #rrggbb colour, 0 (black) to 1 (white). */
+export function luminance(hex: string): number {
+  const channel = (index: number) => {
+    const value = parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2);
+}
+
+/** Whether white ink reads better than dark ink on this background (the logo variant is chosen by the card's real background, not the theme). */
+export const prefersWhiteInk = (bg: string): boolean => luminance(bg) < 0.18;

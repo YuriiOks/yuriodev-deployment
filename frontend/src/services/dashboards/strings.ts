@@ -168,6 +168,7 @@ export interface Strings {
     readonly overdrawn: string;
     readonly usedOfLimit: string;
     readonly usedOfOverdraft: string;
+    readonly ownLimit: string;
     readonly goalOf: string;
     readonly businessFold: string;
     readonly hideBusiness: string;
@@ -449,6 +450,7 @@ export const STRINGS: Record<Lang, Strings> = {
       overdrawn: 'овердрафт',
       usedOfLimit: 'занято {percent}% лимита {limit} · свободно {free}',
       usedOfOverdraft: 'занято {percent}% овердрафта {limit} · свободно {free}',
+      ownLimit: 'ваш лимит',
       goalOf: '{percent}% от цели {goal}',
       businessFold: 'Бизнес-счета: {n}',
       hideBusiness: 'Скрыть бизнес-счета',
@@ -744,6 +746,7 @@ export const STRINGS: Record<Lang, Strings> = {
       overdrawn: 'overdrawn',
       usedOfLimit: '{percent}% of the {limit} limit used · {free} free',
       usedOfOverdraft: '{percent}% of the {limit} overdraft used · {free} free',
+      ownLimit: 'your limit',
       goalOf: '{percent}% of the {goal} goal',
       businessFold: 'Business accounts: {n}',
       hideBusiness: 'Hide business accounts',

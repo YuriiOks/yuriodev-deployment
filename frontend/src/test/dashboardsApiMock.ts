@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders';
 
 export interface Call {
   readonly method: string;
@@ -110,6 +110,10 @@ export interface FinanceData {
   summary: Record<string, unknown>;
   /** GET /finance/categories (default: no spending). */
   categories?: Record<string, unknown>;
+  /** The root `display` block of the accounts and transactions answers (default: none, as an older server). */
+  display?: Record<string, unknown>;
+  /** GET /finance/providers: the banks' logos (default: none). */
+  providers?: Record<string, unknown>[];
 }
 
 export interface FakeApiOptions {
@@ -158,7 +162,11 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     }
     if (path === '/finance/accounts') {
       if (api.fail.has('financeAccounts')) return failure();
-      return json({ accounts: api.finance.accounts, connections: api.finance.connections });
+      return json({ accounts: api.finance.accounts, connections: api.finance.connections, ...(api.finance.display ? { display: api.finance.display } : {}) });
+    }
+    if (path === '/finance/providers') {
+      if (api.fail.has('financeProviders')) return failure();
+      return json({ providers: api.finance.providers ?? [] });
     }
     if (path === '/finance/categories') {
       if (api.fail.has('financeCategories')) return failure();
@@ -180,7 +188,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       );
       const start = cursor ? Number(cursor) : 0;
       const page = found.slice(start, start + limit);
-      return json({ transactions: page, next_cursor: start + limit < found.length ? String(start + limit) : null });
+      return json({ transactions: page, next_cursor: start + limit < found.length ? String(start + limit) : null, ...(api.finance.display ? { display: api.finance.display } : {}) });
     }
     if (path === '/summary') {
       if (api.fail.has('summary')) return failure();
