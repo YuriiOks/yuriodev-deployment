@@ -1,5 +1,7 @@
-/* The Money page's parts. Panels reuse the dashboards' panel look (glass, the title led by '# ', flat rows); amounts are data,
-   so they are Fira Code with tabular figures. Money in and out is told by a sign, an arrow and a word, never by colour alone. */
+/* The Money page's parts. Panels reuse the dashboards' panel look (glass, the title led by '# ', flat rows); amounts are data, so they
+   are Fira Code with tabular figures. A bank is a card in its brand colours (--bank-bg and --bank-fg, set inline from
+   services/dashboards/providerBrand.ts with AA held by its test) or, with none, the neutral chip. Money in and out, a debt and an
+   overdraft are told by a sign, a word or an arrow, never by colour alone. */
 .panel {
   composes: panel from '../Panel/Panel.module.css';
 }
@@ -12,53 +14,202 @@
   composes: title from '../Panel/Panel.module.css';
 }
 
-.count {
-  composes: count from '../Panel/Panel.module.css';
+.none {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-3);
+  color: var(--dash-t2);
 }
 
-.empty {
-  composes: empty from '../Panel/Panel.module.css';
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  padding: 0 var(--space-3) var(--space-2);
-}
-
-.provider {
+/* The totals strip: one block per currency. */
+.totals {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-2) 0;
-  border-top: 1px solid var(--dash-line);
-}
-
-.group:first-of-type .provider {
-  border-top: 0;
-}
-
-.providerName {
+  gap: var(--space-2);
   margin: 0;
-  color: var(--dash-t1);
-  font-size: var(--dash-fs-ui);
-  font-weight: 700;
-  line-height: var(--dash-lh-ui);
+  padding: 0;
+  list-style: none;
 }
 
-.link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
+.total {
+  display: flex;
+  flex-direction: column;
+  min-width: 11rem;
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-control);
+}
+
+.totalLabel,
+.totalNote {
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
 }
 
-.link[data-status="needs_reconsent"] {
-  color: var(--dash-warn);
+.totalSum {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-page);
   font-weight: 700;
+  line-height: var(--dash-lh-page);
+}
+
+/* The wallet: the stack at the left and the opened bank beside it from a laptop up, below it on a phone. */
+.wallet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+@media (min-width: 64rem) {
+  .wallet {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.bank {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: calc(-1 * var(--space-4));
+  padding: var(--space-3) var(--space-4) calc(var(--space-4) + var(--space-3));
+  background: var(--bank-bg, var(--dash-chip));
+  border: 1px solid var(--bank-bg, var(--dash-edge));
+  border-radius: var(--dash-r-surface);
+  color: var(--bank-fg, var(--dash-t1));
+  font-family: var(--dash-font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bankFirst {
+  margin-top: 0;
+}
+
+.stack > .bank:last-child {
+  padding-bottom: var(--space-3);
+}
+
+.bankSelected {
+  box-shadow: inset 0 0 0 3px var(--dash-accent);
+}
+
+.bankText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bankName {
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}
+
+.bankState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.bankSums {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* The first currency is the big figure; any others follow smaller. */
+.bankSum {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+  white-space: nowrap;
+}
+
+.bankSum:first-child {
+  font-size: var(--dash-fs-page);
+  line-height: var(--dash-lh-page);
+}
+
+/* The opened bank: a glass panel with its header in the brand colours. */
+.detail {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  overflow: hidden;
+  border-radius: var(--dash-r-surface);
+}
+
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bank-bg, var(--dash-chip));
+  color: var(--bank-fg, var(--dash-t1));
+}
+
+.detailTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.detailName {
+  margin: 0;
+  padding: 0;
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}
+
+.detailName::before,
+.detailName::after {
+  content: none;
+}
+
+.detailSums {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.detailSum {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.reconsent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--dash-warn);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
 }
 
 .reconnect {
@@ -66,51 +217,71 @@
   margin-left: auto;
 }
 
-.hint {
-  flex-basis: 100%;
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.sectionTitle {
   margin: 0;
-  color: var(--dash-t2);
-  font-size: var(--dash-fs-meta);
-  line-height: var(--dash-lh-meta);
-}
-
-.sub {
-  margin: var(--space-2) 0 0;
-  color: var(--dash-t2);
-  font-size: var(--dash-fs-meta);
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-ui);
   font-weight: 700;
-  line-height: var(--dash-lh-meta);
+  line-height: var(--dash-lh-ui);
 }
 
-.accounts {
+.sectionTitle::before,
+.sectionTitle::after {
+  content: none;
+}
+
+.sectionNote {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.accountList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .account {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  column-gap: var(--space-3);
-  min-height: var(--dash-h-row);
-  padding: var(--space-1) 0;
-  border-top: 1px solid var(--dash-line);
-}
-
-.accounts > .account:first-child {
-  border-top: 0;
-}
-
-.account[data-pot="true"] {
-  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-control);
 }
 
 .account[data-archived="true"] {
-  opacity: 0.75;
+  background: transparent;
 }
 
-.name {
+.accountRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.accountText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.accountName {
   min-width: 0;
   overflow: hidden;
   color: var(--dash-t1);
@@ -118,69 +289,142 @@
   white-space: nowrap;
 }
 
-.amount {
-  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  color: var(--dash-t1);
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.note {
-  grid-column: 1 / -1;
+.accountNote {
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
 }
 
-.months {
-  display: flex;
-  flex-direction: column;
+.accountAmount {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.account[data-kind="debt"] .accountAmount,
+.account[data-kind="overdrawn"] .accountAmount {
+  color: var(--dash-danger);
+}
+
+.word {
+  font-weight: 400;
+}
+
+.bar {
+  height: 0.5rem;
+  overflow: hidden;
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--radius-pill);
+}
+
+.barFill {
+  height: 100%;
+  background: var(--dash-danger);
+}
+
+.potGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
   gap: var(--space-2);
   margin: 0;
-  padding: 0 var(--space-3) var(--space-3);
+  padding: 0;
   list-style: none;
 }
 
-.month {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  padding: var(--space-2);
+.pot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
   background: var(--dash-chip);
   border: 1px solid var(--dash-line);
   border-radius: var(--dash-r-control);
 }
 
-.cell {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+.potPicture {
+  font-size: var(--dash-fs-stat);
+  line-height: var(--dash-lh-stat);
 }
 
-.cell .amount {
-  text-align: left;
+.potName {
+  overflow: hidden;
+  color: var(--dash-t1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.cellLabel {
-  color: var(--dash-t2);
-  font-size: var(--dash-fs-meta);
-  line-height: var(--dash-lh-meta);
+.potAmount {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-weight: 700;
 }
 
-.code {
-  grid-column: 1 / -1;
-  color: var(--dash-t2);
+.fold {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  align-self: flex-start;
+}
+
+/* A bank's mark: one letter in its colours. */
+.bankMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: var(--bank-bg, var(--dash-chip));
+  border: 1px solid var(--bank-bg, var(--dash-edge));
+  border-radius: var(--dash-r-tag);
+  color: var(--bank-fg, var(--dash-t1));
   font-size: var(--dash-fs-meta);
   font-weight: 700;
-  line-height: var(--dash-lh-meta);
 }
 
+.detailHead .bankMark {
+  border-color: var(--bank-fg, var(--dash-edge));
+}
+
+/* The transactions: bank chips, the search, the rows. */
 .tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  padding: 0 var(--space-3) var(--space-2);
+}
+
+.chip {
+  min-height: var(--dash-h-control);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t2);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.chipOn {
+  background: var(--dash-heading-tint);
+  border-color: var(--dash-heading-edge);
+  color: var(--dash-heading);
+  font-weight: 700;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .field {
@@ -208,7 +452,7 @@
 
 .tx {
   display: grid;
-  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  grid-template-columns: 1.25rem 1.75rem minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--space-3);
   min-height: var(--dash-h-row);
@@ -253,6 +497,14 @@
   color: var(--dash-t1);
 }
 
+.amount {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .tx[data-declined="true"] .what,
 .tx[data-declined="true"] .amount {
   color: var(--dash-t2);
@@ -281,4 +533,14 @@
 .moreFailed {
   color: var(--dash-danger);
   font-size: var(--dash-fs-meta);
+}
+
+@media (max-width: 47.99rem) {
+  .tx {
+    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  }
+
+  .tx .arrow {
+    display: none;
+  }
 }

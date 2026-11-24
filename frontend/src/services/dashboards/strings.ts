@@ -133,21 +133,18 @@ export interface Strings {
     readonly navLink: string;
     readonly title: string;
     readonly back: string;
-    readonly accountsTitle: string;
-    readonly pots: string;
-    readonly archived: string;
-    readonly creditLimit: string;
-    readonly historyFrom: string;
-    readonly balanceAt: string;
-    readonly noAccounts: string;
     readonly needsData: string;
-    readonly accountsFailed: string;
-    readonly monthTitle: string;
-    readonly monthFailed: string;
+    readonly updated: string;
+    readonly totalOf: string;
+    readonly inPots: string;
+    readonly thisMonth: string;
     readonly spent: string;
     readonly received: string;
-    readonly balance: string;
-    readonly accountsCount: string;
+    readonly walletTitle: string;
+    readonly walletHint: string;
+    readonly walletLabel: string;
+    readonly noAccounts: string;
+    readonly accountsFailed: string;
     readonly linkOk: string;
     readonly linkNeedsReconsent: string;
     readonly linkPaused: string;
@@ -155,9 +152,24 @@ export interface Strings {
     readonly lastOk: string;
     readonly reconnect: string;
     readonly reconnectHint: string;
+    readonly ownMoney: string;
+    readonly accountsTitle: string;
+    readonly pots: string;
+    readonly potsTotal: string;
+    readonly debt: string;
+    readonly overdrawn: string;
+    readonly usedOfLimit: string;
+    readonly creditLimit: string;
+    readonly historyFrom: string;
+    readonly foldEmpty: string;
+    readonly hideEmpty: string;
+    readonly archivedTitle: string;
+    readonly archivedMark: string;
     readonly transactionsTitle: string;
-    readonly allAccounts: string;
+    readonly bankFilter: string;
+    readonly allBanks: string;
     readonly accountFilter: string;
+    readonly allAccounts: string;
     readonly search: string;
     readonly searchPlaceholder: string;
     readonly empty: string;
@@ -362,21 +374,18 @@ export const STRINGS: Record<Lang, Strings> = {
       navLink: 'Деньги',
       title: 'Деньги',
       back: 'К личному',
-      accountsTitle: 'Счета',
-      pots: 'Копилки',
-      archived: 'в архиве',
-      creditLimit: 'кредитный лимит {amount}',
-      historyFrom: 'история с {date}',
-      balanceAt: 'на {date}',
-      noAccounts: 'Счетов пока нет.',
       needsData: 'Деньги доступны только на реальных данных.',
-      accountsFailed: 'Не удалось загрузить счета.',
-      monthTitle: 'Этот месяц',
-      monthFailed: 'Не удалось загрузить итоги месяца.',
+      updated: 'обновлено {when}',
+      totalOf: '{currency} · счетов: {n}',
+      inPots: 'из них в копилках {amount}',
+      thisMonth: 'в этом месяце',
       spent: 'потрачено',
       received: 'получено',
-      balance: 'баланс',
-      accountsCount: 'счетов: {n}',
+      walletTitle: 'Кошелёк',
+      walletHint: 'все банки стопкой, выберите банк',
+      walletLabel: 'Банки',
+      noAccounts: 'Счетов пока нет.',
+      accountsFailed: 'Не удалось загрузить счета.',
       linkOk: 'подключено',
       linkNeedsReconsent: 'нужно переподключить',
       linkPaused: 'приостановлено',
@@ -384,9 +393,24 @@ export const STRINGS: Record<Lang, Strings> = {
       lastOk: 'обновлено {when}',
       reconnect: 'Переподключить',
       reconnectHint: 'Банк просит подтвердить доступ заново. Данные не обновляются, пока это не сделано.',
+      ownMoney: 'своих денег',
+      accountsTitle: 'Счета',
+      pots: 'Копилки',
+      potsTotal: '{n} · всего {amount}',
+      debt: 'долг',
+      overdrawn: 'овердрафт',
+      usedOfLimit: 'занято {percent}% лимита {limit} · свободно {free}',
+      creditLimit: 'лимит {amount}',
+      historyFrom: 'история с {date}',
+      foldEmpty: 'Ещё пустых: {n}',
+      hideEmpty: 'Скрыть пустые',
+      archivedTitle: 'В архиве',
+      archivedMark: 'в архиве',
       transactionsTitle: 'Операции',
-      allAccounts: 'Все счета',
+      bankFilter: 'Банк',
+      allBanks: 'Все банки',
       accountFilter: 'Счёт',
+      allAccounts: 'Все счета',
       search: 'Поиск по операциям',
       searchPlaceholder: 'Описание или получатель',
       empty: 'Операций не найдено.',
@@ -592,21 +616,18 @@ export const STRINGS: Record<Lang, Strings> = {
       navLink: 'Money',
       title: 'Money',
       back: 'Back to Personal',
-      accountsTitle: 'Accounts',
-      pots: 'Pots',
-      archived: 'archived',
-      creditLimit: 'credit limit {amount}',
-      historyFrom: 'history from {date}',
-      balanceAt: 'as of {date}',
-      noAccounts: 'No accounts yet.',
       needsData: 'Money needs the live data.',
-      accountsFailed: 'Could not load the accounts.',
-      monthTitle: 'This month',
-      monthFailed: 'Could not load this month\'s totals.',
+      updated: 'updated {when}',
+      totalOf: '{currency} · accounts: {n}',
+      inPots: 'of which in pots {amount}',
+      thisMonth: 'this month',
       spent: 'spent',
       received: 'received',
-      balance: 'balance',
-      accountsCount: '{n} accounts',
+      walletTitle: 'Wallet',
+      walletHint: 'every bank in a stack, pick one',
+      walletLabel: 'Banks',
+      noAccounts: 'No accounts yet.',
+      accountsFailed: 'Could not load the accounts.',
       linkOk: 'connected',
       linkNeedsReconsent: 'needs reconnecting',
       linkPaused: 'paused',
@@ -614,9 +635,24 @@ export const STRINGS: Record<Lang, Strings> = {
       lastOk: 'updated {when}',
       reconnect: 'Reconnect',
       reconnectHint: 'The bank asks you to confirm access again. Nothing updates until you do.',
+      ownMoney: 'own money',
+      accountsTitle: 'Accounts',
+      pots: 'Pots',
+      potsTotal: '{n} · {amount} in all',
+      debt: 'debt',
+      overdrawn: 'overdrawn',
+      usedOfLimit: '{percent}% of the {limit} limit used · {free} free',
+      creditLimit: 'limit {amount}',
+      historyFrom: 'history from {date}',
+      foldEmpty: '{n} more empty',
+      hideEmpty: 'Hide the empty ones',
+      archivedTitle: 'Archived',
+      archivedMark: 'archived',
       transactionsTitle: 'Transactions',
-      allAccounts: 'All accounts',
+      bankFilter: 'Bank',
+      allBanks: 'All banks',
       accountFilter: 'Account',
+      allAccounts: 'All accounts',
       search: 'Search transactions',
       searchPlaceholder: 'Description or payee',
       empty: 'No transactions found.',
