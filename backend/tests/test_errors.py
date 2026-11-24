@@ -46,7 +46,7 @@ def app_with_test_routes(make_settings):
 def assert_error(response, status, code):
     assert response.status_code == status
     body = response.json()
-    assert set(body) == ERROR_KEYS
+    assert set(body) - {"fields", "issues"} == ERROR_KEYS  # a 422 also names its fields
     assert body["error"] == code
     assert body["request_id"] == response.headers["x-request-id"]
     return body
