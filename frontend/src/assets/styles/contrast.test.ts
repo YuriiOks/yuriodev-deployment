@@ -406,3 +406,20 @@ describe('colour tokens meet WCAG AA', () => {
     expect(ratio(parseColor('#0b6780'), parseColor('#ffffff'))).toBeCloseTo(6.43, 1);
   });
 });
+
+describe('the spending category colours', () => {
+  const CATEGORY_TOKENS = ['housing', 'groceries', 'dining', 'transport', 'subscriptions', 'health', 'shopping', 'entertainment', 'debt', 'income', 'out', 'transfers', 'cash', 'other'].map((name) => `--dash-cat-${name}`);
+  for (const theme of ['dark', 'light'] as const) {
+    it(`${theme} theme: each category's colour holds 4.5:1 on the page, the surface, the chip and the well (icon and bar; the name is always beside it)`, () => {
+      const tokens = tokensFor(theme);
+      const failures = CATEGORY_TOKENS.flatMap((fg) =>
+        ['--dash-bg', '--dash-surface', '--dash-chip', '--dash-well']
+          .map((bg) => ({ fg, bg, got: ratio(paint(tokens, [fg]), paint(tokens, [bg])) }))
+          .filter(({ got }) => !(got >= TEXT))
+          .map(({ fg, bg, got }) => `${fg} on ${bg}: ${got.toFixed(2)}`),
+      );
+      expect(CATEGORY_TOKENS.every((token) => tokens.has(token))).toBe(true);
+      expect(failures).toEqual([]);
+    });
+  }
+});

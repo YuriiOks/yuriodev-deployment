@@ -515,7 +515,9 @@ describe('the Money page: account kinds, goals and categories', () => {
     expect(rows[0]).toHaveTextContent('Groceries');
     expect(rows[0]).toHaveTextContent('£60.00 · 60% · +£10.00 (was £50.00)');
     expect(rows[1]).toHaveTextContent('£40.00 · 40% · -£16.38 (was £56.38)');
-    expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '60%' });
+    expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '100%' });
+    // A bar is scaled to the largest category (40 of 60), not to the total.
+    expect(rows[1].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '67%' });
     expect(panel.getByText(/Transfers between your own accounts and pots are not counted/)).toBeInTheDocument();
   });
 
