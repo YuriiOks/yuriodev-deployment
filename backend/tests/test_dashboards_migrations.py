@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0016"
+    assert version == "dashboards_0017"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -410,7 +410,7 @@ async def test_recurring_payments_and_attention_state_are_checked_by_the_databas
             NEW_PAYMENT_WITH_REF,
         )
 
-    assert columns == 36
+    assert columns == 39
 
 
 async def test_a_manual_connection_has_its_own_flag_and_a_colour_pair(empty_db_url):

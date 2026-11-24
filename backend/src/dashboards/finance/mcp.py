@@ -169,16 +169,16 @@ def register(
         date, the paying account or free-text source, debts' balances, and each amount also in the
         display currency."""
         async with scope("finance_recurring") as (session, now):
+            today = now.astimezone(zone).date()
             display = await service.display_for(session, display_currency, now)
             only = True if active_only else None
             rows = await recurring_service.list_recurring(session, now, zone, only)
             shown = DisplayOut(**display_fields(display, {r.currency for r in rows}))
+            listed = [RecurringOut.from_row(r, display, today) for r in rows]
             return _json(
                 {
                     "display": shown.model_dump(mode="json"),
-                    "recurring": [
-                        RecurringOut.from_row(r, display).model_dump(mode="json") for r in rows
-                    ],
+                    "recurring": [item.model_dump(mode="json") for item in listed],
                 }
             )
 
@@ -197,9 +197,10 @@ def register(
         except ValidationError as exc:
             raise _bad_fields(exc) from None
         async with scope("finance_add_recurring") as (session, now):
+            today = now.astimezone(zone).date()
             row = await recurring_service.create_recurring(session, data, now)
             display = await service.display_for(session, display_currency, now)
-            return _json(RecurringOut.from_row(row, display).model_dump(mode="json"))
+            return _json(RecurringOut.from_row(row, display, today).model_dump(mode="json"))
 
     @server.tool(structured_output=False)
     async def finance_update_recurring(recurring_id: str, changes: dict[str, Any]) -> str:
@@ -214,9 +215,10 @@ def register(
         except ValidationError as exc:
             raise _bad_fields(exc) from None
         async with scope("finance_update_recurring") as (session, now):
+            today = now.astimezone(zone).date()
             row = await recurring_service.update_recurring(session, payment_id, patch, now)
             display = await service.display_for(session, display_currency, now)
-            return _json(RecurringOut.from_row(row, display).model_dump(mode="json"))
+            return _json(RecurringOut.from_row(row, display, today).model_dump(mode="json"))
 
     @server.tool(structured_output=False)
     async def finance_upcoming(days: int = 14) -> str:
