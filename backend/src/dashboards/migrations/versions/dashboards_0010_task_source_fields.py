@@ -26,9 +26,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.add_column("task", sa.Column("source_priority", sa.String(8), nullable=True))
-    op.add_column(
-        "task", sa.Column("source_updated_at", sa.DateTime(timezone=True), nullable=True)
-    )
+    op.add_column("task", sa.Column("source_updated_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column(
         "task", sa.Column("draft", sa.Boolean(), server_default=sa.false(), nullable=False)
     )
