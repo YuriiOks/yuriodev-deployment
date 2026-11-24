@@ -36,15 +36,15 @@ describe('finance parsers', () => {
       connections: [
         { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' },
         { provider: 'globex-bank', status: 'needs_reconsent', last_ok_at: null },
-        { provider: 'hand-bank', status: 'ok', last_ok_at: '2026-11-01T00:00:00Z', manual: true, display_name: 'Hand Bank' },
+        { id: 'c-9', provider: 'hand-bank', status: 'ok', last_ok_at: '2026-11-01T00:00:00Z', manual: true, display_name: 'Hand Bank' },
         { provider: 'x', status: 'on fire' },
         { status: 'ok' },
       ],
     });
     expect(parsed?.connections).toEqual([
-      { provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z', manual: false, displayName: null },
-      { provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null, manual: false, displayName: null },
-      { provider: 'hand-bank', status: 'ok', lastOkAt: '2026-11-01T00:00:00Z', manual: true, displayName: 'Hand Bank' },
+      { id: null, provider: 'acme-bank', status: 'ok', lastOkAt: '2026-11-23T09:00:00Z', manual: false, displayName: null },
+      { id: null, provider: 'globex-bank', status: 'needs_reconsent', lastOkAt: null, manual: false, displayName: null },
+      { id: 'c-9', provider: 'hand-bank', status: 'ok', lastOkAt: '2026-11-01T00:00:00Z', manual: true, displayName: 'Hand Bank' },
     ]);
     expect(parseAccounts({ nope: [] })).toBeNull();
     expect(parseAccounts(null)).toBeNull();

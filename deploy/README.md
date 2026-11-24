@@ -1013,6 +1013,25 @@ request. Only the latest occurrence is looked up: a date whose next date is alre
 earlier (more than one period old, e.g. in a file with stale dates) is rolled past with nothing
 matched or recorded, so old transactions never produce a match, a `last_charged_amount` or an
 `amount_changed` item.
+Instalment plans and what the list alone says (migration `dashboards_0017`). A matched occurrence of a
+plan (`is_installment`) confirms one instalment: `completed_installments` goes up by one and
+`remaining_balance` down by `amount` (never below 0); you saying `POST /recurring/{id}/paid` does
+the same (your word, but no evidence). An occurrence that is only passed by the schedule (nobody
+can see it, or it is more than one period old) goes to `assumed_installments` instead, capped at
+the total, and no balance moves; `scheduled_installments` = confirmed + assumed (so a row can say
+"by schedule 12 of 12, 3 confirmed"). Changing `completed_installments` by hand or reloading the
+row from a file resets `assumed_installments` to 0. A plan never runs past its last instalment
+(`start_date` plus `total_installments` periods): `next_payment_date` stays on the last date, and
+`/upcoming` lists no occurrence after it nor more than the instalments left. `schedule_state` is
+derived and never touches `is_active` (yours): `on_track`, `ended_by_schedule` (the last date or
+the count is behind it, or a one-time payment's date has passed: a `one_time` kind never repeats
+whatever its frequency says; the last date passing unseen completes the plan by schedule),
+`unknown` (no start date or count, no date for a one-time payment, or a matched line after the
+supposed last date: the plan goes on) or null for a payment you switched off; an ended payment is
+never a `missed_payment`. `evidence` (null when no account of ours pays the payment):
+`{last_matched_on, last_matched_amount, matched_of_last, checked}`, how many of its last three due
+dates had a matching transaction (a date that has passed with none counts as a miss), so a page
+can tell "confirmed by the bank" from "from your list, unverified".
 `GET /upcoming?days=14` (1 to 366): every occurrence from today (the local day) to the end of the
 window (a weekly payment appears each time), with `covered` (can the paying account pay it:
 balance plus overdraft in force, a card's balance already counts its limit, counting the earlier
