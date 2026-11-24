@@ -409,12 +409,14 @@ async def load_recurring(
     seen: set[str] = set()
     for number, item in inputs:
         if item.account_id in unknown:
-            problems.append(RowError(number, "account_id", "unknown account"))
+            problems.append(RowError(number, "account_id", "unknown account", "unknown_account"))
         if not instalments_agree(item.model_dump()):
-            problems.append(RowError(number, "completed_installments", "more than the total"))
+            message = "more than the total"
+            problems.append(RowError(number, "completed_installments", message, "over_total"))
         if item.external_ref:
             if item.external_ref in seen:
-                problems.append(RowError(number, "external_ref", "the same reference twice"))
+                message = "the same reference twice"
+                problems.append(RowError(number, "external_ref", message, "duplicate_reference"))
             seen.add(item.external_ref)
     created: list[Recurring] = []
     updated: list[Recurring] = []

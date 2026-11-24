@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime, time, tzinfo
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,14 +24,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.errors import AppError
 from src.dashboards.finance.brands import COLLECTOR_PROVIDERS, readable
 from src.dashboards.finance.categories import categorize
+from src.dashboards.finance.fx import KNOWN_CURRENCIES, exponent
 from src.dashboards.finance.logos import PROVIDER_ID
 from src.dashboards.finance.models import OVERDRAFT_KINDS, Account, Connection, Transaction
 from src.dashboards.finance.recurring import MAX_MINOR, Minor, RowError
 from src.dashboards.finance.recurring_schemas import RowErrorOut
 from src.dashboards.finance.service import invalid
 from src.dashboards.finance.statements import (
+    Context,
     DateOrder,
     Entry,
+    FileTooLarge,
+    NotText,
     Statement,
     UnknownLayout,
     balance_moment,
@@ -53,6 +57,25 @@ Money = Annotated[int, Field(strict=True, ge=-MAX_MINOR, le=MAX_MINOR)]
 AsOf = Annotated[date | datetime | None, BeforeValidator(_day_or_time)]
 ManualKind = Literal["current", "credit_card", "savings", "business"]
 INSERT_CHUNK = 400
+
+
+class CurrencyOut(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    code: str
+    exponent: int  # decimal places of the minor unit: 0 (JPY), 2 or 3 (KWD)
+
+
+class CurrenciesOut(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    currencies: list[CurrencyOut]
+
+
+def known_currencies() -> CurrenciesOut:
+    return CurrenciesOut(
+        currencies=[CurrencyOut(code=c, exponent=exponent(c)) for c in sorted(KNOWN_CURRENCIES)]
+    )
 
 
 class ConnectionIn(BaseModel):
@@ -95,6 +118,13 @@ class AccountIn(BaseModel):
     as_of: AsOf = None
     opened_at: date | None = None
     overdraft_limit: Minor | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def _known(cls, value: str) -> str:
+        if value not in KNOWN_CURRENCIES:
+            raise ValueError("not a currency of ISO 4217")
+        return value
 
     @model_validator(mode="after")
     def _shape(self) -> Self:
@@ -162,10 +192,10 @@ def _instant(value: date | datetime | None, now: datetime, zone: tzinfo) -> date
             raise invalid("as_of needs a UTC offset")
         moment = value.astimezone(UTC)
         if moment > now:
-            raise invalid("as_of is in the future")
+            raise AppError(422, "as_of_future", "as_of is in the future")
         return moment
     if value > now.astimezone(zone).date():
-        raise invalid("as_of is in the future")
+        raise AppError(422, "as_of_future", "as_of is in the future")
     return min(balance_moment(value, zone), now)
 
 
@@ -345,6 +375,7 @@ class StatementResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     layout: str
+    encoding: str  # what the bytes were read as: utf-8, utf-16, cp1252 or iso-8859-1
     dry_run: bool
     parsed: int
     created: int
@@ -354,6 +385,12 @@ class StatementResult(BaseModel):
     money_in: int  # positive: the sum of the lines that add money, in minor units
     money_out: int  # positive: the sum of the lines that take money (declined ones are no money)
     balance_applied: bool
+    # The balance the file states (OFX) or its newest line carries (CSV), and its day, even on a
+    # dry run; `balance_would_apply` is true when `apply_balance` would set it (no newer balance
+    # is already on the account). Null for a credit card (its balance is set by what is owed).
+    balance: int | None
+    balance_date: date | None
+    balance_would_apply: bool
     errors: list[RowErrorOut]
 
 
@@ -396,23 +433,33 @@ async def import_statement(
     already there (same bank id, or same date, amount and text in the same place) are counted as
     duplicates and left as they are, so loading a file again, or one that overlaps, is safe."""
     row, link = await _manual_account(session, account_id, lock=True)
+    context = Context(row.mask_last4, now.astimezone(zone).date(), zone)
     try:
-        statement = parse_statement(data, row.provider, row.currency, order)
-    except UnknownLayout:
-        message = "The statement is not in a supported layout"
-        raise AppError(422, "unknown_layout", message) from None
-    except ValueError:
-        raise invalid("The file must be UTF-8 text of at most 2 MiB") from None
+        statement = parse_statement(data, row.provider, row.currency, order, context)
+    except UnknownLayout as exc:
+        raise AppError(422, exc.code, _LAYOUT_REFUSALS[exc.code]) from None
+    except FileTooLarge:
+        raise AppError(413, "file_too_large", "The file is larger than 1 MiB") from None
+    except NotText:
+        message = "The file is not text in UTF-8, UTF-16 or Windows-1252"
+        raise AppError(422, "not_utf8", message) from None
     entries = statement.entries
     ok = not statement.errors and bool(entries)
-    problems = list(statement.errors) or ([] if entries else [RowError(0, None, "no lines")])
+    empty = [] if entries else [RowError(0, None, "no lines", "no_lines")]
+    problems = list(statement.errors) or empty
+    if ok and apply_balance and row.kind == "credit_card":
+        raise invalid("Set a credit card's balance with its own endpoint (owed)")
     newest: tuple[int, date] | None = None
-    if ok and apply_balance:
-        if row.kind == "credit_card":
-            raise invalid("Set a credit card's balance with its own endpoint (owed)")
-        newest = _newest_balance(statement)
-        if newest is None:
-            raise invalid("The file has no balance to apply")
+    if ok and row.kind != "credit_card":
+        try:
+            newest = _newest_balance(statement)
+        except AppError:
+            if apply_balance:
+                raise
+    if ok and apply_balance and newest is None:
+        raise invalid("The file has no balance to apply")
+    moment = min(balance_moment(newest[1], zone), now) if newest is not None else None
+    would_apply = moment is not None and moment >= row.balance_at
     created = duplicates = 0
     applied = False
     if ok:
@@ -421,15 +468,14 @@ async def import_statement(
         if not dry_run:
             latest = max(booked_at(e, zone) for _, e in numbered)
             _touch(link, min(latest, now))
-            if newest is not None:
-                moment = min(balance_moment(newest[1], zone), now)
-                if moment >= row.balance_at:
-                    row.balance, row.balance_at, applied = newest[0], moment, True
+            if apply_balance and newest is not None and moment is not None and would_apply:
+                row.balance, row.balance_at, applied = newest[0], moment, True
             row.updated_at = now
         await session.commit()
     days = [e.day for e in entries]
     result = StatementResult(
         layout=statement.layout,
+        encoding=statement.encoding,
         dry_run=dry_run,
         parsed=len(entries) if ok else 0,
         created=created,
@@ -439,9 +485,19 @@ async def import_statement(
         money_in=sum(e.amount for e in entries if e.amount > 0 and not e.declined) if ok else 0,
         money_out=-sum(e.amount for e in entries if e.amount < 0 and not e.declined) if ok else 0,
         balance_applied=applied,
+        balance=newest[0] if newest else None,
+        balance_date=newest[1] if newest else None,
+        balance_would_apply=would_apply,
         errors=[] if ok else _errors(problems),
     )
     return result, ok
+
+
+_LAYOUT_REFUSALS = {
+    "empty_file": "The file is empty",
+    "other_bank": "The statement is another bank's layout",
+    "unknown_layout": "The statement is not in a supported layout",
+}
 
 
 async def _store(
@@ -463,7 +519,9 @@ async def _store(
         )
         known.update(found)
     fresh = [(external, entry) for external, entry in numbered if external not in known]
+    created = len(fresh)
     if not dry_run:
+        created = 0
         for start in range(0, len(fresh), INSERT_CHUNK):
             values: list[dict[str, Any]] = [
                 {
@@ -485,7 +543,10 @@ async def _store(
                 for external, entry in fresh[start : start + INSERT_CHUNK]
             ]
             stmt = insert(Transaction).values(values)
-            await session.execute(
-                stmt.on_conflict_do_nothing(index_elements=["account_id", "external_id"])
+            inserted = await session.execute(
+                stmt.on_conflict_do_nothing(index_elements=["account_id", "external_id"]).returning(
+                    Transaction.id
+                )
             )
-    return len(fresh), len(numbered) - len(fresh)
+            created += len(inserted.all())  # what the database took, not what was sent
+    return created, len(numbered) - created

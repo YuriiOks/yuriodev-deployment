@@ -568,22 +568,23 @@ async def test_an_unknown_layout_an_empty_file_and_a_bad_encoding_are_refused(
         account = await open_account(client, link)
         unknown = await upload(client, account, "Name,Total\nA,1\n")
         empty = await upload(client, account, b"")
-        latin = await upload(client, account, b"Date,Description,Amount\n2026-11-02,\xe9,1\n")
+        garbage = await upload(client, account, b"\xff\xfe\x00")
         no_lines = await upload(client, account, "Date,Description,Amount\n")
-        huge = await upload(client, account, b"a" * (2 * 1024 * 1024 + 1))
+        huge = await upload(client, account, b"a" * (1024 * 1024 + 1))
         missing = await client.post(f"{BASE}/accounts/{uuid.uuid4()}/statement", content=b"x")
 
     assert (unknown.status_code, unknown.json()["error"]) == (422, "unknown_layout")
-    assert (empty.status_code, empty.json()["error"]) == (422, "unknown_layout")
-    assert (latin.status_code, latin.json()["error"]) == (422, "validation_error")
+    assert (empty.status_code, empty.json()["error"]) == (422, "empty_file")
+    assert (garbage.status_code, garbage.json()["error"]) == (422, "not_utf8")
     assert (no_lines.status_code, no_lines.json()["errors"][0]["message"]) == (422, "no lines")
-    assert (huge.status_code, huge.json()["error"]) == (413, "payload_too_large")
+    assert no_lines.json()["errors"][0]["code"] == "no_lines"
+    assert (huge.status_code, huge.json()["error"]) == (413, "file_too_large")
     assert missing.status_code == 404
 
 
 async def test_slash_dates_need_their_order_unless_the_file_shows_it(db_url, make_dashboards_app):
     ambiguous = "Date,Description,Amount\n01/02/2026,A,-1.00\n03/02/2026,B,-2.00\n"
-    clear = "Date,Description,Amount\n25/11/2026,A,-1.00\n"
+    clear = "Date,Description,Amount\n15/11/2026,A,-1.00\n"
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         link = await connect(client)
@@ -596,7 +597,7 @@ async def test_slash_dates_need_their_order_unless_the_file_shows_it(db_url, mak
     assert refused.status_code == 422
     assert refused.json()["errors"][0]["field"] == "date"
     assert (dmy.json()["first_date"], dmy.json()["last_date"]) == ("2026-02-01", "2026-02-03")
-    assert shown.json()["first_date"] == "2026-11-25"
+    assert shown.json()["first_date"] == "2026-11-15"
     assert bad.status_code == 422
 
 
@@ -637,7 +638,7 @@ async def test_a_paypal_download_goes_into_a_paypal_account_and_no_other(
     assert sorted(r["amount"] for r in rows) == [-2_000, -500, -500, 950]
     assert sum(r["pending"] for r in rows) == 1
     assert sum(r["declined"] for r in rows) == 1
-    assert (wrong.status_code, wrong.json()["error"]) == (422, "unknown_layout")
+    assert (wrong.status_code, wrong.json()["error"]) == (422, "other_bank")
 
 
 async def test_a_statement_in_another_currency_is_refused(db_url, make_dashboards_app):
@@ -764,3 +765,179 @@ async def test_a_manual_connection_is_never_called_stale_by_the_api_rule(
         found = await connection(client, link)
 
     assert (found["stale"], found["stale_since"], found["last_error"]) == (False, None, None)
+
+
+async def test_a_windows_or_utf16_file_is_read_and_says_how(db_url, make_dashboards_app):
+    text = "Date,Description,Amount\n2026-11-02,Caf\u00e9 Noir,-3.00\n"
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        account = await open_account(client, link)
+        latin = await upload(client, account, text.encode("cp1252"))
+        wide_text = text.replace("Noir", "Rouge").encode("utf-16-le")
+        wide = await upload(client, account, b"\xff\xfe" + wide_text)
+        plain_text = text.replace("Noir", "Vert").encode()
+        plain = await upload(client, account, b"\xef\xbb\xbf" + plain_text)
+        rows = await stored(client, account)
+
+    assert [r.json()["encoding"] for r in (latin, wide, plain)] == ["cp1252", "utf-16", "utf-8"]
+    assert sorted(r["description"] for r in rows) == [
+        "Caf\u00e9 Noir",
+        "Caf\u00e9 Rouge",
+        "Caf\u00e9 Vert",
+    ]
+
+
+HEAD = "Date,Description,Amount\n"
+
+
+@pytest.mark.parametrize(
+    ("text", "code", "row", "field"),
+    [
+        ('Date,Description,Amount\n2026-11-02,"open,-1.00\n', "csv_malformed", 0, None),
+        ('Date,Description,Amount\n2026-11-02,"a\nb",-1.00\n', "cell_line_break", 1, "description"),
+        (f"{HEAD}2026-11-02,A,99999999999999.99\n", "amount_too_large", 1, "amount"),
+        ("Date,Description,Amount\n1980-01-01,A,-1.00\n", "date_out_of_range", 1, "date"),
+        ("Date,Description,Amount\n2026-11-24,A,-1.00\n", "date_out_of_range", 1, "date"),
+        ("Date,Description,Amount\n2026-11-02,A,1.234\n", "amount_decimals", 1, "amount"),
+        ("Date,Description,Amount\n2026-11-02,A,abc\n", "amount_format", 1, "amount"),
+        ("Date,Description,Amount\n2026-02-30,A,1\n", "not_a_date", 1, "date"),
+        ("Date,Description,Amount\n01/02/2026,A,1\n", "date_ambiguous", 0, "date"),
+        (f"{HEAD}13/02/2026,A,1\n02/13/2026,B,1\n", "date_mixed_order", 0, "date"),
+        ("Date,Description,Amount,Currency\n2026-11-02,A,1,EUR\n", "wrong_currency", 1, "currency"),
+        ("Date,Description,Debit,Credit\n2026-11-02,A,1,2\n", "debit_credit_both", 1, "amount"),
+    ],
+)
+async def test_every_problem_of_a_file_has_a_stable_code(
+    db_url, make_dashboards_app, text, code, row, field
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        account = await open_account(client, link)
+        response = await upload(client, account, text)
+
+    assert response.status_code == 422
+    (problem,) = response.json()["errors"]
+    assert (problem["row"], problem["field"], problem["code"]) == (row, field, code)
+
+
+async def test_a_cell_with_a_control_character_is_cleaned_and_an_id_with_one_refused(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        account = await open_account(client, link)
+        clean = await upload(client, account, f"{HEAD}2026-11-02,A\x07\x1bB,-1.00\n")
+        bad_text = "Date,Description,Amount,Id\n2026-11-03,C,-1.00,a\x01b\n"
+        bad = await upload(client, account, bad_text)
+        rows = await stored(client, account)
+
+    assert clean.status_code == 200
+    assert [r["description"] for r in rows] == ["A B"]
+    assert (bad.status_code, bad.json()["errors"][0]["code"]) == (422, "control_character")
+
+
+async def test_a_repeated_bank_id_in_one_file_keeps_every_line(db_url, make_dashboards_app):
+    text = (
+        "Date,Description,Amount,Id\n"
+        "2026-11-02,A,-1.00,tx1\n"
+        "2026-11-02,B,-2.00,tx1\n"
+        f"2026-11-03,C,-3.00,{'z' * 90}\n"
+    )
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        account = await open_account(client, link)
+        first = await upload(client, account, text)
+        again = await upload(client, account, text)
+        rows = await stored(client, account)
+
+    assert (first.json()["created"], first.json()["duplicates"]) == (3, 0)
+    assert (again.json()["created"], again.json()["duplicates"]) == (0, 3)
+    assert sorted(r["amount"] for r in rows) == [-300, -200, -100]
+
+
+OFX_TWO = """<OFX>
+<BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>GBP
+<BANKACCTFROM><ACCTID>11110001</ACCTID></BANKACCTFROM>
+<BANKTRANLIST>
+<STMTTRN><DTPOSTED>20261102120000<TRNAMT>-1.00<FITID>a1<NAME>First &amp; Co</STMTTRN>
+</BANKTRANLIST>
+<LEDGERBAL><BALAMT>10.00<DTASOF>20261102</LEDGERBAL>
+</STMTRS></STMTTRNRS>
+<STMTTRNRS><STMTRS><CURDEF>GBP
+<BANKACCTFROM><ACCTID>22220002</ACCTID></BANKACCTFROM>
+<BANKTRANLIST>
+<STMTTRN><DTPOSTED>20261103235500[-5:EST]<TRNAMT>-2.00<FITID>b1<NAME>Second</STMTTRN>
+</BANKTRANLIST>
+<LEDGERBAL><BALAMT>20.00<DTASOF>20261103</LEDGERBAL>
+</STMTRS></STMTTRNRS></BANKMSGSRSV1>
+</OFX>
+"""
+
+
+async def test_an_ofx_file_with_several_accounts_takes_the_one_that_matches(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        masked = await open_account(client, link, mask_last4="0002")
+        other = await open_account(client, link, mask_last4="9999")
+        unmasked = await open_account(client, link)
+        taken = await upload(client, masked, OFX_TWO, "?dry_run=true")
+        refused = await upload(client, other, OFX_TWO)
+        nomask = await upload(client, unmasked, OFX_TWO)
+
+    assert taken.status_code == 200
+    assert (taken.json()["parsed"], taken.json()["balance"]) == (1, 2_000)
+    assert taken.json()["first_date"] == "2026-11-04"  # 23:55 in New York is 04:55 in London
+    codes = [r.json()["errors"][0]["code"] for r in (refused, nomask)]
+    assert codes == ["ofx_several_accounts"] * 2
+
+
+async def test_ofx_text_is_unescaped_and_the_balance_is_told_on_a_dry_run(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        account = await open_account(client, link, mask_last4="0001", as_of="2026-10-01")
+        dry = await upload(client, account, OFX_TWO, "?dry_run=true")
+        applied = await upload(client, account, OFX_TWO, "?apply_balance=true")
+        rows = await stored(client, account)
+
+    assert (dry.json()["balance"], dry.json()["balance_date"]) == (1_000, "2026-11-02")
+    assert (dry.json()["balance_would_apply"], dry.json()["balance_applied"]) == (True, False)
+    assert applied.json()["balance_applied"] is True
+    assert [r["description"] for r in rows] == ["First & Co"]
+
+
+async def test_the_currencies_of_the_form_and_an_unknown_code(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        listed = (await client.get(f"{BASE}/currencies")).json()["currencies"]
+        bad = await client.post(
+            f"{BASE}/accounts",
+            json={"connection_id": link["id"], "name": "X", "currency": "ABC", "balance": 1},
+        )
+
+    codes = {c["code"]: c["exponent"] for c in listed}
+    assert (codes["GBP"], codes["JPY"], codes["KWD"]) == (2, 0, 3)
+    assert bad.status_code == 422
+    assert bad.json()["fields"] == ["currency"]
+
+
+async def test_the_future_date_refusal_has_its_own_code(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        account = await open_account(client, link)
+        future = await client.post(
+            f"{BASE}/accounts/{account['id']}/balance", json={"balance": 5, "as_of": "2026-12-01"}
+        )
+
+    assert (future.status_code, future.json()["error"]) == (422, "as_of_future")

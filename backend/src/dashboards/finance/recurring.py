@@ -419,6 +419,7 @@ class RowError:
     row: int  # 1 is the first data row
     field: str | None
     message: str
+    code: str | None = None  # stable and machine-readable (the message is for people)
 
 
 class CellError(ValueError):
@@ -591,7 +592,7 @@ def parse_csv(text: str) -> tuple[list[tuple[int, RecurringIn]], list[RowError],
     reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
     header = [name.strip().lower() for name in (reader.fieldnames or [])]
     if not header:
-        return [], [RowError(0, None, "the file has no header row")], []
+        return [], [RowError(0, None, "the file has no header row", "no_header")], []
     reader.fieldnames = header
     ignored = [name for name in header if name and name not in KNOWN_COLUMNS]
     inputs: list[tuple[int, RecurringIn]] = []
@@ -601,7 +602,7 @@ def parse_csv(text: str) -> tuple[list[tuple[int, RecurringIn]], list[RowError],
     try:
         for number, row in enumerate(reader, start=1):
             if number > MAX_ROWS:
-                errors.append(RowError(number, None, f"more than {MAX_ROWS} rows"))
+                errors.append(RowError(number, None, f"more than {MAX_ROWS} rows", "too_many_rows"))
                 break
             if not any((value or "").strip() for value in row.values() if isinstance(value, str)):
                 continue
@@ -610,25 +611,27 @@ def parse_csv(text: str) -> tuple[list[tuple[int, RecurringIn]], list[RowError],
             try:
                 item = row_to_input(clean, counted.get(key, 0) + 1)
             except CellError as exc:
-                errors.append(RowError(number, exc.field, str(exc)))
+                errors.append(RowError(number, exc.field, str(exc), "invalid"))
                 continue
             except ValidationError as exc:
                 errors.extend(problem_row(number, problem) for problem in exc.errors())
                 continue
             if item.external_ref in seen:
-                errors.append(RowError(number, "external_ref", "the same reference twice"))
+                message = "the same reference twice"
+                errors.append(RowError(number, "external_ref", message, "duplicate_reference"))
                 continue
             seen.add(str(item.external_ref))
             counted[key] = counted.get(key, 0) + 1
             inputs.append((number, item))
     except csv.Error:
-        errors.append(RowError(0, None, "the file is not valid CSV"))
+        errors.append(RowError(0, None, "the file is not valid CSV", "csv_malformed"))
     return inputs, errors, ignored
 
 
 def problem_row(number: int, problem: Any) -> RowError:
     where = problem.get("loc") or ()
-    return RowError(number, str(where[0]) if where else None, field_message(problem))
+    field = str(where[0]) if where else None
+    return RowError(number, field, field_message(problem), str(problem.get("type") or "invalid"))
 
 
 def field_message(problem: Any) -> str:

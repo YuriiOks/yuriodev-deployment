@@ -46,7 +46,7 @@ def app_with_test_routes(make_settings):
 def assert_error(response, status, code):
     assert response.status_code == status
     body = response.json()
-    assert set(body) == ERROR_KEYS
+    assert set(body) - {"fields", "issues"} == ERROR_KEYS  # a 422 also names its fields
     assert body["error"] == code
     assert body["request_id"] == response.headers["x-request-id"]
     return body
@@ -98,3 +98,14 @@ def test_exception_after_the_response_started_is_reraised(app_with_test_routes):
         pytest.raises(RuntimeError, match="mid-stream"),
     ):
         client.get("/api/stream-boom")
+
+
+def test_validation_error_names_the_failing_fields_with_a_fixed_reason(app_with_test_routes):
+    with TestClient(app_with_test_routes) as client:
+        response = client.get("/api/items/not-a-number-xyz")
+
+    body = response.json()
+    assert body["fields"] == ["item_id"]
+    assert body["issues"] == [
+        {"field": "item_id", "type": "int_parsing", "reason": "Must be a whole number"}
+    ]

@@ -17,7 +17,7 @@ MCP_HEADERS = {"Accept": "application/json, text/event-stream"}
 
 def error_of(response):
     body = response.json()
-    assert set(body) == {"error", "message", "request_id"}
+    assert set(body) - {"fields", "issues"} == {"error", "message", "request_id"}
     assert body["request_id"]
     return body["error"]
 

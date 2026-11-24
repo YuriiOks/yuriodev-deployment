@@ -65,9 +65,74 @@ async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
     return error_response(app_exc.status, app_exc.code, app_exc.message)
 
 
+_PLACES = frozenset({"body", "query", "path", "header", "cookie"})
+_REASONS = {
+    "missing": "Required",
+    "string_too_short": "Too short",
+    "string_too_long": "Too long",
+    "string_pattern_mismatch": "Not in the expected format",
+    "string_type": "Must be text",
+    "int_type": "Must be a whole number",
+    "int_parsing": "Must be a whole number",
+    "int_from_float": "Must be a whole number",
+    "float_type": "Must be a number",
+    "float_parsing": "Must be a number",
+    "bool_type": "Must be true or false",
+    "bool_parsing": "Must be true or false",
+    "greater_than": "Too small",
+    "greater_than_equal": "Too small",
+    "less_than": "Too large",
+    "less_than_equal": "Too large",
+    "literal_error": "Not one of the accepted values",
+    "enum": "Not one of the accepted values",
+    "extra_forbidden": "Not an accepted field",
+    "uuid_parsing": "Not a valid id",
+    "uuid_type": "Not a valid id",
+    "date_type": "Not a valid date",
+    "date_parsing": "Not a valid date",
+    "date_from_datetime_parsing": "Not a valid date",
+    "datetime_type": "Not a valid date and time",
+    "datetime_parsing": "Not a valid date and time",
+    "json_invalid": "The body is not valid JSON",
+    "model_attributes_type": "Must be an object",
+    "dict_type": "Must be an object",
+    "list_type": "Must be a list",
+    "too_short": "Too few items",
+    "too_long": "Too many items",
+    "value_error": "Not accepted",
+    "assertion_error": "Not accepted",
+}
+MAX_ISSUES = 20
+
+
+def _field(location: tuple[object, ...]) -> str:
+    """A path such as `items.0.amount`. A key the client invented (an extra field) is cut to
+    letters, digits, `_`, `-` and `.` and 64 characters: it is the one place input could show."""
+    parts = location[1:] if location and location[0] in _PLACES else location
+    name = ".".join(str(part) for part in parts) or str(location[0] if location else "body")
+    return re.sub(r"[^A-Za-z0-9_.-]", "", name)[:64] or "body"
+
+
 async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    # FastAPI's default body echoes the offending input back; this one never does.
-    return error_response(422, "validation_error", "Invalid request")
+    """422 with the names of the failing fields and a fixed sentence per kind of failure. Never
+    the input (FastAPI's default body echoes it back) and never a message built from it."""
+    problems = cast(RequestValidationError, exc).errors()
+    issues: list[dict[str, str]] = []
+    for problem in problems:
+        kind = str(problem.get("type", ""))
+        field = _field(tuple(problem.get("loc", ())))
+        reason = _REASONS.get(kind, "Not valid")
+        if not any(i["field"] == field and i["type"] == kind for i in issues):
+            issues.append({"field": field, "type": kind, "reason": reason})
+    issues = issues[:MAX_ISSUES]
+    body = ErrorBody(
+        error="validation_error", message="Invalid request", request_id=get_request_id()
+    )
+    content = body.model_dump() | {
+        "fields": list(dict.fromkeys(i["field"] for i in issues)),
+        "issues": issues,
+    }
+    return JSONResponse(content, status_code=422)
 
 
 def install_exception_handlers(app: FastAPI) -> None:

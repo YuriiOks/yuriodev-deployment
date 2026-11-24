@@ -1124,10 +1124,15 @@ account from a bank's API takes only `overdraft_limit`. A connection's `last_ok_
 newest data is as of (a balance's date, or the newest line of a statement), never the day it was
 uploaded; with an open account and data older than 30 days there is a `stale_statement` attention
 item.
+`GET /manual/currencies` lists the currencies an account may be in (ISO 4217, `{code, exponent}`,
+for a form's select; any other code is 422 with `fields: ["currency"]`); `as_of` in the future is
+422 `as_of_future`.
 Statements: `POST /manual/accounts/{id}/statement` with the downloaded file as the body (at most
-2 MiB; `?dry_run=true`, `?date_order=dmy|mdy`, `?apply_balance=true`). Formats: (1) OFX or QFX
+1 MiB, because the proxy takes no more: a bigger body is 413 `file_too_large`; `?dry_run=true`, `?date_order=dmy|mdy`, `?apply_balance=true`). Formats: (1) OFX or QFX
 (the open OFX specification; v1 SGML and v2 XML; `FITID` is the transaction id, `LEDGERBAL` the
-balance, `CURDEF` must equal the account's currency); (2) a CSV with the headers `date`,
+balance, `CURDEF` must equal the account's currency; with several accounts in one file only the
+one whose `ACCTID` ends with the account's `mask_last4` is read, else 422 `ofx_several_accounts`;
+`&amp;`-style escapes are read back and a time with `[offset:TZ]` goes to the local clock); (2) a CSV with the headers `date`,
 `description` and `amount` (or `debit` and `credit`), and optionally `time`, `counterparty`,
 `balance`, `currency`, `id` (any order, any case; a file from any bank can be reshaped into it);
 (3) PayPal's Activity Download, the one bank export whose columns the provider itself publishes
@@ -1138,18 +1143,31 @@ cash effect of a line is Net; Pending and Denied are marked; only for an account
 or documentation describes the file (checked on 2026-11-24; third-party converters do, with
 different dates and no guarantee), so no layout of theirs is built in: use OFX where the bank
 offers it, or reshape the CSV into the generic one; a file in no known layout is 422
-`unknown_layout`, never guessed. Adding one is a few lines in `statements.LAYOUTS` once the header
+`unknown_layout` (an empty one `empty_file`, another bank's PayPal layout `other_bank`, never
+guessed; bytes that are no text `not_utf8`). Adding one is a few lines in `statements.LAYOUTS` once the header
 row of your own file is seen. Rules: amounts are plain decimals (`-12.50`, `1,234.56`; a comma is
 never a decimal point) with no more decimals than the currency has and in the account's currency;
 dates are `YYYY-MM-DD` or `DD/MM/YYYY` or `MM/DD/YYYY`, the order read from the file when a day
 over 12 settles it, else given with `date_order`, else the file is refused; a line with no time is
-booked at noon of its day (local zone). All or nothing: any bad line writes nothing and the 422
-body lists every line (`errors: [{row, field, message}]`). A line already there (same bank id, or
-same date, amount, text and place among identical lines) is a `duplicate` and left as it is, so
+booked at noon of its day (local zone), no earlier than 1990 and no later than tomorrow; a line
+with an amount over 10^12 minor units, a cell with a line break or a bank id with a control
+character is refused (control characters in a description become a space). The file is read as
+UTF-8 (a BOM is fine), UTF-16 with a BOM, the OFX header's charset or Windows-1252, and the
+answer's `encoding` says which; a CSV with a bad quote is one row-0 error `csv_malformed`.
+All or nothing: any bad line writes nothing and the 422
+body lists every line (`errors: [{row, field, message, code}]`; `code` is stable: `date_ambiguous`,
+`date_mixed_order`, `date_out_of_range`, `not_a_date`, `not_a_time`, `amount_format`,
+`amount_decimals`, `amount_too_large`, `wrong_currency`, `debit_credit_both`, `required`,
+`cell_line_break`, `control_character`, `csv_malformed`, `too_many_lines`, `no_lines`,
+`ofx_several_accounts`; the recurring import has its own). A line already there (same bank id, or
+same date, amount, text and place among identical lines) is a `duplicate` and left as it is (a
+bank id repeated within one file is told apart by its order, one over 60 characters is stored
+as a hash; `created` is what the database took), so
 the same or an overlapping file can be loaded again. The answer has `parsed`, `created`,
 `duplicates`, `first_date`, `last_date`, `money_in`, `money_out` (declined lines excluded): check
 them against the bank's own statement with `dry_run` first. `apply_balance` sets the account's
 balance from the file's newest balance unless a newer one is already set (`balance_applied`);
+`balance`, `balance_date` and `balance_would_apply` tell what it would do, on a dry run too;
 a credit card's balance is set by its own endpoint. Imported lines get the category `income` or
 `other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again).
 MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set_manual_balance`,
