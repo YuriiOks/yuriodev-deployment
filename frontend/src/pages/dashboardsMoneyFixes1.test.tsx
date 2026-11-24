@@ -21,6 +21,8 @@ function renderAt(path: string) {
 
 const main = () => screen.getByRole('main');
 const PATH = '/dashboards/personal/money';
+/** Every section on one page (the Today view is the default). */
+const ALL = `${PATH}?view=all`;
 
 const acct = (id: string, name: string, balance: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -95,7 +97,7 @@ const attentionItem = (kind: string, key: string, subject: [string, string], ext
 describe('the Money page: money that must not be wrong', () => {
   it('offers the pounds switch only when something was really converted: an all-pounds owner has nothing to switch', async () => {
     setup({ finance: finance({ display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a-1', 'Everyday', 45050, { display_own_balance_minor: 45050, converted: false })] }) });
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     expect(within(main()).queryByRole('button', { name: 'in account currency' })).toBeNull();
   });
@@ -110,7 +112,7 @@ describe('the Money page: money that must not be wrong', () => {
         ],
       }),
     });
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const opened = within(wallet().getByRole('article'));
     const over = opened.getByText('Over card').closest('li') as HTMLElement;
@@ -133,7 +135,7 @@ describe('the Money page: money that must not be wrong', () => {
       display: { currency: 'GBP', rates: {}, missing: ['JPY'], complete: false, spent: 0, previous_spent: 0, categories: [] },
     };
     setup({ finance: finance({ categories, display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a-1', 'Everyday', 45050, { display_own_balance_minor: 45050 })] }) });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     expect(await panel.findByText(/November · JPY ¥120,000/)).toBeInTheDocument();
     expect(panel.getByText('not converted: JPY')).toBeInTheDocument();
@@ -168,7 +170,7 @@ describe('the Money page: money that must not be wrong', () => {
         display: { currency: 'GBP', rates: { EUR: { rate: '0.83', as_of: '2026-11-24T08:00:00Z', source: 'bank' } }, missing: [] },
       }),
     });
-    renderAt(PATH);
+    renderAt(ALL);
     const list = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     const row = (await list.findByText('Corner Cafe')).closest('li') as HTMLElement;
     expect(row).toHaveTextContent('-£10.00');
@@ -184,7 +186,7 @@ describe('the Money page: money that must not be wrong', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const accounts = () => api.callsTo('GET', '/finance/accounts').length;
     const summary = () => api.callsTo('GET', '/finance/summary').length;
@@ -208,7 +210,7 @@ describe('the Money page: money that must not be wrong', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const card = within(wallet().getByRole('article')).getByText('Plastic card').closest('li') as HTMLElement;
     await user.click(within(card).getByRole('button', { name: 'Update balance' }));
@@ -229,7 +231,7 @@ describe('the Money page: money that must not be wrong', () => {
   it('makes a bank from a name with no Latin letters under a neutral id', async () => {
     const api = setup({ finance: finance({ providers: [] }) });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await user.click(wallet().getByRole('button', { name: 'Add a bank' }));
     const form = within(wallet().getByRole('form', { name: 'Add a bank' }));
@@ -253,7 +255,7 @@ describe('the Money page: attention figures in one currency', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const row = await within(main()).findByRole('region', { name: 'Needs attention' });
     const card = within(row).getByRole('button', { name: /Cloud storage/ });
     expect(card).toHaveTextContent('$5.00, was $4.00');
@@ -266,7 +268,7 @@ describe('the Money page: attention figures in one currency', () => {
       finance: finance({ attention: [attentionItem('overdrawn', 'o1', ['account', 'a-1'], { severity: 'info', amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] }),
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const row = await within(main()).findByRole('region', { name: 'Needs attention' });
     const before = [api.callsTo('GET', '/finance/accounts').length, api.callsTo('GET', '/finance/summary').length];
     await user.click(within(row).getByRole('button', { name: /Everyday/ }));
@@ -293,7 +295,7 @@ describe('the Money page: the upcoming total', () => {
 
   it('is one plain figure, with no "≈" and no second list, when the window is all in pounds', async () => {
     setup({ finance: finance({ upcoming: upcoming(false) }) });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByText('In all: £10.00')).toBeInTheDocument();
     expect(panel.queryByText(/≈/)).toBeNull();

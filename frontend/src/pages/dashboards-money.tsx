@@ -8,7 +8,8 @@ import { whenLabel } from '../components/dashboards/Money/labels';
 import AttentionScroller from '../components/dashboards/Money/AttentionScroller';
 import AttentionSheet from '../components/dashboards/Money/AttentionSheet';
 import MoneyAttentionView from '../components/dashboards/Money/MoneyAttentionView';
-import MoneyViewSwitch, { type MoneyView } from '../components/dashboards/Money/MoneyViewSwitch';
+import MoneyToday from '../components/dashboards/Money/MoneyToday';
+import MoneyViewSwitch, { MONEY_VIEWS, type MoneyView } from '../components/dashboards/Money/MoneyViewSwitch';
 import { orderedActive } from '../components/dashboards/Money/attentionModel';
 import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
 import MoneyDebts from '../components/dashboards/Money/MoneyDebts';
@@ -62,7 +63,7 @@ const DashboardsMoney = () => {
   // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
   const [params, setParams] = useSearchParams();
   const viewParam = params.get('view');
-  const view: MoneyView = viewParam === 'attention' ? 'attention' : viewParam === 'recurring' ? 'recurring' : 'overview';
+  const view: MoneyView = (MONEY_VIEWS as readonly string[]).includes(viewParam ?? '') ? (viewParam as MoneyView) : 'today';
   const [showHidden, setShowHidden] = useState(false);
   const [days, setDays] = useState(14);
   const attention = useAttention(showHidden, live);
@@ -141,11 +142,79 @@ const DashboardsMoney = () => {
     }
   };
 
+  // The sections of the page: each is a view of its own (Wallet, Payments, Spending, Transactions); `all` shows them together.
+  const walletSection = (
+    <section aria-labelledby="money-wallet-title" className={money.panel}>
+            <div className={money.head}>
+              <h2 id="money-wallet-title" className={money.title}>
+                {m.walletTitle}
+              </h2>
+              <span className={styles.hint}>{m.walletHint}</span>
+            </div>
+            {accounts.status === 'loading' && <LoadingBlock rows={4} />}
+            {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
+            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} logos={logos} onSelect={setSelected} onChanged={dataChanged} />}
+          </section>
+  );
+  const upcomingSection = (
+    <section aria-labelledby="money-upcoming-title" className={money.panel}>
+            <div className={money.head}>
+              <h2 id="money-upcoming-title" className={money.title}>
+                {m.rec.upcomingTitle}
+              </h2>
+            </div>
+            <UpcomingToolbar days={days} onDays={setDays} />
+            {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
+            {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
+            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
+          </section>
+  );
+  const debtsSection = (
+    <>
+      {/* Shown while the payments load and when they cannot be read (a failure must not look like having no debts); hidden only when they were read and there are none. */}
+          {(recurring.status !== 'ready' || debts.length > 0 || endedDebts.length > 0) && (
+            <section aria-labelledby="money-debts-title" className={money.panel}>
+              <div className={money.head}>
+                <h2 id="money-debts-title" className={money.title}>
+                  {m.rec.debtsTitle}
+                </h2>
+              </div>
+              {recurring.status === 'loading' && <LoadingBlock rows={2} />}
+              {recurring.status === 'error' && <InlineError message={m.rec.debtsFailed} onRetry={recurring.reload} />}
+              {recurring.value && <MoneyDebts rows={debts} ended={endedDebts} mode={mode} />}
+            </section>
+          )}
+    </>
+  );
+  const spendSection = (
+    <section aria-labelledby="money-spend-title" className={money.panel}>
+            <div className={money.head}>
+              <h2 id="money-spend-title" className={money.title}>
+                {m.spendTitle}
+              </h2>
+            </div>
+            {spend.status === 'loading' && <LoadingBlock rows={3} />}
+            {spend.status === 'error' && <InlineError message={m.spendFailed} onRetry={spend.reload} />}
+            {spend.value && <MoneyCategories data={spend.value} mode={mode} />}
+          </section>
+  );
+  const transactionsSection = (
+    <section aria-labelledby="money-transactions-title" className={money.panel}>
+            <div className={money.head}>
+              <h2 id="money-transactions-title" className={money.title}>
+                {m.transactionsTitle}
+              </h2>
+            </div>
+            <MoneyTransactions key={txKey} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
+          </section>
+  );
+  const todayFailed = [attention, upcoming, spend, accounts].some((slot) => slot.status === 'error');
+
   return (
     <>
       <header className={styles.header}>
         <div className={styles.titles}>
-          <h1 className={styles.title}>{m.title}</h1>
+          <h1 className={view === 'today' ? 'sr-only' : styles.title}>{m.title}</h1>
           <p className={styles.sub}>
             <Link to={pagePath('dashboards-personal')} className={styles.back}>
               {m.back}
@@ -176,7 +245,7 @@ const DashboardsMoney = () => {
             </div>
           )}
         </div>
-        {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
+        {live && view !== 'today' && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
       </header>
       {consent && (
         <div role={consent === 'connected' ? 'status' : 'alert'} className={styles.consent} data-result={consent}>
@@ -188,14 +257,14 @@ const DashboardsMoney = () => {
       )}
       {live && summary.status === 'error' && <InlineError message={m.summaryFailed} onRetry={summary.reload} />}
       {live && outdated.length > 0 && <InlineError message={m.refreshFailed} onRetry={retryOutdated} />}
-      {live && <MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
-      {live && view === 'overview' && attention.status === 'loading' && (
+      {live && view !== 'today' && <MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
+      {live && view === 'all' && attention.status === 'loading' && (
         <p role="status" className={money.none}>
           {m.checkingAttention}
         </p>
       )}
-      {live && view === 'overview' && attention.status === 'error' && <InlineError message={m.rec.attentionFailed} onRetry={attention.reload} />}
-      {live && view === 'overview' && ordered.length > 0 && (
+      {live && view === 'all' && attention.status === 'error' && <InlineError message={m.rec.attentionFailed} onRetry={attention.reload} />}
+      {live && view === 'all' && ordered.length > 0 && (
         <AttentionScroller items={ordered} allHref="?view=attention" recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} onOpen={(entry, trigger) => setSheet({ key: entry.key, opener: trigger })} />
       )}
       {!live ? (
@@ -221,61 +290,40 @@ const DashboardsMoney = () => {
                 <MoneyAttentionView data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onAccountChanged={accountChanged} onOpenBank={setSelected} />
               )}
             </>
+          ) : view === 'today' ? (
+            <MoneyToday
+              nav={<MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
+              ordered={ordered}
+              recurring={recurring.value?.recurring ?? []}
+              accounts={accounts.value?.accounts ?? []}
+              logos={logos}
+              mode={mode}
+              upcoming={upcoming.value}
+              spend={spend.value}
+              summary={summary.value}
+              bankData={accounts.value}
+              failed={todayFailed}
+              onOpenSheet={(entry, trigger) => setSheet({ key: entry.key, opener: trigger })}
+              onChanged={changed}
+            />
+          ) : view === 'wallet' ? (
+            walletSection
+          ) : view === 'payments' ? (
+            <>
+              {upcomingSection}
+              {debtsSection}
+            </>
+          ) : view === 'spending' ? (
+            spendSection
+          ) : view === 'transactions' ? (
+            transactionsSection
           ) : (
             <>
-          <section aria-labelledby="money-wallet-title" className={money.panel}>
-            <div className={money.head}>
-              <h2 id="money-wallet-title" className={money.title}>
-                {m.walletTitle}
-              </h2>
-              <span className={styles.hint}>{m.walletHint}</span>
-            </div>
-            {accounts.status === 'loading' && <LoadingBlock rows={4} />}
-            {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
-            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} logos={logos} onSelect={setSelected} onChanged={dataChanged} />}
-          </section>
-          <section aria-labelledby="money-upcoming-title" className={money.panel}>
-            <div className={money.head}>
-              <h2 id="money-upcoming-title" className={money.title}>
-                {m.rec.upcomingTitle}
-              </h2>
-            </div>
-            <UpcomingToolbar days={days} onDays={setDays} />
-            {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
-            {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
-            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
-          </section>
-          {/* Shown while the payments load and when they cannot be read (a failure must not look like having no debts); hidden only when they were read and there are none. */}
-          {(recurring.status !== 'ready' || debts.length > 0 || endedDebts.length > 0) && (
-            <section aria-labelledby="money-debts-title" className={money.panel}>
-              <div className={money.head}>
-                <h2 id="money-debts-title" className={money.title}>
-                  {m.rec.debtsTitle}
-                </h2>
-              </div>
-              {recurring.status === 'loading' && <LoadingBlock rows={2} />}
-              {recurring.status === 'error' && <InlineError message={m.rec.debtsFailed} onRetry={recurring.reload} />}
-              {recurring.value && <MoneyDebts rows={debts} ended={endedDebts} mode={mode} />}
-            </section>
-          )}
-          <section aria-labelledby="money-spend-title" className={money.panel}>
-            <div className={money.head}>
-              <h2 id="money-spend-title" className={money.title}>
-                {m.spendTitle}
-              </h2>
-            </div>
-            {spend.status === 'loading' && <LoadingBlock rows={3} />}
-            {spend.status === 'error' && <InlineError message={m.spendFailed} onRetry={spend.reload} />}
-            {spend.value && <MoneyCategories data={spend.value} mode={mode} />}
-          </section>
-          <section aria-labelledby="money-transactions-title" className={money.panel}>
-            <div className={money.head}>
-              <h2 id="money-transactions-title" className={money.title}>
-                {m.transactionsTitle}
-              </h2>
-            </div>
-            <MoneyTransactions key={txKey} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
-          </section>
+              {walletSection}
+              {upcomingSection}
+              {debtsSection}
+              {spendSection}
+              {transactionsSection}
             </>
           )}
         </>

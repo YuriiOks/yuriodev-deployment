@@ -21,6 +21,8 @@ function renderAt(path: string) {
 
 const main = () => screen.getByRole('main');
 const PATH = '/dashboards/personal/money';
+/** Every section on one page (the Today view is the default). */
+const ALL = `${PATH}?view=all`;
 
 const acct = (id: string, name: string, balance: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -80,7 +82,7 @@ const opened = () => within(wallet().getByRole('article'));
 
 async function openHandBank() {
   const user = userEvent.setup();
-  renderAt(PATH);
+  renderAt(ALL);
   await within(main()).findByRole('region', { name: 'Wallet' });
   await wallet().findByRole('group', { name: 'Banks' });
   await user.click(bankButton('Hand Bank'));
@@ -101,7 +103,7 @@ describe('the Money page: a bank entered by hand', () => {
 
   it('keeps the table\'s colours and the id\'s name for a server that sends neither', async () => {
     setup({ finance: finance({ providers: [] }) });
-    renderAt(PATH);
+    renderAt(ALL);
     await within(main()).findByRole('region', { name: 'Wallet' });
     await wallet().findByRole('group', { name: 'Banks' });
     expect(bankButton('Hand bank')).toBeInTheDocument();
@@ -253,7 +255,7 @@ describe('the Money page: a statement that is out of date', () => {
         ],
       }),
     });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Needs attention' }));
     // A card in the row with the bank's own name and the fact in a few words.
     const card = panel.getByRole('button', { name: /Hand Bank/ });

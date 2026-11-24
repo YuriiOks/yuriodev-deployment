@@ -22,6 +22,8 @@ function renderAt(path: string) {
 
 const main = () => screen.getByRole('main');
 const PATH = '/dashboards/personal/money';
+/** Every section on one page (the Today view is the default). */
+const ALL = `${PATH}?view=all`;
 
 const acct = (id: string, name: string, currency: string, balance: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -126,7 +128,7 @@ const banksReady = async () => {
 describe('the Money page: totals and the wallet', () => {
   it('shows the totals per currency with their symbol and the part in pots, and never a sum across currencies', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const blocks = within(main().querySelector('header') as HTMLElement).getAllByRole('listitem');
     // GBP: the open accounts of two banks (an overdraft counts as negative); archived accounts are left out.
@@ -146,7 +148,7 @@ describe('the Money page: totals and the wallet', () => {
   it('stacks every bank as a card with its money, opens the first, and opens another on a click', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     // The open bank sits at the bottom of the stack; the others keep their order above it.
     const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => /^(Acme bank|Monzo|Monobank)/.exec(button.textContent ?? '')?.[1]);
@@ -165,7 +167,7 @@ describe('the Money page: totals and the wallet', () => {
   it('shows the hero balance with the symbol and pence smaller, the open card\'s facts and its pill actions, and nothing of the kind on the others', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const acme = bankCard('Acme bank');
     // Pounds big, symbol and pence small: three kinds of part, one text.
@@ -183,7 +185,7 @@ describe('the Money page: totals and the wallet', () => {
 
   it('colours a bank we know in its brand pair, and any other in the neutral card', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     expect(bankCard('Monzo').getAttribute('style')).toContain('--bank-bg: #c9364a');
     expect(bankCard('Monobank').getAttribute('style')).toContain('--bank-bg: #000000');
@@ -194,7 +196,7 @@ describe('the Money page: totals and the wallet', () => {
   it('opens a bank: main accounts as cards, pots as tiles with their emoji as the picture, the empty ones folded', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const accounts = opened().getByRole('region', { name: 'Accounts' });
     const rows = within(accounts).getAllByRole('listitem').map((row) => row.textContent ?? '');
@@ -227,7 +229,7 @@ describe('the Money page: totals and the wallet', () => {
   it('reads a credit account as a debt with how much of its limit is used, in words and a bar, and an archived account apart', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await user.click(bankButton('Monobank'));
     const card = opened().getByText('Platinum credit').closest('li') as HTMLElement;
@@ -245,7 +247,7 @@ describe('the Money page: totals and the wallet', () => {
   it('reads an overdrawn current account with a word and a minus sign, not colour alone', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await user.click(bankButton('Monzo'));
     const main_ = opened().getByText('Main').closest('li') as HTMLElement;
@@ -256,7 +258,7 @@ describe('the Money page: totals and the wallet', () => {
   it('says what the bank link is doing; one that needs reconsent is a clear call to reconnect, with a link where the provider has a route', async () => {
     setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     // Connection status is told on the open card only; a card that needs attention elsewhere carries a warning mark.
     expect(bankCard('Acme bank')).toHaveTextContent(/connected · updated/);
@@ -273,7 +275,7 @@ describe('the Money page: totals and the wallet', () => {
 
   it('has its own error state with a retry for the accounts, and an empty state', async () => {
     const api = setup({ fail: ['financeAccounts'] });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = await within(main()).findByRole('region', { name: 'Wallet' });
     expect(await within(panel).findByRole('alert')).toHaveTextContent('Could not load the accounts.');
     api.fail.delete('financeAccounts');
@@ -283,7 +285,7 @@ describe('the Money page: totals and the wallet', () => {
 
   it('says there are no accounts when the list is empty', async () => {
     setup({ finance: finance({ accounts: [], connections: [], transactions: [], summary: { month: '2026-11', as_of: null, currencies: [] } }) });
-    renderAt(PATH);
+    renderAt(ALL);
     expect(await within(await within(main()).findByRole('region', { name: 'Wallet' })).findByText('No accounts yet.')).toBeInTheDocument();
   });
 });
@@ -295,7 +297,7 @@ describe('the Money page: transactions', () => {
 
   it('lists them newest first with a bank mark, the bank and account, a sign, an arrow and a word for money in and out, and the marks', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await list().findByText('Corner Cafe');
     await waitFor(() => expect(list().getAllByRole('listitem')[0]).toHaveTextContent('Acme bank · Everyday'));
@@ -320,7 +322,7 @@ describe('the Money page: transactions', () => {
   it('filters by bank with chips (all banks first), applying the choice to the rows, and by account inside a bank', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await list().findByText('Corner Cafe');
     const chips = list().getByRole('group', { name: 'Bank' });
@@ -349,7 +351,7 @@ describe('the Money page: transactions', () => {
     const original = globalThis.fetch;
     vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => original(String(input).replace('limit=25', 'limit=4'), init));
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await list().findByText('Acme 0');
     await user.click(within(list().getByRole('group', { name: 'Bank' })).getByRole('button', { name: 'Monzo' }));
@@ -361,7 +363,7 @@ describe('the Money page: transactions', () => {
   it('searches by text after a short pause, and says when nothing matches', async () => {
     const api = setup();
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await list().findByText('Corner Cafe');
     await user.type(list().getByRole('searchbox', { name: 'Search transactions' }), 'salary');
@@ -379,7 +381,7 @@ describe('the Money page: transactions', () => {
     const original = globalThis.fetch;
     vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => original(String(input).replace('limit=25', 'limit=3'), init));
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await list().findByText('Item 0');
     expect(list().getAllByRole('listitem')).toHaveLength(3);
@@ -397,7 +399,7 @@ describe('the Money page: transactions', () => {
     const original = globalThis.fetch;
     vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => original(String(input).replace('limit=25', 'limit=2'), init));
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     await list().findByText('Item 0');
     await user.click(list().getByRole('button', { name: 'Load more' }));
@@ -410,7 +412,7 @@ describe('the Money page: transactions', () => {
 
   it('shows an error with a retry when the first page fails', async () => {
     const api = setup({ fail: ['financeTransactions'] });
-    renderAt(PATH);
+    renderAt(ALL);
     await ready();
     const failed = await list().findByRole('alert');
     expect(failed).toHaveTextContent('Could not load the transactions.');
@@ -464,7 +466,7 @@ describe('the Money page: account kinds, goals and categories', () => {
   it('folds the business accounts, whatever is in them, behind their own button', async () => {
     setup({ finance: kinds() });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await user.click(bankButton('Monobank'));
     expect(opened().queryByText('Studio')).toBeNull();
@@ -480,7 +482,7 @@ describe('the Money page: account kinds, goals and categories', () => {
   it('tells two accounts with one name apart by their label and last four', async () => {
     setup({ finance: kinds() });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await user.click(bankButton('Monobank'));
     const cards = opened().getAllByText('Card').map((name) => name.closest('li') as HTMLElement);
@@ -492,7 +494,7 @@ describe('the Money page: account kinds, goals and categories', () => {
   it('reads an agreed overdraft as how much of it is used, and shows a pot\'s goal as a bar with its percentage', async () => {
     setup({ finance: kinds() });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await user.click(bankButton('Monzo'));
     const over = opened().getByText('Main').closest('li') as HTMLElement;
@@ -507,7 +509,7 @@ describe('the Money page: account kinds, goals and categories', () => {
 
   it('shows spend by category: the month, the total and its change, a bar per category with its share and the change from last month in words and a sign', async () => {
     setup({ finance: kinds() });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     await panel.findByText(/November · GBP £100\.00 · 6% less than October/);
     const rows = panel.getAllByRole('listitem');
@@ -542,7 +544,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     };
     setup({ finance: finance({ categories, display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a', 'Everyday', 'GBP', 1, { display_own_balance_minor: 1, converted: false }), acct('u', 'Hryvnia', 'UAH', 1000, { display_own_balance_minor: 19, converted: true })] }) });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     await panel.findByText(/November · GBP ≈ £138\.00 · 39% more than October/);
     expect(panel.getAllByRole('listitem')).toHaveLength(1);
@@ -555,7 +557,7 @@ describe('the Money page: account kinds, goals and categories', () => {
 
   it('says nothing was spent when the month has no spending, and has an error with a retry for the block', async () => {
     const api = setup({ fail: ['financeCategories'] });
-    renderAt(PATH);
+    renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     expect(await panel.findByRole('alert')).toHaveTextContent('Could not load spending by category.');
     api.fail.delete('financeCategories');
@@ -566,7 +568,7 @@ describe('the Money page: account kinds, goals and categories', () => {
   it('offers category chips for the categories with spending, filters the rows through the API, and labels each row with its category', async () => {
     const api = setup({ finance: kinds() });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     const list = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     await list.findByText('Weekly shop');
     const chips = await list.findByRole('group', { name: 'Category' });
@@ -614,7 +616,7 @@ describe('the Money page: pounds by default, originals beside', () => {
 
   it('offers no display choice, and shows the originals, while the server sends no converted figures', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     expect(within(main()).queryByRole('group', { name: 'Amounts' })).toBeNull();
     expect(main()).not.toHaveTextContent('≈');
@@ -622,7 +624,7 @@ describe('the Money page: pounds by default, originals beside', () => {
 
   it('shows pounds by default with one grand total, the rate once, the currency with no rate named, and the per-currency parts under it', async () => {
     setup({ finance: converted() });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const choice = within(main()).getByRole('group', { name: 'Amounts' });
     expect(within(choice).getByRole('button', { name: 'in pounds' })).toHaveAttribute('aria-pressed', 'true');
@@ -642,7 +644,7 @@ describe('the Money page: pounds by default, originals beside', () => {
   it('marks a converted figure with ≈ and puts the original small beside it, on the bank card, the account and the row; a currency with no rate is plain', async () => {
     setup({ finance: converted() });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     // Monobank: UAH and USD converted into one figure; JPY has no rate and stays.
     expect(bankButton('Monobank')).toHaveTextContent('≈ £293.00');
@@ -665,7 +667,7 @@ describe('the Money page: pounds by default, originals beside', () => {
   it('switches to the account currency, shows only originals, and remembers the choice for the next visit', async () => {
     setup({ finance: converted() });
     const user = userEvent.setup();
-    const first = renderAt(PATH);
+    const first = renderAt(ALL);
     await banksReady();
     await user.click(within(main()).getByRole('button', { name: 'in account currency' }));
     expect(within(main()).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'true');
@@ -675,7 +677,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     first.unmount();
     resetBootstrap();
     installFakeApi({ finance: converted() });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     expect(within(main()).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -697,7 +699,7 @@ describe('the Money page: bank logos', () => {
 
   it('shows a wordmark in place of the text name, keeps the name as the accessible name, and picks the variant by the card\'s background', async () => {
     setup({ finance: withLogos() });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const acme = bankButton('Acme bank');
     // A neutral card shows both variants (the stylesheet shows the theme\'s); the images are decorative, the name is there for a screen reader.
@@ -723,7 +725,7 @@ describe('the Money page: bank logos', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await waitFor(() => expect(images(bankButton('Acme bank'))).toHaveLength(1));
     expect(images(bankButton('Acme bank'))[0].getAttribute('src')).toBe(WHITE_INK);
@@ -737,7 +739,7 @@ describe('the Money page: bank logos', () => {
   it('shows the logo in the opened bank\'s header and in the bank filter chips, with the name as each one\'s accessible name', async () => {
     setup({ finance: withLogos() });
     const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     await user.click(bankButton('Monzo'));
     const header = opened().getByRole('heading', { level: 3, name: 'Monzo' });
@@ -758,7 +760,7 @@ describe('the Money page: bank logos', () => {
         ],
       }),
     });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const chips = within(within(main()).getByRole('region', { name: 'Transactions' })).getByRole('group', { name: 'Bank' });
     const acme = within(chips).getByRole('button', { name: 'Acme bank' });
@@ -780,7 +782,7 @@ describe('the Money page: bank logos', () => {
         ],
       }),
     });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const transactions = within(main()).getByRole('region', { name: 'Transactions' });
     const chips = within(transactions).getByRole('group', { name: 'Bank' });
@@ -795,7 +797,7 @@ describe('the Money page: bank logos', () => {
 
   it('shows a square mark taller than a wide one, once the image has loaded', async () => {
     setup({ finance: withLogos() });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const monzo = bankButton('Monzo');
     await waitFor(() => expect(images(monzo)).toHaveLength(1));
@@ -814,7 +816,7 @@ describe('the Money page: bank logos', () => {
 
   it('shows the bank\'s square mark on its card in place of a near-square wordmark, when the server has one', async () => {
     setup({ finance: finance({ providers: [{ id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK, mark: DARK_INK } }, { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } }] }) });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const acme = bankButton('Acme bank');
     await waitFor(() => expect(images(acme).length).toBeGreaterThan(0));
@@ -830,7 +832,7 @@ describe('the Money page: bank logos', () => {
 
   it('shows the text names when the server has no logos or the providers answer fails', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     expect(images(bankButton('Acme bank'))).toHaveLength(0);
     expect(bankButton('Acme bank').querySelector('.sr-only')).toBeNull();
@@ -838,7 +840,7 @@ describe('the Money page: bank logos', () => {
 
   it('keeps the text names when the providers request fails, and asks for the logos once', async () => {
     const api = setup({ finance: withLogos(), fail: ['financeProviders'] });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     expect(images(bankButton('Acme bank'))).toHaveLength(0);
     expect(bankButton('Acme bank')).toHaveTextContent('Acme bank');
@@ -850,7 +852,7 @@ describe('the Money page: bank logos', () => {
 describe('the Money page: where it lives', () => {
   it('is Russian by default, with the personal skin and the Personal pill current', async () => {
     setup({}, 'ru');
-    renderAt(PATH);
+    renderAt(ALL);
     expect(await within(main()).findByRole('heading', { level: 1, name: 'Деньги' })).toBeInTheDocument();
     expect(document.querySelector('[data-space]')).toHaveAttribute('data-space', 'personal');
     const nav = within(main()).getByRole('navigation', { name: 'Дашборды' });
@@ -887,14 +889,14 @@ describe('the Money page: where it lives', () => {
     resetStorageFallback();
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
-    renderAt(PATH);
+    renderAt(ALL);
     expect(within(main()).getByText('Деньги доступны только на реальных данных.')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('has a way back to the personal space', async () => {
     setup();
-    renderAt(PATH);
+    renderAt(ALL);
     expect(await within(main()).findByRole('link', { name: 'Back to Personal' })).toHaveAttribute('href', '/dashboards/personal');
   });
 });
@@ -975,7 +977,7 @@ describe('the Money page: pictures that cannot be loaded', () => {
 
   it('falls back to the bank\'s name at once when its wordmark fails to load, not a broken-image box', async () => {
     setup({ finance: finance({ providers: [{ id: 'acme-bank', logo: { on_light: DARK, on_dark: WHITE } }] }) });
-    renderAt(PATH);
+    renderAt(ALL);
     await banksReady();
     const card = bankButton('Acme bank');
     await waitFor(() => expect(card.querySelectorAll('img').length).toBeGreaterThan(0));
