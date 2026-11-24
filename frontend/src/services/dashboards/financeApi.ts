@@ -1,4 +1,4 @@
-import { request } from './liveApi';
+import { isIconUri, request } from './liveApi';
 
 /*
  * The read-only finance API (GET /api/dashboards/v1/finance/...): accounts with their balances and the state of each bank
@@ -8,6 +8,12 @@ import { request } from './liveApi';
  */
 
 export type ConnectionStatus = 'ok' | 'needs_reconsent' | 'paused';
+
+/** An amount converted into the display currency (pounds) at the server's latest rate. */
+export interface Converted {
+  readonly amount: number;
+  readonly currency: string;
+}
 
 export interface FinanceAccount {
   readonly id: string;
@@ -26,12 +32,22 @@ export interface FinanceAccount {
   readonly balanceAt: string | null;
   readonly historyFrom: string | null;
   readonly archived: boolean;
+  /** The owner's own money converted into the display currency, when the server has a rate for this currency (null: show the original only). */
+  readonly display: Converted | null;
+}
+
+/** A bank's official wordmark, one image for a dark card and one for a light one (data URIs the server keeps in its settings). */
+export interface ProviderLogo {
+  readonly light: string | null;
+  readonly dark: string | null;
 }
 
 export interface FinanceConnection {
   readonly provider: string;
   readonly status: ConnectionStatus;
   readonly lastOkAt: string | null;
+  /** The provider's logo when the server has one; null: the text name is shown. */
+  readonly logo: ProviderLogo | null;
 }
 
 export interface FinanceAccounts {
@@ -53,6 +69,8 @@ export interface FinanceTransaction {
   readonly pending: boolean;
   readonly declined: boolean;
   readonly internalTransfer: boolean;
+  /** The amount in the display currency (null: no rate, or already in it). */
+  readonly display: Converted | null;
 }
 
 export interface TransactionsPage {
@@ -73,6 +91,9 @@ export interface FinanceSummary {
   readonly month: string;
   readonly asOf: string | null;
   readonly currencies: readonly CurrencySummary[];
+  /** One total in the display currency, and when the rate behind it is from (null until the server sends them). */
+  readonly total: Converted | null;
+  readonly rateAsOf: string | null;
 }
 
 type Json = Record<string, unknown>;
@@ -81,6 +102,24 @@ const text = (value: unknown): string | null => (typeof value === 'string' && va
 const int = (value: unknown): number | null => (typeof value === 'number' && Number.isSafeInteger(value) ? value : null);
 const CURRENCY = /^[A-Z]{3}$/;
 const currency = (value: unknown): string | null => (typeof value === 'string' && CURRENCY.test(value) ? value : null);
+
+/*
+ * The converted figures and the logos are read under the names the server is expected to use (`display_balance` and `display_amount` with
+ * `display_currency`, a summary `display_total`, `rate_as_of`, a connection `logo` with `light` and `dark`); until the server sends them
+ * every field is null and the page shows the originals and the text names. A wrong or missing field only drops that one slot.
+ */
+const converted = (amount: unknown, code: unknown): Converted | null => {
+  const value = int(amount);
+  const cur = currency(code);
+  return value !== null && cur ? { amount: value, currency: cur } : null;
+};
+
+const logoOf = (raw: unknown): ProviderLogo | null => {
+  if (!isObject(raw)) return null;
+  const light = isIconUri(raw.light) ? raw.light : null;
+  const dark = isIconUri(raw.dark) ? raw.dark : null;
+  return light || dark ? { light, dark } : null;
+};
 
 const STATUSES: readonly ConnectionStatus[] = ['ok', 'needs_reconsent', 'paused'];
 
@@ -109,6 +148,7 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
         balanceAt: text(raw.balance_at),
         historyFrom: text(raw.history_from),
         archived: raw.archived === true,
+        display: converted(raw.display_balance, raw.display_currency),
       },
     ];
   });
@@ -116,7 +156,7 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
     if (!isObject(raw)) return [];
     const provider = text(raw.provider);
     const status = STATUSES.find((candidate) => candidate === raw.status);
-    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at) }] : [];
+    return provider && status ? [{ provider, status, lastOkAt: text(raw.last_ok_at), logo: logoOf(raw.logo) }] : [];
   });
   return { accounts, connections };
 }
@@ -144,6 +184,7 @@ export function parseTransaction(raw: unknown): FinanceTransaction | null {
     pending: raw.pending === true,
     declined: raw.declined === true,
     internalTransfer: raw.internal_transfer === true,
+    display: converted(raw.display_amount, raw.display_currency),
   };
 }
 
@@ -167,7 +208,7 @@ export function parseSummary(body: unknown): FinanceSummary | null {
     if (!code || balance === null) return [];
     return [{ currency: code, accounts: int(raw.accounts) ?? 0, balance, ownBalance: int(raw.own_balance) ?? balance, spent: int(raw.spent) ?? 0, received: int(raw.received) ?? 0 }];
   });
-  return { month: text(body.month) ?? '', asOf: text(body.as_of), currencies };
+  return { month: text(body.month) ?? '', asOf: text(body.as_of), currencies, total: converted(body.display_total, body.display_currency), rateAsOf: text(body.rate_as_of) };
 }
 
 const BAD = (what: string) => new Error(`finance: unreadable ${what}`);

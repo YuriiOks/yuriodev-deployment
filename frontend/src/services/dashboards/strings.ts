@@ -144,6 +144,13 @@ export interface Strings {
     readonly walletHint: string;
     readonly walletLabel: string;
     readonly noAccounts: string;
+    readonly approximately: string;
+    readonly displayLabel: string;
+    readonly displayBase: string;
+    readonly displayNative: string;
+    readonly grandTotal: string;
+    readonly rateAsOf: string;
+    readonly notConverted: string;
     readonly accountsFailed: string;
     readonly linkOk: string;
     readonly linkNeedsReconsent: string;
@@ -385,6 +392,13 @@ export const STRINGS: Record<Lang, Strings> = {
       walletHint: 'все банки стопкой, выберите банк',
       walletLabel: 'Банки',
       noAccounts: 'Счетов пока нет.',
+      approximately: 'примерно',
+      displayLabel: 'Суммы',
+      displayBase: 'в фунтах',
+      displayNative: 'в валюте счёта',
+      grandTotal: 'всего',
+      rateAsOf: 'курс на {when}',
+      notConverted: 'без пересчёта: {list}',
       accountsFailed: 'Не удалось загрузить счета.',
       linkOk: 'подключено',
       linkNeedsReconsent: 'нужно переподключить',
@@ -627,6 +641,13 @@ export const STRINGS: Record<Lang, Strings> = {
       walletHint: 'every bank in a stack, pick one',
       walletLabel: 'Banks',
       noAccounts: 'No accounts yet.',
+      approximately: 'approximately',
+      displayLabel: 'Amounts',
+      displayBase: 'in pounds',
+      displayNative: 'in account currency',
+      grandTotal: 'in all',
+      rateAsOf: 'rate as of {when}',
+      notConverted: 'not converted: {list}',
       accountsFailed: 'Could not load the accounts.',
       linkOk: 'connected',
       linkNeedsReconsent: 'needs reconnecting',

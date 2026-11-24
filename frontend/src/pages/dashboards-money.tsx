@@ -9,6 +9,8 @@ import MoneyTransactions from '../components/dashboards/Money/MoneyTransactions'
 import MoneyWallet from '../components/dashboards/Money/MoneyWallet';
 import money from '../components/dashboards/Money/Money.module.css';
 import { fill } from '../services/dashboards/calendarLabels';
+import { hasConversion } from '../services/dashboards/display';
+import { readMoneyDisplay, writeMoneyDisplay, type MoneyDisplay } from '../services/dashboards/preferences';
 import { groupBanks } from '../services/dashboards/wallet';
 import { pagePath } from '../data/site';
 import { useDashboardMode } from '../hooks/useDashboardMode';
@@ -31,6 +33,13 @@ const DashboardsMoney = () => {
   const accounts = useFinanceAccounts(live);
   const summary = useFinanceSummary(live);
   const [selected, setSelected] = useState<string | null>(null);
+  // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
+  const [mode, setMode] = useState<MoneyDisplay>(readMoneyDisplay);
+  const choose = (next: MoneyDisplay) => {
+    setMode(next);
+    writeMoneyDisplay(next);
+  };
+  const converted = accounts.value ? hasConversion(accounts.value.accounts, summary.value) : false;
   const banks = accounts.value ? groupBanks(accounts.value.accounts, accounts.value.connections) : [];
   const asOf = summary.value?.asOf ? whenLabel(summary.value.asOf, lang) : '';
 
@@ -46,7 +55,16 @@ const DashboardsMoney = () => {
             {asOf && <> · {fill(m.updated, { when: asOf })}</>}
           </p>
         </div>
-        {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} />}
+        {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
+        {live && converted && (
+          <div role="group" aria-label={m.displayLabel} className={money.display}>
+            {(['base', 'native'] as const).map((choice) => (
+              <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
+                {choice === 'base' ? m.displayBase : m.displayNative}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
       {!live ? (
         <p className={money.none}>{m.needsData}</p>
@@ -61,7 +79,7 @@ const DashboardsMoney = () => {
             </div>
             {accounts.status === 'loading' && <LoadingBlock rows={4} />}
             {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
-            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} onSelect={setSelected} />}
+            {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} onSelect={setSelected} />}
           </section>
           <section aria-labelledby="money-transactions-title" className={money.panel}>
             <div className={money.head}>
@@ -69,7 +87,7 @@ const DashboardsMoney = () => {
                 {m.transactionsTitle}
               </h2>
             </div>
-            <MoneyTransactions banks={banks} enabled={live} />
+            <MoneyTransactions banks={banks} mode={mode} enabled={live} />
           </section>
         </>
       )}

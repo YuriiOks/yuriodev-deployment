@@ -383,6 +383,139 @@ describe('the Money page: transactions', () => {
   });
 });
 
+describe('the Money page: pounds by default, originals beside', () => {
+  const gbp = (amount: number) => ({ display_balance: amount, display_currency: 'GBP' });
+  const converted = () =>
+    finance({
+      accounts: [
+        acct('a-current', 'Everyday', 'GBP', 45050, { ...gbp(45050) }),
+        acct('m-ua', 'Hryvnia card', 'UAH', 650000, { provider: 'monobank', connection_id: 'c-2', ...gbp(12500) }),
+        acct('m-us', 'Dollar card', 'USD', 21000, { provider: 'monobank', connection_id: 'c-2', ...gbp(16800) }),
+        acct('m-jp', 'Yen card', 'JPY', 99900, { provider: 'monobank', connection_id: 'c-2' }),
+      ],
+      connections: [
+        { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' },
+        { provider: 'monobank', status: 'ok', last_ok_at: '2026-11-23T09:30:00Z' },
+      ],
+      transactions: [
+        tx('c1', 'm-ua', 5, -65000, 'Taxi', { currency: 'UAH', display_amount: -1250, display_currency: 'GBP' }),
+        tx('c2', 'm-jp', 10, -500, 'Snack', { currency: 'JPY' }),
+        tx('c3', 'a-current', 20, -300, 'Bus', { display_amount: -300, display_currency: 'GBP' }),
+      ],
+      summary: {
+        month: '2026-11',
+        as_of: '2026-11-23T09:00:00Z',
+        display_total: 74350,
+        display_currency: 'GBP',
+        rate_as_of: '2026-11-24T08:00:00Z',
+        currencies: [],
+      } as unknown as FinanceData['summary'],
+    });
+
+  it('offers no display choice, and shows the originals, while the server sends no converted figures', async () => {
+    setup();
+    renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    expect(within(main()).queryByRole('group', { name: 'Amounts' })).toBeNull();
+    expect(main()).not.toHaveTextContent('≈');
+  });
+
+  it('shows pounds by default with one grand total, the rate once, the currency with no rate named, and the per-currency parts under it', async () => {
+    setup({ finance: converted() });
+    renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    const choice = within(main()).getByRole('group', { name: 'Amounts' });
+    expect(within(choice).getByRole('button', { name: 'in pounds' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(choice).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'false');
+    const header = main().querySelector('header') as HTMLElement;
+    expect(header).toHaveTextContent('in all');
+    expect(header).toHaveTextContent('≈ £743.50');
+    expect(header).toHaveTextContent(/rate as of Nov 24/);
+    expect(header).toHaveTextContent('not converted: JPY');
+    // The parts under it, each in its own currency.
+    const parts = within(header).getAllByRole('listitem').map((part) => part.textContent ?? '');
+    expect(parts.some((text) => text.includes('UAH') && text.includes('₴6,500.00'))).toBe(true);
+    expect(parts.some((text) => text.includes('JPY') && text.includes('¥99,900'))).toBe(true);
+  });
+
+  it('marks a converted figure with ≈ and puts the original small beside it, on the bank card, the account and the row; a currency with no rate is plain', async () => {
+    setup({ finance: converted() });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    // Monobank: UAH and USD converted into one figure; JPY has no rate and stays.
+    expect(bankButton('Monobank')).toHaveTextContent('≈ £293.00');
+    expect(bankButton('Monobank')).toHaveTextContent('¥99,900');
+    await user.click(bankButton('Monobank'));
+    const row = opened().getByText('Hryvnia card').closest('li') as HTMLElement;
+    expect(row).toHaveTextContent('≈ £125.00');
+    expect(row.querySelector('small')).toHaveTextContent('₴6,500.00');
+    const yen = opened().getByText('Yen card').closest('li') as HTMLElement;
+    expect(yen).not.toHaveTextContent('≈');
+    expect(yen).toHaveTextContent('¥99,900');
+    const list = within(within(main()).getByRole('region', { name: 'Transactions' }));
+    const taxi = (await list.findByText('Taxi')).closest('li') as HTMLElement;
+    expect(taxi).toHaveTextContent(/Money out: approximately ≈ -£12\.50/);
+    expect(taxi.querySelector('small')).toHaveTextContent('-₴650.00');
+    expect((await list.findByText('Snack')).closest('li')).not.toHaveTextContent('≈');
+    expect((await list.findByText('Bus')).closest('li')).not.toHaveTextContent('≈');
+  });
+
+  it('switches to the account currency, shows only originals, and remembers the choice for the next visit', async () => {
+    setup({ finance: converted() });
+    const user = userEvent.setup();
+    const first = renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    await user.click(within(main()).getByRole('button', { name: 'in account currency' }));
+    expect(within(main()).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'true');
+    expect(main()).not.toHaveTextContent('≈');
+    expect(bankButton('Monobank')).toHaveTextContent('₴6,500.00');
+    expect(localStorage.getItem('dashboards-money-display')).toBe('native');
+    first.unmount();
+    resetBootstrap();
+    installFakeApi({ finance: converted() });
+    renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    expect(within(main()).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('the Money page: bank logos', () => {
+  const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const withLogos = () =>
+    finance({
+      connections: [
+        { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z', logo: { light: PIXEL, dark: PIXEL } },
+        { provider: 'monzo', status: 'ok', last_ok_at: null, logo: { light: PIXEL, dark: PIXEL } },
+        { provider: 'monobank', status: 'ok', last_ok_at: null, logo: { light: 'https://example.com/logo.png', dark: null } },
+      ] as unknown as FinanceData['connections'],
+    });
+
+  it('shows a wordmark in place of the text name, keeps the name as the accessible name, and picks the variant by the card', async () => {
+    setup({ finance: withLogos() });
+    renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    const acme = bankButton('Acme bank');
+    // The decorative image carries no text of its own; the name is there for a screen reader.
+    expect(acme.querySelectorAll('img')).toHaveLength(2);
+    for (const image of Array.from(acme.querySelectorAll('img'))) expect(image).toHaveAttribute('alt', '');
+    expect(acme.querySelector('.sr-only')).toHaveTextContent('Acme bank');
+    // A known brand card is dark: only the dark variant.
+    expect(bankButton('Monzo').querySelectorAll('img')).toHaveLength(1);
+    // A logo that is a link (not a data URI) is refused, and the text name stays.
+    expect(bankButton('Monobank').querySelector('img')).toBeNull();
+    expect(bankButton('Monobank')).toHaveTextContent('Monobank');
+  });
+
+  it('shows the text name when the server has no logo', async () => {
+    setup();
+    renderAt(PATH);
+    await wallet().findByRole('group', { name: 'Banks' });
+    expect(bankButton('Acme bank').querySelector('img')).toBeNull();
+    expect(bankButton('Acme bank').querySelector('.sr-only')).toBeNull();
+  });
+});
+
 describe('the Money page: where it lives', () => {
   it('is Russian by default, with the personal skin and the Personal pill current', async () => {
     setup({}, 'ru');

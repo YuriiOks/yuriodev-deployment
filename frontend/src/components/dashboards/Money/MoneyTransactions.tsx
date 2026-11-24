@@ -3,6 +3,8 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, FinanceTransaction } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
+import type { MoneyDisplay } from '../../../services/dashboards/preferences';
+import Amount from './Amount';
 import { useTransactions } from '../../../hooks/useFinance';
 import type { Bank } from '../../../services/dashboards/wallet';
 import { cx } from '../../../utils/cx';
@@ -20,7 +22,7 @@ const WANTED_ROWS = 15;
 const MAX_AUTO_PAGES = 6;
 
 /** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when, which bank and account, and its marks. */
-const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined }> = ({ item, account }) => {
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; mode: MoneyDisplay }> = ({ item, account, mode }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const incoming = item.amount > 0;
@@ -59,7 +61,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
       </span>
       <span className={styles.amount}>
         {item.amount !== 0 && <span className="sr-only">{incoming ? m.moneyIn : m.moneyOut}: </span>}
-        {formatMinor(item.amount, item.currency, lang, { signed: true })}
+        <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} signed />
       </span>
     </li>
   );
@@ -67,6 +69,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
 
 export interface MoneyTransactionsProps {
   banks: readonly Bank[];
+  mode: MoneyDisplay;
   enabled: boolean;
 }
 
@@ -74,7 +77,7 @@ export interface MoneyTransactionsProps {
  * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, enabled }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, mode, enabled }) => {
   const { t } = useDashboardLang();
   const m = t.money;
   const id = useId();
@@ -166,7 +169,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, enabled })
       {list.status === 'ready' && shown.length > 0 && (
         <ul className={styles.list}>
           {shown.map((item) => (
-            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} />
+            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} mode={mode} />
           ))}
         </ul>
       )}

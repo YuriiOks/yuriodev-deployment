@@ -544,3 +544,91 @@
     display: none;
   }
 }
+
+/* An amount converted into pounds: the original stands small beside it. */
+.original {
+  color: inherit;
+  font-size: var(--dash-fs-meta);
+  font-weight: 400;
+}
+
+/* A bank's wordmark in place of its name: sized by height (about the name's cap height), with a ceiling on its width so a long
+   wordmark never pushes the balance. A neutral card shows the variant for the theme (dark by default, the light theme swaps them);
+   a brand card is dark and always shows the dark one. */
+.logos {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logos img {
+  display: block;
+  width: auto;
+  max-width: 9rem;
+  height: 1.25rem;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.logos[data-surface="theme"] .logoOnLight {
+  display: none;
+}
+
+:root[data-theme="light"] .logos[data-surface="theme"] .logoOnLight {
+  display: block;
+}
+
+:root[data-theme="light"] .logos[data-surface="theme"] .logoOnDark {
+  display: none;
+}
+
+/* The display choice: two buttons, one pressed. */
+.display {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.displayChoice {
+  min-height: var(--dash-h-control);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t2);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.displayChoice[aria-pressed="true"] {
+  background: var(--dash-heading-tint);
+  border-color: var(--dash-heading-edge);
+  color: var(--dash-heading);
+  font-weight: 700;
+}
+
+/* The grand total at the top and the note about its rate. */
+.grand {
+  display: flex;
+  flex-direction: column;
+  min-width: 14rem;
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-prio-edge);
+  border-radius: var(--dash-r-control);
+}
+
+.totalsBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.totalSumSmall {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+}

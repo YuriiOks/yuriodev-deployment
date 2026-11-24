@@ -16,12 +16,13 @@ const acct = (id: string, extra: Partial<FinanceAccount> = {}): FinanceAccount =
   balanceAt: null,
   historyFrom: null,
   archived: false,
+  display: null,
   ...extra,
 });
 
 describe('wallet', () => {
   it('groups accounts by provider in the order the API lists them, and adds a provider that has only a link', () => {
-    const links: FinanceConnection[] = [{ provider: 'lonely-bank', status: 'paused', lastOkAt: null }];
+    const links: FinanceConnection[] = [{ provider: 'lonely-bank', status: 'paused', lastOkAt: null, logo: null }];
     const banks = groupBanks([acct('a', { provider: 'one' }), acct('b', { provider: 'two' }), acct('c', { provider: 'one' })], links);
     expect(banks.map((bank) => [bank.provider, bank.accounts.map((account) => account.id)])).toEqual([['one', ['a', 'c']], ['two', ['b']], ['lonely-bank', []]]);
     expect(banks[2].connection?.status).toBe('paused');
