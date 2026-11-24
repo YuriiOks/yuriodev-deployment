@@ -7,6 +7,8 @@
 
 .head {
   composes: head from '../Panel/Panel.module.css';
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
 }
 
 .title {
@@ -100,6 +102,13 @@
   gap: var(--space-2) var(--space-3);
 }
 
+.formFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
 /* A payment's picture: an image, or a tile in its colour with its first letter. */
 .icon {
   display: inline-flex;
@@ -125,7 +134,8 @@
 /* Needs attention. */
 .hiddenLine {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;

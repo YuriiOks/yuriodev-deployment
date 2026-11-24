@@ -79,7 +79,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, onDone }) => {
 
   return (
     <form className={styles.form} onSubmit={submit} aria-label={initial ? `${r.edit}: ${initial.name}` : r.add}>
-      <div className={styles.fields}>
+      <div className={styles.formFields}>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
             {r.fName}
