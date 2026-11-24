@@ -12,14 +12,16 @@ export const hasEnoughContrast = (background: string, foreground: string): boole
  * (a number is added). Null when the name has nothing a letter or digit can be made of.
  */
 export function providerIdFor(name: string, taken: ReadonlySet<string>): string | null {
-  const base = name
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 28)
-    .replace(/-+$/g, '');
-  if (!base) return null;
+  if (!name.trim()) return null;
+  // A name with no Latin letter or digit in it (Cyrillic, punctuation only) still makes a bank: its id is a neutral "bank", "bank-2", ...
+  const base =
+    name
+      .normalize('NFKD')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 28)
+      .replace(/-+$/g, '') || 'bank';
   if (!taken.has(base)) return base;
   for (let n = 2; n < 100; n += 1) {
     const candidate = `${base}-${n}`;

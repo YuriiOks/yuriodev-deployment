@@ -31,7 +31,9 @@ export interface MoneyAttentionProps {
   showHidden: boolean;
   onToggleHidden: () => void;
   /** Something changed on the server (paid, snoozed, dismissed, restored): the page asks again. */
-  onChanged: () => void;
+  onChanged: () => void | Promise<void>;
+  /** An account was changed (an overdraft limit set): the wallet and the totals ask again. */
+  onAccountChanged: () => void | Promise<void>;
   onOpenBank: (provider: string) => void;
 }
 
@@ -39,7 +41,7 @@ export interface MoneyAttentionProps {
 type RowContext = Omit<MoneyAttentionProps, 'data' | 'showHidden' | 'onToggleHidden'>;
 
 /** One item as one dense row: its subject (a bank's icon or the payment's picture), the fact in short form, one primary action and a "⋯" menu with Open payment, Snooze (the days inside) and Dismiss. */
-const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, recurring, accounts, logos, mode, onChanged, onOpenBank }) => {
+const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, recurring, accounts, logos, mode, onChanged, onAccountChanged, onOpenBank }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const r = m.rec;
@@ -62,7 +64,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
     try {
       await action();
       setMenu(false);
-      onChanged();
+      await onChanged();
     } catch {
       setFailed(true);
     } finally {
@@ -137,7 +139,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
         )}
       </span>
       {limitForm && !hidden && subject.account && (
-        <LimitForm account={subject.account} onDone={(saved) => { setLimitForm(false); if (saved) onChanged(); }} />
+        <LimitForm account={subject.account} onDone={(saved) => { setLimitForm(false); if (saved) void onAccountChanged(); }} />
       )}
       {menu && !hidden && (
         <div role="group" aria-label={fill(r.more, { name: subject.name })} className={styles.arowMenu}>
@@ -191,8 +193,8 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
     }
     setFailures(failed);
     setConfirming(false);
+    await context.onChanged();
     setBusy(false);
-    context.onChanged();
   };
 
   /** One request for the whole group (the server's bulk endpoint); a failure is counted as the whole group. */
@@ -205,8 +207,8 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
       setFailures(items.length);
     }
     setConfirming(false);
+    await context.onChanged();
     setBusy(false);
-    context.onChanged();
   };
 
   const acceptable = group.kind === 'amount_changed' ? items.filter((item) => item.amount !== null && item.amount > 0 && payments.get(item.subjectId)?.currency === item.currency) : [];

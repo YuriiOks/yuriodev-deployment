@@ -233,8 +233,8 @@ describe('the Money page: totals and the wallet', () => {
     expect(card.getAttribute('data-kind')).toBe('debt');
     expect(card).toHaveTextContent('•••• 0000');
     expect(card).toHaveTextContent('debt ₴67,826.00');
-    expect(card).toHaveTextContent('97% of the ₴70,000.00 limit used · ₴2,174.00 free');
-    expect(card.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '97%' });
+    expect(card).toHaveTextContent('96% of the ₴70,000.00 limit used · ₴2,174.00 free');
+    expect(card.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '96%' });
     expect(opened().getByText('Euro card').closest('li')?.getAttribute('data-kind')).toBe('none');
     const archived = opened().getByRole('region', { name: 'Archived' });
     expect(archived).toHaveTextContent('Old wallet');
@@ -496,7 +496,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     await user.click(bankButton('Monzo'));
     const over = opened().getByText('Main').closest('li') as HTMLElement;
     expect(over).toHaveTextContent('overdrawn -£747.82');
-    expect(over).toHaveTextContent('your limit · 75% of the £1,000.00 overdraft used · £252.18 free');
+    expect(over).toHaveTextContent('your limit · 74% of the £1,000.00 overdraft used · £252.18 free');
     const trip = opened().getByText('Trip').closest('li') as HTMLElement;
     expect(trip).toHaveTextContent('25% of the £1,000.00 goal');
     expect(trip.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '25%' });

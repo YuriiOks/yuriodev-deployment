@@ -29,6 +29,9 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
   const incoming = item.amount > 0;
   const what = item.counterparty ?? (item.description || '—');
   const detail = item.counterparty && item.description && item.description !== item.counterparty ? item.description : '';
+  // Spent in the display currency itself on a card of another: that original is the exact figure, so it is the main one (no "≈") and its own tag is not repeated.
+  const exactOriginal = mode === 'base' && item.originalAmount !== null && item.originalCurrency !== null && item.display !== null && item.originalCurrency === item.display.currency && item.originalCurrency !== item.currency;
+  const exactMinor = item.originalAmount === null ? 0 : item.amount < 0 ? -Math.abs(item.originalAmount) : Math.abs(item.originalAmount);
   return (
     <li
       className={styles.tx}
@@ -56,14 +59,20 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
-          {item.originalAmount !== null && item.originalCurrency && item.originalCurrency !== item.currency && (
+          {!exactOriginal && item.originalAmount !== null && item.originalCurrency && item.originalCurrency !== item.currency && (
             <span>{fill(m.originalAmount, { amount: formatMinor(Math.abs(item.originalAmount), item.originalCurrency, lang) })}</span>
           )}
         </span>
       </span>
       <span className={styles.amount}>
         {item.amount !== 0 && <span className="sr-only">{incoming ? m.moneyIn : m.moneyOut}: </span>}
-        <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} signed />
+        {exactOriginal && item.originalCurrency ? (
+          <>
+            {formatMinor(exactMinor, item.originalCurrency, lang, { signed: true })} <small className={styles.original}>{formatMinor(item.amount, item.currency, lang, { signed: true })}</small>
+          </>
+        ) : (
+          <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} signed />
+        )}
       </span>
     </li>
   );

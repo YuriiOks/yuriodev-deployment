@@ -23,7 +23,7 @@ export interface AttentionSheetProps {
   opener: HTMLElement | null;
   onClose: () => void;
   /** The item was dealt with (paid, accepted, snoozed, dismissed): the page asks again and the sheet moves on. */
-  onActed: (item: AttentionItem) => void;
+  onActed: (item: AttentionItem) => void | Promise<void>;
   onOpenBank: (provider: string) => void;
 }
 
@@ -86,7 +86,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
     setFailed(false);
     try {
       await action();
-      onActed(item);
+      await onActed(item);
     } catch {
       setFailed(true);
     } finally {
@@ -189,7 +189,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
             account={subject.account}
             onDone={(saved) => {
               setLimitForm(false);
-              if (saved) onActed(item);
+              if (saved) void onActed(item);
             }}
           />
         )}

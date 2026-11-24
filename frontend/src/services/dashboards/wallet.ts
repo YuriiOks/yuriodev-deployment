@@ -88,10 +88,12 @@ export interface CreditUse {
   /** What is owed, positive (minor units). */
   readonly used: number;
   readonly limit: number;
-  /** How much of the limit is used, 0 to 100 (rounded; 100 when it is over). */
+  /** How much of the limit is used, 0 to 100 (rounded down, as the attention items say it; 100 when it is over). */
   readonly percent: number;
   /** What is left of the limit; never below zero. */
   readonly free: number;
+  /** By how much it is over the limit; 0 when it is not. */
+  readonly over: number;
 }
 
 /**
@@ -102,16 +104,18 @@ export function creditUse(account: FinanceAccount): CreditUse {
   const limit = account.creditLimit;
   const owed = Math.max(0, -account.ownBalance);
   if (limit > 0) {
-    return { kind: owed > 0 ? 'debt' : 'none', used: owed, limit, percent: Math.min(100, Math.round((owed / limit) * 100)), free: Math.max(0, limit - owed) };
+    return { kind: owed > 0 ? 'debt' : 'none', used: owed, limit, percent: Math.min(100, Math.floor((owed / limit) * 100)), free: Math.max(0, limit - owed), over: Math.max(0, owed - limit) };
   }
+  // A credit card with no limit on record that is owed money is still a debt, not an overdraft; its limit is not known.
+  if (account.kind === 'credit_card' && owed > 0) return { kind: 'debt', used: owed, limit: 0, percent: 0, free: 0, over: 0 };
   if (account.ownBalance < 0) {
     // An overdrawn current account with an agreed overdraft reads as used of that overdraft.
     const agreed = account.overdraftLimit ?? 0;
     return agreed > 0
-      ? { kind: 'overdrawn', used: owed, limit: agreed, percent: Math.min(100, Math.round((owed / agreed) * 100)), free: Math.max(0, agreed - owed) }
-      : { kind: 'overdrawn', used: owed, limit: 0, percent: 0, free: 0 };
+      ? { kind: 'overdrawn', used: owed, limit: agreed, percent: Math.min(100, Math.floor((owed / agreed) * 100)), free: Math.max(0, agreed - owed), over: Math.max(0, owed - agreed) }
+      : { kind: 'overdrawn', used: owed, limit: 0, percent: 0, free: 0, over: 0 };
   }
-  return { kind: 'none', used: 0, limit: 0, percent: 0, free: 0 };
+  return { kind: 'none', used: 0, limit: 0, percent: 0, free: 0, over: 0 };
 }
 
 /** The emoji a pot's name starts with (its picture) and the name without it. */

@@ -55,7 +55,8 @@ const MoneyCategories: React.FC<{ data: FinanceCategories; mode: MoneyDisplay }>
   const { t } = useDashboardLang();
   // In pounds the server's own merged lines are shown (each converted once, so they add up); otherwise one block per currency.
   const merged = mode === 'base' ? data.display : null;
-  const blocks = merged ? [] : data.currencies.filter((block) => block.spent > 0);
+  // A currency with no usable rate is never dropped: its spending stays, in its own currency, after the converted block.
+  const blocks = merged ? data.currencies.filter((block) => merged.missing.includes(block.currency) && block.spent > 0) : data.currencies.filter((block) => block.spent > 0);
   return (
     <div className={styles.spend}>
       {merged && merged.spent > 0 && (
@@ -67,7 +68,7 @@ const MoneyCategories: React.FC<{ data: FinanceCategories; mode: MoneyDisplay }>
         />
       )}
       {merged && merged.missing.length > 0 && <p className={styles.spendNote}>{fill(t.money.notConverted, { list: merged.missing.join(', ') })}</p>}
-      {((merged && merged.spent === 0) || (!merged && blocks.length === 0)) && <p className={styles.none}>{t.money.spendNothing}</p>}
+      {(merged ? merged.spent === 0 : true) && blocks.length === 0 && <p className={styles.none}>{t.money.spendNothing}</p>}
       {blocks.map((block) => (
         <CurrencyBlock key={block.currency} block={block} month={data.month} previousMonth={data.previousMonth} />
       ))}
