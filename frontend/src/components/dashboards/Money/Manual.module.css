@@ -1,0 +1,105 @@
+/* The tools of a bank entered by hand: set a balance with a date, load a statement and check it first. The same controls as the rest of
+   the page. A result is said in words and numbers, a bad line by its row, never by colour alone. */
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--dash-well);
+  border-radius: var(--dash-r-surface);
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.field {
+  composes: field from '../../../assets/styles/dashboard-forms.module.css';
+  flex: 1 1 12rem;
+}
+
+.fieldLabel {
+  composes: label from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.input {
+  composes: input from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.select {
+  composes: select from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.check {
+  composes: check from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.error {
+  composes: error from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.actions {
+  composes: actions from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.primary {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.secondary {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.ghost {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.note {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-control);
+}
+
+.summaryTitle {
+  margin: 0;
+  color: var(--dash-danger);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+.summaryTitle::before,
+.summaryTitle::after {
+  content: none;
+}
+
+.summaryList,
+.errorList {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  list-style: none;
+}

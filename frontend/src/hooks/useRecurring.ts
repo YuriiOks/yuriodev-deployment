@@ -1,20 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { fetchAttention, fetchRecurring, fetchUpcoming, type Attention, type RecurringList, type Upcoming } from '../services/dashboards/recurringApi';
-import { useOnce, type LoadStatus } from './useFinance';
-
-interface Kept<T> {
-  readonly status: LoadStatus;
-  readonly value: T | null;
-  readonly reload: () => void;
-}
-
-/** While an answer is being asked again (after a change, or for another window) the last good one stays on screen, so the cards do not vanish and come back; an error shows as one. */
-function useKeepLast<T>(slot: Kept<T>): Kept<T> {
-  const [kept, setKept] = useState<T | null>(null);
-  if (slot.value && slot.value !== kept) setKept(slot.value);
-  const value = slot.status === 'error' ? null : (slot.value ?? kept);
-  return { status: value && slot.status === 'loading' ? 'ready' : slot.status, value, reload: slot.reload };
-}
+import { useKeepLast, useOnce } from './useFinance';
 
 /** The recurring payments (GET /finance/recurring): the debts, the management view and the names the attention cards use. */
 export const useRecurring = (enabled: boolean) => useKeepLast(useOnce<RecurringList>(fetchRecurring, enabled));

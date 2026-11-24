@@ -14,7 +14,7 @@ import ProjectIcon from '../ProjectIcon/ProjectIcon';
 import BankMark from './BankMark';
 import BankName from './BankName';
 import { whenLabel } from './labels';
-import { providerName } from './providers';
+import { bankLabel } from './providers';
 import styles from './Money.module.css';
 
 const SEARCH_DELAY_MS = 300;
@@ -49,7 +49,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           <span>{whenLabel(item.bookedAt, lang)}</span>
           {account && (
             <span>
-              {providerName(account.provider)} · {account.name}
+              {bankLabel(account.provider, logo)} · {account.name}
             </span>
           )}
           <span className={styles.tag}>{m.categories[item.category]}</span>
@@ -136,7 +136,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
               >
                 {logos[candidate.provider]?.mark ? (
                   <>
-                    <span className="sr-only">{providerName(candidate.provider)}</span>
+                    <span className="sr-only">{bankLabel(candidate.provider, logos[candidate.provider])}</span>
                     <BankMark provider={candidate.provider} logo={logos[candidate.provider]} />
                   </>
                 ) : (
