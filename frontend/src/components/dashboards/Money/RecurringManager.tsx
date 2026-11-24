@@ -6,6 +6,8 @@ import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { minorToInput, parseMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { createRecurring, FREQUENCIES, RECURRING_KINDS, refusal, updateRecurring, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
+import type { LoadStatus } from '../../../hooks/useFinance';
+import InlineError from '../InlineError/InlineError';
 import Amount from './Amount';
 import { dayLabel } from './labels';
 import RecurringIcon from './RecurringIcon';
@@ -19,11 +21,13 @@ interface FormProps {
   /** The payment being changed, or null for a new one. */
   initial: Recurring | null;
   accounts: readonly FinanceAccount[];
+  /** False until the accounts have been read: the Account choice waits, so a saved payment never loses its account to an empty list. */
+  accountsReady?: boolean;
   onDone: (saved: boolean) => void;
 }
 
 /** One payment's fields: name, amount, currency, kind, frequency, next date, the paying account (or a free-text method) and the text its bank line contains. */
-const PaymentForm: React.FC<FormProps> = ({ initial, accounts, onDone }) => {
+const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = true, onDone }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const id = useId();
@@ -139,7 +143,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, onDone }) => {
           <label className={styles.fieldLabel} htmlFor={`${id}-account`}>
             {r.fAccount}
           </label>
-          <select id={`${id}-account`} className={styles.select} value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+          <select id={`${id}-account`} className={styles.select} value={accountId} disabled={!accountsReady} onChange={(event) => setAccountId(event.target.value)}>
             <option value="">{r.noAccount}</option>
             {payable.map((account) => (
               <option key={account.id} value={account.id}>
@@ -181,7 +185,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, onDone }) => {
   );
 };
 
-const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]; mode: MoneyDisplay; editing: boolean; onEdit: () => void; onChanged: () => void; onDone: (saved: boolean) => void }> = ({ row, accounts, mode, editing, onEdit, onChanged, onDone }) => {
+const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]; accountsReady: boolean; mode: MoneyDisplay; editing: boolean; onEdit: () => void; onChanged: () => void; onDone: (saved: boolean) => void }> = ({ row, accounts, accountsReady, mode, editing, onEdit, onChanged, onDone }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
   const [busy, setBusy] = useState(false);
@@ -237,7 +241,7 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
           {r.actionFailed}
         </p>
       )}
-      {editing && <PaymentForm initial={row} accounts={accounts} onDone={onDone} />}
+      {editing && <PaymentForm initial={row} accounts={accounts} accountsReady={accountsReady} onDone={onDone} />}
     </li>
   );
 };
@@ -245,6 +249,9 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
 export interface RecurringManagerProps {
   rows: readonly Recurring[];
   accounts: readonly FinanceAccount[];
+  /** How the accounts load went: the payments are listed without them, but their names and the Account choice wait. */
+  accountsStatus?: LoadStatus;
+  onRetryAccounts?: () => void;
   mode: MoneyDisplay;
   /** The payment to open for editing at once (from an attention card's "Open payment"). */
   editId: string | null;
@@ -252,7 +259,8 @@ export interface RecurringManagerProps {
 }
 
 /** The plain management view: every recurring payment with search and a kind filter, add, edit (account, amount, next date, match text and the rest) and deactivate. */
-const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, mode, editId, onChanged }) => {
+const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, accountsStatus = 'ready', onRetryAccounts, mode, editId, onChanged }) => {
+  const accountsReady = accountsStatus === 'ready';
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const searchId = useId();
@@ -283,7 +291,8 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, mod
           {r.add}
         </button>
       </div>
-      {editing === 'new' && <PaymentForm initial={null} accounts={accounts} onDone={done} />}
+      {accountsStatus === 'error' && <InlineError message={t.money.accountsFailed} onRetry={onRetryAccounts} />}
+      {editing === 'new' && <PaymentForm initial={null} accounts={accounts} accountsReady={accountsReady} onDone={done} />}
       <div className={styles.fields}>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={searchId}>
@@ -311,11 +320,29 @@ const RecurringManager: React.FC<RecurringManagerProps> = ({ rows, accounts, mod
       </div>
       <p className={styles.note}>{fill(r.paymentCount, { n: shown.length })}</p>
       {shown.length === 0 ? (
-        <p className={styles.none}>{r.noMatches}</p>
+        rows.length === 0 ? (
+          <p className={styles.none}>{r.noneYet}</p>
+        ) : (
+          <p className={styles.none}>
+            {r.noMatches}{' '}
+            <button
+              type="button"
+              className={styles.more}
+              onClick={() => {
+                setQ('');
+                setKind('');
+                // Everything that is switched off is the only thing left to show when no payment is active.
+                setShowInactive(!rows.some((row) => row.isActive));
+              }}
+            >
+              {r.clearFilters}
+            </button>
+          </p>
+        )
       ) : (
         <ul className={styles.managedList}>
           {shown.map((row) => (
-            <ManagerRow key={row.id} row={row} accounts={accounts} mode={mode} editing={editing === row.id} onEdit={() => setEditing(row.id)} onChanged={onChanged} onDone={done} />
+            <ManagerRow key={row.id} row={row} accounts={accounts} accountsReady={accountsReady} mode={mode} editing={editing === row.id} onEdit={() => setEditing(row.id)} onChanged={onChanged} onDone={done} />
           ))}
         </ul>
       )}

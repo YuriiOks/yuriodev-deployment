@@ -256,3 +256,94 @@ describe('the Money page: when the data was read', () => {
     expect(await within(sub).findByRole('button', { name: 'Refresh' })).toBeEnabled();
   });
 });
+
+describe('the Money page: loading, error and refresh states', () => {
+  it('keeps the last answer on screen when asking again fails, and says it may be out of date, with one retry', async () => {
+    const api = setup({ finance: { recurring: [payment('r-1', 'Streaming')] } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    expect(await panel.findByText('Streaming')).toBeInTheDocument();
+    api.fail.add('financeRecurring');
+    await user.click(within(main()).getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByText('Could not refresh: the last data is shown and may be out of date.')).toBeInTheDocument();
+    // The list it had is still there.
+    expect(panel.getByText('Streaming')).toBeInTheDocument();
+    api.fail.delete('financeRecurring');
+    await user.click(within(screen.getByText('Could not refresh: the last data is shown and may be out of date.').closest('[role="alert"]') as HTMLElement).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(screen.queryByText('Could not refresh: the last data is shown and may be out of date.')).toBeNull());
+  });
+
+  it('says so when what needs attention cannot be read, and when the totals cannot, each with a retry', async () => {
+    const api = setup({ fail: ['financeAttention', 'financeSummary'] });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    expect(await screen.findByText('Could not load what needs attention.')).toBeInTheDocument();
+    expect(await screen.findByText("Could not load the month's totals and the grand total.")).toBeInTheDocument();
+    api.fail.delete('financeAttention');
+    api.fail.delete('financeSummary');
+    const alerts = screen.getAllByRole('alert');
+    for (const alert of alerts) {
+      const retry = within(alert).queryByRole('button', { name: 'Try again' });
+      if (retry) await user.click(retry);
+    }
+    await waitFor(() => expect(screen.queryByText("Could not load the month's totals and the grand total.")).toBeNull());
+  });
+
+  it('keeps the 14 or 30 days choice when the upcoming payments fail, and dims the list while it is for the other window', async () => {
+    const api = setup({ fail: ['financeUpcoming'] });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
+    expect(await panel.findByRole('alert')).toBeInTheDocument();
+    // The window can be changed out of the failure.
+    api.fail.delete('financeUpcoming');
+    await user.click(panel.getByRole('button', { name: '30 days' }));
+    await waitFor(() => expect(api.callsTo('GET', '/finance/upcoming').some((call) => call.url.includes('days=30'))).toBe(true));
+  });
+
+  it('asks again for the payments and attention when a tab that was hidden comes back after a while', async () => {
+    const api = setup({ finance: { recurring: [payment('r-1', 'Streaming')] } });
+    renderAt(PATH);
+    await within(main()).findByRole('region', { name: 'Upcoming payments' });
+    await waitFor(() => expect(api.callsTo('GET', '/finance/attention').length).toBeGreaterThan(0));
+    const before = api.callsTo('GET', '/finance/attention').length;
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    const setVisibility = (state: 'hidden' | 'visible') => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    clock.mockReturnValue(now);
+    setVisibility('hidden');
+    clock.mockReturnValue(now + 6 * 60 * 1000);
+    setVisibility('visible');
+    await waitFor(() => expect(api.callsTo('GET', '/finance/attention').length).toBeGreaterThan(before));
+    clock.mockRestore();
+  });
+
+  it('says there are no payments yet apart from nothing matching, with a way to clear the filters, and holds the account choice until the accounts are read', async () => {
+    const api = setup({ finance: { recurring: [payment('r-1', 'Streaming'), payment('r-2', 'Gym', { kind: 'service' })] }, fail: ['financeAccounts'] });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    expect(await panel.findByText('Could not load the accounts.')).toBeInTheDocument();
+    await user.click(panel.getByRole('button', { name: 'Add payment' }));
+    expect(panel.getByLabelText('Paying account')).toBeDisabled();
+    api.fail.delete('financeAccounts');
+    await user.click(panel.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(panel.getByLabelText('Paying account')).toBeEnabled());
+    await user.type(panel.getByLabelText('Search payments'), 'zzz');
+    expect(await panel.findByText(/Nothing matches/)).toBeInTheDocument();
+    await user.click(panel.getByRole('button', { name: 'Clear filters' }));
+    expect(await panel.findByText('Streaming')).toBeInTheDocument();
+  });
+
+  it('says there are no payments at all when there are none', async () => {
+    setup({ finance: { recurring: [] } });
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    expect(await panel.findByText('No recurring payments yet. Add the first one.')).toBeInTheDocument();
+    expect(panel.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+  });
+});
