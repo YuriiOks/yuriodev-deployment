@@ -400,7 +400,7 @@ describe('the Money page: account kinds, goals and categories', () => {
         acct('card-2', 'Card', 'UAH', 7000, { provider: 'monobank', kind: 'current', label: 'Platinum', mask_last4: '2222' }),
         acct('biz-1', 'Studio', 'UAH', 0, { provider: 'monobank', kind: 'business', label: 'Business' }),
         acct('biz-2', 'Shop', 'UAH', 9000, { provider: 'monobank', kind: 'business', label: 'Business' }),
-        acct('over', 'Main', 'GBP', -74782, { provider: 'monzo', kind: 'current', overdraft_limit: 100000 }),
+        acct('over', 'Main', 'GBP', -74782, { provider: 'monzo', kind: 'current', overdraft_limit: 100000, overdraft_limit_source: 'owner', overdraft_limit_bank: 50000 }),
         acct('trip', '✈️ Trip', 'GBP', 25000, { provider: 'monzo', kind: 'pot', goal_amount: 100000 }),
         acct('plain', 'Rainy day', 'GBP', 7500, { provider: 'monzo', kind: 'pot' }),
       ],
@@ -468,7 +468,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     await user.click(bankButton('Monzo'));
     const over = opened().getByText('Main').closest('li') as HTMLElement;
     expect(over).toHaveTextContent('overdrawn -£747.82');
-    expect(over).toHaveTextContent('75% of the £1,000.00 overdraft used · £252.18 free');
+    expect(over).toHaveTextContent('your limit · 75% of the £1,000.00 overdraft used · £252.18 free');
     const trip = opened().getByText('Trip').closest('li') as HTMLElement;
     expect(trip).toHaveTextContent('25% of the £1,000.00 goal');
     expect(trip.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '25%' });

@@ -116,6 +116,10 @@ describe('finance parsers', () => {
       connections: [],
     })!.accounts;
     expect(full).toMatchObject({ kind: 'pot', label: 'Jar', parentId: 'p1', goalAmount: 100000, overdraftLimit: 50000, availableMinor: 7 });
+    expect(full).toMatchObject({ overdraftSource: null, overdraftBank: null });
+    const owner = parseAccounts({ accounts: [account({ overdraft_limit: 100000, overdraft_limit_source: 'owner', overdraft_limit_bank: 50000 }), account({ id: 'x', overdraft_limit_source: 'nonsense' })], connections: [] })!.accounts;
+    expect(owner[0]).toMatchObject({ overdraftSource: 'owner', overdraftBank: 50000, overdraftLimit: 100000 });
+    expect(owner[1].overdraftSource).toBeNull();
     expect(old).toMatchObject({ kind: 'pot', label: null, parentId: null, goalAmount: null, overdraftLimit: null, availableMinor: 12345 });
     expect(parseAccounts({ accounts: [account({ kind: 'sideways' })], connections: [] })!.accounts[0].kind).toBe('current');
   });

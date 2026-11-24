@@ -96,6 +96,7 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
             <div className={styles.barFill} style={{ width: `${use.percent}%` }} />
           </div>
           <span className={styles.accountNote}>
+            {account.overdraftSource === 'owner' && use.kind === 'overdrawn' && `${m.ownLimit} · `}
             {fill(use.kind === 'debt' ? m.usedOfLimit : m.usedOfOverdraft, {
               percent: use.percent,
               limit: formatMinor(use.limit, account.currency, lang),

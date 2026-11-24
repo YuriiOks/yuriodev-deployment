@@ -82,6 +82,10 @@ export interface FinanceAccount {
   readonly goalAmount: number | null;
   /** A current account's agreed overdraft, when known. */
   readonly overdraftLimit: number | null;
+  /** Whose overdraft limit is in force: the owner's own setting, or the bank's (null: none known). */
+  readonly overdraftSource: 'owner' | 'bank' | null;
+  /** What the bank itself sent, whether or not the owner overrides it. */
+  readonly overdraftBank: number | null;
   /** What can be spent: the balance plus the overdraft. */
   readonly availableMinor: number;
   /** The owner's own money converted into the display currency, when the server has a rate for this currency (null: show the original only). */
@@ -234,6 +238,8 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
         parentId: text(raw.parent_id),
         goalAmount: int(raw.goal_amount),
         overdraftLimit: int(raw.overdraft_limit),
+        overdraftSource: raw.overdraft_limit_source === 'owner' || raw.overdraft_limit_source === 'bank' ? raw.overdraft_limit_source : null,
+        overdraftBank: int(raw.overdraft_limit_bank),
         availableMinor: int(raw.available_minor) ?? balance,
         display: converted(raw.display_own_balance_minor, display?.currency ?? null),
         converted: raw.converted === true,
