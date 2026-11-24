@@ -151,12 +151,12 @@ class _Head(HTMLParser):
 def _side(sizes: str) -> int:
     """The largest side a `sizes` value names ("any" counts as large: a vector)."""
     best = 0
-    for token in sizes.lower().split():
-        if token == "any":
+    for word in sizes.lower().split():
+        if word == "any":
             best = max(best, 1024)
-        elif "x" in token:
+        elif "x" in word:
             try:
-                best = max(best, int(token.split("x", 1)[0]))
+                best = max(best, int(word.split("x", 1)[0]))
             except ValueError:
                 continue
     return best

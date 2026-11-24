@@ -18,8 +18,8 @@ from starlette.routing import Route
 from src.core.clock import Clock, utc_now
 from src.core.config import Settings, get_settings
 from src.core.errors import install_exception_handlers
-from src.core.logging import configure_logging
 from src.core.http import resolve_host
+from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
 from src.dashboards.collectors.manager import (
     FINANCE_LOCK_KEY,

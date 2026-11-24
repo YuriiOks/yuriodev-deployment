@@ -28,4 +28,6 @@ def upgrade() -> None:
     op.add_column(
         "recurring", sa.Column("icon_checked_url", sa.String(500), nullable=True), schema="finance"
     )
-    op.add_column("recurring", sa.Column("website", sa.String(255), nullable=True), schema="finance")
+    op.add_column(
+        "recurring", sa.Column("website", sa.String(255), nullable=True), schema="finance"
+    )

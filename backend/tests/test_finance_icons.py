@@ -225,7 +225,7 @@ async def test_a_redirect_is_never_followed_and_says_where_it_went():
 
 async def test_a_png_an_svg_and_an_ico_with_a_png_become_data_uris_and_anything_else_is_refused():
     async def got(body, kind="image/png", status=200):
-        handler, seen = site({("i.example.test", "/a"): (status, kind, body, {})})
+        handler, _ = site({("i.example.test", "/a"): (status, kind, body, {})})
         async with client_for(handler) as client:
             return await fetch_icon(client, "https://i.example.test/a", resolving({}))
 
@@ -330,7 +330,7 @@ async def test_the_home_page_may_hop_between_the_bare_and_the_www_name_only():
         ("evil.example.test", "/"): (200, "text/html", PAGE.encode(), {}),
     }
 
-    hopped, seen = await discover(routes)
+    hopped, _ = await discover(routes)
     refused, seen2 = await discover(elsewhere)
 
     assert hopped == png_uri()
@@ -363,7 +363,7 @@ async def test_the_icon_of_a_payment_is_fetched_after_the_write_and_shown_as_dat
         none = await add(client)
         typed = await add(client, name="Typed", icon_url=ACME)
         by_site = await add(client, name="Site", website="HTTPS://Shop.Example.Test/pricing?x=1")
-        both = await add(client, name="Both", icon_url=ACME, website=SHOP)
+        await add(client, name="Both", icon_url=ACME, website=SHOP)
         rows = {r["name"]: r for r in (await client.get(f"{BASE}/recurring")).json()["recurring"]}
         none_url = {"icon_url": "https://icons.example.test/none.png"}
         moved = await client.patch(f"{BASE}/recurring/{typed['id']}", json=none_url)
