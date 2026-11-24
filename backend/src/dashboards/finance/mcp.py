@@ -65,7 +65,7 @@ def register(
                         for a in accounts
                     ],
                     "connections": [
-                        ConnectionOut.model_validate(c).model_dump(mode="json") for c in links
+                        ConnectionOut.from_row(c, now).model_dump(mode="json") for c in links
                     ],
                 }
             )
@@ -264,9 +264,9 @@ def register(
             )
         except ValidationError as exc:
             raise _bad_fields(exc) from None
-        async with scope("finance_add_manual_connection") as (session, _):
+        async with scope("finance_add_manual_connection") as (session, now):
             link = await manual.create_connection(session, data)
-            return _json(ConnectionOut.model_validate(link).model_dump(mode="json"))
+            return _json(ConnectionOut.from_row(link, now).model_dump(mode="json"))
 
     @server.tool(structured_output=False)
     async def finance_add_manual_account(account: dict[str, Any]) -> str:

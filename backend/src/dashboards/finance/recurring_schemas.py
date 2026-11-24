@@ -13,6 +13,7 @@ from src.dashboards.finance.recurring import (
     Kind,
     RowError,
     ScheduleState,
+    grace_end,
     schedule_state,
 )
 from src.dashboards.finance.schemas import DisplayOut
@@ -28,6 +29,7 @@ AttentionKind = Literal[
     "overdrawn",
     "reconsent",
     "stale_statement",
+    "stale_connection",
 ]
 Severity = Literal["high", "medium", "info"]
 ItemState = Literal["active", "snoozed", "dismissed"]
@@ -125,7 +127,7 @@ class RecurringOut(BaseModel):
         values["evidence"] = None
         if row.account_id is not None:
             outcomes = row.recent_outcomes
-            late = row.next_payment_date is not None and row.next_payment_date < today
+            late = row.next_payment_date is not None and today > grace_end(row.next_payment_date)
             if row.is_active and late and state != "ended_by_schedule":
                 outcomes += "0"  # the date has passed and nothing matched
             outcomes = outcomes[-3:]
@@ -207,8 +209,13 @@ class UpcomingItem(BaseModel):
     # earlier payments of the window from the same account? null when no account of ours pays,
     # or the amount cannot be told in the account's currency (no rate).
     covered: bool | None
-    shortfall: int | None  # how much is missing, in the account's currency, when not covered
+    # When not covered: how much of THIS payment is missing (at most its amount), and how much the
+    # account is short in all by then, counting the earlier payments of the window; both in the
+    # account's currency.
+    shortfall: int | None
+    account_short_total: int | None
     account_currency: str | None
+    overdue: bool  # already due and not seen paid: listed first, counted in the totals
 
 
 class UpcomingTotal(BaseModel):
@@ -244,9 +251,11 @@ class AttentionItem(BaseModel):
     key: str  # names the condition and its occasion; what dismiss and snooze take
     kind: AttentionKind
     severity: Severity  # high: act now; medium: look soon; info: a plain fact
-    title: str
+    title: str  # for logs and tools: a page writes its own sentence from `kind` and `facts`
     subject_type: Literal["recurring", "account", "connection"]
     subject_id: UUID
+    subject_name: str  # the payment's, the account's, the bank's name: the row is self-contained
+    provider: str | None  # of an account or connection item
     due_date: date | None
     amount: int | None
     currency: str | None
@@ -262,6 +271,7 @@ class AttentionBulkOut(BaseModel):
 
     items: list[AttentionItem]  # the items that were found, as they are now
     missing: list[str]  # keys that are not an item right now: nothing was done for them
+    accepted: list[str]  # with `accept`: the keys whose charged amount became the amount
 
 
 class AttentionOut(BaseModel):

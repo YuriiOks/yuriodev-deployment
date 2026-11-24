@@ -55,7 +55,7 @@ async def accounts(session: SessionDep, settings: SettingsDep, clock: ClockDep) 
     found, links, oldest = await service.list_accounts(session)
     return AccountsOut(
         accounts=[AccountOut.from_row(item, oldest.get(item.id), display) for item in found],
-        connections=[ConnectionOut.model_validate(item) for item in links],
+        connections=[ConnectionOut.from_row(item, clock()) for item in links],
         display=DisplayOut(**display_fields(display, {item.currency for item in found})),
     )
 

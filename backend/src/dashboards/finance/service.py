@@ -280,6 +280,15 @@ async def summary(
         entry[3] += spent
         entry[4] += got
     as_of = min((row[4] for row in balances), default=None)
+    moments = (
+        await session.execute(
+            select(Account.balance_at, Connection.manual)
+            .join(Connection, Connection.id == Account.connection_id)
+            .where(Account.archived.is_(False))
+        )
+    ).all()
+    as_of_newest = max((moment for moment, _ in moments), default=None)
+    as_of_oldest = min((moment for moment, manual in moments if not manual), default=None)
     lines: list[CurrencySummary] = []
     totals = [0, 0, 0, 0]  # the converted parts that have a rate, added
     for currency, (n, balance, own, spent, got) in sorted(by_currency.items()):
@@ -305,6 +314,8 @@ async def summary(
     return FinanceSummaryOut(
         month=f"{first.year:04d}-{first.month:02d}",
         as_of=as_of,
+        as_of_newest=as_of_newest,
+        as_of_oldest=as_of_oldest,
         currencies=lines,
         display=SummaryDisplay(
             **shown,

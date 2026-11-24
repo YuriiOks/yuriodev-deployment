@@ -1063,30 +1063,45 @@ never a `missed_payment`. `evidence` (null when no account of ours pays the paym
 `{last_matched_on, last_matched_amount, matched_of_last, checked}`, how many of its last three due
 dates had a matching transaction (a date that has passed with none counts as a miss), so a page
 can tell "confirmed by the bank" from "from your list, unverified".
-`GET /upcoming?days=14` (1 to 366): every occurrence from today (the local day) to the end of the
-window (a weekly payment appears each time), with `covered` (can the paying account pay it:
-balance plus overdraft in force, a card's balance already counts its limit, counting the earlier
-payments of the window from the same account; no income is assumed; null when no account of ours
-pays or there is no rate to put the amount in the account's currency) and `shortfall`, totals per
-currency and in the display currency (each currency's total converted once; `complete` is false
-when a currency has no rate).
+`GET /upcoming?days=14` (1 to 366): every occurrence in `days` days counting today (`from_date` today
+to `to_date` today + days - 1: 14 days is two weeks, a fortnightly payment due today appears once;
+a weekly payment appears each time), with `covered` (can the paying account pay it: balance plus
+overdraft in force, a card's balance already counts its limit, counting the earlier payments of the
+window from the same account; no income is assumed; null when no account of ours pays or there is
+no rate to put the amount in the account's currency), `shortfall` (how much of THIS payment is
+missing, at most its amount) and `account_short_total` (how much the account is short in all by
+then, counting the earlier ones), both in the account's currency; totals per currency and in the
+display currency (each currency's total converted once; `complete` is false when a currency has no
+rate). A payment already due and not seen paid on an account we collect comes first with
+`overdue: true` and a negative `days_until`; it counts in the totals and against the account.
 `GET /attention` (`?include_hidden=true`): `due_not_covered` (due within `reminder_days`, default
-2, and not covered), `missed_payment` (past its date with no matching transaction, only when we
-collect the paying account), `amount_changed` (the matched charge differs from the recorded
+2, and not covered; never an overdue one), `missed_payment` (more than two days past its date, or
+the Monday when that day is a weekend, with no matching transaction, only when we collect the
+paying account AND its data goes that far: a manual bank's `last_ok_at` or the day its API was
+last read, else the page says the data is old instead), `amount_changed` (the matched charge differs from the recorded
 amount by more than 1%, for a charge paid in the last 60 days), `credit_high` (a credit card above 90% of its limit), `overdraft` (a
 current or business account past its overdraft in force), `overdrawn` (a current or business account with a negative balance and NO overdraft limit known,
 from you or the bank: only a plain fact, `info`; once a limit is set a balance below it is
 `overdraft` instead), `reconsent` (a connection that needs
-approving again). A manual statement older than 30 days comes with manual banks. Each item has a
-stable `key` (it names the occasion: a new due date, month or charge is a new item), `kind`,
+approving again), `stale_statement` (a manual bank whose data is older than 30 days, or that has
+none: `facts.no_data`), `stale_connection` (a bank's API not read for 2 hours: the balances are
+old, `medium`, `high` after 24 hours; `facts.last_error`). Each item has a
+stable `key` (it names the occasion: a new due date or charge is a new item; an account's
+`credit_high` (a tier: 90, 95 or 100 percent), `overdraft` and `overdrawn` last while the condition
+does: what you did about them is forgotten when it clears, so it is raised again if it returns, and
+`credit_high` is raised again when the card gets into a worse tier), `kind`,
 `severity` (`high`: act now: due_not_covered, missed_payment, overdraft, reconsent; `medium`:
 amount_changed, credit_high, stale_statement; `info`: a plain fact: overdrawn; the list is ordered by
-severity, then kind, then date), `title`, `subject_type`/`subject_id`, `due_date`, `amount`/`currency`/`display_amount`/`converted`,
+severity, then kind, then date), `title` (for logs and tools; a page writes its own sentence), `subject_type`/`subject_id`,
+`subject_name` (the payment's, the account's, the bank's name), `provider` (account and connection
+items), `due_date`, `amount`/`currency`/`display_amount`/`converted`,
 `facts`, `state` (`active`, `snoozed`, `dismissed`) and `snoozed_until`. Dismissed and snoozed
 items are left out and counted in `hidden`. `POST /attention/dismiss` `{key}`, `/attention/snooze`
 `{key, days: 1..90}`, `/attention/restore` `{key}`; an unknown key is 404; `POST /attention/bulk`
-`{keys: [...up to 200], action: dismiss|snooze|restore, days?}` does it for many at once and returns
-`{items, missing}` (keys that are not an item now are listed, not an error); unused states of items
+`{keys: [...up to 200], action: dismiss|snooze|restore|accept, days?}` does it for many at once and
+returns `{items, missing, accepted}` (keys that are not an item now are listed, not an error;
+`accept` makes the charged amount of every `amount_changed` item the payment's amount, in one
+transaction: the keys are in `accepted`, those items are gone); unused states of items
 that are gone are deleted after 90 days.
 
 Banks without an API (migration `dashboards_0015`, REST under `/finance/manual`). Nothing is read

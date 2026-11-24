@@ -263,7 +263,7 @@ class AttentionBulk(BaseModel):
     keys: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
         min_length=1, max_length=MAX_BULK_KEYS
     )
-    action: Literal["dismiss", "snooze", "restore"]
+    action: Literal["dismiss", "snooze", "restore", "accept"]
     days: int | None = Field(default=None, strict=True, ge=1, le=service.MAX_SNOOZE_DAYS)
 
     @model_validator(mode="after")
@@ -322,10 +322,13 @@ async def bulk_state(
     clock: ClockDep,
     zone: ZoneDep,
 ) -> AttentionBulkOut:
-    """Dismiss, snooze (`days`) or restore many items at once (at most 200 keys). Keys that are
-    not an item right now are returned in `missing` and nothing is done for them."""
+    """Dismiss, snooze (`days`), restore or `accept` many items at once (at most 200 keys). With
+    `accept`, the charged amount of every `amount_changed` item becomes its payment's amount, in
+    one transaction (the keys are in `accepted`; those items are gone). Keys that are not an item
+    right now (or, with accept, not an amount change) are returned in `missing`; nothing is done
+    for them."""
     display = await _display(session, settings, clock)
-    items, missing = await service.set_attention_states(
+    items, missing, accepted = await service.set_attention_states(
         session, clock(), zone, display, body.keys, body.action, body.days
     )
-    return AttentionBulkOut(items=items, missing=missing)
+    return AttentionBulkOut(items=items, missing=missing, accepted=accepted)

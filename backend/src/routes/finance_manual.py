@@ -23,19 +23,21 @@ router = APIRouter(prefix="/api/dashboards/v1/finance/manual", tags=["finance"])
 
 
 @router.post("/connections", status_code=201)
-async def create_connection(body: manual.ConnectionIn, session: SessionDep) -> ConnectionOut:
+async def create_connection(
+    body: manual.ConnectionIn, session: SessionDep, clock: ClockDep
+) -> ConnectionOut:
     """A bank entered by hand. `provider` is an id such as `barclays` or a neutral one of your own;
     `display_name` and `brand_bg`/`brand_fg` (contrast of 3:1) are for a bank without a built-in
     brand. A bank with its own API (monobank, monzo) is refused."""
-    return ConnectionOut.model_validate(await manual.create_connection(session, body))
+    return ConnectionOut.from_row(await manual.create_connection(session, body), clock())
 
 
 @router.patch("/connections/{connection_id}")
 async def update_connection(
-    connection_id: UUID, body: manual.ConnectionPatch, session: SessionDep
+    connection_id: UUID, body: manual.ConnectionPatch, session: SessionDep, clock: ClockDep
 ) -> ConnectionOut:
     link = await manual.update_connection(session, connection_id, body)
-    return ConnectionOut.model_validate(link)
+    return ConnectionOut.from_row(link, clock())
 
 
 async def _account(

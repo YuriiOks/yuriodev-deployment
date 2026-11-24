@@ -1,6 +1,6 @@
 """Response shapes of the finance API. Money is an `int` in minor units next to its ISO code."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Literal, Self
 from uuid import UUID
 
@@ -121,6 +121,10 @@ class AccountOut(BaseModel):
         return cls.model_validate(values)
 
 
+API_STALE_AFTER = timedelta(hours=2)  # a bank's API not read for this long: its balances are old
+API_STALE_HIGH_AFTER = timedelta(hours=24)
+
+
 class ConnectionOut(BaseModel):
     """One link to a provider. `status` is ok, needs_reconsent or paused."""
 
@@ -133,6 +137,25 @@ class ConnectionOut(BaseModel):
     last_ok_at: datetime | None  # for a manual connection: the date its newest data is as of
     manual: bool  # entered by hand: no collector reads it
     display_name: str | None
+    last_error: str | None  # why the last read failed (a short kind), until one works
+    # A bank's API that was last read more than two hours ago (nothing to say of a manual bank:
+    # its age is `last_ok_at`, and a statement older than 30 days is an attention item). Its
+    # balances are then as of `stale_since`, whatever `status` says.
+    stale: bool
+    stale_since: datetime | None
+
+    @classmethod
+    def from_row(cls, row: Any, now: datetime) -> Self:
+        since = row.last_ok_at or row.created_at
+        stale = not row.manual and row.status == "ok" and now - since > API_STALE_AFTER
+        values = {
+            name: getattr(row, name)
+            for name in cls.model_fields
+            if name not in ("stale", "stale_since")
+        }
+        return cls.model_validate(
+            {**values, "stale": stale, "stale_since": since if stale else None}
+        )
 
 
 class AccountsOut(BaseModel):
@@ -224,6 +247,11 @@ class FinanceSummaryOut(BaseModel):
 
     month: str  # YYYY-MM, in the configured time zone
     as_of: datetime | None  # the oldest balance among the accounts counted
+    # The newest balance among them, and the oldest one left of banks read by their own API
+    # (a hand-entered bank's balance is as old as its last statement and is not "stale"): a page
+    # says "updated <newest>" and warns only when `as_of_oldest` is far behind.
+    as_of_newest: datetime | None
+    as_of_oldest: datetime | None
     currencies: list[CurrencySummary]
     display: SummaryDisplay
 

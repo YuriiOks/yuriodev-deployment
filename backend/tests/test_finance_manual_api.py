@@ -732,3 +732,30 @@ async def test_every_manual_route_needs_the_token(db_url, make_dashboards_app):
         answers = [(await client.request(m, f"{BASE}{p}")).status_code for m, p in calls]
 
     assert answers == [401] * len(calls)
+
+
+async def test_the_summary_tells_the_newest_and_the_oldest_balance_apart(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)  # balances as of 22 November, 12:00, read from the bank's API
+        link = await connect(client)
+        await open_account(client, link, as_of="2026-10-01")  # typed in last month
+        summary = (await client.get(f"{FINANCE}/summary")).json()
+
+    assert summary["as_of"] == "2026-10-01T22:59:59Z"  # the oldest of all, as before
+    assert summary["as_of_newest"] == "2026-11-22T12:00:00Z"
+    assert summary["as_of_oldest"] == "2026-11-22T12:00:00Z"  # a typed-in bank is not "stale"
+
+
+async def test_a_manual_connection_is_never_called_stale_by_the_api_rule(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = await connect(client)
+        await open_account(client, link, as_of="2026-09-01")
+        found = await connection(client, link)
+
+    assert (found["stale"], found["stale_since"], found["last_error"]) == (False, None, None)

@@ -5,6 +5,7 @@ hryvnia with 1 250 000 minor units, a "Euro" account, an archived one, and a few
 around 20 November 2026; "today" is 22 November). Every name and amount is invented.
 """
 
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -715,7 +716,7 @@ async def test_upcoming_lists_each_occurrence_with_coverage_and_converted_totals
     body = response.json()
     assert response.status_code == 200
     assert explicit.json() == body  # 14 days is the default
-    assert (body["from_date"], body["to_date"]) == ("2026-11-22", "2026-12-06")
+    assert (body["from_date"], body["to_date"]) == ("2026-11-22", "2026-12-05")  # 14 days, today in
     assert [(i["name"], i["due_date"], i["days_until"]) for i in body["items"]] == [
         ("Gym Weekly", "2026-11-23", 1),
         ("Rent Co", "2026-11-25", 3),
@@ -727,13 +728,19 @@ async def test_upcoming_lists_each_occurrence_with_coverage_and_converted_totals
     for item in body["items"]:
         by_name.setdefault(item["name"], item)
     # The Main account has 1 250 000: rent leaves 250 000, insurance 400 000 is 150 000 short,
-    # and the euro payment (1 000 EUR is 43 750 hryvnia) is short by that much more.
+    # and the euro payment (1 000 EUR is 43 750 hryvnia) is itself short by 43 750, the account
+    # by 193 750 in all.
     assert (by_name["Rent Co"]["covered"], by_name["Rent Co"]["shortfall"]) == (True, 0)
     assert (by_name["Insurance Co"]["covered"], by_name["Insurance Co"]["shortfall"]) == (
         False,
         150_000,
     )
-    assert (by_name["Euro Sub"]["covered"], by_name["Euro Sub"]["shortfall"]) == (False, 193_750)
+    assert (by_name["Euro Sub"]["covered"], by_name["Euro Sub"]["shortfall"]) == (False, 43_750)
+    assert by_name["Euro Sub"]["account_short_total"] == 193_750
+    assert by_name["Insurance Co"]["account_short_total"] == 150_000
+    assert by_name["Rent Co"]["account_short_total"] == 0
+    assert by_name["Gym Weekly"]["account_short_total"] is None
+    assert not any(item["overdue"] for item in body["items"])
     assert by_name["Euro Sub"]["account_currency"] == "UAH"
     assert (by_name["Gym Weekly"]["covered"], by_name["Gym Weekly"]["shortfall"]) == (None, None)
     assert by_name["Gym Weekly"]["account_currency"] is None
@@ -804,7 +811,7 @@ async def test_upcoming_with_nothing_set_is_empty(db_url, make_dashboards_app):
         body = (await client.get(f"{BASE}/upcoming?days=366")).json()
 
     assert (body["items"], body["totals"], body["display"]["total"]) == ([], [], 0)
-    assert body["to_date"] == "2027-11-23"
+    assert body["to_date"] == "2027-11-22"  # 366 days, today in
 
 
 # ---- attention ------------------------------------------------------------------------------
@@ -828,7 +835,13 @@ async def test_a_payment_due_soon_that_the_account_cannot_cover_is_raised(
     assert first["kind"] == "due_not_covered"
     assert first["key"] == f"due_not_covered:{big['id']}:2026-11-23"
     assert "tomorrow" in first["title"]
-    assert first["facts"] == {"due_in_days": 1, "shortfall": 750_000, "account_currency": "UAH"}
+    assert first["facts"] == {
+        "due_in_days": 1,
+        "shortfall": 750_000,
+        "account_short_total": 750_000,
+        "account_currency": "UAH",
+    }
+    assert first["subject_name"] == "Big Bill"
     assert (first["amount"], first["currency"]) == (2_000_000, "UAH")
     assert first["due_date"] == "2026-11-23"
     assert (first["display_amount"], first["converted"]) == (40_000, True)
@@ -878,16 +891,16 @@ async def test_a_card_close_to_its_limit_and_an_account_past_its_overdraft_are_r
         within = await attention(client)
 
     (card,) = high["items"]
-    assert (card["kind"], card["key"]) == ("credit_high", f"credit_high:{MAIN}:2026-11")
+    assert (card["kind"], card["key"]) == ("credit_high", f"credit_high:{MAIN}:90")
     assert card["facts"] == {"used_percent": 92, "owed": 460_000, "credit_limit": 500_000}
     assert (card["amount"], card["currency"]) == (460_000, "UAH")
     assert at_ninety["items"] == []  # exactly 90% is not above it
     (plain,) = past["items"]  # no limit is known: a plain fact, not "past the overdraft"
-    assert (plain["kind"], plain["key"]) == ("overdrawn", f"overdrawn:{MAIN}:2026-11")
+    assert (plain["kind"], plain["key"]) == ("overdrawn", f"overdrawn:{MAIN}")
     assert plain["facts"] == {"balance": -10_000, "overdraft_limit": None}
     assert (plain["amount"], plain["severity"]) == (10_000, "info")
     (over,) = still["items"]  # a limit is known and passed
-    assert (over["kind"], over["key"]) == ("overdraft", f"overdraft:{MAIN}:2026-11")
+    assert (over["kind"], over["key"]) == ("overdraft", f"overdraft:{MAIN}")
     assert over["facts"] == {"balance": -10_000, "overdraft_limit": 4_000, "over_by": 6_000}
     assert (over["amount"], over["severity"]) == (6_000, "high")
     assert within["items"] == []
@@ -960,7 +973,9 @@ async def test_dismissing_snoozing_and_restoring_an_item(db_url, make_dashboards
     assert body["id"] in key
 
 
-async def test_a_new_occasion_is_a_new_item_after_a_dismissal(db_url, make_dashboards_app, clock):
+async def test_what_was_done_about_a_condition_lasts_until_it_clears(
+    db_url, make_dashboards_app, clock
+):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         await seed(app)
@@ -969,10 +984,34 @@ async def test_a_new_occasion_is_a_new_item_after_a_dismissal(db_url, make_dashb
         await client.post(f"{BASE}/attention/dismiss", json={"key": key})
         same_month = await attention(client)
         clock.now = datetime(2026, 12, 2, 12, tzinfo=UTC)
-        next_month = await attention(client)
+        next_month = await attention(client)  # a new month is no new occasion
+        await execute(db_url, "UPDATE finance.account SET balance = 5000 WHERE name = 'Main'")
+        cleared = await attention(client)
+        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
+        back = await attention(client)
 
-    assert same_month["items"] == []
-    assert [i["key"] for i in next_month["items"]] == [f"overdrawn:{MAIN}:2026-12"]
+    assert key == f"overdrawn:{MAIN}"
+    assert same_month["items"] == next_month["items"] == cleared["items"] == []
+    assert next_month["hidden"] == 1
+    assert [i["key"] for i in back["items"]] == [key]  # cleared and back: raised again
+
+
+async def test_a_card_that_gets_worse_is_a_new_item(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(
+            db_url,
+            "UPDATE finance.account SET kind = 'credit_card', balance = 40000 WHERE name = 'Main'",
+        )
+        first = (await attention(client))["items"][0]
+        await client.post(f"{BASE}/attention/dismiss", json={"key": first["key"]})
+        await execute(db_url, "UPDATE finance.account SET balance = 10000 WHERE name = 'Main'")
+        worse = await attention(client)  # 98% used
+
+    assert first["key"] == f"credit_high:{MAIN}:90"
+    assert [i["key"] for i in worse["items"]] == [f"credit_high:{MAIN}:95"]
+    assert worse["items"][0]["facts"]["used_percent"] == 98
 
 
 @pytest.mark.parametrize(
@@ -1066,7 +1105,7 @@ async def test_a_charge_found_only_while_catching_up_on_old_dates_is_not_an_amou
         await seed(app)
         await pay(client, "Bakery Example", 10_000, "2026-11-20")
         await listed(client)  # rolls it: the charge of 12 000 is found
-        await execute(db_url, "UPDATE finance.recurring SET last_paid_on = '2026-08-01'")
+        await execute(db_url, "UPDATE finance.recurring SET last_matched_on = '2026-08-01'")
         body = await attention(client)
 
     assert body["items"] == []
@@ -1481,9 +1520,18 @@ async def test_an_unpaid_overdue_date_still_takes_room_from_its_account(
         await pay(client, "Rent", 400_000, "2026-11-25")
         body = (await client.get(f"{BASE}/upcoming")).json()
 
-    (item,) = body["items"]  # the overdue one is not listed
-    assert item["name"] == "Rent"
-    assert (item["covered"], item["shortfall"]) == (False, 150_000)
+    late, rent = body["items"]  # the overdue one comes first, counted like the others
+    assert (late["name"], late["overdue"], late["days_until"]) == ("Late Rent", True, -4)
+    assert (late["covered"], late["shortfall"]) == (True, 0)
+    assert (rent["name"], rent["overdue"]) == ("Rent", False)
+    assert (rent["covered"], rent["shortfall"], rent["account_short_total"]) == (
+        False,
+        150_000,
+        150_000,
+    )
+    assert body["totals"] == [
+        {"currency": "UAH", "amount": 1_400_000, "display_amount": None, "converted": True}
+    ]
 
 
 async def test_marking_paid_twice_pays_one_occurrence_only(db_url, make_dashboards_app):
@@ -1603,3 +1651,170 @@ async def test_a_file_body_is_not_taken_when_it_is_what_an_html_form_sends(
     assert response.status_code == status
     if status == 415:
         assert response.json()["error"] == "unsupported_media_type"
+
+
+async def test_a_payment_is_missed_only_after_its_grace_and_when_the_data_reaches_that_far(
+    db_url, make_dashboards_app, clock
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await pay(client, "Gym", 1_000, "2026-11-20")  # a Friday: the grace ends on Monday 23rd
+        on_sunday = await attention(client)
+        clock.now = datetime(2026, 11, 24, 12, tzinfo=UTC)
+        data_too_old = await attention(client)  # the link was last read on the 22nd
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = '2026-11-24T11:00:00Z'")
+        raised = await attention(client)
+
+    assert on_sunday["items"] == []
+    assert data_too_old["items"] == []  # nothing was read after the grace: not "missed"
+    (item,) = raised["items"]
+    assert (item["kind"], item["subject_name"], item["facts"]["data_as_of"]) == (
+        "missed_payment",
+        "Gym",
+        "2026-11-24",
+    )
+
+
+async def test_a_miss_is_written_only_for_dates_the_accounts_data_covers(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = '2026-10-12T12:00:00Z'")
+        body = await pay(client, "Acme Water", 3_000, "2026-10-10")
+        waiting = await one(client, body["id"])  # data to 12 October: the window runs to the 17th
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = '2026-11-22T12:00:00Z'")
+        moved = await one(client, body["id"])
+
+    assert (waiting["next_payment_date"], waiting["evidence"]["checked"]) == ("2026-10-10", 1)
+    assert moved["next_payment_date"] == "2026-11-10"
+
+
+async def test_a_bank_api_that_has_not_been_read_for_hours_is_stale_and_says_so(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        fresh = (await client.get(f"{BASE}/accounts")).json()["connections"][0]
+        await execute(
+            db_url,
+            "UPDATE finance.connection SET last_ok_at = '2026-11-22T09:00:00Z', "
+            "last_error = 'timeout'",
+        )
+        stale = (await client.get(f"{BASE}/accounts")).json()["connections"][0]
+        medium = await attention(client)
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = '2026-11-20T09:00:00Z'")
+        high = await attention(client)
+        await execute(db_url, "UPDATE finance.connection SET status = 'needs_reconsent'")
+        reconsent = await attention(client)
+        await execute(db_url, "UPDATE finance.connection SET status = 'paused'")
+        paused = await attention(client)
+
+    assert (fresh["stale"], fresh["stale_since"], fresh["last_error"]) == (False, None, None)
+    assert (stale["stale"], stale["stale_since"], stale["last_error"]) == (
+        True,
+        "2026-11-22T09:00:00Z",
+        "timeout",
+    )
+    (item,) = medium["items"]
+    assert (item["kind"], item["severity"]) == ("stale_connection", "medium")
+    assert item["key"] == f"stale_connection:{LINK}:2026-11-22"
+    assert (item["subject_name"], item["provider"]) == ("sample", "sample")
+    assert item["facts"] == {
+        "provider": "sample",
+        "last_error": "timeout",
+        "since": "2026-11-22",
+        "hours_old": 3,
+    }
+    assert [(i["kind"], i["severity"]) for i in high["items"]] == [("stale_connection", "high")]
+    assert [i["kind"] for i in reconsent["items"]] == ["reconsent"]  # one notice, not two
+    assert paused["items"] == []
+
+
+async def test_every_attention_item_names_its_subject(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
+        await pay(client, "Acme Water", 3_000, "2026-11-10")
+        body = await attention(client)
+
+    names = {i["kind"]: (i["subject_name"], i["provider"]) for i in body["items"]}
+    assert names == {
+        "missed_payment": ("Acme Water", None),
+        "overdrawn": ("Main", "sample"),
+    }
+
+
+async def test_a_manual_bank_with_no_data_date_says_so(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        link = (await client.post(f"{BASE}/manual/connections", json={"provider": "aqua"})).json()
+        account = {"connection_id": link["id"], "name": "Card", "currency": "GBP", "balance": 5}
+        await client.post(f"{BASE}/manual/accounts", json=account)
+        await execute(db_url, "UPDATE finance.connection SET last_ok_at = NULL")
+        body = await attention(client)
+
+    (item,) = body["items"]
+    assert (item["kind"], item["facts"]["no_data"], item["facts"]["as_of"]) == (
+        "stale_statement",
+        True,
+        None,
+    )
+    assert "No data yet" in item["title"]
+    assert (item["subject_name"], item["provider"]) == ("aqua", "aqua")
+
+
+async def test_charged_amounts_are_accepted_in_one_request(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        changed = await pay(client, "Bakery Example", 10_000, "2026-11-20")
+        steady = await pay(client, "Corner Cafe", 45_000, "2026-11-20")
+        first = await attention(client)
+        keys = [i["key"] for i in first["items"]]
+        body = await client.post(
+            f"{BASE}/attention/bulk",
+            json={"keys": [*keys, "nothing:here"], "action": "accept"},
+        )
+        after = await attention(client)
+        recurring = {r["id"]: r for r in await listed(client)}
+
+    assert len(keys) == 1
+    assert body.status_code == 200
+    assert body.json()["accepted"] == keys
+    assert body.json()["missing"] == ["nothing:here"]
+    assert body.json()["items"] == []  # accepted: the item is gone
+    assert after["items"] == []
+    assert recurring[changed["id"]]["amount"] == 12_000
+    assert recurring[steady["id"]]["amount"] == 45_000
+
+
+async def test_accept_leaves_other_kinds_alone(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
+        key = (await attention(client))["items"][0]["key"]
+        body = await client.post(f"{BASE}/attention/bulk", json={"keys": [key], "action": "accept"})
+
+    assert (body.json()["accepted"], body.json()["missing"]) == ([], [key])
+
+
+async def test_two_requests_for_the_same_item_both_succeed(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
+        key = (await attention(client))["items"][0]["key"]
+        first, second = await asyncio.gather(
+            client.post(f"{BASE}/attention/dismiss", json={"key": key}),
+            client.post(f"{BASE}/attention/snooze", json={"key": key, "days": 3}),
+        )
+        count = await scalar(db_url, "SELECT count(*) FROM finance.attention_state")
+
+    assert (first.status_code, second.status_code) == (200, 200)
+    assert count == 1

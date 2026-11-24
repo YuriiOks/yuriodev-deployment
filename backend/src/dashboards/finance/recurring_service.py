@@ -25,6 +25,7 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 from sqlalchemy import delete, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
@@ -49,6 +50,7 @@ from src.dashboards.finance.recurring import (
     anchor_of,
     first_on_or_after,
     frequency_of,
+    grace_end,
     instalments_agree,
     last_installment_date,
     needs_a_date,
@@ -68,7 +70,12 @@ from src.dashboards.finance.recurring_schemas import (
     UpcomingOut,
     UpcomingTotal,
 )
-from src.dashboards.finance.schemas import DisplayOut, display_fields
+from src.dashboards.finance.schemas import (
+    API_STALE_AFTER,
+    API_STALE_HIGH_AFTER,
+    DisplayOut,
+    display_fields,
+)
 from src.dashboards.finance.service import day_start, invalid
 from src.dashboards.service import guarded
 
@@ -80,6 +87,7 @@ STATE_KEEP = timedelta(days=90)
 CATCH_UP_LIMIT = 24  # occurrences handled for one payment in one pass
 CREDIT_HIGH_PERCENT = 90
 FRESH_DAYS = 60  # a charge found while catching up on old dates is not news
+CONDITION_KEYS = ("credit_high:", "overdraft:", "overdrawn:")  # keys of a state of an account
 ORDER = (
     "due_not_covered",
     "missed_payment",
@@ -89,6 +97,7 @@ ORDER = (
     "overdrawn",
     "reconsent",
     "stale_statement",
+    "stale_connection",
 )
 # How much an item matters, so a page can order and summarise without knowing the kinds.
 SEVERITY = {
@@ -99,6 +108,7 @@ SEVERITY = {
     "amount_changed": "medium",
     "credit_high": "medium",
     "stale_statement": "medium",
+    "stale_connection": "medium",
     "overdrawn": "info",
 }
 SEVERITY_RANK = {"high": 0, "medium": 1, "info": 2}
@@ -506,6 +516,13 @@ async def _match(
     return min(later, key=lambda t: (days(t), abs(_paid_figure(row, t) - row.amount), str(t.id)))
 
 
+def _data_to(reach: dict[uuid.UUID, date | None], row: Recurring, day: date) -> bool:
+    """Does the paying account's data go past `day`? A manual bank with no newer statement, or a
+    link that is not working, shows nothing: no miss can be written for that time."""
+    seen = reach.get(row.account_id) if row.account_id else None
+    return seen is not None and seen >= day
+
+
 @guarded
 async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> int:
     """Move the next date of every active payment past the occurrences that were paid.
@@ -535,6 +552,7 @@ async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> in
     ).all()
     if not rows:
         return 0
+    reach = await _reach(session, rows, zone)
     used: set[uuid.UUID] = set(await session.scalars(select(RecurringMatch.transaction_id)))
     settled: set[tuple[uuid.UUID, date]] = {
         (match.recurring_id, match.due_date)
@@ -571,7 +589,7 @@ async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> in
                 row.last_transaction_id = found.id
                 _confirm(row, _paid_figure(row, found))
                 _outcome(row, "1")
-            elif collected and stale and today > due + timedelta(days=LATE_DAYS):
+            elif collected and stale and _data_to(reach, row, due + timedelta(days=LATE_DAYS)):
                 _outcome(row, "0")  # the window is over and nothing came: a miss, remembered
             elif collected or today <= due:
                 break  # waiting for a line, or not due yet
@@ -622,8 +640,8 @@ async def _occurrences(
                 until = min(until, last)
         anchor = _anchor(row, first)
         for day in occurrences(first, frequency, row.frequency_interval, anchor, until, limit):
-            # An occurrence already due and unpaid on an account we collect is still to be taken
-            # from it: it is not listed, but the account's room is reduced by it.
+            # An occurrence already due and not seen paid on an account we collect is still to be
+            # taken from it: it is listed first (`overdue`) and counted against the account.
             if day >= today or (day == first and row.account_id is not None):
                 entries.append((day, row))
     entries.sort(key=lambda entry: (entry[0], entry[1].name, str(entry[1].id)))
@@ -632,6 +650,7 @@ async def _occurrences(
     for day, row in entries:
         covered: bool | None = None
         shortfall: int | None = None
+        short_total: int | None = None
         account_currency: str | None = None
         account = accounts.get(row.account_id) if row.account_id else None
         if account is not None and not account.archived:
@@ -642,9 +661,8 @@ async def _occurrences(
             if need is not None:
                 room[account.id] -= need
                 covered = room[account.id] >= 0
-                shortfall = max(-room[account.id], 0)
-        if day < today:
-            continue
+                short_total = max(-room[account.id], 0)
+                shortfall = min(need, short_total)
         item = UpcomingItem(
             recurring_id=row.id,
             name=row.name,
@@ -661,7 +679,9 @@ async def _occurrences(
             color=row.color,
             covered=covered,
             shortfall=shortfall,
+            account_short_total=short_total,
             account_currency=account_currency,
+            overdue=day < today,
         )
         found.append((item, row))
     return found
@@ -671,15 +691,17 @@ async def _occurrences(
 async def upcoming(
     session: AsyncSession, now: datetime, zone: tzinfo, display: Display, days: int
 ) -> UpcomingOut:
-    """The payments due from today to `days` days ahead (a weekly one appears each time), with
-    whether the paying account covers each, counting the earlier ones of the window against the
-    same account. Nothing is assumed about money arriving in between. Totals per currency, each
-    converted once, make the display total."""
+    """The payments due in `days` days counting today (today to today + days - 1: a weekly one
+    appears each time), with whether the paying account covers each, counting the earlier ones of
+    the window against the same account; one already due and not seen paid on an account we
+    collect comes first, `overdue`, and counts in the totals and against the account. Nothing is
+    assumed about money arriving in between. Totals per currency, each converted once, make the
+    display total."""
     if not 1 <= days <= MAX_UPCOMING_DAYS:
         raise invalid("Invalid days")
     await roll_forward(session, now, zone)
     today = _today(now, zone)
-    end = today + timedelta(days=days)
+    end = today + timedelta(days=days - 1)
     items = [item for item, _ in await _occurrences(session, today, end, display)]
     sums: dict[str, int] = {}
     for item in items:
@@ -719,6 +741,9 @@ def _item(
     facts: dict[str, Any],
     due: date | None = None,
     money: tuple[int, str] | None = None,
+    severity: str | None = None,
+    name: str = "",
+    provider: str | None = None,
 ) -> AttentionItem:
     amount, currency = money if money else (None, None)
     shown = None if amount is None or currency is None else display.convert(amount, currency)
@@ -726,10 +751,12 @@ def _item(
         {
             "key": key,
             "kind": kind,
-            "severity": SEVERITY[kind],
+            "severity": severity or SEVERITY[kind],
             "title": title,
             "subject_type": subject[0],
             "subject_id": subject[1],
+            "subject_name": name,
+            "provider": provider,
             "due_date": due,
             "amount": amount,
             "currency": currency,
@@ -753,17 +780,49 @@ def _when(days: int) -> str:
     return "tomorrow" if days == 1 else f"in {days} days"
 
 
+async def _reach(
+    session: AsyncSession, rows: Sequence[Recurring], zone: tzinfo
+) -> dict[uuid.UUID, date | None]:
+    """How far the data of each paying account goes (a day): a manual bank's is the date its
+    newest data is as of, a collected bank's the day it was last read, and nothing when its link
+    is not working. Without data up to a date, a payment due then cannot be called missed."""
+    ids = {row.account_id for row in rows if row.account_id}
+    if not ids:
+        return {}
+    pairs = (
+        await session.execute(
+            select(Account, Connection)
+            .join(Connection, Connection.id == Account.connection_id)
+            .where(Account.id.in_(ids))
+        )
+    ).all()
+    reach: dict[uuid.UUID, date | None] = {}
+    for account, link in pairs:
+        if link.manual:
+            moment = link.last_ok_at
+        elif link.status == "ok":
+            moment = account.synced_until or link.last_ok_at
+        else:
+            moment = None
+        reach[account.id] = moment.astimezone(zone).date() if moment else None
+    return reach
+
+
+def _tier(used_percent: int) -> int:
+    """How bad a card is: 90, 95 or 100 (percent of its limit): a worse tier is a new item."""
+    return 100 if used_percent >= 100 else 95 if used_percent >= 95 else 90
+
+
 async def _conditions(
     session: AsyncSession, now: datetime, zone: tzinfo, display: Display
 ) -> list[AttentionItem]:
     today = _today(now, zone)
-    month = f"{today.year:04d}-{today.month:02d}"
     items: list[AttentionItem] = []
-    horizon = today + timedelta(days=UPCOMING_LOOKAHEAD_DAYS)
+    horizon = today + timedelta(days=UPCOMING_LOOKAHEAD_DAYS - 1)
     ahead = await _occurrences(session, today, horizon, display)
     for entry, row in ahead:
         window = DEFAULT_REMINDER_DAYS if row.reminder_days is None else row.reminder_days
-        if entry.covered is False and entry.days_until <= window:
+        if entry.covered is False and not entry.overdue and entry.days_until <= window:
             items.append(
                 _item(
                     display,
@@ -775,18 +834,31 @@ async def _conditions(
                     {
                         "due_in_days": entry.days_until,
                         "shortfall": entry.shortfall,
+                        "account_short_total": entry.account_short_total,
                         "account_currency": entry.account_currency,
                     },
                     entry.due_date,
                     (row.amount, row.currency),
+                    name=row.name,
                 )
             )
     active = select(Recurring).where(Recurring.is_active.is_(True))
     recurring = (await session.scalars(active)).all()
+    reach = await _reach(session, recurring, zone)
     for row in recurring:
         due = row.next_payment_date
         ended = schedule_state(row, today) == "ended_by_schedule"
-        if due is not None and row.account_id is not None and due < today and not ended:
+        seen_to = reach.get(row.account_id) if row.account_id else None
+        # Missed: past its grace, and the account's data goes at least that far (else the page
+        # says the data is old, not that the payment is missing).
+        if (
+            due is not None
+            and row.account_id is not None
+            and today > grace_end(due)
+            and seen_to is not None
+            and seen_to >= grace_end(due)
+            and not ended
+        ):
             items.append(
                 _item(
                     display,
@@ -799,13 +871,16 @@ async def _conditions(
                         "days_overdue": (today - due).days,
                         "last_paid_on": str(row.last_paid_on) if row.last_paid_on else None,
                         "account_id": str(row.account_id),
+                        "data_as_of": str(seen_to),
                     },
                     due,
                     (row.amount, row.currency),
+                    name=row.name,
                 )
             )
         charged = row.last_charged_amount
-        recent = row.last_paid_on is not None and (today - row.last_paid_on).days <= FRESH_DAYS
+        matched_on = row.last_matched_on
+        recent = matched_on is not None and (today - matched_on).days <= FRESH_DAYS
         if (
             charged is not None
             and row.last_transaction_id is not None
@@ -823,10 +898,11 @@ async def _conditions(
                         "recorded_amount": row.amount,
                         "charged_amount": charged,
                         "difference": charged - row.amount,
-                        "paid_on": str(row.last_paid_on) if row.last_paid_on else None,
+                        "paid_on": str(matched_on) if matched_on else None,
                     },
                     None,
                     (charged, row.currency),
+                    name=row.name,
                 )
             )
     accounts = (await session.scalars(select(Account).where(Account.archived.is_(False)))).all()
@@ -834,20 +910,19 @@ async def _conditions(
         if account.kind == "credit_card" and account.credit_limit > 0:
             owed = account.credit_limit - account.balance
             if owed * 100 > CREDIT_HIGH_PERCENT * account.credit_limit:
+                used = owed * 100 // account.credit_limit
                 items.append(
                     _item(
                         display,
-                        f"credit_high:{account.id}:{month}",
+                        f"credit_high:{account.id}:{_tier(used)}",
                         "credit_high",
                         f"{account.name} has used more than {CREDIT_HIGH_PERCENT}% of its limit",
                         ("account", account.id),
-                        {
-                            "used_percent": owed * 100 // account.credit_limit,
-                            "owed": owed,
-                            "credit_limit": account.credit_limit,
-                        },
+                        {"used_percent": used, "owed": owed, "credit_limit": account.credit_limit},
                         None,
                         (owed, account.currency),
+                        name=account.name,
+                        provider=account.provider,
                     )
                 )
         elif account.kind in {"current", "business"} and account.balance < 0:
@@ -856,13 +931,15 @@ async def _conditions(
                 items.append(
                     _item(
                         display,
-                        f"overdrawn:{account.id}:{month}",
+                        f"overdrawn:{account.id}",
                         "overdrawn",
                         f"{account.name} is overdrawn and no overdraft limit is known",
                         ("account", account.id),
                         {"balance": account.balance, "overdraft_limit": None},
                         None,
                         (-account.balance, account.currency),
+                        name=account.name,
+                        provider=account.provider,
                     )
                 )
             elif -account.balance > limit:
@@ -870,52 +947,84 @@ async def _conditions(
                 items.append(
                     _item(
                         display,
-                        f"overdraft:{account.id}:{month}",
+                        f"overdraft:{account.id}",
                         "overdraft",
                         f"{account.name} is past its overdraft",
                         ("account", account.id),
                         {"balance": account.balance, "overdraft_limit": limit, "over_by": over},
                         None,
                         (over, account.currency),
+                        name=account.name,
+                        provider=account.provider,
                     )
                 )
-    links = (
-        await session.scalars(select(Connection).where(Connection.status == "needs_reconsent"))
-    ).all()
-    for link in links:
-        since = link.status_changed_at.astimezone(zone).date() if link.status_changed_at else None
-        items.append(
-            _item(
-                display,
-                f"reconsent:{link.id}:{since}",
-                "reconsent",
-                f"The {link.provider} connection needs to be approved again",
-                ("connection", link.id),
-                {"provider": link.provider, "since": str(since) if since else None},
-            )
-        )
     open_links = {account.connection_id for account in accounts}
-    manual_links = (
-        await session.scalars(select(Connection).where(Connection.manual.is_(True)))
-    ).all()
-    for link in manual_links:
-        stale = link.last_ok_at is None or now - link.last_ok_at > STATEMENT_STALE_AFTER
-        if link.id in open_links and stale:
-            since = link.last_ok_at.astimezone(zone).date() if link.last_ok_at else None
+    links = (await session.scalars(select(Connection))).all()
+    for link in links:
+        label = link.display_name or link.provider
+        stamp = link.last_ok_at or link.created_at
+        if link.status == "needs_reconsent":
+            changed = link.status_changed_at
+            since = changed.astimezone(zone).date() if changed else None
             items.append(
                 _item(
                     display,
-                    f"stale_statement:{link.id}:{since}",
-                    "stale_statement",
-                    f"The data of {link.display_name or link.provider} is more than 30 days old",
+                    f"reconsent:{link.id}:{since}",
+                    "reconsent",
+                    f"The {link.provider} connection needs to be approved again",
                     ("connection", link.id),
-                    {
-                        "provider": link.provider,
-                        "as_of": str(since) if since else None,
-                        "days_old": (today - since).days if since else None,
-                    },
+                    {"provider": link.provider, "since": str(since) if since else None},
+                    name=label,
+                    provider=link.provider,
                 )
             )
+        elif link.manual and link.id in open_links:
+            if link.last_ok_at is None or now - link.last_ok_at > STATEMENT_STALE_AFTER:
+                since = link.last_ok_at.astimezone(zone).date() if link.last_ok_at else None
+                title = (
+                    f"The data of {label} is more than 30 days old"
+                    if since
+                    else f"No data yet for {label}: set a balance or upload a statement"
+                )
+                items.append(
+                    _item(
+                        display,
+                        f"stale_statement:{link.id}:{since}",
+                        "stale_statement",
+                        title,
+                        ("connection", link.id),
+                        {
+                            "provider": link.provider,
+                            "as_of": str(since) if since else None,
+                            "days_old": (today - since).days if since else None,
+                            "no_data": since is None,
+                        },
+                        name=label,
+                        provider=link.provider,
+                    )
+                )
+        elif not link.manual and link.status == "ok" and link.id in open_links:
+            if now - stamp > API_STALE_AFTER:
+                since = stamp.astimezone(zone).date()
+                late = now - stamp > API_STALE_HIGH_AFTER
+                items.append(
+                    _item(
+                        display,
+                        f"stale_connection:{link.id}:{since}",
+                        "stale_connection",
+                        f"The balances of {label} have not been read since {since}",
+                        ("connection", link.id),
+                        {
+                            "provider": link.provider,
+                            "last_error": link.last_error,
+                            "since": str(since),
+                            "hours_old": int((now - stamp).total_seconds() // 3600),
+                        },
+                        severity="high" if late else "medium",
+                        name=label,
+                        provider=link.provider,
+                    )
+                )
     items.sort(key=_order)
     return items
 
@@ -940,6 +1049,15 @@ async def attention(
 ) -> AttentionOut:
     await roll_forward(session, now, zone)
     found = await _conditions(session, now, zone, display)
+    # What the owner did about a condition (a card near its limit, an account below zero) lasts
+    # while the condition does: once it has cleared the state is gone, so when it comes back it
+    # is raised again.
+    gone = delete(AttentionState).where(
+        or_(*(AttentionState.key.startswith(prefix) for prefix in CONDITION_KEYS)),
+        AttentionState.key.not_in([item.key for item in found]),
+    )
+    await session.execute(gone)
+    await session.commit()
     states = {
         row.key: row
         for row in (
@@ -965,51 +1083,57 @@ async def set_attention_states(
     zone: tzinfo,
     display: Display,
     keys: Sequence[str],
-    action: Literal["dismiss", "snooze", "restore"],
+    action: Literal["dismiss", "snooze", "restore", "accept"],
     days: int | None = None,
-) -> tuple[list[AttentionItem], list[str]]:
+) -> tuple[list[AttentionItem], list[str], list[str]]:
     """Dismiss (for good: the key names the occasion, so a new occasion is a new item), snooze
-    for 1 to 90 days, or bring back the items of `keys`. Returns the items as they are now and
-    the keys that are not an item right now (nothing is done for those)."""
+    for 1 to 90 days, bring back, or `accept` (an `amount_changed` item: the charged amount
+    becomes the payment's amount, all in one transaction) the items of `keys`. Returns the items
+    as they are now, the keys that are not an item right now (nothing is done for those; with
+    `accept` also the keys of any other kind) and the keys accepted."""
     if action == "snooze" and (days is None or not 1 <= days <= MAX_SNOOZE_DAYS):
         raise invalid("Invalid days")
+    await roll_forward(session, now, zone)  # the list the page just showed was made the same way
     found = await _conditions(session, now, zone, display)
     by_key = {item.key: item for item in found}
-    wanted = list(dict.fromkeys(keys))
-    rows = {
-        row.key: row
-        for row in await session.scalars(
-            select(AttentionState).where(AttentionState.key.in_(wanted))
-        )
-    }
     changed: list[AttentionItem] = []
     missing: list[str] = []
-    for key in wanted:
+    accepted: list[str] = []
+    for key in dict.fromkeys(keys):
         item = by_key.get(key)
-        if item is None:
+        if item is None or (action == "accept" and item.kind != "amount_changed"):
             missing.append(key)
             continue
-        row = rows.get(key)
+        if action == "accept":
+            row = await session.get(Recurring, item.subject_id, with_for_update=True)
+            if row is None or row.last_charged_amount is None:
+                missing.append(key)
+                continue
+            row.amount = row.last_charged_amount
+            row.updated_at = now
+            accepted.append(key)
+            continue
+        state: AttentionState | None = None
         if action == "restore":
-            if row is not None:
-                await session.delete(row)
-            row = None
+            await session.execute(delete(AttentionState).where(AttentionState.key == key))
         else:
             until = now + timedelta(days=days or 0) if action == "snooze" else None
-            state = "snoozed" if action == "snooze" else "dismissed"
-            if row is None:
-                row = AttentionState(key=key, state=state, until=until, updated_at=now)
-                session.add(row)
-            else:
-                row.state, row.until, row.updated_at = state, until, now
-        changed.append(_with_state(item, row, now))
+            kept = "snoozed" if action == "snooze" else "dismissed"
+            values = {"state": kept, "until": until, "updated_at": now}
+            await session.execute(
+                insert(AttentionState)
+                .values(key=key, **values)
+                .on_conflict_do_update(index_elements=[AttentionState.key], set_=values)
+            )
+            state = AttentionState(key=key, **values)
+        changed.append(_with_state(item, state, now))
     await session.execute(
         delete(AttentionState).where(
             AttentionState.key.not_in(list(by_key)), AttentionState.updated_at < now - STATE_KEEP
         )
     )
     await session.commit()
-    return changed, missing
+    return changed, missing, accepted
 
 
 async def set_attention_state(
@@ -1022,7 +1146,7 @@ async def set_attention_state(
     days: int | None = None,
 ) -> AttentionItem:
     """One item of `set_attention_states`; a key that is not an item now is 404."""
-    changed, _ = await set_attention_states(session, now, zone, display, [key], action, days)
+    changed, _, _ = await set_attention_states(session, now, zone, display, [key], action, days)
     if not changed:
         raise AppError(404, "not_found", "Attention item not found")
     return changed[0]

@@ -33,6 +33,7 @@ Count = Annotated[int, Field(strict=True, ge=0, le=100_000)]
 # (paid early) up to this many after it (a card payment can post days late).
 EARLY_DAYS = 3
 LATE_DAYS = 7
+MISSED_GRACE_DAYS = 2  # a payment is "missed" only after this many days (a weekend moves it on)
 
 SYNONYMS: dict[str, tuple[Frequency, int]] = {
     "once": ("once", 1),
@@ -277,6 +278,13 @@ def occurrences(
         found.append(day)
         day = advance(day, frequency, interval, anchor_day)
     return found
+
+
+def grace_end(due: date) -> date:
+    """The last day a payment due on `due` may still be on its way: two days later, and when that
+    is a Saturday or Sunday the Monday (banks do not book at the weekend)."""
+    day = date.fromordinal(due.toordinal() + MISSED_GRACE_DAYS)
+    return date.fromordinal(day.toordinal() + {5: 2, 6: 1}.get(day.weekday(), 0))
 
 
 def needs_a_date(
