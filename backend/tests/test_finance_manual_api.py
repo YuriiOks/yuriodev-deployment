@@ -677,7 +677,14 @@ async def test_the_providers_come_with_names_colours_and_how_they_are_entered(
     assert by_id["personal-bank"]["colors"] == {"background": "#14233c", "foreground": "#ffffff"}
     assert by_id["unnamed-bank"]["name"] is None  # a page shows its own words
     assert by_id["unnamed-bank"]["colors"] == {"background": "#334155", "foreground": "#ffffff"}
-    assert set(by_id["lloyds"]["logo"]) == {"on_light", "on_dark", "mark"}
+    assert set(by_id["lloyds"]["logo"]) == {
+        "on_light",
+        "on_dark",
+        "mark",
+        "aspect",
+        "scale",
+        "mono",
+    }
 
 
 async def test_data_older_than_thirty_days_is_raised_for_attention(db_url, make_dashboards_app):

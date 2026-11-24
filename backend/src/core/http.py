@@ -207,6 +207,7 @@ async def request_capped(
     accepts: Callable[[str], bool] = is_json,
     not_modified_ok: bool = False,
     extensions: Mapping[str, Any] | None = None,
+    truncate: bool = False,
 ) -> tuple[int, bytes, httpx.Headers]:
     """Send the request and return (status, body, headers) of a 200 answer whose media type
     `accepts` and whose body is at most `max_bytes`; raise UpstreamError otherwise.
@@ -242,6 +243,9 @@ async def request_capped(
             received = 0
             async for chunk in response.aiter_raw():  # raw: decoded here, never by httpx
                 received += len(chunk)
+                if truncate and inflater is None and received > max_bytes:
+                    body += chunk[: max(0, max_bytes - len(body))]
+                    return 200, bytes(body), response.headers  # the start is all that is wanted
                 if inflater is None:
                     body += chunk
                 else:
@@ -353,6 +357,7 @@ async def get_public(
     max_bytes: int,
     accepts: Callable[[str], bool],
     deadline: float = 6.0,
+    truncate: bool = False,
 ) -> tuple[bytes, httpx.Headers]:
     """One GET of an address the owner typed. The name is resolved here; every address it has must
     be public (else UpstreamError "blocked"); the request is sent to the first one, with the name
@@ -385,5 +390,6 @@ async def get_public(
         deadline=deadline,
         accepts=accepts,
         extensions={"sni_hostname": host},
+        truncate=truncate,
     )
     return body, answer

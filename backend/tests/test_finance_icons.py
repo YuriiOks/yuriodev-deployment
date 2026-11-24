@@ -225,19 +225,22 @@ async def test_a_png_an_svg_and_an_ico_with_a_png_become_data_uris_and_anything_
     async def got(body, kind="image/png", status=200):
         handler, _ = site({("i.example.test", "/a"): (status, kind, body, {})})
         async with client_for(handler) as client:
-            return await fetch_icon(client, "https://i.example.test/a", resolving({}))
+            uri, why = await fetch_icon(client, "https://i.example.test/a", resolving({}))
+            return uri if why is None else why
 
     assert await got(PNG) == png_uri()
     assert await got(PNG, "application/octet-stream") == png_uri()  # judged by its signature
     assert (await got(SVG, "image/svg+xml; charset=utf-8")).endswith(base64.b64encode(SVG).decode())
     assert await got(ico((16, PNG), (32, b"BM bitmap"))) == png_uri()
-    assert await got(ico((16, b"BM bitmap only"))) is None
-    assert await got(b"<html></html>", "text/html") is None
-    assert await got(b"not a png at all") is None
-    assert await got(b"<svg><script>1</script></svg>", "image/svg+xml") is None
-    assert await got(PNG + b"\x00" * 40_000) is None  # over the cap
-    assert await got(b"", status=404) is None
-    assert await got(b"", status=302) is None
+    assert await got(ico((16, b"BM bitmap only"))) == "bitmap_ico"
+    assert await got(b"<html></html>", "text/html") == "not_an_image"
+    assert await got(b"not a png at all") == "not_an_image"
+    assert await got(b"<svg><script>1</script></svg>", "image/svg+xml") == "unsafe_svg"
+    assert await got(PNG + b"\x00" * 300_000) == "too_large"  # over 256 KiB
+    assert (await got(PNG + b"\x00" * 100_000)).startswith("data:image/png")  # a big one is kept
+    assert await got(b"", status=404) == "status_404"
+    assert await got(b"", status=403) == "blocked_status_403"
+    assert await got(b"", status=302) == "redirect"
 
 
 def test_the_largest_png_of_an_ico_is_taken():
@@ -266,7 +269,8 @@ def page(extra=None, body=PAGE):
 async def discover(routes, host="shop.example.test"):
     handler, seen = site(routes)
     async with client_for(handler) as client:
-        return await discover_icon(client, host, resolving({})), [s[:3] for s in seen]
+        uri, why = await discover_icon(client, host, resolving({}))
+        return uri if why is None else why, [s[:3] for s in seen]
 
 
 async def test_the_sites_own_apple_touch_icon_comes_first_and_the_largest_of_them():
@@ -311,8 +315,8 @@ async def test_a_site_with_no_icon_gives_none_and_the_requests_stay_few():
 
     uri, seen = await discover(page({}, links))
 
-    assert uri is None
-    assert len(seen) <= 8
+    assert uri == "no_icon_found"
+    assert len(seen) <= 10
 
 
 async def test_the_home_page_may_hop_between_the_bare_and_the_www_name_only():
@@ -332,7 +336,7 @@ async def test_the_home_page_may_hop_between_the_bare_and_the_www_name_only():
     refused, seen2 = await discover(elsewhere)
 
     assert hopped == png_uri()
-    assert refused is None
+    assert refused == "redirect"
     assert all(item[0] != "evil.example.test" for item in seen2)
 
 
@@ -340,9 +344,9 @@ async def test_a_site_that_resolves_inside_is_never_asked():
     handler, seen = site(page())
     async with client_for(handler) as client:
         inside = resolving({SHOP: ["10.0.0.9"]})
-        uri = await discover_icon(client, SHOP, inside)
+        uri, why = await discover_icon(client, SHOP, inside)
 
-    assert (uri, seen) == (None, [])
+    assert (uri, why, seen) == (None, "not_public", [])
 
 
 async def test_the_icon_of_a_payment_is_fetched_after_the_write_and_shown_as_data(
@@ -363,21 +367,27 @@ async def test_the_icon_of_a_payment_is_fetched_after_the_write_and_shown_as_dat
         by_site = await add(client, name="Site", website="HTTPS://Shop.Example.Test/pricing?x=1")
         await add(client, name="Both", icon_url=ACME, website=SHOP)
         rows = {r["name"]: r for r in (await client.get(f"{BASE}/recurring")).json()["recurring"]}
+        image_of = {}
+        for row in rows.values():
+            if row["icon_url"]:
+                image = await client.get(row["icon_url"])
+                image_of[row["id"]] = image.content
         none_url = {"icon_url": "https://icons.example.test/none.png"}
         moved = await client.patch(f"{BASE}/recurring/{typed['id']}", json=none_url)
         looked_again = (await client.get(f"{BASE}/recurring/{typed['id']}")).json()
         refreshed = await client.post(f"{BASE}/recurring/{by_site['id']}/icon/refresh")
 
-    assert (none["icon_state"], none["icon_data"]) == ("none", None)
-    assert (rows["Typed"]["icon_state"], rows["Typed"]["icon_data"]) == ("ok", png_uri())
+    assert (none["icon_state"], none["icon_url"]) == ("none", None)
+    assert (rows["Typed"]["icon_state"], image_of[rows["Typed"]["id"]]) == ("ok", PNG)
     assert rows["Site"]["icon_state"] == "ok"
-    assert rows["Site"]["icon_data"] == png_uri(PNG + b"\x02")
+    assert image_of[rows["Site"]["id"]] == PNG + b"\x02"
     assert rows["Site"]["website"] == "shop.example.test"
-    assert rows["Both"]["icon_data"] == png_uri()  # the typed address wins over the site
-    assert all("icon_url" not in row for row in rows.values())  # the raw address is not served
+    assert image_of[rows["Both"]["id"]] == PNG  # the typed address wins over the site
+    assert rows["Typed"]["icon_url"].startswith(f"{BASE}/recurring/{rows['Typed']['id']}/icon?v=")
+    assert "icons.example.test" not in json.dumps(rows)  # the typed address is not served
     assert moved.status_code == 200
     assert looked_again["icon_state"] == "failed"  # fetched in the background: no such file
-    assert looked_again["icon_data"] is None
+    assert (looked_again["icon_url"], looked_again["icon_error"]) == (None, "status_404")
     assert refreshed.json()["icon_state"] == "pending"
     assert any(item[0] == "icons.example.test" for item in seen)
 
@@ -405,7 +415,8 @@ async def test_a_refreshed_icon_is_fetched_again_and_a_failure_keeps_the_row(
 
     assert first["icon_state"] == "ok"
     assert second.status_code == 200
-    assert (after["icon_state"], after["icon_data"]) == ("failed", None)
+    assert (after["icon_state"], after["icon_url"]) == ("failed", None)
+    assert after["icon_error"] == "status_404"
     assert after["name"] == made["name"]
     assert missing.status_code == 404
 
@@ -470,3 +481,81 @@ async def test_the_website_comes_in_by_csv_and_the_collector_fills_what_is_left(
     assert sent.status_code == 200, sent.text
     assert filled == {"icons": 1, "refused": 0}
     assert stored == "site:shop.example.test"
+
+
+async def test_a_failing_candidate_is_skipped_and_the_start_of_a_big_page_is_enough():
+    head = (
+        '<link rel="apple-touch-icon" sizes="180x180" href="/huge.png">'
+        '<link rel="icon" sizes="48x48" href="/small.png" type="image/png">'
+    )
+    routes = page(
+        {
+            (SHOP, "/huge.png"): (200, "image/png", PNG + b"\x00" * 300_000, {}),
+            (SHOP, "/small.png"): (200, "image/png", PNG, {}),
+        },
+        head + "<!-- " + "x" * 400_000 + " -->",  # the page is far bigger than what is read
+    )
+
+    uri, seen = await discover(routes)
+
+    assert uri == png_uri()
+    assert [item[2] for item in seen][:3] == ["/", "/huge.png", "/small.png"]
+
+
+async def test_a_site_that_refuses_says_so_and_an_ordinary_client_is_what_it_meets():
+    headers = []
+
+    def handler(request):
+        headers.append(dict(request.headers))
+        stream = httpx.ByteStream(b"")
+        return httpx.Response(403, stream=stream, headers={"content-type": "text/html"})
+
+    async with client_for(handler) as client:
+        uri, why = await discover_icon(client, SHOP, resolving({}))
+
+    assert (uri, why) == (None, "blocked_status_403")
+    first = headers[0]
+    assert first["user-agent"].startswith("Mozilla/5.0")
+    assert "text/html" in first["accept"]
+    assert "cookie" not in first
+    assert "authorization" not in first
+
+
+async def test_the_owner_sets_an_icon_by_hand_and_it_is_served_with_a_cache(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        made = await add(client, website=SHOP)
+        path = f"{BASE}/recurring/{made['id']}/icon"
+        before = await client.get(path)
+        sent = await client.post(path, content=SVG, headers={"content-type": "image/svg+xml"})
+        shown = await client.get(sent.json()["icon_url"])
+        tag = shown.headers["etag"]
+        again = await client.get(path, headers={"If-None-Match": tag})
+        wrong_type = await client.post(path, content=PNG, headers={"content-type": "text/plain"})
+        bad = await client.post(path, content=b"nope", headers={"content-type": "image/png"})
+        script = await client.post(
+            path,
+            content=b"<svg xmlns='http://www.w3.org/2000/svg'><script/></svg>",
+            headers={"content-type": "image/svg+xml"},
+        )
+        huge = await client.post(
+            path, content=PNG + b"\x00" * 300_000, headers={"content-type": "image/png"}
+        )
+        anonymous = await client.get(path, headers={"X-Dashboards-Token": "nope"})
+        refreshed = await client.post(f"{path}/refresh")
+        gone = await client.get(path)
+
+    assert before.status_code == 404
+    assert (sent.status_code, sent.json()["icon_state"]) == (200, "ok")
+    assert shown.content == SVG
+    assert shown.headers["content-type"].startswith("image/svg+xml")
+    assert shown.headers["cache-control"] == "private, max-age=86400"
+    assert again.status_code == 304
+    assert (wrong_type.status_code, bad.status_code, script.status_code) == (415, 422, 422)
+    assert bad.json()["error"] == "invalid_icon"
+    assert huge.status_code == 413
+    assert anonymous.headers["cache-control"] == "no-store"
+    assert refreshed.json()["icon_state"] == "pending"  # given up: fetched again from the website
+    assert gone.status_code == 404
