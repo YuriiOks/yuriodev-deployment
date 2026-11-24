@@ -888,12 +888,14 @@ describe('the personal overview fills the page', () => {
     expect(names.slice(1)).toEqual(['Сегодня и просрочено', 'На этой неделе', 'Позже', 'Без даты']);
   });
 
-  it('has no Court tab on Personal, on real data or the sample', async () => {
+  it('has no Court tab on Personal, and Money where Payments was', async () => {
     setup();
     renderAt('/dashboards/personal');
     const tabs = await within(main()).findByRole('navigation', { name: 'Источники' });
     expect(within(tabs).queryByRole('tab', { name: /Суд/ })).toBeNull();
     expect(within(tabs).getByRole('tab', { name: /Сферы/ })).toBeInTheDocument();
-    expect(within(tabs).getByRole('tab', { name: /Платежи/ })).toBeInTheDocument();
+    // On real data the Payments tab is the Money page: a link in its place.
+    expect(within(tabs).queryByRole('tab', { name: /Платежи/ })).toBeNull();
+    expect(within(tabs).getByRole('link', { name: /Деньги/ })).toHaveAttribute('href', '/dashboards/personal/money');
   });
 });
