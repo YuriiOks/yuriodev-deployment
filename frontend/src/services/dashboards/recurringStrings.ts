@@ -171,6 +171,11 @@ export interface RecurringStrings {
   readonly noAccount: string;
   readonly fMethod: string;
   readonly fMatch: string;
+  readonly fWebsite: string;
+  readonly websiteHint: string;
+  readonly refreshIcon: string;
+  readonly iconPending: string;
+  readonly iconFailed: string;
   readonly matchHint: string;
   readonly invalidAmount: string;
   readonly invalidDate: string;
@@ -379,6 +384,11 @@ export const RECURRING_RU: RecurringStrings = {
   noAccount: 'Нет (способ оплаты текстом)',
   fMethod: 'Способ оплаты',
   fMatch: 'Текст в операции',
+  fWebsite: 'Сайт',
+  websiteHint: 'Адрес вроде example.com: сервер найдёт там значок платежа',
+  refreshIcon: 'Обновить значок',
+  iconPending: 'Значок ищется…',
+  iconFailed: 'Значок не нашёлся',
   matchHint: 'Что содержит текст операции в банке, если это не название',
   invalidAmount: 'Введите сумму вроде 12.99',
   invalidDate: 'Дата в виде ГГГГ-ММ-ДД',
@@ -587,6 +597,11 @@ export const RECURRING_EN: RecurringStrings = {
   noAccount: 'None (payment method as text)',
   fMethod: 'Payment method',
   fMatch: 'Match text',
+  fWebsite: 'Website',
+  websiteHint: 'A host such as example.com: the server looks for the payment\'s own icon there',
+  refreshIcon: 'Refresh icon',
+  iconPending: 'Looking for the icon…',
+  iconFailed: 'No icon found',
   matchHint: 'What its bank text contains, when that differs from the name',
   invalidAmount: 'Enter an amount like 12.99',
   invalidDate: 'A date as YYYY-MM-DD',

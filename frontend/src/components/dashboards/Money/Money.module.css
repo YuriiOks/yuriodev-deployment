@@ -613,6 +613,20 @@
   line-height: var(--dash-lh-meta);
 }
 
+.markMove {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dash-t2);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.markMove:disabled {
+  cursor: progress;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;

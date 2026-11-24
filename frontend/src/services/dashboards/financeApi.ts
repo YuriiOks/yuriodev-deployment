@@ -107,6 +107,10 @@ export interface ProviderLogo {
   readonly colors: { readonly background: string; readonly foreground: string } | null;
   /** Connected through its API, or entered by hand. */
   readonly entry: 'api' | 'manual' | null;
+  /** How a link that needs approving again is mended: `oauth` (open `reconnectPath`), `token` (replace the token on the server), or null (a bank entered by hand). */
+  readonly reconnect: 'oauth' | 'token' | null;
+  /** Where the consent starts (a path on the server's own finance routes), for `oauth`. */
+  readonly reconnectPath: string | null;
 }
 
 export interface FinanceConnection {
@@ -147,6 +151,10 @@ export interface FinanceTransaction {
   readonly pending: boolean;
   readonly declined: boolean;
   readonly internalTransfer: boolean;
+  /** The owner set or cleared the move mark: nothing changes it again. */
+  readonly internalTransferByOwner: boolean;
+  /** False for a statement line that had only a day (booked at noon): the time is not shown. */
+  readonly timeKnown: boolean;
   /** The amount in the display currency (null: no rate, or already in it). */
   readonly display: Converted | null;
   readonly converted: boolean;
@@ -229,6 +237,9 @@ const MAX_LOGO_LENGTH = 72 * 1024;
 /** A logo is a base64 PNG or SVG data URI of a sane size: never a link, so it can only be an image the server vetted. */
 const logoUri = (value: unknown): string | null => (typeof value === 'string' && value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value) ? value : null);
 
+/** A consent path: on the server's own finance routes, no host, no dot segments, no query. */
+const CONNECT_PATH = /^\/api\/dashboards\/v1\/finance\/[A-Za-z0-9_/-]+$/;
+
 const hexColor = (value: unknown): string | null => (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : null);
 
 const STATUSES: readonly ConnectionStatus[] = ['ok', 'needs_reconsent', 'paused'];
@@ -304,6 +315,8 @@ export function parseTransaction(raw: unknown, displayCurrency: string | null = 
     pending: raw.pending === true,
     declined: raw.declined === true,
     internalTransfer: raw.internal_transfer === true,
+    internalTransferByOwner: raw.internal_transfer_by_owner === true,
+    timeKnown: raw.time_known !== false,
     display: converted(raw.display_amount_minor, displayCurrency),
     converted: raw.converted === true,
     category: isCategory(raw.category) ? raw.category : 'other',
@@ -383,6 +396,11 @@ export function transactionsPath({ account, category, from, q, cursor, limit = 2
   if (cursor) params.set('cursor', cursor);
   params.set('limit', String(Math.min(Math.max(1, limit), 100)));
   return `/finance/transactions?${params.toString()}`;
+}
+
+/** Marks a line as a move between the owner's own accounts (not spending, not income), or clears the mark; the server keeps the owner's word. */
+export async function setInternalTransfer(id: string, value: boolean): Promise<void> {
+  await request(`/finance/transactions/${encodeURIComponent(id)}`, { method: 'PATCH', body: { internal_transfer: value } });
 }
 
 export async function fetchTransactions(query: TransactionQuery, signal?: AbortSignal): Promise<TransactionsPage> {
@@ -486,7 +504,9 @@ export function parseProviders(body: unknown): Record<string, ProviderLogo> | nu
     const foreground = isObject(raw.colors) ? hexColor(raw.colors.foreground) : null;
     const colors = background && foreground ? { background, foreground } : null;
     const entry = raw.entry === 'api' || raw.entry === 'manual' ? raw.entry : null;
-    if (id && (onLight || onDark || mark || name || colors || entry)) logos[id] = { onLight, onDark, mark, name, colors, entry };
+    const reconnect = raw.reconnect === 'oauth' || raw.reconnect === 'token' ? raw.reconnect : null;
+    const path = typeof raw.reconnect_path === 'string' && CONNECT_PATH.test(raw.reconnect_path) ? raw.reconnect_path : null;
+    if (id && (onLight || onDark || mark || name || colors || entry || reconnect)) logos[id] = { onLight, onDark, mark, name, colors, entry, reconnect, reconnectPath: reconnect === 'oauth' ? path : null };
   }
   return logos;
 }

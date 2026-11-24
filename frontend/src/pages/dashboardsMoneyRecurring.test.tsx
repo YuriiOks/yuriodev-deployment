@@ -106,6 +106,8 @@ function finance(overrides: Partial<FinanceData> = {}): FinanceData {
   return {
     accounts: [acct('a-current', 'Everyday', 45050, { mask_last4: '1234' }), acct('a-card', 'Plastic card', 217400, { type: 'credit', credit_limit: 300000, own_balance_minor: -82600 })],
     connections: [{ provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' }],
+    // How the server says a bank that needs approving again is mended.
+    providers: [{ id: 'monzo', name: 'Monzo', reconnect: 'oauth', reconnect_path: '/api/dashboards/v1/finance/monzo/connect' }],
     transactions: [],
     summary: { month: '2026-11', as_of: '2026-11-23T09:00:00Z', currencies: [{ currency: 'GBP', accounts: 2, balance: 45050, own_balance: 45050, spent: 0, received: 0 }] },
     ...overrides,

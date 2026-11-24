@@ -141,6 +141,8 @@ export interface Strings {
     readonly needsData: string;
     readonly updated: string;
     readonly refresh: string;
+    readonly consent: Readonly<Record<'connected' | 'denied' | 'invalid_state' | 'failed', string>>;
+    readonly dismiss: string;
     readonly refreshing: string;
     readonly staleBanks: string;
     readonly totalOf: string;
@@ -230,6 +232,9 @@ export interface Strings {
     readonly pending: string;
     readonly declined: string;
     readonly internal: string;
+    readonly markInternal: string;
+    readonly unmarkInternal: string;
+    readonly internalFailed: string;
     readonly originalAmount: string;
   };
   /** The server did not answer (never the sample data), and the demo banner for a server with no database. */
@@ -440,6 +445,8 @@ export const STRINGS: Record<Lang, Strings> = {
       needsData: 'Деньги доступны только на реальных данных.',
       updated: 'обновлено {when}',
       refresh: 'Обновить',
+      consent: { connected: 'Monzo подключён заново.', denied: 'Доступ не подтверждён: вы отказали Monzo в доступе.', invalid_state: 'Ссылка подключения устарела. Начните подключение заново.', failed: 'Не удалось подключить Monzo. Попробуйте ещё раз.' },
+      dismiss: 'Закрыть',
       refreshing: 'Обновляю…',
       staleBanks: 'Данные банка не читались с {when}',
       totalOf: '{currency} · счетов: {n}',
@@ -544,6 +551,9 @@ export const STRINGS: Record<Lang, Strings> = {
       pending: 'в обработке',
       declined: 'отклонено',
       internal: 'между своими счетами',
+      markInternal: 'Отметить как перевод между моими счетами',
+      unmarkInternal: 'Это не перевод между моими счетами',
+      internalFailed: 'Не удалось изменить отметку.',
       originalAmount: 'в оригинале {amount}',
     },
     unreachableTitle: 'Нет связи с сервером',
@@ -754,6 +764,8 @@ export const STRINGS: Record<Lang, Strings> = {
       needsData: 'Money needs the live data.',
       updated: 'updated {when}',
       refresh: 'Refresh',
+      consent: { connected: 'Monzo is connected again.', denied: 'Access was not approved: Monzo was refused.', invalid_state: 'The connection link has expired. Start the connection again.', failed: 'Could not connect Monzo. Try again.' },
+      dismiss: 'Dismiss',
       refreshing: 'Refreshing…',
       staleBanks: 'A bank has not been read since {when}',
       totalOf: '{currency} · accounts: {n}',
@@ -858,6 +870,9 @@ export const STRINGS: Record<Lang, Strings> = {
       pending: 'pending',
       declined: 'declined',
       internal: 'between your accounts',
+      markInternal: 'Mark as a move between my accounts',
+      unmarkInternal: 'Not a move between my accounts',
+      internalFailed: 'Could not change the mark.',
       originalAmount: 'originally {amount}',
     },
     unreachableTitle: 'Cannot reach the server',

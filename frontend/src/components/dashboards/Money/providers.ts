@@ -11,9 +11,10 @@ export function providerName(id: string): string {
   return words === '' ? id : words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** Where a provider's consent starts, for the ones that have such a route (a reconnect link); the rest show the hint only. */
-const CONNECT_PATH: Readonly<Record<string, string>> = { monzo: '/api/dashboards/v1/finance/monzo/connect' };
-
-export function reconnectPath(provider: string): string | null {
-  return Object.prototype.hasOwnProperty.call(CONNECT_PATH, provider) ? CONNECT_PATH[provider] : null;
+/**
+ * Where a provider's consent starts (a reconnect link), from what the server says about it (`reconnect` oauth and its path); a bank with
+ * no other way (a token to replace on the server) shows the hint only. Before the providers have arrived nothing is guessed.
+ */
+export function reconnectPath(info?: Pick<ProviderLogo, 'reconnect' | 'reconnectPath'> | null): string | null {
+  return info?.reconnect === 'oauth' ? info.reconnectPath : null;
 }

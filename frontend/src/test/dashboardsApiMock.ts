@@ -172,7 +172,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       if (api.fail.has('financeAccounts')) return failure();
       return json({ accounts: api.finance.accounts, connections: api.finance.connections, ...(api.finance.display ? { display: api.finance.display } : {}) });
     }
-    if (path === '/finance/recurring' || /^\/finance\/recurring\/[\w-]+(\/paid)?$/.test(path)) {
+    if (path === '/finance/recurring' || /^\/finance\/recurring\/[\w-]+(\/paid|\/icon\/refresh)?$/.test(path)) {
       const list = (api.finance.recurring ??= []);
       if (path === '/finance/recurring' && method === 'GET') {
         if (api.fail.has('financeRecurring')) return failure();
@@ -187,6 +187,11 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       }
       const found = list.find((row) => row.id === path.split('/')[3]);
       if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (path.endsWith('/icon/refresh')) {
+        found.icon_state = 'pending';
+        found.icon_data = null;
+        return json(found);
+      }
       if (path.endsWith('/paid')) {
         // The date the page showed: when the payment has moved on since, nothing is done (409).
         if (typeof body?.due_date === 'string' && body.due_date !== found.next_payment_date) return json({ error: 'conflict', message: 'This payment has already moved on', request_id: 'test' }, 409);
@@ -293,6 +298,16 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     if (path === '/finance/summary') {
       if (api.fail.has('financeSummary')) return failure();
       return json(api.finance.summary);
+    }
+    const txPatch = /^\/finance\/transactions\/([\w-]+)$/.exec(path);
+    if (txPatch && method === 'PATCH') {
+      const found = api.finance.transactions.find((row) => row.id === txPatch[1]);
+      if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (typeof body?.internal_transfer === 'boolean') {
+        found.internal_transfer = body.internal_transfer;
+        found.internal_transfer_by_owner = true;
+      }
+      return json(found);
     }
     if (path === '/finance/transactions') {
       const cursor = url.searchParams.get('cursor');

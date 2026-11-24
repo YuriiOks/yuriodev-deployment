@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AttentionItem } from '../services/dashboards/recurringApi';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
@@ -60,7 +60,7 @@ const DashboardsMoney = () => {
   const logos = providers.value ?? NO_LOGOS;
   const [selected, setSelected] = useState<string | null>(null);
   // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const viewParam = params.get('view');
   const view: MoneyView = viewParam === 'attention' ? 'attention' : viewParam === 'recurring' ? 'recurring' : 'overview';
   const [showHidden, setShowHidden] = useState(false);
@@ -72,6 +72,19 @@ const DashboardsMoney = () => {
   const changed = async () => {
     await Promise.all([attention.reload(), upcoming.reload(), recurring.reload()]);
   };
+  // The bank's consent page sends the owner back with ?monzo=<status>: the result is shown once and the address is cleaned.
+  const consentParam = params.get('monzo');
+  const [consent, setConsent] = useState<'connected' | 'denied' | 'invalid_state' | 'failed' | null>(null);
+  useEffect(() => {
+    if (consentParam === null) return;
+    setConsent(consentParam === 'connected' || consentParam === 'denied' || consentParam === 'invalid_state' ? consentParam : 'failed');
+    const next = new URLSearchParams(params);
+    next.delete('monzo');
+    setParams(next, { replace: true });
+    if (consentParam === 'connected') void dataChanged();
+    // Once per arrival: the parameter is gone after this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consentParam]);
   // A tab left open: when it comes back after a while, or the day has changed, what depends on today is asked again.
   useOnResume(live, (away) => {
     const staleDay = upcoming.value !== null && upcoming.value.from !== '' && upcoming.value.from !== todayIso();
@@ -165,6 +178,14 @@ const DashboardsMoney = () => {
         </div>
         {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
       </header>
+      {consent && (
+        <div role={consent === 'connected' ? 'status' : 'alert'} className={styles.consent} data-result={consent}>
+          <span>{m.consent[consent]}</span>
+          <button type="button" className={styles.refresh} onClick={() => setConsent(null)}>
+            {m.dismiss}
+          </button>
+        </div>
+      )}
       {live && summary.status === 'error' && <InlineError message={m.summaryFailed} onRetry={summary.reload} />}
       {live && outdated.length > 0 && <InlineError message={m.refreshFailed} onRetry={retryOutdated} />}
       {live && <MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}

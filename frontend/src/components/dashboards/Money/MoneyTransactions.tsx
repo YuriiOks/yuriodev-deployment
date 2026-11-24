@@ -2,7 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import CategoryMark from './CategoryMark';
-import { CATEGORIES, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
+import { CATEGORIES, setInternalTransfer, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import Amount from './Amount';
@@ -14,7 +14,7 @@ import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import ProjectIcon from '../ProjectIcon/ProjectIcon';
 import BankMark from './BankMark';
 import BankName from './BankName';
-import { whenLabel } from './labels';
+import { dayLabel, whenLabel } from './labels';
 import { bankLabel } from './providers';
 import styles from './Money.module.css';
 
@@ -24,9 +24,25 @@ const WANTED_ROWS = 15;
 const MAX_AUTO_PAGES = 6;
 
 /** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when, which bank and account, and its marks. */
-const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay }> = ({ item, account, logo, mode }) => {
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay; onChanged: () => void }> = ({ item, account, logo, mode, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // A line the owner has not marked can be marked as a move between their own accounts; the owner's own mark can be undone (a mark the server set cannot be undone from here).
+  const canMark = !item.declined && (!item.internalTransfer || item.internalTransferByOwner);
+  const toggleInternal = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await setInternalTransfer(item.id, !item.internalTransfer);
+      onChanged();
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
   const incoming = item.amount > 0;
   const what = item.counterparty ?? (item.description || '—');
   const detail = item.counterparty && item.description && item.description !== item.counterparty ? item.description : '';
@@ -50,7 +66,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           {what}
         </span>
         <span className={styles.meta}>
-          <span>{whenLabel(item.bookedAt, lang)}</span>
+          <span>{item.timeKnown ? whenLabel(item.bookedAt, lang) : dayLabel(item.bookedAt, lang)}</span>
           {account && (
             <span>
               {bankLabel(account.provider, logo)} · {account.name}
@@ -63,6 +79,12 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
+          {canMark && (
+            <button type="button" className={styles.markMove} disabled={busy} onClick={() => void toggleInternal()}>
+              {item.internalTransfer ? m.unmarkInternal : m.markInternal}
+            </button>
+          )}
+          {failed && <span role="alert">{m.internalFailed}</span>}
           {!exactOriginal && item.originalAmount !== null && item.originalCurrency && item.originalCurrency !== item.currency && (
             <span>{fill(m.originalAmount, { amount: formatMinor(Math.abs(item.originalAmount), item.originalCurrency, lang) })}</span>
           )}
@@ -210,7 +232,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
       {list.status === 'ready' && shown.length > 0 && (
         <ul className={styles.list}>
           {shown.map((item) => (
-            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} />
+            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} onChanged={list.reload} />
           ))}
         </ul>
       )}

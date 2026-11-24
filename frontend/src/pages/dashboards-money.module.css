@@ -63,6 +63,25 @@
   cursor: progress;
 }
 
+.consent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+}
+
+.consent[data-result="connected"] {
+  border-color: var(--dash-ok);
+}
+
+.consent:not([data-result="connected"]) {
+  border-color: var(--dash-danger);
+}
+
 .stale {
   color: var(--dash-warn);
   font-weight: 700;
