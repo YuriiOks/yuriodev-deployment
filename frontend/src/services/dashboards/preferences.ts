@@ -24,15 +24,3 @@ export function readWorkdaysOnly(): boolean {
 export function writeWorkdaysOnly(on: boolean): void {
   writeStorage('local', WORKDAYS_STORAGE_KEY, on ? 'true' : 'false');
 }
-
-/** localStorage key of the Money page's "Needs attention" strip being open. */
-export const ATTENTION_OPEN_KEY = 'dashboards-money-attention-open';
-
-/** Whether the attention list is open (closed by default: one compact strip). */
-export function readAttentionOpen(): boolean {
-  return readStorage('local', ATTENTION_OPEN_KEY) === 'true';
-}
-
-export function writeAttentionOpen(open: boolean): void {
-  writeStorage('local', ATTENTION_OPEN_KEY, open ? 'true' : 'false');
-}

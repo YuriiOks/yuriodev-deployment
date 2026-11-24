@@ -1,13 +1,5 @@
 import type { AttentionKind, Frequency, RecurringKind } from './recurringApi';
 
-/** The forms of a counted noun: Russian has one, few and many; English one and other (the missing ones fall back to `other`). */
-export interface Plural {
-  readonly one: string;
-  readonly few?: string;
-  readonly many?: string;
-  readonly other: string;
-}
-
 /** The words of the recurring payments, upcoming payments, attention and debts parts of the Money page (both languages). */
 export interface RecurringStrings {
   readonly attentionTitle: string;
@@ -17,10 +9,7 @@ export interface RecurringStrings {
   readonly hideHidden: string;
   readonly sentence: Readonly<Record<AttentionKind, string>>;
   readonly sentenceShort: string;
-  readonly attentionOpen: string;
-  readonly attentionClose: string;
   readonly groupTitle: Readonly<Record<AttentionKind, string>>;
-  readonly chip: Readonly<Record<AttentionKind, Plural>>;
   readonly fact: Readonly<Record<AttentionKind, string>>;
   readonly accept: string;
   readonly more: string;
@@ -41,6 +30,46 @@ export interface RecurringStrings {
   readonly fLimit: string;
   readonly saveLimit: string;
   readonly limitInvalid: string;
+  readonly attentionNone: string;
+  readonly rowLabel: string;
+  readonly rowAll: string;
+  readonly scrollLeft: string;
+  readonly scrollRight: string;
+  readonly severityWord: Readonly<Record<'high' | 'medium' | 'info', string>>;
+  readonly card: Readonly<Record<AttentionKind, string>>;
+  readonly sheetClose: string;
+  readonly sheetLabel: string;
+  readonly detail: {
+    readonly concerns: string;
+    readonly amount: string;
+    readonly original: string;
+    readonly priority: string;
+    readonly due: string;
+    readonly shortBy: string;
+    readonly overdueDays: string;
+    readonly lastPaid: string;
+    readonly recorded: string;
+    readonly charged: string;
+    readonly difference: string;
+    readonly paidOn: string;
+    readonly used: string;
+    readonly owed: string;
+    readonly limit: string;
+    readonly balance: string;
+    readonly overdraftLimit: string;
+    readonly overBy: string;
+    readonly since: string;
+    readonly asOf: string;
+    readonly daysOld: string;
+    readonly none: string;
+  };
+  readonly acceptCharged: string;
+  readonly uploadStatement: string;
+  readonly snoozeHeading: string;
+  readonly viewsLabel: string;
+  readonly viewOverview: string;
+  readonly viewAttention: string;
+  readonly viewRecurring: string;
   readonly dueWhen: { readonly today: string; readonly tomorrow: string; readonly inDays: string };
   readonly markPaid: string;
   readonly openPayment: string;
@@ -131,19 +160,7 @@ export const RECURRING_RU: RecurringStrings = {
     stale_statement: 'Данные {bank} устарели: последние на {date} ({days} дн. назад).',
   },
   sentenceShort: '{name}: срок {when} ({amount}), счёта для оплаты не хватает на всё.',
-  attentionOpen: 'Показать',
-  attentionClose: 'Свернуть',
   groupTitle: { overdraft: 'Овердрафт', overdrawn: 'В минусе, лимит не задан', due_not_covered: 'Скоро платёж, денег не хватит', missed_payment: 'Пропущенные платежи', reconsent: 'Нужно подтвердить подключение', credit_high: 'Карты у лимита', stale_statement: 'Устаревшие данные', amount_changed: 'Изменилась сумма' },
-  chip: {
-    overdraft: { one: '{n} овердрафт', few: '{n} овердрафта', many: '{n} овердрафтов', other: '{n} овердрафта' },
-    overdrawn: { one: '{n} в минусе без лимита', few: '{n} в минусе без лимита', many: '{n} в минусе без лимита', other: '{n} в минусе без лимита' },
-    due_not_covered: { one: '{n} платёж без покрытия', few: '{n} платежа без покрытия', many: '{n} платежей без покрытия', other: '{n} платежа без покрытия' },
-    missed_payment: { one: '{n} пропущенный платёж', few: '{n} пропущенных платежа', many: '{n} пропущенных платежей', other: '{n} пропущенного платежа' },
-    reconsent: { one: '{n} подключение к обновлению', few: '{n} подключения к обновлению', many: '{n} подключений к обновлению', other: '{n} подключения к обновлению' },
-    credit_high: { one: '{n} карта у лимита', few: '{n} карты у лимита', many: '{n} карт у лимита', other: '{n} карты у лимита' },
-    stale_statement: { one: '{n} банк с устаревшими данными', few: '{n} банка с устаревшими данными', many: '{n} банков с устаревшими данными', other: '{n} банка с устаревшими данными' },
-    amount_changed: { one: '{n} изменённая сумма', few: '{n} изменённые суммы', many: '{n} изменённых сумм', other: '{n} изменённой суммы' },
-  },
   fact: {
     due_not_covered: '{amount} {when} · не хватает {short}',
     missed_payment: '{amount} · просрочка {days} дн.',
@@ -173,6 +190,55 @@ export const RECURRING_RU: RecurringStrings = {
   fLimit: 'Лимит овердрафта ({currency})',
   saveLimit: 'Сохранить лимит',
   limitInvalid: 'Введите сумму вроде 500',
+  attentionNone: 'Ничего не требует внимания.',
+  rowLabel: 'Требует внимания · {n}',
+  rowAll: 'Все {n}',
+  scrollLeft: 'Прокрутить влево',
+  scrollRight: 'Прокрутить вправо',
+  severityWord: { high: 'Срочно', medium: 'Скоро', info: 'К сведению' },
+  card: {
+    due_not_covered: '{when}, не хватает {short}',
+    missed_payment: 'просрочка {days} дн., {amount}',
+    amount_changed: '{charged}, было {recorded}',
+    credit_high: '{percent}% лимита',
+    overdraft: 'сверх овердрафта {over}',
+    overdrawn: 'в минусе, лимит не задан',
+    reconsent: 'подтвердите доступ заново',
+    stale_statement: 'на {date}, {days} дн. назад',
+  },
+  sheetClose: 'Закрыть',
+  sheetLabel: 'Подробности: {name}',
+  detail: {
+    concerns: 'Касается',
+    amount: 'Сумма',
+    original: 'В исходной валюте',
+    priority: 'Важность',
+    due: 'Срок',
+    shortBy: 'Не хватает',
+    overdueDays: 'Дней просрочки',
+    lastPaid: 'Последняя оплата',
+    recorded: 'Записано',
+    charged: 'Списано',
+    difference: 'Разница',
+    paidOn: 'Списание',
+    used: 'Использовано',
+    owed: 'Долг',
+    limit: 'Лимит',
+    balance: 'Баланс',
+    overdraftLimit: 'Лимит овердрафта',
+    overBy: 'Сверх лимита',
+    since: 'С',
+    asOf: 'Данные на',
+    daysOld: 'Дней назад',
+    none: 'не задан',
+  },
+  acceptCharged: 'Принять списанную сумму',
+  uploadStatement: 'Загрузить выписку',
+  snoozeHeading: 'Отложить на',
+  viewsLabel: 'Разделы денег',
+  viewOverview: 'Обзор',
+  viewAttention: 'Внимание',
+  viewRecurring: 'Регулярные платежи',
   dueWhen: { today: 'сегодня', tomorrow: 'завтра', inDays: 'через {n} дн.' },
   markPaid: 'Отметить оплаченным',
   openPayment: 'Открыть платёж',
@@ -263,19 +329,7 @@ export const RECURRING_EN: RecurringStrings = {
     stale_statement: 'The data of {bank} is out of date: the newest is from {date} ({days} d ago).',
   },
   sentenceShort: '{name} is due {when} ({amount}) and the paying account cannot cover all of it.',
-  attentionOpen: 'Show',
-  attentionClose: 'Collapse',
   groupTitle: { overdraft: 'Past the overdraft', overdrawn: 'Overdrawn, no limit set', due_not_covered: 'Due soon, not covered', missed_payment: 'Missed payments', reconsent: 'Connection to approve', credit_high: 'Cards near the limit', stale_statement: 'Out-of-date data', amount_changed: 'Amount changed' },
-  chip: {
-    overdraft: { one: '{n} past the overdraft', few: '{n} past the overdraft', many: '{n} past the overdraft', other: '{n} past the overdraft' },
-    overdrawn: { one: '{n} overdrawn, no limit', few: '{n} overdrawn, no limit', many: '{n} overdrawn, no limit', other: '{n} overdrawn, no limit' },
-    due_not_covered: { one: '{n} payment not covered', few: '{n} payments not covered', many: '{n} payments not covered', other: '{n} payments not covered' },
-    missed_payment: { one: '{n} missed payment', few: '{n} missed payments', many: '{n} missed payments', other: '{n} missed payments' },
-    reconsent: { one: '{n} connection to approve', few: '{n} connections to approve', many: '{n} connections to approve', other: '{n} connections to approve' },
-    credit_high: { one: '{n} card near its limit', few: '{n} cards near their limit', many: '{n} cards near their limit', other: '{n} cards near their limit' },
-    stale_statement: { one: '{n} bank out of date', few: '{n} banks out of date', many: '{n} banks out of date', other: '{n} banks out of date' },
-    amount_changed: { one: '{n} amount changed', few: '{n} amounts changed', many: '{n} amounts changed', other: '{n} amounts changed' },
-  },
   fact: {
     due_not_covered: '{amount} {when} · short {short}',
     missed_payment: '{amount} · {days} d overdue',
@@ -305,6 +359,55 @@ export const RECURRING_EN: RecurringStrings = {
   fLimit: 'Overdraft limit ({currency})',
   saveLimit: 'Save limit',
   limitInvalid: 'Enter an amount like 500',
+  attentionNone: 'Nothing needs attention.',
+  rowLabel: 'Needs attention · {n}',
+  rowAll: 'All {n}',
+  scrollLeft: 'Scroll left',
+  scrollRight: 'Scroll right',
+  severityWord: { high: 'Urgent', medium: 'Soon', info: 'Note' },
+  card: {
+    due_not_covered: '{when}, short {short}',
+    missed_payment: '{days} d overdue, {amount}',
+    amount_changed: '{charged}, was {recorded}',
+    credit_high: '{percent}% of the limit',
+    overdraft: '{over} past the overdraft',
+    overdrawn: 'overdrawn, no limit set',
+    reconsent: 'approve access again',
+    stale_statement: 'as of {date}, {days} d old',
+  },
+  sheetClose: 'Close',
+  sheetLabel: 'Details: {name}',
+  detail: {
+    concerns: 'Concerns',
+    amount: 'Amount',
+    original: 'In its own currency',
+    priority: 'Priority',
+    due: 'Due',
+    shortBy: 'Short by',
+    overdueDays: 'Days overdue',
+    lastPaid: 'Last paid',
+    recorded: 'Recorded',
+    charged: 'Charged',
+    difference: 'Difference',
+    paidOn: 'Charged on',
+    used: 'Used',
+    owed: 'Owed',
+    limit: 'Limit',
+    balance: 'Balance',
+    overdraftLimit: 'Overdraft limit',
+    overBy: 'Over by',
+    since: 'Since',
+    asOf: 'Data as of',
+    daysOld: 'Days old',
+    none: 'none set',
+  },
+  acceptCharged: 'Accept the charged amount',
+  uploadStatement: 'Upload statement',
+  snoozeHeading: 'Snooze for',
+  viewsLabel: 'Money sections',
+  viewOverview: 'Overview',
+  viewAttention: 'Attention',
+  viewRecurring: 'Recurring payments',
   dueWhen: { today: 'today', tomorrow: 'tomorrow', inDays: 'in {n} d' },
   markPaid: 'Mark paid',
   openPayment: 'Open payment',

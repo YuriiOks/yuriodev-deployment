@@ -1,0 +1,320 @@
+/* What needs attention, as ONE row of small cards under the totals (a horizontal scroller with snap and arrows), a sheet with an item's details,
+   and the switch between the sections of the Money page. A card is one button; severity is told in a word and an edge tint, never colour alone. */
+.primary {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.secondary {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+}
+
+.error {
+  composes: error from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+/* The sections switch. */
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--dash-h-control);
+  padding: 0 var(--space-4);
+  box-sizing: border-box;
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-pill);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-ui);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.tab[aria-current="page"] {
+  background: var(--dash-heading-tint);
+  border-color: var(--dash-heading-edge);
+  color: var(--dash-heading);
+  font-weight: 700;
+}
+
+.tabCount {
+  composes: count from '../Panel/Panel.module.css';
+}
+
+.hiddenLink {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+/* The row: arrows at the ends (a desktop with a pointer), the scroller between. One line high whatever the count. */
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.scroller {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--space-2);
+  scrollbar-width: thin;
+}
+
+.rowLabel {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 0 var(--space-2);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  font-weight: 700;
+  line-height: var(--dash-lh-meta);
+  white-space: nowrap;
+}
+
+.rowAll {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  flex: none;
+  align-self: center;
+  scroll-snap-align: end;
+}
+
+.arrow {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  min-width: var(--dash-h-control);
+  padding: 0;
+}
+
+.arrow[data-edge="true"] {
+  visibility: hidden;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .arrow {
+    display: none;
+  }
+}
+
+/* A card: about 220 by 72, the whole of it one button. */
+.card {
+  display: grid;
+  flex: none;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon text"
+    "icon severity";
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: 0;
+  inline-size: 13.75rem;
+  block-size: 4.5rem;
+  padding: var(--space-2) var(--space-3);
+  box-sizing: border-box;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-border);
+  border-left: 3px solid var(--dash-t3);
+  border-radius: var(--dash-r-surface);
+  color: var(--dash-t1);
+  font-family: var(--dash-font-ui);
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+.card[data-severity="high"] {
+  border-left-color: var(--dash-danger);
+}
+
+.card[data-severity="medium"] {
+  border-left-color: var(--dash-warn);
+}
+
+.cardIcon {
+  display: inline-flex;
+  grid-area: icon;
+}
+
+.cardIcon > span {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: var(--dash-fs-meta);
+}
+
+.cardText {
+  display: flex;
+  grid-area: text;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cardSubject {
+  overflow: hidden;
+  font-size: var(--dash-fs-ui);
+  line-height: var(--dash-lh-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardFact {
+  overflow: hidden;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardSeverity {
+  display: inline-flex;
+  grid-area: severity;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  font-weight: 700;
+  line-height: var(--dash-lh-meta);
+}
+
+/* The details sheet: from the right on a desktop, from the bottom on a phone. */
+.sheetLayer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.sheetBackdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, black 45%, transparent);
+}
+
+.sheet {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: min(26rem, 100%);
+  padding: var(--space-4);
+  box-sizing: border-box;
+  overflow-y: auto;
+  border-radius: 0;
+  border-top-left-radius: var(--dash-r-surface);
+  border-bottom-left-radius: var(--dash-r-surface);
+  color: var(--dash-t1);
+}
+
+@media (max-width: 47.99rem) {
+  .sheet {
+    inset-block: auto 0;
+    inset-inline: 0;
+    inline-size: auto;
+    max-block-size: 85vh;
+    border-radius: 0;
+    border-top-left-radius: var(--dash-r-surface);
+    border-top-right-radius: var(--dash-r-surface);
+  }
+}
+
+.sheetHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sheetTitle {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+  line-height: var(--dash-lh-title);
+  overflow-wrap: anywhere;
+}
+
+.sheetTitle::before,
+.sheetTitle::after {
+  content: none;
+}
+
+.sheetClose {
+  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
+  flex: none;
+}
+
+.sheetSentence {
+  margin: 0;
+  color: var(--dash-t1);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--dash-line);
+  font-size: var(--dash-fs-ui);
+}
+
+.fact:first-child {
+  border-top: 0;
+}
+
+.fact dt {
+  color: var(--dash-t2);
+}
+
+.factValue {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  margin: 0;
+  color: var(--dash-t1);
+  text-align: right;
+}
+
+.sheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sheetLabel {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}

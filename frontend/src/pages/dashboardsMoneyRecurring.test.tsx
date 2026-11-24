@@ -143,14 +143,11 @@ const mixedItems = () => [
   item('overdraft', 'k9', ['account', 'a-card'], { amount: 100, currency: 'GBP', facts: { over_by: 100 } }),
 ];
 const mixedPayments = () => [rec('r-1', 'Streaming'), rec('r-2', 'Gym'), rec('r-3', 'Phone plan'), rec('r-4', 'Broadband'), rec('r-5', 'Insurance'), rec('r-6', 'Water'), rec('r-7', 'Energy')];
-const openStrip = async (user: ReturnType<typeof userEvent.setup>) => {
-  const panel = await attentionPanel();
-  await user.click(await panel.findByRole('button', { name: 'Show' }));
-  return panel;
-};
 
-describe('the Money page: needs attention', () => {
-  it('renders nothing at all when there is nothing to look at', async () => {
+const cardOf = (panel: ReturnType<typeof within>, key: string) => panel.getAllByRole('button').find((button) => button.getAttribute('data-key') === key) as HTMLElement;
+
+describe('the Money page: the row of attention cards', () => {
+  it('is not rendered when nothing is active, and the Attention view then says so', async () => {
     setup();
     renderAt(PATH);
     await within(main()).findByRole('region', { name: 'Wallet' });
@@ -158,51 +155,272 @@ describe('the Money page: needs attention', () => {
     expect(within(main()).queryByRole('region', { name: 'Needs attention' })).toBeNull();
   });
 
-  it('is one compact strip when collapsed: the count, a chip per kind and the most urgent item in words, with no rows or controls', async () => {
+  it('is one row of small cards in the server\'s severity order, with a label first and "All 12" last, every card one button with its subject, fact and severity in words', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     renderAt(PATH);
     const panel = await attentionPanel();
-    expect(panel.getByText('12')).toBeInTheDocument();
-    const chips = panel.getAllByRole('listitem').map((chip) => chip.textContent);
-    expect(chips).toEqual(['2 past the overdraft', '1 payment not covered', '1 missed payment', '1 connection to approve', '1 card near its limit', '1 bank out of date', '5 amounts changed']);
-    // The most urgent one, as a sentence: the first overdraft.
-    expect(panel.getByText('Everyday is £40.00 past its overdraft.')).toBeInTheDocument();
-    expect(panel.getByRole('button', { name: 'Show' })).toHaveAttribute('aria-expanded', 'false');
-    expect(panel.queryByRole('button', { name: 'Snooze for 3 d' })).toBeNull();
+    expect(panel.getByText('Needs attention · 12')).toBeInTheDocument();
+    const cards = panel.getAllByRole('button').filter((button) => button.getAttribute('data-key'));
+    // High first (by kind), then medium, with the changed amounts last.
+    expect(cards.map((card) => card.getAttribute('data-key'))).toEqual(['k5', 'k9', 'k1', 'k2', 'k6', 'k4', 'k8', 'c1', 'c2', 'c3', 'c4', 'c5']);
+    expect(within(cards[0]).getByText('Everyday')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('£40.00 past the overdraft')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('Urgent')).toBeInTheDocument();
+    expect(within(cards[2]).getByText('Streaming')).toBeInTheDocument();
+    expect(within(cards[2]).getByText('tomorrow, short £2.50')).toBeInTheDocument();
+    expect(within(cards[3]).getByText('3 d overdue, £25.00')).toBeInTheDocument();
+    expect(within(cards[5]).getByText('72% of the limit')).toBeInTheDocument();
+    expect(within(cards[5]).getByText('Soon')).toBeInTheDocument();
+    expect(within(cards[6]).getByText('as of Oct 1, 2026, 54 d old')).toBeInTheDocument();
+    expect(within(cards[7]).getByText('£12.50, was £10.00')).toBeInTheDocument();
+    expect(panel.getByRole('link', { name: 'All 12' })).toHaveAttribute('href', expect.stringContaining('view=attention'));
+    // A card has nothing in it to press but itself.
+    for (const card of cards) expect(card.querySelector('button, a')).toBeNull();
+    // Nothing of the long list is on the overview.
     expect(panel.queryByRole('group')).toBeNull();
   });
 
-  it.each([
-    ['due_not_covered', { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }, ['recurring', 'r-1'], 'Streaming is due tomorrow (£9.99) and the paying account is short by £2.50.'],
-    ['missed_payment', { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } }, ['recurring', 'r-2'], 'Gym was due 3 d ago (£25.00) and no matching transaction has been seen.'],
-    ['credit_high', { amount: 217400, currency: 'GBP', facts: { used_percent: 72, owed: 217400, credit_limit: 300000 } }, ['account', 'a-card'], 'Plastic card has used 72% of its limit (£2,174.00 of £3,000.00).'],
-    ['reconsent', { facts: { provider: 'monzo' } }, ['connection', 'c-1'], 'The Monzo connection needs to be approved again.'],
-    ['stale_statement', { facts: { provider: 'hand-bank', as_of: '2026-10-01', days_old: 54 } }, ['connection', 'c-2'], 'The data of Hand bank is out of date: the newest is from Oct 1, 2026 (54 d ago).'],
-  ] as const)('tells the most urgent %s item in one plain sentence in the collapsed strip', async (kind, extra, subject, sentence) => {
-    setup({ finance: { recurring: mixedPayments(), attention: [item(kind, 'k', [subject[0], subject[1]], { ...extra, facts: { ...extra.facts } })] } });
+  it('has arrow buttons at its ends, and the arrow keys move between the cards', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
     renderAt(PATH);
-    expect(await (await attentionPanel()).findByText(sentence)).toBeInTheDocument();
+    const panel = await attentionPanel();
+    expect(panel.getByRole('button', { name: 'Scroll left' })).toBeInTheDocument();
+    expect(panel.getByRole('button', { name: 'Scroll right' })).toBeInTheDocument();
+    const cards = panel.getAllByRole('button').filter((button) => button.getAttribute('data-key'));
+    cards[0].focus();
+    await user.keyboard('{ArrowRight}');
+    expect(cards[1]).toHaveFocus();
+    await user.keyboard('{ArrowLeft}');
+    expect(cards[0]).toHaveFocus();
   });
 
-  it('falls back to the server\'s title when a fact is missing', async () => {
+  it('tells severity in a word on every card and never leaves the row with a count of zero', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
+    renderAt(PATH);
+    const panel = await attentionPanel();
+    const card = cardOf(panel, 'o1');
+    expect(within(card).getByText('Note')).toBeInTheDocument();
+    expect(within(card).getByText('overdrawn, no limit set')).toBeInTheDocument();
+    expect(card).toHaveAttribute('data-severity', 'info');
+  });
+
+  it('falls back to the server\'s title on a card when a fact is missing', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k', ['recurring', 'r-2'], { title: 'The fallback title', amount: 2500, currency: 'GBP' })] } });
     renderAt(PATH);
     expect(await (await attentionPanel()).findByText('The fallback title')).toBeInTheDocument();
   });
+});
 
-  it('shows no sentence for a strip that holds only changed amounts (informational), just the chip', async () => {
-    setup({ finance: { recurring: mixedPayments(), attention: mixedItems().slice(0, 2) } });
-    renderAt(PATH);
-    const panel = await attentionPanel();
-    expect(panel.getAllByRole('listitem').map((chip) => chip.textContent)).toEqual(['2 amounts changed']);
-    expect(panel.queryByText(/was charged/)).toBeNull();
-  });
-
-  it('opens into groups in severity order, three rows each with "Show all", every row one line: name, the fact in short form, one primary action and a menu', async () => {
+describe('the Money page: the sections switch', () => {
+  it('offers Overview, Attention (with its count) and Recurring payments, the current one marked, and switches the view', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
     renderAt(PATH);
-    const panel = await openStrip(user);
+    const nav = within(await within(main()).findByRole('navigation', { name: 'Money sections' }));
+    expect(nav.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    const attentionTab = nav.getByRole('link', { name: /^Attention/ });
+    expect(attentionTab).toHaveTextContent('12');
+    await user.click(attentionTab);
+    expect(await within(main()).findByRole('heading', { level: 2, name: 'Needs attention' })).toBeInTheDocument();
+    expect(nav.getByRole('link', { name: /^Attention/ })).toHaveAttribute('aria-current', 'page');
+    expect(within(main()).queryByRole('region', { name: 'Wallet' })).toBeNull();
+    await user.click(nav.getByRole('link', { name: 'Recurring payments' }));
+    expect(await within(main()).findByRole('region', { name: 'Recurring payments' })).toBeInTheDocument();
+    await user.click(nav.getByRole('link', { name: 'Overview' }));
+    expect(await within(main()).findByRole('region', { name: 'Wallet' })).toBeInTheDocument();
+  });
+
+  it('keeps a quiet "N hidden" link when nothing is active but something is hidden', async () => {
+    setup({ finance: { attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', state: 'dismissed' })] } });
+    renderAt(PATH);
+    const nav = within(await within(main()).findByRole('navigation', { name: 'Money sections' }));
+    expect(await nav.findByRole('link', { name: '1 hidden' })).toHaveAttribute('href', expect.stringContaining('view=attention'));
+    expect(within(main()).queryByRole('region', { name: 'Needs attention' })).toBeNull();
+  });
+
+  it('reaches the whole list from "All 12"', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(await (await attentionPanel()).findByRole('link', { name: 'All 12' }));
+    expect(await within(main()).findByRole('group', { name: /^Past the overdraft/ })).toBeInTheDocument();
+  });
+});
+
+describe('the Money page: an attention item in detail', () => {
+  const dialogOf = (name: string) => within(screen.getByRole('dialog', { name }));
+
+  it('opens from a card as a dialog with the sentence, the facts as a definition list with a link to what it concerns, and the actions as buttons', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'k1'));
+    const dialog = dialogOf('Streaming');
+    expect(dialog.getByText('Streaming is due tomorrow (£9.99) and the paying account is short by £2.50.')).toBeInTheDocument();
+    const terms = dialog.getAllByRole('term').map((term) => term.textContent);
+    expect(terms).toEqual(['Concerns', 'Priority', 'Amount', 'Short by']);
+    expect(dialog.getByRole('link', { name: 'Streaming' })).toHaveAttribute('href', expect.stringContaining('view=recurring&edit=r-1'));
+    expect(dialog.getByText('Urgent')).toBeInTheDocument();
+    expect(dialog.getByRole('button', { name: 'Mark paid' })).toBeInTheDocument();
+    const snooze = within(dialog.getByRole('group', { name: 'Snooze for' }));
+    expect(snooze.getAllByRole('button').map((button) => button.textContent)).toEqual(['1 d', '3 d', '7 d', '30 d', 'Dismiss']);
+  });
+
+  it('shows an amount in pounds with the original beside it when the server converted it', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 500, currency: 'USD', display_amount: 395, converted: true, facts: { days_overdue: 3, last_paid_on: '2026-10-24' } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'k2'));
+    const dialog = dialogOf('Gym');
+    expect(dialog.getByText('≈ £3.95')).toBeInTheDocument();
+    expect(dialog.getByText('$5.00')).toBeInTheDocument();
+    expect(dialog.getByText('Oct 24, 2026')).toBeInTheDocument();
+  });
+
+  it('closes on Escape, giving the focus back to the card, and keeps Tab inside while open', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const card = cardOf(await attentionPanel(), 'k1');
+    await user.click(card);
+    const dialog = screen.getByRole('dialog', { name: 'Streaming' });
+    expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus();
+    for (let step = 0; step < 14; step += 1) {
+      await user.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+    await user.tab({ shift: true });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(card).toHaveFocus();
+  });
+
+  it('closes from its Close button', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'k1'));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('moves on to the next item after an action and closes when none is left', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: [item('due_not_covered', 'k1', ['recurring', 'r-1'], { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }), item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await attentionPanel();
+    await user.click(cardOf(panel, 'k1'));
+    await user.click(dialogOf('Streaming').getByRole('button', { name: '3 d' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/snooze')).toHaveLength(1));
+    // The next item is in the sheet now, and the first has left the row.
+    expect(await screen.findByRole('dialog', { name: 'Gym' })).toBeInTheDocument();
+    await waitFor(() => expect(panel.getAllByRole('button').filter((button) => button.getAttribute('data-key') === 'k1')).toHaveLength(0));
+    await user.click(dialogOf('Gym').getByRole('button', { name: '7 d' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/snooze')).toHaveLength(2));
+    expect(api.callsTo('POST', '/finance/attention/snooze')[1].body).toEqual({ key: 'k2', days: 7 });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('marks a payment paid from the sheet and moves to the next item', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: [item('due_not_covered', 'k1', ['recurring', 'r-1'], { amount: 999, currency: 'GBP', facts: { due_in_days: 1, shortfall: 250, account_currency: 'GBP' } }), item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'k1'));
+    await user.click(dialogOf('Streaming').getByRole('button', { name: 'Mark paid' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-1/paid')).toHaveLength(1));
+    expect(await screen.findByRole('dialog', { name: 'Gym' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['k2', 'Gym', 'Gym was due 3 d ago (£25.00) and no matching transaction has been seen.'],
+    ['k4', 'Plastic card', 'Plastic card has used 72% of its limit (£2,174.00 of £3,000.00).'],
+    ['k6', 'Monzo', 'The Monzo connection needs to be approved again.'],
+    ['k8', 'Hand bank', 'The data of Hand bank is out of date: the newest is from Oct 1, 2026 (54 d ago).'],
+    ['k5', 'Everyday', 'Everyday is £40.00 past its overdraft.'],
+  ])('tells the %s item in one plain sentence in the sheet', async (key, name, sentence) => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), key));
+    expect(dialogOf(name).getByText(sentence)).toBeInTheDocument();
+  });
+
+  it('dismisses an item from the sheet', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'k2'));
+    await user.click(dialogOf('Gym').getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/attention/dismiss')[0]?.body).toEqual({ key: 'k2' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('accepts the charged amount of a changed payment', async () => {
+    const api = setup({ finance: { recurring: mixedPayments(), attention: [item('amount_changed', 'c1', ['recurring', 'r-3'], { amount: 1250, currency: 'GBP', facts: { recorded_amount: 1000, charged_amount: 1250, difference: 250, paid_on: '2026-11-20' } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'c1'));
+    const dialog = dialogOf('Phone plan');
+    expect(dialog.getAllByRole('term').map((term) => term.textContent)).toEqual(['Concerns', 'Priority', 'Amount', 'Recorded', 'Charged', 'Difference', 'Charged on']);
+    await user.click(dialog.getByRole('button', { name: 'Accept the charged amount' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-3')[0]?.body).toEqual({ amount: 1250 }));
+  });
+
+  it('sets the overdraft limit of an overdrawn account from the sheet', async () => {
+    const api = setup({ finance: { attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'o1'));
+    const dialog = dialogOf('Everyday');
+    expect(dialog.getByText('Everyday is overdrawn by £25.00; no overdraft limit is set.')).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Set limit' }));
+    await user.type(dialog.getByLabelText(/Overdraft limit/), '500');
+    await user.click(dialog.getByRole('button', { name: 'Save limit' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/accounts/a-current')[0]?.body).toEqual({ overdraft_limit: 50000 }));
+  });
+
+  it('offers the action that fits each kind: open the bank for a card near its limit, upload a statement for old data, reconnect for a link', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await attentionPanel();
+    await user.click(cardOf(panel, 'k4'));
+    expect(dialogOf('Plastic card').getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
+    await user.keyboard('{Escape}');
+    await user.click(cardOf(panel, 'k8'));
+    expect(dialogOf('Hand bank').getByRole('link', { name: 'Upload statement' })).toHaveAttribute('href', '#money-wallet-title');
+    // Going to the bank closes the sheet.
+    await user.click(dialogOf('Hand bank').getByRole('link', { name: 'Upload statement' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(cardOf(panel, 'k6'));
+    expect(dialogOf('Monzo').getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
+  });
+
+  it('says so when an action fails and stays open', async () => {
+    setup({ fail: ['attentionWrite'], finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k2', ['recurring', 'r-2'], { amount: 2500, currency: 'GBP', facts: { days_overdue: 3 } })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await user.click(cardOf(await attentionPanel(), 'k2'));
+    await user.click(dialogOf('Gym').getByRole('button', { name: 'Dismiss' }));
+    expect(await dialogOf('Gym').findByRole('alert')).toHaveTextContent('That did not work');
+    expect(screen.getByRole('dialog', { name: 'Gym' })).toBeInTheDocument();
+  });
+});
+
+describe('the Money page: the whole attention list', () => {
+  it('says so when there is nothing to look at', async () => {
+    setup();
+    renderAt(`${PATH}?view=attention`);
+    expect(await (await attentionPanel()).findByText('Nothing needs attention.')).toBeInTheDocument();
+  });
+
+  it('lists the groups in severity order, three rows each with "Show all", every row one line: name, the fact in short form, one primary action and a menu', async () => {
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     const groups = panel.getAllByRole('group').filter((group) => group.getAttribute('data-kind'));
     expect(groups.map((group) => group.getAttribute('data-kind'))).toEqual(['overdraft', 'due_not_covered', 'missed_payment', 'reconsent', 'credit_high', 'stale_statement', 'amount_changed']);
     expect(within(groups[0]).getByRole('heading', { level: 3 })).toHaveTextContent('Past the overdraft 2');
@@ -229,25 +447,11 @@ describe('the Money page: needs attention', () => {
     expect(panel.queryByRole('combobox')).toBeNull();
   });
 
-  it('remembers open or closed for the viewer', async () => {
-    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
-    const user = userEvent.setup();
-    const first = renderAt(PATH);
-    await openStrip(user);
-    expect(localStorage.getItem('dashboards-money-attention-open')).toBe('true');
-    first.unmount();
-    renderAt(PATH);
-    const panel = await attentionPanel();
-    expect(await panel.findByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true');
-    await user.click(panel.getByRole('button', { name: 'Collapse' }));
-    expect(localStorage.getItem('dashboards-money-attention-open')).toBe('false');
-  });
-
   it('does what a row\'s buttons say: mark paid, snooze from the menu (the days inside it), dismiss; then asks for the list again', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
-    const panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     const group = (kind: string) => within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === kind) as HTMLElement);
     await user.click(within(group('missed_payment').getAllByRole('listitem')[0]).getByRole('button', { name: 'Mark paid' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-2/paid')).toHaveLength(1));
@@ -270,8 +474,8 @@ describe('the Money page: needs attention', () => {
   it('accepts every charged amount of a group (each payment\'s amount becomes the charged one), and snoozes or dismisses a whole group with a confirmation before the dismissal', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
-    const panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     const changed = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'amount_changed') as HTMLElement);
     await user.click(changed.getByRole('button', { name: 'Accept charged amounts' }));
     await waitFor(() => expect(api.calls.filter((call) => call.method === 'PATCH' && call.path.startsWith('/finance/recurring/'))).toHaveLength(5));
@@ -293,8 +497,8 @@ describe('the Money page: needs attention', () => {
   it('asks before a bulk dismissal, and does nothing when it is cancelled', async () => {
     const api = setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
-    const panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     const changed = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'amount_changed') as HTMLElement);
     await user.click(changed.getByRole('button', { name: 'Dismiss all' }));
     expect(changed.getByText('Dismiss all 5?')).toBeInTheDocument();
@@ -316,8 +520,8 @@ describe('the Money page: needs attention', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
-    let panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    let panel = await attentionPanel();
     expect(panel.getByText('2 hidden')).toBeInTheDocument();
     await user.click(panel.getByRole('button', { name: 'Show hidden' }));
     await waitFor(() => expect(api.calls.filter((call) => call.url.includes('include_hidden=true')).length).toBeGreaterThan(0));
@@ -332,20 +536,11 @@ describe('the Money page: needs attention', () => {
     await waitFor(() => expect(api.callsTo('POST', '/finance/attention/restore')[0]?.body).toEqual({ key: 'k5' }));
   });
 
-  it('with nothing active but some hidden shows a quiet line with the way to bring them back', async () => {
-    setup({ finance: { attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', state: 'dismissed' })] } });
-    renderAt(PATH);
-    const panel = await attentionPanel();
-    expect(panel.getByText('1 hidden')).toBeInTheDocument();
-    expect(panel.queryByRole('button', { name: 'Show' })).toBeNull();
-    expect(panel.getByRole('button', { name: 'Show hidden' })).toBeInTheDocument();
-  });
-
   it('says so when an action fails, and when a whole group could not be changed', async () => {
     setup({ fail: ['attentionWrite'], finance: { recurring: mixedPayments(), attention: mixedItems() } });
     const user = userEvent.setup();
-    renderAt(PATH);
-    const panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     const overdraft = within(panel.getAllByRole('group').find((candidate) => candidate.getAttribute('data-kind') === 'overdraft') as HTMLElement);
     await user.click(overdraft.getByRole('button', { name: 'More: Everyday' }));
     await user.click(overdraft.getByRole('button', { name: 'Dismiss' }));
@@ -368,16 +563,16 @@ describe('the Money page: needs attention', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt(PATH);
-    const panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     expect(panel.getAllByRole('group').filter((group) => group.getAttribute('data-kind')).map((group) => group.getAttribute('data-kind'))).toEqual(['overdraft', 'stale_statement', 'amount_changed', 'overdrawn']);
   });
 
   it('says an overdrawn account with no limit on record, and sets the limit from the row (the owner\'s figure goes to the account)', async () => {
     const api = setup({ finance: { attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
     const user = userEvent.setup();
-    renderAt(PATH);
-    const panel = await openStrip(user);
+    renderAt(`${PATH}?view=attention`);
+    const panel = await attentionPanel();
     const row = within(panel.getByRole('listitem'));
     expect(row.getByText('Everyday')).toBeInTheDocument();
     expect(row.getByText('£25.00 overdrawn · no limit set')).toBeInTheDocument();
@@ -394,24 +589,13 @@ describe('the Money page: needs attention', () => {
     expect(api.callsTo('PATCH', '/finance/accounts/a-current')[0].body).toEqual({ overdraft_limit: 50000 });
   });
 
-  it('tells the overdrawn item in a sentence in the strip', async () => {
-    setup({ finance: { attention: [item('overdrawn', 'o1', ['account', 'a-current'], { amount: 2500, currency: 'GBP', facts: { balance: -2500, overdraft_limit: null } })] } });
-    renderAt(PATH);
-    const panel = await attentionPanel();
-    expect(panel.getByText('1 overdrawn, no limit')).toBeInTheDocument();
-    // Rated info: a plain fact, so the strip shows the chip and no alarm sentence.
-    expect(panel.queryByText(/no overdraft limit is set/)).toBeNull();
-  });
-
-  it('speaks Russian: the chips with the right plural form, the groups and the facts', async () => {
+  it('speaks Russian: the groups, the facts and the switch', async () => {
     setup({ lang: 'ru', finance: { recurring: mixedPayments(), attention: mixedItems() } });
-    const user = userEvent.setup();
-    renderAt(PATH);
+    renderAt(`${PATH}?view=attention`);
     const panel = within(await within(main()).findByRole('region', { name: 'Требует внимания' }));
-    expect(panel.getAllByRole('listitem').map((chip) => chip.textContent)).toEqual(['2 овердрафта', '1 платёж без покрытия', '1 пропущенный платёж', '1 подключение к обновлению', '1 карта у лимита', '1 банк с устаревшими данными', '5 изменённых сумм']);
-    await user.click(panel.getByRole('button', { name: 'Показать' }));
     expect(panel.getByRole('heading', { name: /Овердрафт/ })).toBeInTheDocument();
     expect(panel.getAllByText('сверх овердрафта', { exact: false })).toHaveLength(2);
+    expect(within(main()).getByRole('navigation', { name: 'Разделы денег' })).toBeInTheDocument();
   });
 });
 

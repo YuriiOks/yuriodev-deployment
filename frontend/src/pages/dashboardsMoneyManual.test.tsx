@@ -223,7 +223,7 @@ describe('the Money page: a bank entered by hand', () => {
 });
 
 describe('the Money page: a statement that is out of date', () => {
-  it('turns the attention item into a sentence with the bank\'s name and the date, and sends you to the bank', async () => {
+  it('shows the attention item as a card with the bank\'s name and, in its details, a sentence with the date and the way to upload a statement', async () => {
     setup({
       finance: finance({
         attention: [
@@ -233,11 +233,12 @@ describe('the Money page: a statement that is out of date', () => {
     });
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Needs attention' }));
-    // Urgent, so the collapsed strip says it in words.
-    expect(panel.getByText('The data of Hand Bank is out of date: the newest is from Oct 1, 2026 (54 d ago).')).toBeInTheDocument();
-    await userEvent.setup().click(panel.getByRole('button', { name: 'Show' }));
-    const row = within(panel.getByRole('group', { name: /^Out-of-date data/ }).querySelector('li') as HTMLElement);
-    expect(row.getByText('Hand Bank')).toBeInTheDocument();
-    expect(row.getByRole('link', { name: 'Open bank' })).toHaveAttribute('href', '#money-wallet-title');
+    // A card in the row with the bank's own name and the fact in a few words.
+    const card = panel.getByRole('button', { name: /Hand Bank/ });
+    expect(card).toHaveTextContent('as of Oct 1, 2026, 54 d old');
+    await userEvent.setup().click(card);
+    const dialog = within(screen.getByRole('dialog', { name: 'Hand Bank' }));
+    expect(dialog.getByText('The data of Hand Bank is out of date: the newest is from Oct 1, 2026 (54 d ago).')).toBeInTheDocument();
+    expect(dialog.getByRole('link', { name: 'Upload statement' })).toHaveAttribute('href', '#money-wallet-title');
   });
 });
