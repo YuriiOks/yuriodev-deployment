@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'recurringWrite' | 'attentionWrite' | 'manualWrite' | 'manualConnection' | 'manualAccount';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'today' | 'recurringWrite' | 'attentionWrite' | 'manualWrite' | 'manualConnection' | 'manualAccount';
 
 export interface Call {
   readonly method: string;
@@ -25,6 +25,8 @@ export interface FakeApi {
   /** The projects; their tasks are in `tasks`, with a `project_id` and no `space_id`. */
   readonly projects: { id: string; name: string; archived: boolean; icon: string | null }[];
   readonly fail: Set<FailKey>;
+  /** What GET /today answers, by scope (the page's Today view); a scope with none answers an unreadable body. */
+  readonly today: Record<string, Record<string, unknown>>;
   /** While set, a PATCH waits for it: resolve it to let the request through (to look at the optimistic state first). */
   gate: Promise<void> | null;
   callsTo: (method: string, pathPart: string) => Call[];
@@ -126,6 +128,8 @@ export interface FinanceData {
 
 export interface FakeApiOptions {
   readonly finance?: Partial<FinanceData>;
+  /** What GET /today answers, by scope (the Today view of a space). */
+  readonly today?: Record<string, Record<string, unknown>>;
   /** The server's next event per space, when a test needs other than the default (Work 1's stand-up). */
   readonly nextEvents?: Record<string, { title: string; starts_at: string } | null>;
   readonly enabled?: boolean;
@@ -139,7 +143,7 @@ export interface FakeApiOptions {
   readonly spaceIcons?: Record<string, string>;
 }
 
-export function installFakeApi({ enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {}, nextEvents = {} }: FakeApiOptions = {}): FakeApi {
+export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {}, nextEvents = {} }: FakeApiOptions = {}): FakeApi {
   const api: FakeApi = {
     calls: [],
     tasks,
@@ -147,6 +151,7 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     finance: { accounts: [], connections: [], transactions: [], summary: { month: '2026-11', as_of: null, currencies: [] }, ...finance },
     projects: projects.map((p) => ({ archived: false, icon: null, ...p })),
     fail: new Set(fail),
+    today,
     gate: null,
     callsTo: (method, pathPart) => api.calls.filter((call) => call.method === method && call.path.includes(pathPart)),
   };
@@ -167,6 +172,10 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
     if (path === '/bootstrap') {
       if (api.fail.has('bootstrap')) return failure();
       return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal', icon: spaceIcons.personal ?? null }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1', icon: spaceIcons['work-1'] ?? null }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2', icon: spaceIcons['work-2'] ?? null }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name, icon }) => ({ id, name, icon })), server_time: new Date().toISOString() } : { enabled: false });
+    }
+    if (path === '/today') {
+      if (api.fail.has('today')) return failure();
+      return json(api.today[url.searchParams.get('scope') ?? ''] ?? {});
     }
     if (path === '/finance/accounts') {
       if (api.fail.has('financeAccounts')) return failure();
