@@ -725,6 +725,28 @@ describe('the Money page: bank logos', () => {
     expect(within(chips).getByRole('button', { name: 'Monobank' }).querySelector('img')).toBeNull();
   });
 
+  it('never draws a wordmark that would vanish on its surface: a chip whose only variant is the wrong-contrast one shows the text name in that theme', async () => {
+    setup({
+      finance: finance({
+        providers: [
+          { id: 'acme-bank', logo: { on_light: null, on_dark: WHITE_INK } },
+          { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } },
+        ],
+      }),
+    });
+    renderAt(PATH);
+    await banksReady();
+    const chips = within(within(main()).getByRole('region', { name: 'Transactions' })).getByRole('group', { name: 'Bank' });
+    const acme = within(chips).getByRole('button', { name: 'Acme bank' });
+    await waitFor(() => expect(acme.querySelector('img')).not.toBeNull());
+    expect(acme.querySelectorAll('img')).toHaveLength(1);
+    expect(acme.querySelector('[data-missing="light"]')).not.toBeNull();
+    // Both variants: no text stand-in.
+    const monzo = within(chips).getByRole('button', { name: 'Monzo' });
+    await waitFor(() => expect(monzo.querySelectorAll('img')).toHaveLength(2));
+    expect(monzo.querySelector('[data-missing]')).toBeNull();
+  });
+
   it('shows a square mark taller than a wide one, once the image has loaded', async () => {
     setup({ finance: withLogos() });
     renderAt(PATH);
