@@ -544,9 +544,9 @@ async def _store(
             ]
             stmt = insert(Transaction).values(values)
             inserted = await session.execute(
-                stmt.on_conflict_do_nothing(
-                    index_elements=["account_id", "external_id"]
-                ).returning(Transaction.id)
+                stmt.on_conflict_do_nothing(index_elements=["account_id", "external_id"]).returning(
+                    Transaction.id
+                )
             )
             created += len(inserted.all())  # what the database took, not what was sent
     return created, len(numbered) - created
