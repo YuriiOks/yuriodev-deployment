@@ -97,14 +97,21 @@ describe('finance parsers', () => {
       parseProviders({
         providers: [
           { id: 'one', logo: { on_light: svg, on_dark: png } },
-          { id: 'two', logo: { on_light: null, on_dark: svg } },
+          { id: 'two', logo: { on_light: null, on_dark: svg, mark: png } },
+          { id: 'six', logo: { on_light: null, on_dark: null, mark: png } },
+          { id: 'seven', logo: { on_light: png, mark: 'https://example.com/m.png' } },
           { id: 'three', logo: { on_light: 'https://example.com/x.png', on_dark: 'data:text/html;base64,AAAA' } },
           { id: 'four', logo: { on_light: null, on_dark: null } },
           { logo: { on_light: png } },
           { id: 'five' },
         ],
       }),
-    ).toEqual({ one: { onLight: svg, onDark: png }, two: { onLight: null, onDark: svg } });
+    ).toEqual({
+      one: { onLight: svg, onDark: png, mark: null },
+      two: { onLight: null, onDark: svg, mark: png },
+      six: { onLight: null, onDark: null, mark: png },
+      seven: { onLight: png, onDark: null, mark: null },
+    });
     expect(parseProviders({ providers: [] })).toEqual({});
     expect(parseProviders({})).toBeNull();
     expect(parseProviders(null)).toBeNull();
