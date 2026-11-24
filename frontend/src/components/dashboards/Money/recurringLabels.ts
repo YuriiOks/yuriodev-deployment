@@ -29,3 +29,13 @@ export function dayHeading(iso: string, daysUntil: number, lang: string, r: Recu
   if (daysUntil === 1) return r.tomorrow;
   return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${iso}T12:00:00`));
 }
+
+/** The debts and installment plans among the payments (active ones), the soonest next payment first. */
+export function debtsOf(recurring: readonly Recurring[]): Recurring[] {
+  return recurring
+    .filter((row) => row.isActive && (row.kind === 'debt' || row.isInstallment))
+    .sort((a, b) => (a.nextDate ?? '9999').localeCompare(b.nextDate ?? '9999') || a.name.localeCompare(b.name));
+}
+
+/** The windows the upcoming payments can be asked for, in days. */
+export const WINDOWS = [14, 30] as const;

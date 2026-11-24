@@ -9,10 +9,8 @@ import type { Upcoming, UpcomingItem } from '../../../services/dashboards/recurr
 import { cx } from '../../../utils/cx';
 import Amount from './Amount';
 import RecurringIcon from './RecurringIcon';
-import { dayHeading } from './recurringLabels';
+import { dayHeading, WINDOWS } from './recurringLabels';
 import styles from './Recurring.module.css';
-
-export const WINDOWS = [14, 30] as const;
 
 /** Whether the paying account can cover a payment, in words (never colour alone). */
 function coverWords(item: UpcomingItem, lang: string, r: ReturnType<typeof useDashboardLang>['t']['money']['rec']): string {

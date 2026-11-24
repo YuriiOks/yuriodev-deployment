@@ -10,13 +10,6 @@ import RecurringIcon from './RecurringIcon';
 import { frequencyLabel } from './recurringLabels';
 import styles from './Recurring.module.css';
 
-/** The debts and installment plans among the payments (active ones), the soonest next payment first. */
-export function debtsOf(recurring: readonly Recurring[]): Recurring[] {
-  return recurring
-    .filter((row) => row.isActive && (row.kind === 'debt' || row.isInstallment))
-    .sort((a, b) => (a.nextDate ?? '9999').localeCompare(b.nextDate ?? '9999') || a.name.localeCompare(b.name));
-}
-
 /** How far a debt is paid, as a share 0 to 100 and in words: installments done of the total, else the part of the amount owed that is repaid; null when neither is known. */
 function progressOf(row: Recurring, lang: 'ru' | 'en', r: ReturnType<typeof useDashboardLang>['t']['money']['rec']): { percent: number; words: string } | null {
   if (row.totalInstallments && row.totalInstallments > 0 && row.completedInstallments !== null) {
