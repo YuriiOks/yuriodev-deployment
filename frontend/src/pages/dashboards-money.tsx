@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import type { AttentionItem } from '../services/dashboards/recurringApi';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import { whenLabel } from '../components/dashboards/Money/labels';
-import MoneyAttention from '../components/dashboards/Money/MoneyAttention';
+import AttentionScroller from '../components/dashboards/Money/AttentionScroller';
+import AttentionSheet from '../components/dashboards/Money/AttentionSheet';
+import MoneyAttentionView from '../components/dashboards/Money/MoneyAttentionView';
+import MoneyViewSwitch, { type MoneyView } from '../components/dashboards/Money/MoneyViewSwitch';
+import { orderedActive } from '../components/dashboards/Money/attentionModel';
 import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
 import MoneyDebts from '../components/dashboards/Money/MoneyDebts';
 import { debtsOf } from '../components/dashboards/Money/recurringLabels';
@@ -49,7 +54,8 @@ const DashboardsMoney = () => {
   const [selected, setSelected] = useState<string | null>(null);
   // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
   const [params] = useSearchParams();
-  const managing = params.get('view') === 'recurring';
+  const viewParam = params.get('view');
+  const view: MoneyView = viewParam === 'attention' ? 'attention' : viewParam === 'recurring' ? 'recurring' : 'overview';
   const [showHidden, setShowHidden] = useState(false);
   const [days, setDays] = useState(14);
   const attention = useAttention(showHidden, live);
@@ -68,6 +74,17 @@ const DashboardsMoney = () => {
     providers.reload();
     changed();
     setTxKey((n) => n + 1);
+  };
+  // The item whose details are open (a sheet), and the card that opened it.
+  const [sheet, setSheet] = useState<{ key: string; opener: HTMLElement | null } | null>(null);
+  const ordered = attention.value ? orderedActive(attention.value.items) : [];
+  const sheetItem = sheet ? (ordered.find((entry) => entry.key === sheet.key) ?? null) : null;
+  /** An item was dealt with: the sheet moves to the next one (or the one before the last) and closes when none is left. */
+  const acted = (done: AttentionItem) => {
+    const index = ordered.findIndex((entry) => entry.key === done.key);
+    const next = ordered[index + 1] ?? ordered[index - 1];
+    setSheet(next && sheet ? { key: next.key, opener: sheet.opener } : null);
+    changed();
   };
   const debts = recurring.value ? debtsOf(recurring.value.recurring) : [];
   // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
@@ -103,11 +120,15 @@ const DashboardsMoney = () => {
         </div>
         {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
       </header>
+      {live && <MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
+      {live && view === 'overview' && ordered.length > 0 && (
+        <AttentionScroller items={ordered} allHref="?view=attention" recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} onOpen={(entry, trigger) => setSheet({ key: entry.key, opener: trigger })} />
+      )}
       {!live ? (
         <p className={money.none}>{m.needsData}</p>
       ) : (
         <>
-          {managing ? (
+          {view === 'recurring' ? (
             <section aria-labelledby="money-recurring-title" className={money.panel}>
               <div className={money.head}>
                 <h2 id="money-recurring-title" className={money.title}>
@@ -118,11 +139,16 @@ const DashboardsMoney = () => {
               {recurring.status === 'error' && <InlineError message={m.rec.managerFailed} onRetry={recurring.reload} />}
               {recurring.value && <RecurringManager key={params.get('edit') ?? ''} rows={recurring.value.recurring} accounts={accounts.value?.accounts ?? []} mode={mode} editId={params.get('edit')} onChanged={changed} />}
             </section>
+          ) : view === 'attention' ? (
+            <>
+              {attention.status === 'loading' && <LoadingBlock rows={3} />}
+              {attention.status === 'error' && <InlineError message={m.rec.attentionFailed} onRetry={attention.reload} />}
+              {attention.value && (
+                <MoneyAttentionView data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onOpenBank={setSelected} />
+              )}
+            </>
           ) : (
             <>
-          {attention.value && (
-            <MoneyAttention data={attention.value} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} showHidden={showHidden} onToggleHidden={() => setShowHidden((on) => !on)} onChanged={changed} onOpenBank={setSelected} />
-          )}
           <section aria-labelledby="money-wallet-title" className={money.panel}>
             <div className={money.head}>
               <h2 id="money-wallet-title" className={money.title}>
@@ -175,6 +201,9 @@ const DashboardsMoney = () => {
             </>
           )}
         </>
+      )}
+      {live && sheet && sheetItem && (
+        <AttentionSheet item={sheetItem} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} opener={sheet.opener} onClose={() => setSheet(null)} onActed={acted} onOpenBank={setSelected} />
       )}
     </>
   );

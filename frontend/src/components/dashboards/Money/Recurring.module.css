@@ -15,6 +15,10 @@
   composes: title from '../Panel/Panel.module.css';
 }
 
+.count {
+  composes: count from '../Panel/Panel.module.css';
+}
+
 .body {
   display: flex;
   flex-direction: column;
@@ -131,90 +135,12 @@
   object-fit: contain;
 }
 
-/* Needs attention: one compact strip (collapsed by default), opened into groups of dense rows. */
-.strip {
-  composes: glassDash from '../../../assets/styles/recipes.module.css';
+/* The whole list of what needs attention (the Attention view): groups of dense rows. */
+.attentionBody {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  width: 100%;
-  min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  box-sizing: border-box;
-  border-radius: var(--dash-r-surface);
-}
-
-.stripHead {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.stripTitle {
-  margin: 0;
-  padding: 0;
-  color: var(--dash-heading);
-  font-size: var(--dash-fs-ui);
-  font-weight: 700;
-  line-height: var(--dash-lh-ui);
-}
-
-.stripTitle::before {
-  content: '# ';
-  color: var(--dash-accent);
-}
-
-.stripTitle::after {
-  content: none;
-}
-
-.stripCount {
-  composes: count from '../Panel/Panel.module.css';
-}
-
-.stripToggle {
-  composes: button buttonGhost from '../../../assets/styles/dashboard-controls.module.css';
-  margin-left: auto;
-}
-
-.stripChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stripChip {
-  padding: 0 var(--space-2);
-  background: var(--dash-chip);
-  border: 1px solid var(--dash-border);
-  border-radius: var(--radius-pill);
-  color: var(--dash-t1);
-  font-size: var(--dash-fs-meta);
-  line-height: var(--dash-lh-ui);
-  white-space: nowrap;
-}
-
-.stripChip[data-urgent="true"] {
-  border-color: var(--dash-warn);
-}
-
-.urgent {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  margin: var(--space-1) 0 0;
-  color: var(--dash-t1);
-  font-size: var(--dash-fs-ui);
-  line-height: var(--dash-lh-ui);
-}
-
-.urgent svg {
-  flex: none;
-  margin-top: var(--space-1);
-  color: var(--dash-warn);
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
 }
 
 .agroups {
