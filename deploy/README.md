@@ -966,15 +966,16 @@ JPY (none) or KWD (three) applied first; a total is the sum of the converted par
 (each currency's, each category's), so what a page shows adds up.
 
 Bank logos. `DASHBOARDS_PROVIDER_LOGOS` (secrets file, a JSON object) holds the logos, so none is
-in the repository: `{"<provider id>": {"on_light": "<data URI>", "on_dark": "<data URI>"}}`.
+in the repository: `{"<provider id>": {"on_light": "<data URI>", "on_dark": "<data URI>", "mark": "<data URI>"}}`.
 `on_light` is the version for a light card (dark ink), `on_dark` for a dark brand colour (white
-ink); either may be left out. A provider id is lower-case letters, digits and hyphens (1 to 32
+ink), `mark` a square brand icon for small places such as a transaction row; any may be left out
+(the same validation for all three). A provider id is lower-case letters, digits and hyphens (1 to 32
 characters): `monobank`, `monzo` and whatever id a manual bank is given, including one that must
 not be named here. A value is a base64 data URI of a PNG or an SVG, at most 48 KiB; an SVG with a
 script, an event handler, `javascript:`, a foreignObject, an iframe/object/embed, an entity or an
 external reference is dropped, so it is safe as the source of an `<img>` (the only way it should
 be shown). Whatever is invalid is dropped one by one, never an error. `GET /finance/providers`
-returns `{providers: [{id, logo: {on_light, on_dark}}]}` for every id with a logo and every
+returns `{providers: [{id, logo: {on_light, on_dark, mark}}]}` for every id with a logo and every
 provider that has accounts; fetch it once (the accounts answer does not repeat the logos).
 
 Other banks later (a bank's own API with short-lived tokens, an Open Banking aggregator with
