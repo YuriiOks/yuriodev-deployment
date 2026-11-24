@@ -72,9 +72,10 @@ async def list_recurring(
 async def create_recurring(
     body: RecurringIn, session: SessionDep, settings: SettingsDep, clock: ClockDep, zone: ZoneDep
 ) -> RecurringOut:
-    row = await service.create_recurring(session, body, clock())
+    today = _today(clock, zone)
+    row = await service.create_recurring(session, body, clock(), today)
     display = await _display(session, settings, clock)
-    return RecurringOut.from_row(row, display, _today(clock, zone))
+    return RecurringOut.from_row(row, display, today)
 
 
 class BulkIn(BaseModel):
@@ -143,7 +144,7 @@ async def import_recurring(
     display = await _display(session, settings, clock)
     result, clean = await service.load_recurring(
         session,
-        list(enumerate(inputs, start=1)),
+        inputs,
         errors,
         ignored,
         clock(),
@@ -192,7 +193,10 @@ async def delete_recurring(recurring_id: UUID, session: SessionDep) -> Response:
 class PaidIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    paid_on: date | None = None
+    paid_on: date | None = None  # the day it was paid (default today)
+    # The due date being paid (the `next_payment_date` the page showed): when the payment has
+    # moved on since, nothing is done and the answer is 409, so a second click pays nothing.
+    due_date: date | None = None
 
 
 @router.post("/recurring/{recurring_id}/paid")
@@ -205,9 +209,10 @@ async def mark_paid(
     body: PaidIn | None = None,
 ) -> RecurringOut:
     """The owner says this one was paid: the next date moves on one step (a payment that happens
-    once ends). Use it for a payment that cannot be matched to a transaction."""
-    paid_on = body.paid_on if body else None
-    row = await service.mark_paid(session, recurring_id, clock(), zone, paid_on)
+    once ends). Use it for a payment that cannot be matched to a transaction. Send `due_date` so
+    a repeated request is refused (409) instead of paying the next occurrence too."""
+    paid_on, due_date = (body.paid_on, body.due_date) if body else (None, None)
+    row = await service.mark_paid(session, recurring_id, clock(), zone, paid_on, due_date)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, _today(clock, zone))
 

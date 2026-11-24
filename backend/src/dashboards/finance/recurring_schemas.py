@@ -44,7 +44,7 @@ class EvidenceOut(BaseModel):
     last_matched_on: date | None
     last_matched_amount: int | None
     matched_of_last: int
-    checked: int  # how many due dates that is, up to three
+    checked: int  # how many of the last three due dates the bank could show (not his "paid")
 
 
 class RecurringOut(BaseModel):
@@ -129,11 +129,12 @@ class RecurringOut(BaseModel):
             if row.is_active and late and state != "ended_by_schedule":
                 outcomes += "0"  # the date has passed and nothing matched
             outcomes = outcomes[-3:]
+            seen = sum(1 for outcome in outcomes if outcome in "01")  # "p" is only his word
             values["evidence"] = EvidenceOut(
                 last_matched_on=row.last_matched_on,
                 last_matched_amount=row.last_charged_amount if row.last_matched_on else None,
                 matched_of_last=outcomes.count("1"),
-                checked=len(outcomes),
+                checked=seen,
             )
 
         def shown(amount: int | None) -> int | None:
@@ -176,6 +177,9 @@ class ImportOut(BaseModel):
     created: int
     updated: int
     skipped: int  # rows whose `external_ref` already exists (with `on_conflict` skip)
+    # Rows created that look like a payment already there (same name, currency, amount and
+    # cadence) under another reference: a file edited by hand, or loaded another way before.
+    probable_duplicates: int
     errors: list[RowErrorOut]
     ignored_columns: list[str]
     recurring: list[RecurringOut]

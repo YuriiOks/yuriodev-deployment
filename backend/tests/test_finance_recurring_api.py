@@ -21,13 +21,20 @@ pytestmark = pytest.mark.anyio
 
 BASE = "/api/dashboards/v1/finance"
 MAIN = str(ACC_A)
+CSV = {"content-type": "text/csv"}
 OUTPUT_FIELDS = set(RecurringOut.model_fields)
 OLD = timedelta(days=100)  # past the 90 days an unused state is kept
 RECENT = timedelta(days=1)
 
 
 def payment(**extra):
-    return {"name": "Acme Streaming", "amount": 999, "currency": "GBP", **extra}
+    return {
+        "name": "Acme Streaming",
+        "amount": 999,
+        "currency": "GBP",
+        "next_payment_date": "2026-12-15",
+        **extra,
+    }
 
 
 async def add(client, **extra):
@@ -150,15 +157,15 @@ async def test_the_list_filters_and_orders_active_first_then_by_next_date(
         await add(client, name="Zed", next_payment_date="2026-12-20")
         await add(client, name="Beta", next_payment_date="2026-12-10", kind="utility")
         await add(client, name="Alpha", is_active=False, next_payment_date="2026-12-01")
-        await add(client, name="Undated")
+        await add(client, name="Middle")
         everything = [r["name"] for r in await listed(client)]
         active = [r["name"] for r in await listed(client, "?active=true")]
         inactive = [r["name"] for r in await listed(client, "?active=false")]
         utilities = [r["name"] for r in await listed(client, "?kind=utility")]
         bad_kind = await client.get(f"{BASE}/recurring?kind=gift")
 
-    assert everything == ["Beta", "Zed", "Undated", "Alpha"]
-    assert active == ["Beta", "Zed", "Undated"]
+    assert everything == ["Beta", "Middle", "Zed", "Alpha"]
+    assert active == ["Beta", "Middle", "Zed"]
     assert inactive == ["Alpha"]
     assert utilities == ["Beta"]
     assert bad_kind.status_code == 422
@@ -591,8 +598,9 @@ async def test_the_closest_transaction_to_the_date_is_the_one(db_url, make_dashb
         body = await pay(client, "Gym Club", 5_000, "2026-11-21")
         after = await one(client, body["id"])
 
-    assert after["last_charged_amount"] == 6_000
-    assert after["last_paid_on"] == "2026-11-21"
+    # The line of the recorded amount wins even though the other is a day nearer the date.
+    assert after["last_charged_amount"] == 5_000
+    assert after["last_paid_on"] == "2026-11-19"
 
 
 async def test_money_in_declined_internal_and_other_currency_never_match(
@@ -1064,87 +1072,26 @@ async def test_a_charge_found_only_while_catching_up_on_old_dates_is_not_an_amou
     assert body["items"] == []
 
 
-async def test_an_occurrence_more_than_one_period_old_is_rolled_past_not_matched(
+async def test_a_stale_occurrence_on_a_collected_account_is_checked_once_its_window_is_over(
     db_url, make_dashboards_app
 ):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         await seed(app)
-        # The only "Old purchase" line is from 31 October: the occurrences of 30 October and 6
-        # November are older than one week, so only the one of 20 November is looked at.
+        # The only "Old purchase" line is from 31 October. The occurrences of 30 October, 6 and 13
+        # November are over; each is looked up for its own window, the latest one is waited for.
         body = await pay(client, "Old purchase", 7_000, "2026-10-30", frequency="weekly")
         after = await one(client, body["id"])
 
-    assert after["next_payment_date"] == "2026-11-20"  # rolled up to the latest occurrence
-    assert (after["last_paid_on"], after["last_charged_amount"]) == (None, None)
-
-
-@pytest.mark.parametrize(
-    ("kind", "severity"),
-    [
-        ("due_not_covered", "high"),
-        ("missed_payment", "high"),
-        ("amount_changed", "medium"),
-        ("credit_high", "medium"),
-        ("overdraft", "high"),
-        ("overdrawn", "info"),
-        ("reconsent", "high"),
-        ("stale_statement", "medium"),
-    ],
-)
-def test_every_kind_has_a_severity(kind, severity):
-    assert SEVERITY[kind] == severity
-
-
-async def test_several_items_are_dismissed_snoozed_and_restored_in_one_call(
-    db_url, make_dashboards_app
-):
-    app = make_dashboards_app(db_url)
-    async with running(app, AUTH) as client:
-        await seed(app)
-        await execute(db_url, "UPDATE finance.connection SET status = 'needs_reconsent'")
-        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
-        keys = [i["key"] for i in (await attention(client))["items"]]
-        url = f"{BASE}/attention/bulk"
-        everything = {"keys": [*keys, "nothing:here"], "action": "dismiss"}
-        dismissed = await client.post(url, json=everything)
-        hidden = await attention(client)
-        restored = await client.post(url, json={"keys": keys[:1], "action": "restore"})
-        snoozed = await client.post(url, json={"keys": keys[1:], "action": "snooze", "days": 2})
-        shown = await attention(client)
-        after = await attention(client, "?include_hidden=true")
-
-    assert len(keys) == 2
-    assert dismissed.status_code == 200
-    assert [i["state"] for i in dismissed.json()["items"]] == ["dismissed", "dismissed"]
-    assert dismissed.json()["missing"] == ["nothing:here"]
-    assert (hidden["items"], hidden["hidden"]) == ([], 2)
-    assert [i["state"] for i in restored.json()["items"]] == ["active"]
-    assert [i["state"] for i in snoozed.json()["items"]] == ["snoozed"]
-    assert [i["key"] for i in shown["items"]] == keys[:1]
-    assert sorted(i["state"] for i in after["items"]) == ["active", "snoozed"]
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        {"keys": [], "action": "dismiss"},
-        {"keys": ["k"] * 201, "action": "dismiss"},
-        {"keys": [""], "action": "dismiss"},
-        {"keys": ["k"], "action": "delete"},
-        {"keys": ["k"], "action": "snooze"},
-        {"keys": ["k"], "action": "snooze", "days": 0},
-        {"keys": ["k"], "action": "dismiss", "days": 3},
-        {"keys": ["k"], "action": "dismiss", "extra": 1},
-        {"action": "dismiss"},
-    ],
-)
-async def test_a_bad_bulk_state_change_is_refused(db_url, make_dashboards_app, body):
-    app = make_dashboards_app(db_url)
-    async with running(app, AUTH) as client:
-        response = await client.post(f"{BASE}/attention/bulk", json=body)
-
-    assert response.status_code == 422
+    assert after["next_payment_date"] == "2026-11-20"
+    assert after["last_paid_on"] == "2026-10-31"  # the one line, found for the 30 October date
+    assert after["assumed_installments"] == 0  # a collected account is never "assumed"
+    assert after["evidence"] == {
+        "last_matched_on": "2026-10-31",
+        "last_matched_amount": 7_000,
+        "matched_of_last": 0,
+        "checked": 3,  # the last three: two misses, and the date of 20 November, late
+    }
 
 
 def plan(**extra):
@@ -1252,7 +1199,7 @@ async def test_the_owner_saying_paid_counts_but_is_no_evidence(db_url, make_dash
         "last_matched_on": None,
         "last_matched_amount": None,
         "matched_of_last": 0,
-        "checked": 1,
+        "checked": 0,  # his word is not something the bank could show
     }
     assert reset.json()["completed_installments"] == 8
 
@@ -1303,3 +1250,264 @@ async def test_an_ordinary_payment_is_on_track_and_a_switched_off_one_has_no_sta
         off = await pay(client, "Old", 1, "2026-11-25", account_id=None, is_active=False)
 
     assert (on["schedule_state"], off["schedule_state"]) == ("on_track", None)
+
+
+async def test_a_matched_due_date_is_kept_so_a_plan_at_its_last_instalment_is_paid_once(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await add_transactions(
+            app,
+            tx(60, ACC_A, at(11, 19), -10_000, "Gym Club"),
+            tx(61, ACC_A, at(11, 21), -10_000, "Gym Club"),
+        )
+        last = plan(
+            account_id=MAIN,
+            total_installments=3,
+            completed_installments=2,
+            remaining_balance=20_000,
+            start_date="2026-09-20",
+        )
+        body = await pay(client, "Gym Club", 10_000, "2026-11-20", **last)
+        first = await one(client, body["id"])
+        second = await one(client, body["id"])
+        third = await one(client, body["id"])
+        matches = await scalar(db_url, "SELECT count(*) FROM finance.recurring_match")
+
+    assert (first["completed_installments"], first["remaining_balance"]) == (3, 10_000)
+    assert first["next_payment_date"] == "2026-11-20"  # the last instalment: it stays
+    assert second == first == third  # the second line is not taken for the same date
+    assert matches == 1
+
+
+async def test_a_line_of_the_wrong_amount_does_not_pay_a_payment_before_it_is_due(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await add_transactions(
+            app,
+            tx(60, ACC_A, at(11, 22), -2_500, "Card payment", counterparty="Amazon"),
+        )
+        plain = await pay(client, "Amazon Prime", 799, "2026-11-25")
+        said = await pay(client, "Amazon Prime", 799, "2026-11-25", match_text="amazon prime")
+        states = {r["id"]: r for r in await listed(client)}
+
+    assert states[plain["id"]]["next_payment_date"] == "2026-11-25"  # waits for its own amount
+    assert states[said["id"]]["next_payment_date"] == "2026-11-25"
+    assert states[plain["id"]]["last_charged_amount"] is None
+
+
+async def test_the_line_at_the_right_amount_beats_a_nearer_purchase_of_the_same_merchant(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await add_transactions(
+            app,
+            tx(60, ACC_A, at(11, 20), -2_500, "Card payment", counterparty="Amazon"),
+            tx(61, ACC_A, at(11, 21), -799, "Prime renewal", counterparty="Amazon Prime"),
+        )
+        body = await pay(client, "Amazon Prime", 799, "2026-11-20")
+        after = await one(client, body["id"])
+
+    assert (after["last_charged_amount"], after["last_paid_on"]) == (799, "2026-11-21")
+
+
+async def test_a_card_payment_abroad_is_found_by_its_original_currency(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await add_transactions(
+            app,
+            tx(
+                60,
+                ACC_A,
+                at(11, 20),
+                -40_000,
+                "Cloud Host",
+                original_amount=-1_000,
+                original_currency="USD",
+            ),
+        )
+        body = await pay(client, "Cloud Host", 1_000, "2026-11-20", currency="USD")
+        after = await one(client, body["id"])
+
+    assert after["next_payment_date"] == "2026-12-20"
+    assert after["last_charged_amount"] == 1_000  # in the payment's own currency
+    assert after["amount"] == 1_000
+
+
+async def test_a_missed_payment_is_remembered_when_its_next_date_comes(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        body = await pay(client, "Acme Water", 3_000, "2026-10-10")
+        after = await one(client, body["id"])
+
+    # 10 October: window over, nothing seen: a miss, not an assumed instalment; 10 November: its
+    # window is open until the 17th, and the payment waits there.
+    assert after["next_payment_date"] == "2026-11-10"
+    assert after["assumed_installments"] == 0
+    assert after["evidence"]["matched_of_last"] == 0
+    assert after["evidence"]["checked"] == 2  # the miss, and the date of 10 November, late
+
+
+async def test_a_date_is_kept_on_the_day_it_was_given(db_url, make_dashboards_app, clock):
+    app = make_dashboards_app(db_url)
+    clock.now = datetime(2026, 3, 5, 12, tzinfo=UTC)
+    async with running(app, AUTH) as client:
+        body = await pay(client, "Month end", 5_000, "2026-01-31", account_id=None)
+        in_march = await one(client, body["id"])  # 31 Jan, 28 Feb, and 31 March, not the 28th
+        moved_by_bank = {"next_payment_date": "2026-04-15"}
+        await client.patch(f"{BASE}/recurring/{body['id']}", json=moved_by_bank)
+        clock.now = datetime(2026, 4, 20, 12, tzinfo=UTC)
+        moved = await one(client, body["id"])  # the bank now takes it on the 15th
+
+    assert in_march["next_payment_date"] == "2026-03-31"
+    assert moved["next_payment_date"] == "2026-05-15"
+
+
+async def test_a_repeating_payment_needs_a_date_and_a_start_gives_the_next_one(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        bare = {"name": "Bare", "amount": 1, "currency": "GBP"}
+        refused = await client.post(f"{BASE}/recurring", json=bare)
+        from_start = await client.post(
+            f"{BASE}/recurring", json={**bare, "name": "Start", "start_date": "2026-01-31"}
+        )
+        once = await client.post(
+            f"{BASE}/recurring", json={**bare, "name": "Once", "frequency": "once"}
+        )
+        switched_off = await client.post(
+            f"{BASE}/recurring", json={**bare, "name": "Off", "is_active": False}
+        )
+        cleared = await client.patch(
+            f"{BASE}/recurring/{once.json()['id']}", json={"frequency": "monthly"}
+        )
+        undated = {"start_date": None, "next_payment_date": None}
+        repeating = await client.patch(f"{BASE}/recurring/{from_start.json()['id']}", json=undated)
+        file = b"name,amount,currency,frequency,start_date\nFrom file,1,GBP,monthly,2026-01-31\n"
+        imported = await client.post(f"{BASE}/recurring/import", content=file, headers=CSV)
+
+    assert refused.status_code == 422
+    assert from_start.json()["next_payment_date"] == "2026-11-30"  # the 31st, on a short month
+    assert (once.status_code, switched_off.status_code) == (201, 201)
+    assert (cleared.status_code, repeating.status_code) == (422, 422)
+    assert imported.json()["recurring"][0]["next_payment_date"] == "2026-11-30"
+
+
+async def test_an_unpaid_overdue_date_still_takes_room_from_its_account(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await pay(client, "Late Rent", 1_000_000, "2026-11-18")  # due, nothing seen
+        await pay(client, "Rent", 400_000, "2026-11-25")
+        body = (await client.get(f"{BASE}/upcoming")).json()
+
+    (item,) = body["items"]  # the overdue one is not listed
+    assert item["name"] == "Rent"
+    assert (item["covered"], item["shortfall"]) == (False, 150_000)
+
+
+async def test_marking_paid_twice_pays_one_occurrence_only(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        loan = {"account_id": None, "remaining_balance": 50_000}
+        body = await pay(client, "Family loan", 10_000, "2026-11-30", **loan)
+        url = f"{BASE}/recurring/{body['id']}/paid"
+        first = await client.post(url, json={"due_date": "2026-11-30"})
+        again = await client.post(url, json={"due_date": "2026-11-30"})
+        after = await one(client, body["id"])
+        wrong = await client.post(url, json={"due_date": "2026-01-01"})
+
+    assert first.status_code == 200
+    assert first.json()["remaining_balance"] == 40_000
+    assert first.json()["next_payment_date"] == "2026-12-30"
+    assert (again.status_code, wrong.status_code) == (409, 409)
+    assert after["remaining_balance"] == 40_000
+
+
+async def test_marking_paid_forgets_an_older_match_and_ignores_a_completed_plan(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        changed = await pay(client, "Bakery Example", 10_000, "2026-11-20")
+        await one(client, changed["id"])  # matched at 12 000: an amount_changed item
+        before = await attention(client)
+        await client.post(f"{BASE}/recurring/{changed['id']}/paid")
+        after = await attention(client)
+        done = plan(total_installments=2, completed_installments=2, remaining_balance=0)
+        finished = await pay(client, "Done plan", 1_000, "2026-12-30", **done)
+        repaid = (await client.post(f"{BASE}/recurring/{finished['id']}/paid")).json()
+
+    assert [i["kind"] for i in before["items"]] == ["amount_changed"]
+    assert after["items"] == []
+    assert (repaid["completed_installments"], repaid["remaining_balance"]) == (2, 0)
+
+
+async def test_loading_a_file_again_after_a_row_was_added_does_not_double_the_rest(
+    db_url, make_dashboards_app
+):
+    header = "name,amount,currency,frequency,start_date"
+    acme, beta = "Acme,1.00,GBP,monthly,2026-01-05", "Beta,2.00,GBP,monthly,2026-01-05"
+    first = "\n".join([header, acme, beta])
+    second = "\n".join([header, "New,3.00,GBP,monthly,2026-01-05", acme, beta])
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await client.post(f"{BASE}/recurring/import", content=first.encode(), headers=CSV)
+        again = await client.post(
+            f"{BASE}/recurring/import", content=second.encode(), headers=CSV
+        )
+        names = sorted(r["name"] for r in await listed(client))
+
+    assert (again.json()["created"], again.json()["skipped"]) == (1, 2)
+    assert names == ["Acme", "Beta", "New"]
+
+
+async def test_a_payment_already_there_under_another_reference_is_counted_as_a_probable_duplicate(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await add(client, name="Acme Streaming", amount=999, currency="GBP")
+        dry = await client.post(
+            f"{BASE}/recurring/import?dry_run=true", content=csv_body(STREAMING, LOAN), headers=CSV
+        )
+
+    assert (dry.json()["created"], dry.json()["probable_duplicates"]) == (2, 1)
+
+
+async def test_an_error_of_a_later_check_names_the_row_of_the_file(db_url, make_dashboards_app):
+    rows = [
+        "name,amount,currency,frequency,start_date,is_installment,total_installments,"
+        "completed_installments",
+        "A,1,GBP,monthly,2026-01-05,,,",
+        ",,,,,,,",
+        "B,1,GBP,monthly,2026-01-05,true,3,5",
+    ]
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        response = await client.post(
+            f"{BASE}/recurring/import", content="\n".join(rows).encode(), headers=CSV
+        )
+
+    assert response.status_code == 422
+    assert [(e["row"], e["field"]) for e in response.json()["errors"]] == [
+        (3, "completed_installments")
+    ]

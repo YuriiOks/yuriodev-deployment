@@ -301,6 +301,8 @@ class Recurring(FinanceBase):
     # matched (not the owner saying "paid"), how many instalments were only passed by the schedule
     # (never confirmed by a line), and the outcome of the last three due dates ("1" matched).
     last_matched_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # The day of the month the dates keep (31 stays 31 through February); migration `0018`.
+    anchor_day: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     assumed_installments: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     recent_outcomes: Mapped[str] = mapped_column(String(3), nullable=False, server_default="")
     last_charged_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -333,4 +335,20 @@ class AttentionState(FinanceBase):
     until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RecurringMatch(FinanceBase):
+    """A transaction that paid one due date of a payment: written when the roll-forward matches
+    it, so one transaction can pay one payment once, and a due date is settled once."""
+
+    __tablename__ = "recurring_match"
+    __table_args__ = (UniqueConstraint("transaction_id", name="uq_recurring_match_transaction"),)
+
+    recurring_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.recurring.id", ondelete="CASCADE"), primary_key=True
+    )
+    due_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.transaction.id", ondelete="CASCADE"), nullable=False
     )

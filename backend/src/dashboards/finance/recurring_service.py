@@ -6,13 +6,16 @@ database becomes 503 `dashboards_unavailable` through `guarded`.
 
 Matching a payment to a transaction (`roll_forward`). A payment due on day D is paid when a
 transaction exists that: is money out, not declined and not a move between the owner's accounts;
-is in the payment's currency; is on the paying account when the payment names one; was booked
-from 3 days before D to 7 days after it (local days); and whose counterparty or description names
-the payment (`recurring.text_matches`: the name, or `match_text` when it is set, inside the text,
-both reduced to lower-case letters and digits, or the counterparty inside the name). The amount
-does not decide the match: a charge of a different amount is still the payment, and is raised
-as an attention item instead. Of several candidates the one closest to D (then closest in
-amount) wins, and one transaction pays one payment only.
+is in the payment's currency (or its original currency, for a card payment abroad); is on the
+paying account when the payment names one; was booked from 3 days before D to 7 days after it
+(local days); and whose counterparty or description names the payment
+(`recurring.text_matches`: the name, or `match_text` when it is set, inside the text, both
+reduced to lower-case letters and digits, or, without `match_text`, the counterparty inside the
+name). The amount counts: lines within 1% of the recorded amount are the candidates first (the
+closest in days wins, before or after D); a line of another amount is the payment only on or
+after D and only when nothing is at the right amount, and is then raised as an attention item
+(`amount_changed`). One transaction pays one payment once: the match is kept in
+`finance.recurring_match`.
 """
 
 import uuid
@@ -21,7 +24,7 @@ from datetime import date, datetime, timedelta, tzinfo
 from typing import Any, Literal
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
@@ -31,6 +34,7 @@ from src.dashboards.finance.models import (
     AttentionState,
     Connection,
     Recurring,
+    RecurringMatch,
     Transaction,
 )
 from src.dashboards.finance.recurring import (
@@ -45,7 +49,9 @@ from src.dashboards.finance.recurring import (
     anchor_of,
     frequency_of,
     instalments_agree,
+    first_on_or_after,
     last_installment_date,
+    needs_a_date,
     occurrences,
     problem_row,
     schedule_state,
@@ -157,9 +163,26 @@ async def get_recurring(
     return row
 
 
-@guarded
-async def create_recurring(session: AsyncSession, data: RecurringIn, now: datetime) -> Recurring:
+def _values(data: RecurringIn, today: date) -> dict[str, Any]:
+    """The columns of a new payment. A repeating payment with a start date and no next date gets
+    its first occurrence from today on; the day its dates keep is remembered."""
     values = data.model_dump()
+    frequency = frequency_of(data.kind, data.frequency)
+    following, start = data.next_payment_date, data.start_date
+    if following is None and start is not None and frequency != "once":
+        anchor = start.day
+        following = first_on_or_after(start, frequency, data.frequency_interval, anchor, today)
+        values["next_payment_date"] = following
+    base = start or following
+    values["anchor_day"] = base.day if base is not None else None
+    return values
+
+
+@guarded
+async def create_recurring(
+    session: AsyncSession, data: RecurringIn, now: datetime, today: date
+) -> Recurring:
+    values = _values(data, today)
     if not instalments_agree(values):
         raise invalid("completed_installments cannot exceed total_installments")
     if await _check_accounts(session, {data.account_id} if data.account_id else set()):
@@ -200,8 +223,16 @@ async def update_recurring(
             raise AppError(409, "conflict", "A payment with this reference exists")
     for name, value in changes.items():
         setattr(row, name, value)
+    if needs_a_date(
+        row.is_active, row.kind, row.frequency, row.start_date, row.next_payment_date
+    ):
+        raise invalid("A repeating payment needs a next date or a start date")
     if "completed_installments" in changes:
         row.assumed_installments = 0  # his figure is the new starting point
+    if changes.get("next_payment_date") is not None:
+        row.anchor_day = changes["next_payment_date"].day  # he moved the date: it is the day now
+    elif changes.get("start_date") is not None:
+        row.anchor_day = changes["start_date"].day
     row.updated_at = now
     await session.commit()
     return row
@@ -216,13 +247,16 @@ async def delete_recurring(session: AsyncSession, recurring_id: uuid.UUID) -> No
     await session.commit()
 
 
+def _anchor(row: Recurring, current: date) -> int:
+    """The day of the month the payment's dates keep (31 stays 31 through February)."""
+    return row.anchor_day or anchor_of(row.start_date, current)
+
+
 def _following(row: Recurring, current: date) -> date | None:
     """The date after `current`, or None for a payment that happens once, or after the last
     instalment of a plan (a plan never runs past its last date)."""
     frequency = frequency_of(row.kind, row.frequency)
-    following = advance(
-        current, frequency, row.frequency_interval, anchor_of(row.start_date, current)
-    )
+    following = advance(current, frequency, row.frequency_interval, _anchor(row, current))
     if following is None or not row.is_installment:
         return following
     last = last_installment_date(
@@ -281,10 +315,11 @@ def _finish_by_schedule(row: Recurring) -> None:
         )
 
 
-def _outcome(row: Recurring, matched: bool) -> None:
-    """Remember the outcome of a due date of a payment whose account we collect (last three)."""
+def _outcome(row: Recurring, symbol: str) -> None:
+    """Remember what happened to a due date of a payment whose account we collect (the last
+    three): "1" a line matched, "0" none did, "p" the owner said it was paid."""
     if row.account_id is not None:
-        row.recent_outcomes = (row.recent_outcomes + ("1" if matched else "0"))[-3:]
+        row.recent_outcomes = (row.recent_outcomes + symbol)[-3:]
 
 
 @guarded
@@ -294,17 +329,32 @@ async def mark_paid(
     now: datetime,
     zone: tzinfo,
     paid_on: date | None = None,
+    due_date: date | None = None,
 ) -> Recurring:
     """The owner says it was paid: the next date moves on one step (a payment that happens once
     ends), and an instalment plan's confirmed count and balance move on with it. It is his word,
-    not a match: it is no evidence."""
+    not a match: it is no evidence. `due_date` names the occurrence that is paid: when the
+    payment has moved on since (a second click, a retry) it is 409 and nothing changes. A plan
+    that is complete counts nothing more."""
     row = await session.get(Recurring, recurring_id, with_for_update=True)
     if row is None:
         raise _not_found()
+    if due_date is not None and row.next_payment_date != due_date:
+        raise AppError(409, "conflict", "This payment has already moved on")
+    total = row.total_installments
+    complete = (
+        row.is_installment
+        and total is not None
+        and total > 0
+        and (row.completed_installments or 0) >= total
+    )
+    if not complete:
+        _confirm(row)
     row.last_paid_on = paid_on or _today(now, zone)
-    _confirm(row)
-    _outcome(row, matched=False)  # the owner's word is not a match
-    _step(row)
+    row.last_charged_amount = None  # an older match is no longer what he is looking at
+    row.last_transaction_id = None
+    if _step(row) or not complete:
+        _outcome(row, "p")
     row.updated_at = now
     await session.commit()
     return row
@@ -361,19 +411,27 @@ async def load_recurring(
     created: list[Recurring] = []
     updated: list[Recurring] = []
     skipped = 0
+    duplicates = 0
     if not problems:
+        known = {
+            (r.name.lower(), r.currency, r.amount, r.frequency, r.frequency_interval)
+            for r in await session.scalars(select(Recurring))
+        }
         for _, item in inputs:
             found = existing.get(item.external_ref) if item.external_ref else None
             if found is not None and on_conflict == "skip":
                 skipped += 1
             elif found is not None:
-                for name, value in item.model_dump().items():
+                for name, value in _values(item, today).items():
                     setattr(found, name, value)
                 found.assumed_installments = 0  # the file is the new starting point
                 found.updated_at = now
                 updated.append(found)
             else:
-                row = Recurring(**item.model_dump(), created_at=now, updated_at=now)
+                same = (item.name.lower(), item.currency, item.amount)
+                if (*same, item.frequency, item.frequency_interval) in known:
+                    duplicates += 1  # probably loaded before, under another reference
+                row = Recurring(**_values(item, today), created_at=now, updated_at=now)
                 session.add(row)
                 created.append(row)
         if dry_run:
@@ -389,6 +447,7 @@ async def load_recurring(
         skipped=skipped,
         errors=[RowErrorOut.of(e) for e in problems],
         ignored_columns=list(ignored),
+        probable_duplicates=duplicates,
         recurring=shown,
     )
     return answer, not problems
@@ -397,20 +456,33 @@ async def load_recurring(
 # ---- matching and rolling forward ---------------------------------------------------------------
 
 
+def _paid_figure(row: Recurring, line: Transaction) -> int:
+    """What a line paid in the payment's own currency: its amount, or, for a card payment abroad
+    on an account in another currency, the original amount."""
+    if line.currency == row.currency or line.original_amount is None:
+        return -line.amount
+    return abs(line.original_amount)
+
+
 async def _match(
     session: AsyncSession,
     row: Recurring,
     due: date,
     zone: tzinfo,
+    today: date,
     used: set[uuid.UUID],
 ) -> Transaction | None:
+    """The line that paid the occurrence due on `due`, if there is one (see the module docstring
+    for what qualifies). The amount counts: a line within 1% of the recorded amount wins, the
+    closest in days first, and may be before the due date; a line of another amount is the
+    payment only on or after the due date, once there is nothing at the right amount."""
     query = select(Transaction).where(
         Transaction.booked_at >= day_start(due - timedelta(days=EARLY_DAYS), zone),
         Transaction.booked_at < day_start(due + timedelta(days=LATE_DAYS + 1), zone),
         Transaction.amount < 0,
         Transaction.declined.is_(False),
         Transaction.internal_transfer.is_(False),
-        Transaction.currency == row.currency,
+        or_(Transaction.currency == row.currency, Transaction.original_currency == row.currency),
     )
     if row.account_id is not None:
         query = query.where(Transaction.account_id == row.account_id)
@@ -418,26 +490,38 @@ async def _match(
     found = [
         t
         for t in (await session.scalars(query)).all()
-        if t.id not in used and text_matches(needle, t.counterparty, t.description)
+        if t.id not in used
+        and text_matches(needle, t.counterparty, t.description, reverse=row.match_text is None)
     ]
-    if not found:
+
+    def days(line: Transaction) -> int:
+        return abs((line.booked_at.astimezone(zone).date() - due).days)
+
+    exact = [t for t in found if not amount_differs(row.amount, _paid_figure(row, t))]
+    if exact:
+        return min(exact, key=lambda t: (days(t), str(t.id)))
+    if today < due:
         return None
-
-    def closeness(t: Transaction) -> tuple[int, int, str]:
-        days = abs((t.booked_at.astimezone(zone).date() - due).days)
-        return days, abs(-t.amount - row.amount), str(t.id)
-
-    return min(found, key=closeness)
+    later = [t for t in found if t.booked_at.astimezone(zone).date() >= due]
+    if not later:
+        return None
+    return min(later, key=lambda t: (days(t), abs(_paid_figure(row, t) - row.amount), str(t.id)))
 
 
 @guarded
 async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> int:
-    """Move the next date of every active payment past the occurrences that were paid. A payment
-    with a matching transaction rolls (its `last_paid_on`, `last_charged_amount` and
-    `last_transaction_id` are set); one whose paying account is not one we collect cannot be
-    seen, so it rolls when its date has passed; one whose account we do collect and that has no
-    matching transaction stays put: it becomes a `missed_payment` attention item. Idempotent;
-    run before every read that shows dates. Returns how many payments moved."""
+    """Move the next date of every active payment past the occurrences that were paid.
+
+    A due date is paid when a transaction matches it (`_match`); the match is written to
+    `recurring_match`, so a line pays one payment once and a due date is settled once. A payment
+    with a matching line rolls (its `last_paid_on`, `last_matched_on`, `last_charged_amount` and
+    `last_transaction_id` are set). One whose paying account is not one we collect cannot be
+    seen, so it rolls when its date has passed (and counts as assumed). One whose account we do
+    collect and that has no matching line stays put until its next due date arrives, as a
+    `missed_payment`; then the miss is written to its outcomes and it moves on (not as assumed:
+    nothing assumes what the bank could have shown). Only the latest occurrence is looked up for
+    a payment that is not collected. Idempotent; run before every read that shows dates. Returns
+    how many payments moved."""
     today = _today(now, zone)
     rows = (
         await session.scalars(
@@ -453,32 +537,45 @@ async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> in
     ).all()
     if not rows:
         return 0
-    paid = await session.scalars(
-        select(Recurring.last_transaction_id).where(Recurring.last_transaction_id.is_not(None))
-    )
-    used: set[uuid.UUID] = {found for found in paid if found is not None}
+    used: set[uuid.UUID] = set(await session.scalars(select(RecurringMatch.transaction_id)))
+    settled: set[tuple[uuid.UUID, date]] = {
+        (match.recurring_id, match.due_date)
+        for match in await session.scalars(
+            select(RecurringMatch).where(RecurringMatch.recurring_id.in_([r.id for r in rows]))
+        )
+    }
     moved = 0
     for row in rows:
         for _ in range(CATCH_UP_LIMIT):
             due = row.next_payment_date
             if due is None or not row.is_active or today < due - timedelta(days=EARLY_DAYS):
                 break
+            if (row.id, due) in settled:
+                break  # a plan at its last instalment: this date was paid already
             following = _following(row, due)
-            if following is not None and following <= today:
-                _assume(row)  # more than one period ago: not looked up, only rolled past
+            stale = following is not None and following <= today
+            collected = row.account_id is not None
+            if stale and not collected:
+                _assume(row)  # more than one period ago and nobody can see it: rolled past
                 _step(row)
                 row.updated_at = now
                 moved += 1
                 continue
-            found = await _match(session, row, due, zone, used)
+            found = await _match(session, row, due, zone, today, used)
             if found is not None:
                 used.add(found.id)
+                settled.add((row.id, due))
+                session.add(
+                    RecurringMatch(recurring_id=row.id, due_date=due, transaction_id=found.id)
+                )
                 row.last_paid_on = row.last_matched_on = found.booked_at.astimezone(zone).date()
-                row.last_charged_amount = -found.amount
+                row.last_charged_amount = _paid_figure(row, found)
                 row.last_transaction_id = found.id
-                _confirm(row, -found.amount)
-                _outcome(row, matched=True)
-            elif row.account_id is not None or today <= due:
+                _confirm(row, _paid_figure(row, found))
+                _outcome(row, "1")
+            elif collected and stale and today > due + timedelta(days=LATE_DAYS):
+                _outcome(row, "0")  # the window is over and nothing came: a miss, remembered
+            elif collected or today <= due:
                 break  # waiting for a line, or not due yet
             elif following is None:
                 _finish_by_schedule(row)  # the last date has passed and nobody can see it
@@ -525,9 +622,11 @@ async def _occurrences(
             last = last_installment_date(row.start_date, frequency, row.frequency_interval, total)
             if last is not None:
                 until = min(until, last)
-        anchor = anchor_of(row.start_date, first)
+        anchor = _anchor(row, first)
         for day in occurrences(first, frequency, row.frequency_interval, anchor, until, limit):
-            if day >= today:
+            # An occurrence already due and unpaid on an account we collect is still to be taken
+            # from it: it is not listed, but the account's room is reduced by it.
+            if day >= today or (day == first and row.account_id is not None):
                 entries.append((day, row))
     entries.sort(key=lambda entry: (entry[0], entry[1].name, str(entry[1].id)))
     room: dict[uuid.UUID, int] = {}
@@ -546,6 +645,8 @@ async def _occurrences(
                 room[account.id] -= need
                 covered = room[account.id] >= 0
                 shortfall = max(-room[account.id], 0)
+        if day < today:
+            continue
         item = UpcomingItem(
             recurring_id=row.id,
             name=row.name,

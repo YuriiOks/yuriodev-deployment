@@ -984,7 +984,8 @@ also comes back in the display currency (`display_amount`, `display_total_owed`,
 `display_remaining_balance`, `converted`, and a root `display` block as elsewhere).
 REST under `/api/dashboards/v1/finance`: `GET|POST /recurring` (`?active=`, `?kind=`),
 `GET|PATCH|DELETE /recurring/{id}` (PATCH: `null` clears what may be empty), `POST
-/recurring/{id}/paid` (`{paid_on?}`: you say it was paid; the next date moves one step). Loading
+/recurring/{id}/paid` (`{paid_on?, due_date?}`: you say it was paid; the next date moves one step;
+send the `due_date` you saw, and a repeated request is 409 instead of paying the next one). Loading
 many: `POST /recurring/bulk` `{items: [...], on_conflict: "skip"|"update", dry_run}` (at most 500,
 all or nothing: any error writes nothing and the 422 answer lists every row's problems) and `POST
 /recurring/import` (the body is a UTF-8 CSV file with a header row, at most 500 rows and 1 MiB,
@@ -998,9 +999,14 @@ one-time, else service; the word itself is kept), `payment_mode`, `category`, `n
 `payment_method`, `reminder_days`, `icon_url`, `color`, `auto_renew`, `is_installment`,
 `total_installments`, `completed_installments`, `total_owed`, `remaining_balance`, `creditor`,
 `target_amount`, `current_saved`, `recipient`; also `kind`, `match_text` and `external_ref`. Other
-columns are ignored and named in the answer. A row's `external_ref` (given, or `csv:<name>:<currency>:<row>`)
-makes loading the same file twice find the same rows: they are skipped (or replaced with
-`update`; replacing also resets the next date to the file's).
+columns are ignored and named in the answer. A row's `external_ref` (given, or `csv:<name>:<currency>:<n>`, `n` counting from 1 among the file's
+rows with that name and currency, never the row's position)
+makes loading the same file twice find the same rows, and an edited file keep the references of
+rows that did not change: they are skipped (or replaced with `update`; replacing also resets the
+next date to the file's). `probable_duplicates` in the answer counts rows created that look like a
+payment already there (same name, currency, amount and cadence) under another reference, also in a
+`dry_run`. A repeating payment needs a `next_payment_date` or a `start_date` (the first occurrence
+from today on is worked out from the start); error rows of a CSV carry the row number of the file.
 `icon_url` must be a plain `https` URL (no credentials, spaces, quotes or markup characters, at
 most 500 characters), else the row is refused; it is stored as given and served as `icon_url`;
 the page should show it only in an `<img>` (with `referrerpolicy="no-referrer"`), and a content
@@ -1011,18 +1017,25 @@ Moving on and matching. A payment due on D is paid when a transaction is money o
 not a move between your own accounts, in the payment's currency, on the paying account when one is
 named, booked from 3 days before D to 7 days after (local days), and its counterparty or
 description names the payment (the name, or `match_text`, inside the text, both reduced to
-lower-case letters and digits; or the counterparty inside the name). The amount does not decide
-the match: of several candidates the closest to D wins, one transaction pays one payment only.
-On a match `next_payment_date` moves one period on (months keep the day of `start_date`, clamped
-to a short month's end) and `last_paid_on`, `last_charged_amount` and `last_transaction_id` are
+lower-case letters and digits; or, without `match_text`, the counterparty inside the name); a card
+payment abroad on an account in another currency is found by its original currency and amount.
+The amount counts: lines within 1% of the recorded amount are looked at first (the closest to D
+wins, before or after it); a line of another amount is the payment only on or after D, once
+nothing is at the right amount, and then raises `amount_changed`. One transaction pays one due
+date once (kept in `finance.recurring_match`). On a match `next_payment_date` moves one period on
+(a payment keeps its day of the month, `anchor_day`, set from the start or next date and again
+when you change the next date: 31 January, 28 February, 31 March) and `last_paid_on`, `last_charged_amount` and `last_transaction_id` are
 set; a payment that happens once ends. A payment whose paying account is not one we collect cannot
 be seen, so its date moves on when it has passed (nothing is recorded as paid); one whose account
-we do collect stays put until a transaction is seen, and becomes an attention item. This runs on
+we do collect stays put until a transaction is seen, and becomes an attention item; when its
+next date arrives the miss is written to its `evidence` and it moves on (not as assumed). The
+outcomes kept per payment are the last three due dates: a line (counted), none (counted as a miss),
+or your "paid" (not counted). This runs on
 reading (list, get, upcoming, attention), is idempotent, and catches up at most 24 occurrences per
-request. Only the latest occurrence is looked up: a date whose next date is already today or
-earlier (more than one period old, e.g. in a file with stale dates) is rolled past with nothing
-matched or recorded, so old transactions never produce a match, a `last_charged_amount` or an
-`amount_changed` item.
+request. A date whose next date is already today or earlier (more than one period old, e.g. in a
+file with stale dates) is rolled past: on a payment nobody can see it counts as assumed, on one
+we collect it is looked up once its own window (3 days before to 7 after) is over and recorded as
+a match or a miss. An `amount_changed` item still needs a charge from the last 60 days.
 Instalment plans and what the list alone says (migration `dashboards_0017`). A matched occurrence of a
 plan (`is_installment`) confirms one instalment: `completed_installments` goes up by one and
 `remaining_balance` down by `amount` (never below 0); you saying `POST /recurring/{id}/paid` does

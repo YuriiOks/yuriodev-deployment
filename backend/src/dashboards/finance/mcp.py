@@ -198,7 +198,7 @@ def register(
             raise _bad_fields(exc) from None
         async with scope("finance_add_recurring") as (session, now):
             today = now.astimezone(zone).date()
-            row = await recurring_service.create_recurring(session, data, now)
+            row = await recurring_service.create_recurring(session, data, now, today)
             display = await service.display_for(session, display_currency, now)
             return _json(RecurringOut.from_row(row, display, today).model_dump(mode="json"))
 
