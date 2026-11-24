@@ -60,6 +60,13 @@ export function contrastRatio(a: string, b: string): number {
 /** Whether white ink reads better than dark ink on this background (the logo variant is chosen by the card's real background, not the theme). */
 export const prefersWhiteInk = (bg: string): boolean => luminance(bg) < 0.18;
 
+/**
+ * Which wordmark variant sits on a card: the white-ink one (`on_dark`) when the card's own ink is light, the dark-ink one (`on_light`) when it is
+ * dark. The server's foreground is the truth about the ink (a mid-light brand colour with white ink wants the white wordmark, whatever its
+ * luminance); the background's luminance only decides when there is no foreground.
+ */
+export const wordmarkIsWhite = (brand: { readonly bg: string; readonly fg?: string | null }): boolean => (brand.fg ? luminance(brand.fg) > 0.5 : prefersWhiteInk(brand.bg));
+
 /** A bank's card colours: the server's own pair when it sends one (it is the source for a bank the repo must not name), else the table above, else null (the neutral card). */
 export function brandFor(provider: string, info?: { readonly colors: { readonly background: string; readonly foreground: string } | null } | null): Brand | null {
   return info?.colors ? { bg: info.colors.background, fg: info.colors.foreground } : brandOf(provider);
