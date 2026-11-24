@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import { CATEGORIES } from '../../../services/dashboards/financeApi';
 import { isDrawnIcon } from '../ProjectIcon/iconPaths';
-import CategoryMark, { CATEGORY_ICON } from './CategoryMark';
+import CategoryMark from './CategoryMark';
+import { CATEGORY_ICON } from './categoryIcons';
 
 describe('the category marks', () => {
   it('draws every category from the dashboards\' own set, each with its own drawing', () => {
