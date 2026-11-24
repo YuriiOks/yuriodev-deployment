@@ -3,13 +3,8 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { CurrencyCategories, FinanceCategories } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
+import { monthName } from './labels';
 import styles from './Money.module.css';
-
-/** "2026-11" as a month name in the page's language ("ноябрь", "November"). */
-export function monthName(month: string, lang: string): string {
-  const date = new Date(`${month}-01T12:00:00`);
-  return Number.isNaN(date.getTime()) ? month : new Intl.DateTimeFormat(lang, { month: 'long' }).format(date);
-}
 
 const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previousMonth: string }> = ({ block, month, previousMonth }) => {
   const { t, lang } = useDashboardLang();
