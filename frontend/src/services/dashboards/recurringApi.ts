@@ -31,7 +31,15 @@ const date = (value: unknown): string | null => (typeof value === 'string' && DA
 const oneOf = <T extends string>(list: readonly T[], value: unknown): T | null => (typeof value === 'string' && (list as readonly string[]).includes(value) ? (value as T) : null);
 
 /** An icon is shown only from a plain https address (the server checks it too); anything else is dropped. */
-export const iconUrl = (value: unknown): string | null => (typeof value === 'string' && value.length <= 500 && ICON_URL.test(value) ? value : null);
+/** A picture the server fetched and inlined: a small raster or SVG as base64 (the page's CSP allows `data:` images). */
+const ICON_DATA = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/]+=*$/;
+const ICON_DATA_MAX = 150_000;
+
+export const iconUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  if (value.length <= 500 && ICON_URL.test(value)) return value;
+  return value.length <= ICON_DATA_MAX && ICON_DATA.test(value) ? value : null;
+};
 const color = (value: unknown): string | null => (typeof value === 'string' && COLOR.test(value) ? value : null);
 
 /** What the owner's own list says about a payment: on track, ended by its schedule (the last date or count is behind it), or not to be worked out. Null for a payment switched off. */

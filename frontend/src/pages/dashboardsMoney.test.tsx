@@ -788,6 +788,22 @@ describe('the Money page: bank logos', () => {
     await waitFor(() => expect(holder).toHaveAttribute('data-shape', 'wide'));
   });
 
+  it('shows the bank\'s square mark on its card in place of a near-square wordmark, when the server has one', async () => {
+    setup({ finance: finance({ providers: [{ id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK, mark: DARK_INK } }, { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } }] }) });
+    renderAt(PATH);
+    await banksReady();
+    const acme = bankButton('Acme bank');
+    await waitFor(() => expect(images(acme).length).toBeGreaterThan(0));
+    const image = images(acme)[0];
+    Object.defineProperty(image, 'naturalWidth', { value: 40, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 40, configurable: true });
+    fireEvent.load(image);
+    // The wordmark gives way to the mark (one image), and a wide wordmark is not replaced.
+    await waitFor(() => expect(images(acme)).toHaveLength(1));
+    expect(images(acme)[0].getAttribute('src')).toBe(DARK_INK);
+    expect(images(acme)[0].parentElement).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('shows the text names when the server has no logos or the providers answer fails', async () => {
     setup();
     renderAt(PATH);

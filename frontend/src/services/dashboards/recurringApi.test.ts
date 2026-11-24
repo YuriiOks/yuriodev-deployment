@@ -66,6 +66,16 @@ describe('the recurring payments parsers', () => {
     expect(parseAttention({ hidden: 1 })).toBeNull();
   });
 
+  it('takes a picture the server inlined as a base64 image, and refuses any other data or scheme', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(iconUrl(png)).toBe(png);
+    expect(iconUrl('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=')).not.toBeNull();
+    expect(iconUrl('data:text/html;base64,PGI+')).toBeNull();
+    expect(iconUrl('data:image/png;base64,' + 'A'.repeat(200_000))).toBeNull();
+    expect(iconUrl('javascript:alert(1)')).toBeNull();
+    expect(iconUrl('http://x.example.com/a.png')).toBeNull();
+  });
+
   it('reads what the audit added: overdue payments, the account\'s whole gap, the subject and provider of an item, and a connection that is not read', () => {
     const upcoming = parseUpcoming({ items: [{ recurring_id: 'r-1', name: 'A', kind: 'utility', due_date: '2026-11-20', days_until: -4, amount: 100, currency: 'GBP', covered: false, shortfall: 40, account_short_total: 90, overdue: true }], totals: [] });
     expect(upcoming?.items[0]).toMatchObject({ daysUntil: -4, overdue: true, shortfall: 40, accountShortTotal: 90 });
