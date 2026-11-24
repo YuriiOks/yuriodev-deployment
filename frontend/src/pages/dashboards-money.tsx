@@ -28,8 +28,8 @@ const DashboardsMoney = () => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   usePageTitle(t.titles.money);
-  const { mode } = useDashboardMode();
-  const live = mode === 'live';
+  const { mode: dataMode } = useDashboardMode();
+  const live = dataMode === 'live';
   const accounts = useFinanceAccounts(live);
   const summary = useFinanceSummary(live);
   const [selected, setSelected] = useState<string | null>(null);
@@ -54,17 +54,17 @@ const DashboardsMoney = () => {
             </Link>
             {asOf && <> · {fill(m.updated, { when: asOf })}</>}
           </p>
+          {live && converted && (
+            <div role="group" aria-label={m.displayLabel} className={money.display}>
+              {(['base', 'native'] as const).map((choice) => (
+                <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
+                  {choice === 'base' ? m.displayBase : m.displayNative}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
-        {live && converted && (
-          <div role="group" aria-label={m.displayLabel} className={money.display}>
-            {(['base', 'native'] as const).map((choice) => (
-              <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
-                {choice === 'base' ? m.displayBase : m.displayNative}
-              </button>
-            ))}
-          </div>
-        )}
       </header>
       {!live ? (
         <p className={money.none}>{m.needsData}</p>
