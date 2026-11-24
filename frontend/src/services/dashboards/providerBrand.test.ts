@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KNOWN_BRANDS, brandOf, luminance, markOf, prefersWhiteInk } from './providerBrand';
+import { KNOWN_BRANDS, brandOf, luminance, markOf, prefersWhiteInk, wordmarkIsWhite } from './providerBrand';
 
 const contrast = (a: string, b: string) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
@@ -30,5 +30,15 @@ describe('provider brands', () => {
     expect(prefersWhiteInk('#f5c518')).toBe(false);
     expect(luminance('#000000')).toBe(0);
     expect(luminance('#ffffff')).toBeCloseTo(1, 5);
+  });
+});
+
+describe('the wordmark variant', () => {
+  it('follows the card\'s own ink: light ink wants the white wordmark whatever the background\'s luminance, dark ink the dark one, and without ink the background decides', () => {
+    expect(wordmarkIsWhite({ bg: '#ff4f40', fg: '#ffffff' })).toBe(true);
+    expect(wordmarkIsWhite({ bg: '#f5d90a', fg: '#111111' })).toBe(false);
+    expect(wordmarkIsWhite({ bg: '#101820', fg: '#ffffff' })).toBe(true);
+    expect(wordmarkIsWhite({ bg: '#101820' })).toBe(true);
+    expect(wordmarkIsWhite({ bg: '#ff4f40' })).toBe(false);
   });
 });

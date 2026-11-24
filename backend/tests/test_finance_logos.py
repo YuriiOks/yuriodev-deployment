@@ -5,13 +5,28 @@ import json
 
 import pytest
 
-from src.dashboards.finance.logos import PNG, SVG, parse_provider_logos, valid_logo
+from src.dashboards.finance.logos import (
+    PNG,
+    SVG,
+    aspect,
+    logo_check,
+    parse_logo_options,
+    parse_provider_logos,
+    valid_logo,
+)
 from tests.dashboards_support import AUTH, running
 from tests.finance_support import seed
 
 pytestmark = pytest.mark.anyio
 
-PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+
+def png(width, height):
+    size = width.to_bytes(4, "big") + height.to_bytes(4, "big")
+    header = (13).to_bytes(4, "big") + b"IHDR" + size
+    return b"\x89PNG\r\n\x1a\n" + header + b"\x08\x06\x00\x00\x00" + b"\x00" * 8
+
+
+PNG_BYTES = png(4, 4)
 
 
 def uri(prefix, body):
@@ -135,12 +150,13 @@ def test_the_settings_object_reads_it_lazily(make_settings):
     assert make_settings().provider_logos == {}
 
 
-async def test_the_providers_answer_has_every_logo_and_every_provider_with_accounts(
+async def test_the_providers_answer_has_logo_addresses_only_for_a_provider_with_a_connection(
     db_url, make_dashboards_app
 ):
     raw = json.dumps(
         {
             "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG},
+            "sample": {"on_dark": GOOD_PNG, "scale": 1.25, "mono": True},
             "neutral-bank": {"on_dark": GOOD_PNG},
         }
     )
@@ -155,13 +171,112 @@ async def test_the_providers_answer_has_every_logo_and_every_provider_with_accou
 
     first = {p["id"]: p for p in before.json()["providers"]}
     second = {p["id"]: p for p in after.json()["providers"]}
-    assert first["monzo"]["logo"] == {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG}
-    assert first["neutral-bank"]["logo"] == {"on_light": None, "on_dark": GOOD_PNG, "mark": None}
+    nothing = {"on_light": None, "on_dark": None, "mark": None}
+    assert {k: first["monzo"]["logo"][k] for k in nothing} == nothing  # no connection: no address
     assert (first["monzo"]["entry"], first["neutral-bank"]["entry"]) == ("api", "manual")
-    assert "sample" not in first
-    assert second["sample"]["logo"] == {"on_light": None, "on_dark": None, "mark": None}
+    logo = second["sample"]["logo"]
+    assert logo["on_dark"].startswith("/api/dashboards/v1/finance/providers/sample/logo/on_dark?v=")
+    assert (logo["on_light"], logo["mark"]) == (None, None)
+    assert (logo["aspect"]["on_dark"], logo["scale"], logo["mono"]) == (1.0, 1.25, True)
+    assert second["monzo"]["logo"]["scale"] == 1.0
     assert [p["id"] for p in after.json()["providers"]] == sorted(second)  # in order of id
     assert anonymous.status_code == 401
+
+
+async def test_a_logo_is_served_as_an_image_that_the_browser_may_keep(db_url, make_dashboards_app):
+    raw = json.dumps(
+        {"sample": {"on_light": GOOD_SVG, "mark": GOOD_PNG}, "elsewhere": {"mark": GOOD_PNG}}
+    )
+    app = make_dashboards_app(db_url, dashboards_provider_logos=raw)
+    base = "/api/dashboards/v1/finance/providers"
+    async with running(app, AUTH) as client:
+        await seed(app)
+        svg_answer = await client.get(f"{base}/sample/logo/on_light")
+        tag = svg_answer.headers["etag"]
+        png_answer = await client.get(f"{base}/sample/logo/mark")
+        again = await client.get(f"{base}/sample/logo/on_light", headers={"If-None-Match": tag})
+        no_link = await client.get(f"{base}/elsewhere/logo/mark")
+        no_variant = await client.get(f"{base}/sample/logo/on_dark")
+        bad_variant = await client.get(f"{base}/sample/logo/huge")
+        anonymous = await client.get(
+            f"{base}/sample/logo/mark", headers={"X-Dashboards-Token": "nope"}
+        )
+        other = await client.get("/api/dashboards/v1/finance/providers")
+
+    assert svg_answer.status_code == 200
+    assert svg_answer.headers["content-type"].startswith("image/svg+xml")
+    assert svg_answer.headers["cache-control"] == "private, max-age=86400"
+    assert "sandbox" in svg_answer.headers["content-security-policy"]
+    assert svg_answer.content.startswith(b"<svg")
+    assert png_answer.headers["content-type"] == "image/png"
+    assert png_answer.content == PNG_BYTES
+    assert (again.status_code, again.content) == (304, b"")
+    assert (no_link.status_code, no_variant.status_code, bad_variant.status_code) == (404, 404, 404)
+    assert anonymous.status_code == 401
+    assert anonymous.headers["cache-control"] == "no-store"
+    assert other.headers["cache-control"] == "no-store"  # the rest of the API is never cached
+
+
+def test_a_png_needs_a_real_header_and_a_mark_needs_to_be_square():
+    broken = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+    wide = uri(PNG, png(300, 100))
+
+    assert valid_logo(uri(PNG, broken)) is False
+    assert valid_logo(uri(PNG, png(0, 5))) is False
+    assert valid_logo(wide) is True
+    assert valid_logo(wide, square=True) is False
+    assert valid_logo(uri(PNG, png(100, 103)), square=True) is True
+    assert aspect(wide) == 3.0
+    assert aspect(GOOD_SVG) is None  # an SVG with no size says nothing
+    marks = parse_provider_logos(json.dumps({"x": {"on_light": wide, "mark": wide}}))
+    assert marks == {"x": {"on_light": wide}}
+
+
+@pytest.mark.parametrize(
+    "markup",
+    [
+        '<svg xmlns="http://www.w3.org/2000/svg"><image href="#a"/></svg>',  # no raster inside
+        '<svg xmlns="http://www.w3.org/2000/svg"><a href="#a"><rect/></a></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><use href="https://example.test/a.svg#b"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="url(https://example.test/x)"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect xlink:href="x"/></svg>',  # not well formed
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect onload="x()"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect foo="1"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><x-unknown/></svg>',
+        '<html xmlns="http://www.w3.org/1999/xhtml"><script/></html>',
+        "<svg><rect/></svg>",  # no namespace: a browser would not draw it either
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect',  # not XML
+        '<svg xmlns="http://www.w3.org/2000/svg"><style>@import "x";</style></svg>',
+    ],
+)
+def test_the_svg_allow_list_refuses_what_is_not_plainly_drawing(markup):
+    assert valid_logo(svg(markup)) is False
+
+
+def test_references_inside_the_file_are_fine():
+    markup = (
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+        'width="40px" height="10"><defs><clipPath id="c"><rect width="4" height="4"/></clipPath>'
+        '</defs><g clip-path="url(#c)"><use xlink:href="#c"/><use href="#c"/></g></svg>'
+    )
+
+    assert valid_logo(svg(markup)) is True
+    assert aspect(svg(markup)) == 4.0
+
+
+def test_the_optical_scale_and_mono_flag_are_read_and_bad_ones_ignored():
+    raw = json.dumps(
+        {
+            "a": {"scale": 1.5, "mono": True},
+            "b": {"scale": 9, "mono": "yes"},
+            "c": {"scale": True},
+            "d": {"scale": 0.5},
+            "Bad Id": {"scale": 1.2},
+        }
+    )
+
+    assert parse_logo_options(raw) == {"a": {"scale": 1.5, "mono": True}, "d": {"scale": 0.5}}
+    assert parse_logo_options("nonsense") == {}
 
 
 async def test_the_logos_are_not_in_the_accounts_answer(db_url, make_dashboards_app):
@@ -247,9 +362,60 @@ def test_space_icons_can_come_from_a_file_too(make_settings, tmp_path):
 
 async def test_the_providers_answer_uses_the_file(db_url, make_dashboards_app, tmp_path):
     file = tmp_path / "logos.json"
-    file.write_text(json.dumps({"lloyds": {"mark": GOOD_PNG}}))
+    file.write_text(json.dumps({"sample": {"mark": GOOD_PNG}}))
     app = make_dashboards_app(db_url, dashboards_provider_logos_file=str(file))
     async with running(app, AUTH) as client:
+        await seed(app)
         found = (await client.get("/api/dashboards/v1/finance/providers")).json()["providers"]
 
-    assert next(p for p in found if p["id"] == "lloyds")["logo"]["mark"] == GOOD_PNG
+    mark = next(p for p in found if p["id"] == "sample")["logo"]["mark"]
+    assert "/providers/sample/logo/mark?v=" in mark
+
+
+def test_a_logo_that_sets_its_fills_in_a_style_block_with_a_clip_path_is_kept():
+    markup = (
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+        'viewBox="0 0 120 40"><title>Sample Bank</title><defs>'
+        "<style>.a{fill:#123456;fill-rule:evenodd}.b{fill:#fff;clip-rule:evenodd}</style>"
+        '<clipPath id="c"><rect width="120" height="40"/></clipPath></defs>'
+        '<g clip-path="url(#c)"><path class="a" d="M0 0h60v40H0z"/>'
+        '<path class="b" fill-rule="evenodd" clip-rule="evenodd" d="M60 0h60v40H60z"/></g></svg>'
+    )
+
+    assert valid_logo(svg(markup)) is True
+    assert aspect(svg(markup)) == 3.0
+
+
+@pytest.mark.parametrize(
+    ("markup", "reason"),
+    [
+        ('<svg xmlns="http://www.w3.org/2000/svg"><image href="#a"/></svg>', "<image>"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><metadata/></svg>', "<metadata>"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><rect inkscape="x"/></svg>', "inkscape"),
+        ("<svg><rect/></svg>", "xmlns"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><use href="https://e.test/a#b"/></svg>', "href"),
+        ('<svg xmlns="http://www.w3.org/2000/svg"><style>@import "x";</style></svg>', "<style>"),
+        ("<svg xmlns=", "XML"),
+    ],
+)
+def test_a_dropped_logo_says_why(markup, reason):
+    assert reason in str(logo_check(svg(markup))[1])
+
+
+async def test_the_providers_answer_lists_the_logos_that_were_dropped_and_why(
+    db_url, make_dashboards_app
+):
+    bad = svg('<svg xmlns="http://www.w3.org/2000/svg"><image href="#a"/></svg>')
+    wide_mark = uri(PNG, png(9, 3))
+    raw = json.dumps({"sample": {"on_light": GOOD_SVG, "on_dark": bad, "mark": wide_mark}})
+    app = make_dashboards_app(db_url, dashboards_provider_logos=raw)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        found = (await client.get("/api/dashboards/v1/finance/providers")).json()["providers"]
+
+    sample = next(p for p in found if p["id"] == "sample")
+    assert set(sample["logo_dropped"]) == {"on_dark", "mark"}
+    assert "<image>" in sample["logo_dropped"]["on_dark"]
+    assert "square" in sample["logo_dropped"]["mark"]
+    assert sample["logo"]["on_dark"] is None
+    assert all(p["logo_dropped"] == {} for p in found if p["id"] != "sample")

@@ -5,12 +5,14 @@ trusted proxy, `Cache-Control: no-store`, 503 while the API is off. There is no 
 bank data only ever arrives through the collector.
 """
 
+import base64
+import hashlib
 import logging
 from datetime import date
 from typing import Annotated, Self
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -22,6 +24,7 @@ from src.dashboards.finance import manual, monzo_auth, service
 from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL, RECONNECT
 from src.dashboards.finance.categories import Category
 from src.dashboards.finance.logos import VARIANTS
+from src.dashboards.finance.logos import aspect as logo_aspect
 from src.dashboards.finance.manual import MANUAL_FIELDS, ManualAccountPatch
 from src.dashboards.finance.schemas import (
     AccountOut,
@@ -31,12 +34,14 @@ from src.dashboards.finance.schemas import (
     ConnectionOut,
     DisplayOut,
     FinanceSummaryOut,
+    LogoAspect,
     LogoOut,
     ProviderOut,
     ProvidersOut,
     TransactionOut,
     TransactionsOut,
     display_fields,
+    provider_totals,
 )
 from src.dashboards.runtime import get_runtime, unavailable
 from src.dashboards.service import guarded
@@ -44,6 +49,7 @@ from src.routes.dashboards import ClockDep, SessionDep, SettingsDep, ZoneDep
 
 logger = logging.getLogger("yuriodev.finance")
 router = APIRouter(prefix="/api/dashboards/v1/finance", tags=["finance"])
+LOGO_PATH = "/api/dashboards/v1/finance/providers"
 DASHBOARDS_PAGE = "/dashboards/personal/money"  # where the browser lands after the consent
 
 
@@ -53,8 +59,10 @@ async def accounts(session: SessionDep, settings: SettingsDep, clock: ClockDep) 
     the latest rate, and the state of each bank link."""
     display = await service.display_for(session, settings.finance_display_currency, clock())
     found, links, oldest = await service.list_accounts(session)
+    listed = [AccountOut.from_row(item, oldest.get(item.id), display) for item in found]
     return AccountsOut(
-        accounts=[AccountOut.from_row(item, oldest.get(item.id), display) for item in found],
+        accounts=listed,
+        providers=provider_totals(listed),
         connections=[ConnectionOut.from_row(item, clock()) for item in links],
         display=DisplayOut(**display_fields(display, {item.currency for item in found})),
     )
@@ -193,12 +201,16 @@ async def categories(
 @router.get("/providers")
 async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
     """How each bank is shown: its name and brand colours (built in for the public brands, else the
-    owner's own on his connection) and its logo from DASHBOARDS_PROVIDER_LOGOS (a missing logo is
-    null), for every built-in brand, every id with a logo and every provider that has accounts.
-    Fetch it once: the data URIs are big and the accounts answer deliberately does not repeat
-    them."""
+    owner's own on his connection) and its logo from DASHBOARDS_PROVIDER_LOGOS, for every built-in
+    brand, every id with a logo and every provider that has a connection. A logo is the address of
+    the image (`GET /providers/{id}/logo/{variant}`, cached by the browser; `?v=` changes with the
+    picture), only for a provider that has a connection, else null; with the aspect ratio of each,
+    the owner's optical `scale` and whether it is `mono`."""
     logos = settings.provider_logos
-    names = set(logos) | set(BRANDS) | set(await service.provider_ids(session))
+    options = settings.provider_logo_options
+    connected = set(await service.provider_ids(session))
+    dropped = settings.provider_logos_dropped
+    names = set(logos) | set(BRANDS) | connected | set(dropped)
     styles = await service.connection_styles(session)
     found: list[ProviderOut] = []
     for name in sorted(names):
@@ -210,13 +222,61 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
                 id=name,
                 name=(own.name if own and own.name else brand.name if brand else None),
                 colors=ColorsOut(background=colors.background, foreground=colors.foreground),
-                logo=LogoOut(**{v: logos.get(name, {}).get(v) for v in VARIANTS}),
+                logo_dropped=dropped.get(name, {}),
+                logo=_logo_out(name, logos.get(name, {}) if name in connected else {}, options),
                 entry="api" if name in COLLECTOR_PROVIDERS else "manual",
                 reconnect=reconnect[0] if reconnect else None,
                 reconnect_path=reconnect[1] if reconnect else None,
             )
         )
     return ProvidersOut(providers=found)
+
+
+def _etag(uri: str) -> str:
+    return '"' + hashlib.sha256(uri.encode()).hexdigest()[:16] + '"'
+
+
+def _logo_out(
+    provider: str, variants: dict[str, str], options: dict[str, dict[str, float | bool]]
+) -> LogoOut:
+    found = options.get(provider, {})
+    urls = {
+        v: f"{LOGO_PATH}/{provider}/logo/{v}?v={_etag(variants[v])[1:9]}" if v in variants else None
+        for v in VARIANTS
+    }
+    sizes = {v: logo_aspect(variants[v]) if v in variants else None for v in VARIANTS}
+    return LogoOut(
+        **urls,
+        aspect=LogoAspect(**sizes),
+        scale=float(found.get("scale", 1.0)),
+        mono=bool(found.get("mono", False)),
+    )
+
+
+@router.get("/providers/{provider_id}/logo/{variant}")
+async def provider_logo(
+    provider_id: str, variant: str, request: Request, session: SessionDep, settings: SettingsDep
+) -> Response:
+    """The logo image of a provider that has a connection, with `Cache-Control: private` and an
+    ETag (the gate's no-store is not applied here): a page fetches it once and the browser keeps
+    it. 404 for anything else."""
+    uri = settings.provider_logos.get(provider_id, {}).get(variant)
+    known = provider_id in set(await service.provider_ids(session))
+    if uri is None or variant not in VARIANTS or not known:
+        raise AppError(404, "not_found", "Logo not found")
+    tag = _etag(uri)
+    headers = {
+        "Cache-Control": "private, max-age=86400",
+        "ETag": tag,
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    }
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    prefix, _, payload = uri.partition(";base64,")
+    return Response(
+        base64.b64decode(payload), media_type=prefix.removeprefix("data:"), headers=headers
+    )
 
 
 @router.get("/summary")

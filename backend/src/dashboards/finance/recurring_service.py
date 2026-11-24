@@ -69,6 +69,7 @@ from src.dashboards.finance.recurring_schemas import (
     UpcomingItem,
     UpcomingOut,
     UpcomingTotal,
+    icon_path,
     shown_icon,
 )
 from src.dashboards.finance.schemas import (
@@ -257,9 +258,36 @@ async def reset_icon(
         raise _not_found()
     row.icon_data = None
     row.icon_checked_url = None
+    row.icon_error = None
+    row.icon_manual = False  # an icon set by hand is given up: the fetcher looks again
     row.updated_at = now
     await session.commit()
     return row
+
+
+@guarded
+async def set_icon(
+    session: AsyncSession, recurring_id: uuid.UUID, data: str, now: datetime
+) -> Recurring:
+    """The owner's own icon (a data URI that passed the checks): it wins over the website."""
+    row = await session.get(Recurring, recurring_id, with_for_update=True)
+    if row is None:
+        raise _not_found()
+    row.icon_data = data
+    row.icon_manual = True
+    row.icon_error = None
+    row.updated_at = now
+    await session.commit()
+    return row
+
+
+@guarded
+async def icon_of(session: AsyncSession, recurring_id: uuid.UUID) -> str | None:
+    """The stored icon of a payment as shown (None when it has none; unknown id is 404)."""
+    row = await session.get(Recurring, recurring_id)
+    if row is None:
+        raise _not_found()
+    return shown_icon(row)
 
 
 @guarded
@@ -693,7 +721,7 @@ async def _occurrences(
             converted=display.converted(row.currency),
             account_id=row.account_id,
             payment_method=row.payment_method,
-            icon_data=shown_icon(row),
+            icon_url=icon_path(row),
             color=row.color,
             covered=covered,
             shortfall=shortfall,

@@ -234,8 +234,19 @@ export function oldestRate(display: DisplayInfo | null): string | null {
 const DATA_URI = /^data:image\/(?:png|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/;
 const MAX_LOGO_LENGTH = 72 * 1024;
 
-/** A logo is a base64 PNG or SVG data URI of a sane size: never a link, so it can only be an image the server vetted. */
-const logoUri = (value: unknown): string | null => (typeof value === 'string' && value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value) ? value : null);
+/** A logo address on the server's own provider route: a path (no scheme, no host, no dot segments, no query), so it can only point back at the same origin. */
+const LOGO_PATH = /^\/api\/dashboards\/v1\/finance\/providers\/[A-Za-z0-9._~/-]+$/;
+const MAX_LOGO_PATH = 300;
+
+/**
+ * A logo is a base64 PNG or SVG data URI of a sane size, or a same-origin path under the finance providers route (the server may serve the
+ * image by address instead of inlining it): never another host, so it can only be an image the server vetted.
+ */
+const logoUri = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  if (value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value)) return value;
+  return value.length <= MAX_LOGO_PATH && LOGO_PATH.test(value) && !value.includes('..') && !value.includes('//') ? value : null;
+};
 
 /** A consent path: on the server's own finance routes, no host, no dot segments, no query. */
 const CONNECT_PATH = /^\/api\/dashboards\/v1\/finance\/[A-Za-z0-9_/-]+$/;

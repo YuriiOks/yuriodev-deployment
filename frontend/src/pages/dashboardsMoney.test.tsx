@@ -713,6 +713,27 @@ describe('the Money page: bank logos', () => {
     expect(bankButton('Monobank')).toHaveTextContent('Monobank');
   });
 
+  it('picks the wordmark by the card\'s own ink: a light-ish brand colour with white ink gets the white wordmark, a dark ink the dark one', async () => {
+    setup({
+      finance: finance({
+        providers: [
+          { id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK }, colors: { background: '#ff4f40', foreground: '#ffffff' } },
+          { id: 'monobank', logo: { on_light: DARK_INK, on_dark: WHITE_INK }, colors: { background: '#f5d90a', foreground: '#111111' } },
+        ],
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    await banksReady();
+    await waitFor(() => expect(images(bankButton('Acme bank'))).toHaveLength(1));
+    expect(images(bankButton('Acme bank'))[0].getAttribute('src')).toBe(WHITE_INK);
+    expect(images(bankButton('Monobank'))[0].getAttribute('src')).toBe(DARK_INK);
+    // The same in the opened bank's header.
+    await user.click(bankButton('Acme bank'));
+    const header = opened().getByRole('heading', { level: 3, name: 'Acme bank' });
+    await waitFor(() => expect(header.querySelector('img')?.getAttribute('src')).toBe(WHITE_INK));
+  });
+
   it('shows the logo in the opened bank\'s header and in the bank filter chips, with the name as each one\'s accessible name', async () => {
     setup({ finance: withLogos() });
     const user = userEvent.setup();
