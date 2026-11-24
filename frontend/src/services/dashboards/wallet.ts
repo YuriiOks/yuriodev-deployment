@@ -18,7 +18,9 @@ export function groupBanks(accounts: readonly FinanceAccount[], connections: rea
   }));
 }
 
-export const isPot = (account: FinanceAccount): boolean => account.type === 'pot';
+export const isPot = (account: FinanceAccount): boolean => account.kind === 'pot';
+
+export const isBusiness = (account: FinanceAccount): boolean => account.kind === 'business';
 
 /** An account with nothing in it: no balance and no debt (a business account that is never used, an empty pot). */
 export const isEmpty = (account: FinanceAccount): boolean => account.balance === 0 && account.ownBalance === 0;
@@ -54,6 +56,8 @@ export function bankTotals(bank: Bank): CurrencyTotal[] {
 export interface BankSplit {
   /** Accounts with something in them (or owed on them), then the empty ones folded away. */
   readonly accounts: readonly FinanceAccount[];
+  /** Business accounts: folded away whatever is in them. */
+  readonly business: readonly FinanceAccount[];
   readonly emptyAccounts: readonly FinanceAccount[];
   readonly pots: readonly FinanceAccount[];
   readonly emptyPots: readonly FinanceAccount[];
@@ -63,9 +67,11 @@ export interface BankSplit {
 /** An opened bank's accounts: the main accounts and the pots, each with its empty ones folded; archived accounts apart. */
 export function splitBank(bank: Bank): BankSplit {
   const open = bank.accounts.filter((account) => !account.archived);
-  const accounts = open.filter((account) => !isPot(account));
+  const business = open.filter(isBusiness);
+  const accounts = open.filter((account) => !isPot(account) && !isBusiness(account));
   const pots = open.filter(isPot);
   return {
+    business,
     accounts: accounts.filter((account) => !isEmpty(account)),
     emptyAccounts: accounts.filter(isEmpty),
     pots: pots.filter((account) => !isEmpty(account)),
@@ -75,6 +81,7 @@ export function splitBank(bank: Bank): BankSplit {
 }
 
 export type CreditKind = 'debt' | 'overdrawn' | 'none';
+
 
 export interface CreditUse {
   readonly kind: CreditKind;
@@ -97,7 +104,13 @@ export function creditUse(account: FinanceAccount): CreditUse {
   if (limit > 0) {
     return { kind: owed > 0 ? 'debt' : 'none', used: owed, limit, percent: Math.min(100, Math.round((owed / limit) * 100)), free: Math.max(0, limit - owed) };
   }
-  if (account.ownBalance < 0) return { kind: 'overdrawn', used: owed, limit: 0, percent: 0, free: 0 };
+  if (account.ownBalance < 0) {
+    // An overdrawn current account with an agreed overdraft reads as used of that overdraft.
+    const agreed = account.overdraftLimit ?? 0;
+    return agreed > 0
+      ? { kind: 'overdrawn', used: owed, limit: agreed, percent: Math.min(100, Math.round((owed / agreed) * 100)), free: Math.max(0, agreed - owed) }
+      : { kind: 'overdrawn', used: owed, limit: 0, percent: 0, free: 0 };
+  }
   return { kind: 'none', used: 0, limit: 0, percent: 0, free: 0 };
 }
 

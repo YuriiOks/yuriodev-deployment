@@ -1,4 +1,5 @@
 import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
+import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
 
 /** The page a document title is for. */
@@ -166,6 +167,21 @@ export interface Strings {
     readonly debt: string;
     readonly overdrawn: string;
     readonly usedOfLimit: string;
+    readonly usedOfOverdraft: string;
+    readonly goalOf: string;
+    readonly businessFold: string;
+    readonly hideBusiness: string;
+    readonly categories: Readonly<Record<Category, string>>;
+    readonly categoryFilter: string;
+    readonly allCategories: string;
+    readonly spendTitle: string;
+    readonly spendLess: string;
+    readonly spendMore: string;
+    readonly spendSame: string;
+    readonly spendNothing: string;
+    readonly spendFailed: string;
+    readonly spendNote: string;
+    readonly vsPrevious: string;
     readonly creditLimit: string;
     readonly historyFrom: string;
     readonly foldEmpty: string;
@@ -427,6 +443,35 @@ export const STRINGS: Record<Lang, Strings> = {
       debt: 'долг',
       overdrawn: 'овердрафт',
       usedOfLimit: 'занято {percent}% лимита {limit} · свободно {free}',
+      usedOfOverdraft: 'занято {percent}% овердрафта {limit} · свободно {free}',
+      goalOf: '{percent}% от цели {goal}',
+      businessFold: 'Бизнес-счета: {n}',
+      hideBusiness: 'Скрыть бизнес-счета',
+      categories: {
+        housing_utilities: 'Жильё и коммунальные',
+        groceries: 'Продукты',
+        eating_out: 'Кафе и рестораны',
+        transport: 'Транспорт',
+        subscriptions: 'Подписки',
+        health: 'Здоровье',
+        shopping: 'Покупки',
+        entertainment: 'Развлечения',
+        debt: 'Долги и кредиты',
+        income: 'Доходы',
+        transfers: 'Переводы',
+        cash: 'Наличные',
+        other: 'Прочее',
+      },
+      categoryFilter: 'Категория',
+      allCategories: 'Все категории',
+      spendTitle: 'Траты по категориям',
+      spendLess: 'на {percent}% меньше, чем за {previous}',
+      spendMore: 'на {percent}% больше, чем за {previous}',
+      spendSame: 'как за {previous}',
+      spendNothing: 'Трат в этом месяце пока нет.',
+      spendFailed: 'Не удалось загрузить траты по категориям.',
+      spendNote: 'Переводы между своими счетами и копилками в траты не входят.',
+      vsPrevious: 'было {amount}',
       creditLimit: 'лимит {amount}',
       historyFrom: 'история с {date}',
       foldEmpty: 'Ещё пустых: {n}',
@@ -688,6 +733,35 @@ export const STRINGS: Record<Lang, Strings> = {
       debt: 'debt',
       overdrawn: 'overdrawn',
       usedOfLimit: '{percent}% of the {limit} limit used · {free} free',
+      usedOfOverdraft: '{percent}% of the {limit} overdraft used · {free} free',
+      goalOf: '{percent}% of the {goal} goal',
+      businessFold: 'Business accounts: {n}',
+      hideBusiness: 'Hide business accounts',
+      categories: {
+        housing_utilities: 'Housing and utilities',
+        groceries: 'Groceries',
+        eating_out: 'Eating out',
+        transport: 'Transport',
+        subscriptions: 'Subscriptions',
+        health: 'Health',
+        shopping: 'Shopping',
+        entertainment: 'Entertainment',
+        debt: 'Debt and loans',
+        income: 'Income',
+        transfers: 'Transfers',
+        cash: 'Cash',
+        other: 'Other',
+      },
+      categoryFilter: 'Category',
+      allCategories: 'All categories',
+      spendTitle: 'Spend by category',
+      spendLess: '{percent}% less than {previous}',
+      spendMore: '{percent}% more than {previous}',
+      spendSame: 'same as {previous}',
+      spendNothing: 'No spending this month yet.',
+      spendFailed: 'Could not load spending by category.',
+      spendNote: 'Transfers between your own accounts and pots are not counted as spending.',
+      vsPrevious: 'was {amount}',
       creditLimit: 'limit {amount}',
       historyFrom: 'history from {date}',
       foldEmpty: '{n} more empty',

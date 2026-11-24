@@ -15,6 +15,31 @@ export interface Converted {
   readonly currency: string;
 }
 
+export type AccountKind = 'current' | 'credit_card' | 'savings' | 'pot' | 'business';
+
+const ACCOUNT_KINDS: readonly AccountKind[] = ['current', 'credit_card', 'savings', 'pot', 'business'];
+
+/** The spending categories every provider's transactions are sorted into (the server's fixed set). */
+export const CATEGORIES = [
+  'housing_utilities',
+  'groceries',
+  'eating_out',
+  'transport',
+  'subscriptions',
+  'health',
+  'shopping',
+  'entertainment',
+  'debt',
+  'income',
+  'transfers',
+  'cash',
+  'other',
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
+
+export const isCategory = (value: unknown): value is Category => (CATEGORIES as readonly unknown[]).includes(value);
+
 export interface FinanceAccount {
   readonly id: string;
   readonly connectionId: string;
@@ -32,6 +57,18 @@ export interface FinanceAccount {
   readonly balanceAt: string | null;
   readonly historyFrom: string | null;
   readonly archived: boolean;
+  /** What the page can rely on to present it (a pot, a credit card, a business account ...). */
+  readonly kind: AccountKind;
+  /** A neutral sub-type ("Platinum", "Joint", "Jar"): never a holder's name. */
+  readonly label: string | null;
+  /** A pot's current account. */
+  readonly parentId: string | null;
+  /** A pot's goal, when the bank gives one (minor units). */
+  readonly goalAmount: number | null;
+  /** A current account's agreed overdraft, when known. */
+  readonly overdraftLimit: number | null;
+  /** What can be spent: the balance plus the overdraft. */
+  readonly availableMinor: number;
   /** The owner's own money converted into the display currency, when the server has a rate for this currency (null: show the original only). */
   readonly display: Converted | null;
 }
@@ -71,6 +108,9 @@ export interface FinanceTransaction {
   readonly internalTransfer: boolean;
   /** The amount in the display currency (null: no rate, or already in it). */
   readonly display: Converted | null;
+  /** The owner's override, else the normalised category (never missing: "other" when the server sends none). */
+  readonly category: Category;
+  readonly categoryOverridden: boolean;
 }
 
 export interface TransactionsPage {
@@ -148,6 +188,12 @@ export function parseAccounts(body: unknown): FinanceAccounts | null {
         balanceAt: text(raw.balance_at),
         historyFrom: text(raw.history_from),
         archived: raw.archived === true,
+        kind: ACCOUNT_KINDS.find((candidate) => candidate === raw.kind) ?? (raw.type === 'pot' ? 'pot' : 'current'),
+        label: text(raw.label),
+        parentId: text(raw.parent_id),
+        goalAmount: int(raw.goal_amount),
+        overdraftLimit: int(raw.overdraft_limit),
+        availableMinor: int(raw.available_minor) ?? balance,
         display: converted(raw.display_balance, raw.display_currency),
       },
     ];
@@ -185,6 +231,8 @@ export function parseTransaction(raw: unknown): FinanceTransaction | null {
     declined: raw.declined === true,
     internalTransfer: raw.internal_transfer === true,
     display: converted(raw.display_amount, raw.display_currency),
+    category: isCategory(raw.category) ? raw.category : 'other',
+    categoryOverridden: raw.category_overridden === true,
   };
 }
 
@@ -227,15 +275,17 @@ export async function fetchFinanceSummary(signal?: AbortSignal): Promise<Finance
 
 export interface TransactionQuery {
   readonly account?: string | null;
+  readonly category?: Category | null;
   readonly q?: string;
   readonly cursor?: string | null;
   readonly limit?: number;
 }
 
 /** The query string of a transactions request: only what is set. */
-export function transactionsPath({ account, q, cursor, limit = 25 }: TransactionQuery): string {
+export function transactionsPath({ account, category, q, cursor, limit = 25 }: TransactionQuery): string {
   const params = new URLSearchParams();
   if (account) params.set('account', account);
+  if (category) params.set('category', category);
   const query = q?.trim();
   if (query) params.set('q', query);
   if (cursor) params.set('cursor', cursor);
@@ -246,5 +296,49 @@ export function transactionsPath({ account, q, cursor, limit = 25 }: Transaction
 export async function fetchTransactions(query: TransactionQuery, signal?: AbortSignal): Promise<TransactionsPage> {
   const parsed = parseTransactions(await request(transactionsPath(query), { signal }));
   if (!parsed) throw BAD('transactions');
+  return parsed;
+}
+
+/** One category's spend this month and the month before (positive minor units). */
+export interface CategorySpend {
+  readonly category: Category;
+  readonly spent: number;
+  readonly previous: number;
+}
+
+/** Money out in one currency by category (internal transfers and declined payments left out). */
+export interface CurrencyCategories {
+  readonly currency: string;
+  readonly spent: number;
+  readonly previousSpent: number;
+  readonly categories: readonly CategorySpend[];
+}
+
+export interface FinanceCategories {
+  readonly month: string;
+  readonly previousMonth: string;
+  readonly currencies: readonly CurrencyCategories[];
+}
+
+export function parseCategories(body: unknown): FinanceCategories | null {
+  if (!isObject(body) || !Array.isArray(body.currencies)) return null;
+  const currencies = body.currencies.flatMap((raw): CurrencyCategories[] => {
+    if (!isObject(raw) || !Array.isArray(raw.categories)) return [];
+    const code = currency(raw.currency);
+    const spent = int(raw.spent);
+    if (!code || spent === null) return [];
+    const categories = raw.categories.flatMap((entry): CategorySpend[] => {
+      if (!isObject(entry) || !isCategory(entry.category)) return [];
+      const value = int(entry.spent);
+      return value === null ? [] : [{ category: entry.category, spent: value, previous: int(entry.previous) ?? 0 }];
+    });
+    return [{ currency: code, spent, previousSpent: int(raw.previous_spent) ?? 0, categories }];
+  });
+  return { month: text(body.month) ?? '', previousMonth: text(body.previous_month) ?? '', currencies };
+}
+
+export async function fetchCategories(month?: string, signal?: AbortSignal): Promise<FinanceCategories> {
+  const parsed = parseCategories(await request(month ? `/finance/categories?month=${encodeURIComponent(month)}` : '/finance/categories', { signal }));
+  if (!parsed) throw BAD('categories');
   return parsed;
 }

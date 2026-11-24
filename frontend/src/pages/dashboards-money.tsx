@@ -4,6 +4,7 @@ import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import { whenLabel } from '../components/dashboards/Money/labels';
+import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
 import MoneyTotals from '../components/dashboards/Money/MoneyTotals';
 import MoneyTransactions from '../components/dashboards/Money/MoneyTransactions';
 import MoneyWallet from '../components/dashboards/Money/MoneyWallet';
@@ -14,7 +15,7 @@ import { readMoneyDisplay, writeMoneyDisplay, type MoneyDisplay } from '../servi
 import { groupBanks } from '../services/dashboards/wallet';
 import { pagePath } from '../data/site';
 import { useDashboardMode } from '../hooks/useDashboardMode';
-import { useFinanceAccounts, useFinanceSummary } from '../hooks/useFinance';
+import { useFinanceAccounts, useFinanceCategories, useFinanceSummary } from '../hooks/useFinance';
 import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './dashboards-money.module.css';
 
@@ -32,6 +33,7 @@ const DashboardsMoney = () => {
   const live = dataMode === 'live';
   const accounts = useFinanceAccounts(live);
   const summary = useFinanceSummary(live);
+  const spend = useFinanceCategories(live);
   const [selected, setSelected] = useState<string | null>(null);
   // Pounds by default (remembered per viewer); the choice is offered only once the server sends converted figures.
   const [mode, setMode] = useState<MoneyDisplay>(readMoneyDisplay);
@@ -81,13 +83,23 @@ const DashboardsMoney = () => {
             {accounts.status === 'error' && <InlineError message={m.accountsFailed} onRetry={accounts.reload} />}
             {accounts.value && <MoneyWallet data={accounts.value} selected={selected} mode={mode} onSelect={setSelected} />}
           </section>
+          <section aria-labelledby="money-spend-title" className={money.panel}>
+            <div className={money.head}>
+              <h2 id="money-spend-title" className={money.title}>
+                {m.spendTitle}
+              </h2>
+            </div>
+            {spend.status === 'loading' && <LoadingBlock rows={3} />}
+            {spend.status === 'error' && <InlineError message={m.spendFailed} onRetry={spend.reload} />}
+            {spend.value && <MoneyCategories data={spend.value} />}
+          </section>
           <section aria-labelledby="money-transactions-title" className={money.panel}>
             <div className={money.head}>
               <h2 id="money-transactions-title" className={money.title}>
                 {m.transactionsTitle}
               </h2>
             </div>
-            <MoneyTransactions banks={banks} mode={mode} enabled={live} />
+            <MoneyTransactions banks={banks} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
         </>
       )}

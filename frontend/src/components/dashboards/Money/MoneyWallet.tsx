@@ -64,6 +64,7 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
   const m = t.money;
   const use = creditUse(account);
   const notes = [
+    account.label ?? '',
     account.maskLast4 ? `•••• ${account.maskLast4}` : '',
     distinguish && account.historyFrom ? fill(m.historyFrom, { date: dayLabel(account.historyFrom, lang) }) : '',
     account.creditLimit > 0 && use.kind === 'none' ? fill(m.creditLimit, { amount: formatMinor(account.creditLimit, account.currency, lang) }) : '',
@@ -89,13 +90,13 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
           {use.kind === 'none' && <Amount amount={account.ownBalance} currency={account.currency} display={account.display} mode={mode} />}
         </strong>
       </div>
-      {use.kind === 'debt' && (
+      {(use.kind === 'debt' || (use.kind === 'overdrawn' && use.limit > 0)) && (
         <>
           <div aria-hidden="true" className={styles.bar}>
             <div className={styles.barFill} style={{ width: `${use.percent}%` }} />
           </div>
           <span className={styles.accountNote}>
-            {fill(m.usedOfLimit, {
+            {fill(use.kind === 'debt' ? m.usedOfLimit : m.usedOfOverdraft, {
               percent: use.percent,
               limit: formatMinor(use.limit, account.currency, lang),
               free: formatMinor(use.free, account.currency, lang),
@@ -108,7 +109,10 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
 };
 
 const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ account, mode }) => {
+  const { t, lang } = useDashboardLang();
   const { emoji, label } = potParts(account.name);
+  const goal = account.goalAmount !== null && account.goalAmount > 0 ? account.goalAmount : null;
+  const percent = goal ? Math.max(0, Math.min(100, Math.round((account.ownBalance / goal) * 100))) : 0;
   return (
     <li className={styles.pot}>
       <span aria-hidden="true" className={styles.potPicture}>
@@ -118,6 +122,14 @@ const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ ac
       <strong className={styles.potAmount}>
         <Amount amount={account.ownBalance} currency={account.currency} display={account.display} mode={mode} />
       </strong>
+      {goal && (
+        <>
+          <div aria-hidden="true" className={styles.goalBar}>
+            <div className={styles.goalFill} style={{ width: `${percent}%` }} />
+          </div>
+          <span className={styles.accountNote}>{fill(t.money.goalOf, { percent, goal: formatMinor(goal, account.currency, lang) })}</span>
+        </>
+      )}
     </li>
   );
 };
@@ -127,6 +139,7 @@ const BankDetail: React.FC<{ bank: Bank; mode: MoneyDisplay }> = ({ bank, mode }
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const [showEmpty, setShowEmpty] = useState(false);
+  const [showBusiness, setShowBusiness] = useState(false);
   const line = useLinkLine(bank);
   const split = splitBank(bank);
   const totals = shownTotals(bank.accounts, mode);
@@ -202,6 +215,20 @@ const BankDetail: React.FC<{ bank: Bank; mode: MoneyDisplay }> = ({ bank, mode }
           <button type="button" className={styles.fold} aria-expanded={showEmpty} onClick={() => setShowEmpty((open) => !open)}>
             {showEmpty ? m.hideEmpty : fill(m.foldEmpty, { n: emptyCount })}
           </button>
+        )}
+        {split.business.length > 0 && (
+          <section aria-label={m.businessFold.replace(': {n}', '')}>
+            <button type="button" className={styles.fold} aria-expanded={showBusiness} onClick={() => setShowBusiness((open) => !open)}>
+              {showBusiness ? m.hideBusiness : fill(m.businessFold, { n: split.business.length })}
+            </button>
+            {showBusiness && (
+              <ul className={styles.accountList}>
+                {split.business.map((account) => (
+                  <AccountCard key={account.id} account={account} distinguish={shared.has(account.name.trim().toLowerCase())} mode={mode} />
+                ))}
+              </ul>
+            )}
+          </section>
         )}
         {split.archived.length > 0 && (
           <section aria-label={m.archivedTitle}>

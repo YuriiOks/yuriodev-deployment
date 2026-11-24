@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAccounts, parseSummary, parseTransaction, parseTransactions, transactionsPath } from './financeApi';
+import { parseAccounts, parseCategories, parseSummary, parseTransaction, parseTransactions, transactionsPath } from './financeApi';
 
 const account = (extra: Record<string, unknown> = {}) => ({
   id: 'a1',
@@ -82,6 +82,32 @@ describe('finance parsers', () => {
     expect(parseTransaction({ id: 't', account_id: 'a', booked_at: '2026-11-22T12:00:00Z', amount: -100, currency: 'UAH', display_amount: -2, display_currency: 'GBP' })?.display).toEqual({ amount: -2, currency: 'GBP' });
     expect(parseSummary({ currencies: [], display_total: 74350, display_currency: 'GBP', rate_as_of: '2026-11-24T08:00:00Z' })).toMatchObject({ total: { amount: 74350, currency: 'GBP' }, rateAsOf: '2026-11-24T08:00:00Z' });
     expect(parseSummary({ currencies: [] })).toMatchObject({ total: null, rateAsOf: null });
+  });
+
+  it('read the account kind, label, goal, overdraft and available money, with a safe default for an older server', () => {
+    const [full, old] = parseAccounts({
+      accounts: [account({ kind: 'pot', label: 'Jar', parent_id: 'p1', goal_amount: 100000, overdraft_limit: 50000, available_minor: 7 }), account({ id: 'o', type: 'pot' })],
+      connections: [],
+    })!.accounts;
+    expect(full).toMatchObject({ kind: 'pot', label: 'Jar', parentId: 'p1', goalAmount: 100000, overdraftLimit: 50000, availableMinor: 7 });
+    expect(old).toMatchObject({ kind: 'pot', label: null, parentId: null, goalAmount: null, overdraftLimit: null, availableMinor: 12345 });
+    expect(parseAccounts({ accounts: [account({ kind: 'sideways' })], connections: [] })!.accounts[0].kind).toBe('current');
+  });
+
+  it('read a transaction\'s category (never missing) and the spend by category', () => {
+    const tx = { id: 't', account_id: 'a', booked_at: '2026-11-22T12:00:00Z', amount: -1, currency: 'GBP', description: '' };
+    expect(parseTransaction({ ...tx, category: 'groceries', category_overridden: true })).toMatchObject({ category: 'groceries', categoryOverridden: true });
+    expect(parseTransaction({ ...tx, category: 'nonsense' })).toMatchObject({ category: 'other', categoryOverridden: false });
+    expect(parseTransaction(tx)?.category).toBe('other');
+    expect(
+      parseCategories({
+        month: '2026-11',
+        previous_month: '2026-10',
+        currencies: [{ currency: 'GBP', spent: 100, previous_spent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }, { category: 'nonsense', spent: 1 }, { category: 'transport', spent: 'x' }] }, { currency: 'zz', spent: 1, categories: [] }],
+      }),
+    ).toEqual({ month: '2026-11', previousMonth: '2026-10', currencies: [{ currency: 'GBP', spent: 100, previousSpent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }] }] });
+    expect(parseCategories({})).toBeNull();
+    expect(transactionsPath({ category: 'groceries' })).toBe('/finance/transactions?category=groceries&limit=25');
   });
 
   it('read a page of transactions with its cursor, and a summary per currency', () => {
