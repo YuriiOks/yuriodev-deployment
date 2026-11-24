@@ -205,8 +205,9 @@ def parse_rates(body: Any) -> dict[str, tuple[Decimal, datetime]]:
         code, stamp = row.get("currencyCodeA"), row.get("date")
         currency = CURRENCIES.get(code) if isinstance(code, int) else None
         rate = pair_rate(row)
-        valid_time = isinstance(stamp, int) and not isinstance(stamp, bool) and 0 < stamp < MAX_TIME
-        if currency is None or currency == PIVOT or rate is None or not valid_time:
+        if currency is None or currency == PIVOT or rate is None:
+            continue
+        if not isinstance(stamp, int) or isinstance(stamp, bool) or not 0 < stamp < MAX_TIME:
             continue
         found[currency] = (rate, datetime.fromtimestamp(stamp, UTC))
     return found
