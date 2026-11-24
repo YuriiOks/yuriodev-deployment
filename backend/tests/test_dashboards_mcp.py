@@ -28,6 +28,8 @@ TOOLS = {
     "finance_accounts",
     "finance_balances",
     "finance_transactions",
+    "finance_categories",
+    "finance_set_category",
 }
 
 

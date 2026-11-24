@@ -195,6 +195,10 @@ def tx(n: int, account: uuid.UUID, when: datetime, amount: int, text: str, **ext
     )
 
 
+def cat(category: str) -> dict[str, str]:
+    return {"category": category}
+
+
 def account(account_id: uuid.UUID, name: str, currency: str, balance: int, **extra: Any) -> Any:
     """An account of the sample link; the ids 10, 11, 12 were created 3, 2, 1 days before NOW, so
     the listing order (open first, oldest first) is the order of the ids."""
@@ -223,15 +227,16 @@ async def seed(app: Any) -> None:
         account(ACC_C, "Old", "UAH", 999, archived=True),
     ]
     october_end = datetime(2026, 10, 31, 23, 30, tzinfo=UTC)
+    foreign = {"original_amount": 11_000, "original_currency": "USD"}
     rows = [
-        tx(2, ACC_A, at(11, 20), -45_000, "Corner Cafe", category_code="5812"),
-        tx(1, ACC_A, at(11, 20), -12_000, "Bakery Example"),
-        tx(7, ACC_B, at(11, 19), 10_000, "Refund", original_amount=11_000, original_currency="USD"),
-        tx(6, ACC_B, at(11, 18), -2_500, "Acme Grocery", pending=True),
-        tx(3, ACC_A, at(11, 15, 9), 1_000_000, "Payroll", counterparty="Globex Ltd"),
-        tx(8, ACC_C, at(11, 10), -300, "Old card", internal_transfer=True),
-        tx(4, ACC_A, at(11, 1, 0, 30), -500, "Subscription 100% fun"),
-        tx(5, ACC_A, october_end, -7_000, "Old purchase"),
+        tx(2, ACC_A, at(11, 20), -45_000, "Corner Cafe", category_code="5812", **cat("eating_out")),
+        tx(1, ACC_A, at(11, 20), -12_000, "Bakery Example", **cat("groceries")),
+        tx(7, ACC_B, at(11, 19), 10_000, "Refund", **foreign, **cat("income")),
+        tx(6, ACC_B, at(11, 18), -2_500, "Acme Grocery", pending=True, **cat("groceries")),
+        tx(3, ACC_A, at(11, 15), 1_000_000, "Payroll", counterparty="Globex Ltd", **cat("income")),
+        tx(8, ACC_C, at(11, 10), -300, "Old card", internal_transfer=True, **cat("transfers")),
+        tx(4, ACC_A, at(11, 1, 0, 30), -500, "Subscription 100% fun", **cat("subscriptions")),
+        tx(5, ACC_A, october_end, -7_000, "Old purchase", **cat("shopping")),
     ]
     link = Connection(id=LINK, provider="sample", ref="main", status="ok", last_ok_at=NOW)
     async with app.state.dashboards.sessions() as session, session.begin():

@@ -1,12 +1,14 @@
 """Response shapes of the finance API. Money is an `int` in minor units next to its ISO code."""
 
 from datetime import datetime
-from typing import Any, Self
+from typing import Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
+
+AccountKind = Literal["current", "credit_card", "savings", "pot", "business"]
 
 
 class AccountOut(BaseModel):
@@ -26,13 +28,22 @@ class AccountOut(BaseModel):
     opened_at: datetime | None  # when the provider says it was opened
     history_from: datetime | None  # the oldest transaction kept: "history from <date>"
     archived: bool
+    kind: AccountKind  # what the page can rely on to present it
+    label: str | None  # a neutral sub-type ("Joint", "Platinum"): never a holder's name
+    parent_id: UUID | None  # a pot's current account
+    goal_amount: int | None  # a pot's goal, when the provider gives one
+    overdraft_limit: int | None  # a current account's agreed overdraft, when known
+    available_minor: int  # what can be spent: the balance plus the overdraft (a credit card's
+    # balance already counts its limit)
 
     @classmethod
     def from_row(cls, row: Any, history_from: datetime | None = None) -> Self:
-        derived = ("own_balance_minor", "history_from")
+        derived = ("own_balance_minor", "history_from", "parent_id", "available_minor")
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
         values["own_balance_minor"] = row.balance - row.credit_limit
         values["history_from"] = history_from
+        values["parent_id"] = row.parent_account_id
+        values["available_minor"] = row.balance + (row.overdraft_limit or 0)
         return cls.model_validate(values)
 
 
@@ -73,6 +84,16 @@ class TransactionOut(BaseModel):
     internal_transfer: bool  # the counterparty is another account of the same owner
     declined: bool  # refused by the bank: not money that moved, never counted as spent
     settled_at: datetime | None
+    category: str  # the owner's override, else the normalised one (never null)
+    category_overridden: bool
+
+    @classmethod
+    def from_row(cls, row: Any) -> Self:
+        derived = ("category", "category_overridden")
+        values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
+        values["category"] = row.category_override or row.category or "other"
+        values["category_overridden"] = row.category_override is not None
+        return cls.model_validate(values)
 
 
 class TransactionsOut(BaseModel):
@@ -102,3 +123,31 @@ class FinanceSummaryOut(BaseModel):
     month: str  # YYYY-MM, in the configured time zone
     as_of: datetime | None  # the oldest balance among the accounts counted
     currencies: list[CurrencySummary]
+
+
+class CategorySpend(BaseModel):
+    model_config = _RESPONSE
+
+    category: str
+    spent: int
+    previous: int  # the same category the month before
+
+
+class CurrencyCategories(BaseModel):
+    """Money out in one currency, by category, internal transfers and declined payments left
+    out; `spent` and `previous` are positive minor units."""
+
+    model_config = _RESPONSE
+
+    currency: str
+    spent: int
+    previous_spent: int
+    categories: list[CategorySpend]
+
+
+class CategoriesOut(BaseModel):
+    model_config = _RESPONSE
+
+    month: str  # YYYY-MM, in the configured time zone
+    previous_month: str
+    currencies: list[CurrencyCategories]

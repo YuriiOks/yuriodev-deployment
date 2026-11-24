@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0010"
+    assert version == "dashboards_0011"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -308,3 +308,36 @@ async def test_collected_tasks_carry_the_sources_priority_time_and_draft_flag(em
 
     assert columns == "draft:NO,source_priority:YES,source_updated_at:YES"
     assert default is False
+
+
+async def test_accounts_and_transactions_get_their_presentation_and_category_columns(
+    empty_db_url,
+):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_LINK, NEW_ACCOUNT, NEW_TRANSACTION)
+
+    columns = await scalar(
+        empty_db_url,
+        "SELECT string_agg(table_name || '.' || column_name, ',' ORDER BY table_name, column_name) "
+        "FROM information_schema.columns WHERE table_schema = 'finance' AND column_name IN "
+        "('kind', 'parent_account_id', 'goal_amount', 'overdraft_limit', 'label', 'category', "
+        "'category_override')",
+    )
+    kind = await scalar(empty_db_url, "SELECT kind FROM finance.account")
+    category = await scalar(empty_db_url, "SELECT category IS NULL FROM finance.transaction")
+
+    assert columns == (
+        "account.goal_amount,account.kind,account.label,account.overdraft_limit,"
+        "account.parent_account_id,transaction.category,transaction.category_override"
+    )
+    assert kind == "current"
+    assert category is True  # worked out at startup, not by the migration
+    for statement in (
+        "UPDATE finance.account SET kind = 'wallet'",
+        "UPDATE finance.transaction SET category = 'fun'",
+        "UPDATE finance.transaction SET category_override = 'fun'",
+        "UPDATE finance.account SET parent_account_id = gen_random_uuid()",
+    ):
+        with pytest.raises(IntegrityError):
+            await execute(empty_db_url, statement)
+    await execute(empty_db_url, "UPDATE finance.transaction SET category_override = 'health'")

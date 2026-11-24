@@ -60,6 +60,12 @@ class AccountData:
     balance: int
     credit_limit: int
     opened_at: datetime | None = None  # when the provider says it was opened: the history's start
+    # What a page needs to present the account (see `ACCOUNT_KINDS` in the models).
+    kind: str = "current"  # current | credit_card | savings | pot | business
+    parent_external_id: str | None = None  # a pot's current account
+    goal_amount: int | None = None  # a pot's goal, when the provider gives one (minor units)
+    overdraft_limit: int | None = None  # a current account's agreed overdraft (minor units)
+    label: str | None = None  # a neutral sub-type ("Joint", "Platinum"), never a holder's name
 
 
 @dataclass(frozen=True)
@@ -78,6 +84,7 @@ class TransactionData:
     internal_transfer: bool = False  # the counterparty is another account of the same owner
     declined: bool = False  # refused by the bank: never money that moved
     settled_at: datetime | None = None  # when it left pending, if the provider says
+    category: str | None = None  # one of `categories.CATEGORIES`; None until it is worked out
 
 
 class FinanceProvider(Protocol):
@@ -406,6 +413,7 @@ class FinanceCollector:
                 "internal_transfer": item.internal_transfer,
                 "declined": item.declined,
                 "settled_at": item.settled_at,
+                "category": item.category,
             }
             for item in window.items.values()
         ]
@@ -500,6 +508,10 @@ class FinanceCollector:
                     "credit_limit": data.credit_limit,
                     "balance_at": now,
                     "opened_at": data.opened_at,
+                    "kind": data.kind,
+                    "goal_amount": data.goal_amount,
+                    "overdraft_limit": data.overdraft_limit,
+                    "label": data.label,
                     "archived": False,
                     "updated_at": now,
                 }
@@ -514,6 +526,24 @@ class FinanceCollector:
                         index_elements=[Account.provider, Account.external_id], set_=values
                     )
                 )
+            for data in accounts:
+                if data.parent_external_id is not None:  # a pot belongs to its current account
+                    parent = (
+                        select(Account.id)
+                        .where(
+                            Account.provider == provider.name,
+                            Account.external_id == data.parent_external_id,
+                        )
+                        .scalar_subquery()
+                    )
+                    await session.execute(
+                        update(Account)
+                        .where(
+                            Account.provider == provider.name,
+                            Account.external_id == data.external_id,
+                        )
+                        .values(parent_account_id=parent)
+                    )
             if accounts:  # an empty answer proves nothing: never archive everything on it
                 await session.execute(
                     update(Account)

@@ -476,3 +476,26 @@ async def test_the_edge_of_the_five_minutes_is_not_a_refused_token(
     assert again["calls"] == 0  # the walk ended at the 90-day limit, nothing is retried
     assert await scalar(db_url, COUNT) == 1
     assert await account_field(db_url, "backfill_done") is True
+
+
+async def test_accounts_are_presented_with_kind_label_pot_parent_goal_and_overdraft(
+    db_url, make_dashboards_app, clock
+):
+    fake = FakeMonzo(clock)
+    fake.accounts[0]["account_number"] = "12345678"
+    fake.balance = {"balance": -74_782, "currency": "GBP", "overdraft_limit": 100_000}
+    fake.pots[0]["goal_amount"] = 300_000
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as http, client_for(fake) as client:
+        await consent(app, fake, clock)
+        await drive(collector_for(app, clock), client, app.state.dashboards.sessions, clock, 1)
+        accounts = (await http.get(f"{BASE}/accounts")).json()["accounts"]
+
+    current = next(a for a in accounts if a["kind"] == "current")
+    pot = next(a for a in accounts if a["kind"] == "pot")
+    assert (current["label"], current["mask_last4"]) == ("Personal", "5678")
+    assert (current["balance"], current["overdraft_limit"]) == (-74_782, 100_000)
+    assert current["available_minor"] == 25_218  # what is left of the overdraft
+    assert (pot["name"], pot["goal_amount"]) == ("Holiday", 300_000)
+    assert pot["parent_id"] == current["id"]
+    assert (current["parent_id"], current["goal_amount"]) == (None, None)

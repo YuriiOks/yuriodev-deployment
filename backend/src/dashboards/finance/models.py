@@ -30,6 +30,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 SCHEMA = "finance"
 CONNECTION_STATUSES = ("ok", "needs_reconsent", "paused")
+ACCOUNT_KINDS = ("current", "credit_card", "savings", "pot", "business")
 
 
 class FinanceBase(DeclarativeBase):
@@ -78,6 +79,15 @@ class Account(FinanceBase):
     credit_limit: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     balance_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # How a page presents it (migration `dashboards_0011`): the kind, a pot's current account and
+    # goal, a current account's overdraft, a neutral sub-type label.
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default="current")
+    parent_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.account.id"), nullable=True
+    )
+    goal_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    overdraft_limit: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    label: Mapped[str | None] = mapped_column(String(60), nullable=True)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     synced_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     backfilled_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -124,6 +134,10 @@ class Transaction(FinanceBase):
     internal_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     declined: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The normalised category (null until worked out) and the owner's override, which no collector
+    # writes: what a page shows is the override, else the category, else "other".
+    category: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    category_override: Mapped[str | None] = mapped_column(String(24), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
