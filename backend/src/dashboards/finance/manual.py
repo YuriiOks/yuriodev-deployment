@@ -142,14 +142,14 @@ MANUAL_FIELDS = frozenset({"name", "label", "mask_last4", "archived", "credit_li
 
 
 def _brand(background: str | None, foreground: str | None) -> tuple[str | None, str | None]:
-    """A colour pair as lower-case `#rrggbb`: both or neither, readable (WCAG AA, 4.5)."""
+    """A colour pair as lower-case `#rrggbb`: both or neither, readable (contrast of 3:1)."""
     if background is None and foreground is None:
         return None, None
     if background is None or foreground is None:
         raise invalid("Give both brand colours or neither")
     pair = background.lower(), foreground.lower()
     if not readable(*pair):
-        raise invalid("The brand colours must be #rrggbb with a contrast of at least 4.5")
+        raise invalid("The brand colours must be #rrggbb with a contrast of at least 3")
     return pair
 
 

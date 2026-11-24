@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/dashboards/v1/finance/manual", tags=["finance"])
 @router.post("/connections", status_code=201)
 async def create_connection(body: manual.ConnectionIn, session: SessionDep) -> ConnectionOut:
     """A bank entered by hand. `provider` is an id such as `barclays` or a neutral one of your own;
-    `display_name` and `brand_bg`/`brand_fg` (WCAG AA contrast) are for a bank without a built-in
+    `display_name` and `brand_bg`/`brand_fg` (contrast of 3:1) are for a bank without a built-in
     brand. A bank with its own API (monobank, monzo) is refused."""
     return ConnectionOut.model_validate(await manual.create_connection(session, body))
 

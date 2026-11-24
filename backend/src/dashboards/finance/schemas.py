@@ -286,7 +286,7 @@ class LogoOut(BaseModel):
 
 
 class ColorsOut(BaseModel):
-    """A brand colour and the text colour on it (WCAG AA contrast, at least 4.5)."""
+    """A brand colour and the text colour on it (contrast of at least 3:1)."""
 
     model_config = _RESPONSE
 
