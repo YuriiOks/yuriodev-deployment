@@ -587,7 +587,16 @@
   column-gap: var(--space-3);
 }
 
+.dueEnd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .managedNext {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
   white-space: nowrap;
@@ -632,6 +641,13 @@
   background: var(--dash-surface);
   border: 1px solid var(--dash-edge);
   border-radius: var(--dash-r-control);
+}
+
+.menuNote {
+  padding: var(--space-1) var(--space-3);
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  white-space: nowrap;
 }
 
 .menuItem {

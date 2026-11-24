@@ -301,15 +301,17 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
             {!row.isActive && <span className={styles.badge}> · {r.inactive}</span>}
           </strong>
           <span className={styles.note}>
-            {[r.kinds[row.kind], frequencyLabel(row, r), account ? fill(r.paidFrom, { account: account.name }) : row.paymentMethod ?? r.notLinked].filter(Boolean).join(' · ')}
+            {[r.kinds[row.kind], frequencyLabel(row, r)].join(' · ')}
           </span>
+        </span>
+        <span className={styles.managedNext}>
+          {row.scheduleState === 'ended_by_schedule' ? r.endedMark : row.nextDate ? dayLabel(row.nextDate, lang) : ''}
           <TruthMark evidence={row.evidence} />
         </span>
-        <span className={styles.managedNext}>{row.scheduleState === 'ended_by_schedule' ? r.endedMark : row.nextDate ? dayLabel(row.nextDate, lang) : ''}</span>
         <strong className={styles.dueAmount}>
           <Amount amount={row.amount} currency={row.currency} display={row.display} mode={mode} />
         </strong>
-        {!editing && <RowMenu name={row.name} active={row.isActive} busy={busy} onEdit={onEdit} onToggle={toggle} />}
+        {!editing && <RowMenu name={row.name} active={row.isActive} busy={busy} payer={account ? fill(r.paidFrom, { account: account.name }) : row.paymentMethod ?? r.notLinked} onEdit={onEdit} onToggle={toggle} />}
       </div>
       {failed && (
         <p role="alert" className={styles.error}>
@@ -322,7 +324,7 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
 };
 
 /** The row-end menu: Edit and Deactivate (or Activate). Escape and a click outside close it, and focus goes back to its button. */
-const RowMenu: React.FC<{ name: string; active: boolean; busy: boolean; onEdit: () => void; onToggle: () => void }> = ({ name, active, busy, onEdit, onToggle }) => {
+const RowMenu: React.FC<{ name: string; active: boolean; busy: boolean; /** What pays it (the account, the method, or "not linked to an account"): said here, not on the row. */ payer: string; onEdit: () => void; onToggle: () => void }> = ({ name, active, busy, payer, onEdit, onToggle }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const [open, setOpen] = useState(false);
@@ -357,6 +359,7 @@ const RowMenu: React.FC<{ name: string; active: boolean; busy: boolean; onEdit: 
       </button>
       {open && (
         <div role="menu" className={styles.menu}>
+          <span className={styles.menuNote}>{payer}</span>
           <button type="button" role="menuitem" className={styles.menuItem} onClick={() => choose(onEdit)}>
             {r.edit}
           </button>

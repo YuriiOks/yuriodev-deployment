@@ -4,15 +4,15 @@ import { prefersWhiteInk } from '../../../services/dashboards/providerBrand';
 import styles from './Recurring.module.css';
 
 /**
- * A payment's picture: its `icon_url` in an <img> (https only, no referrer sent, hidden when it fails to load), else a tile in its colour
+ * A payment's picture: its `icon_url` in an <img> (at most a few at a time, only when near the screen, no referrer sent; the tile shows if it fails to load), else a tile in its colour
  * with its first letter. Decorative: the name is beside it.
  */
 const RecurringIcon: React.FC<{ name: string; iconUrl: string | null; color: string | null }> = ({ name, iconUrl, color }) => {
   const image = useImageFallback(iconUrl);
   if (iconUrl && !image.failed) {
     return (
-      <span aria-hidden="true" className={styles.icon}>
-        <img key={image.attempt} src={iconUrl} alt="" referrerPolicy="no-referrer" loading="lazy" draggable={false} onError={image.onError} />
+      <span ref={image.ref} aria-hidden="true" className={styles.icon}>
+        <img key={image.attempt} src={image.ready ? iconUrl : undefined} alt="" referrerPolicy="no-referrer" decoding="async" draggable={false} onLoad={image.onLoad} onError={image.onError} />
       </span>
     );
   }

@@ -757,9 +757,19 @@ describe('the Money page: managing recurring payments', () => {
     const names = () => panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-payment')).map((row) => row.querySelector('strong')?.textContent);
     // By next date (all the same here), then by name.
     await waitFor(() => expect(names()).toEqual(['Broadband', 'Gym', 'Streaming']));
-    expect(panel.getByText(/from Everyday/)).toBeInTheDocument();
-    expect(panel.getByText(/Visa ending 0000/)).toBeInTheDocument();
-    expect(panel.getAllByText(/not linked to an account/).length).toBeGreaterThan(0);
+    // What pays a payment is said in its row's menu, not on the row (the row has one meta line: kind and frequency).
+    const payer = async (name: string) => {
+      const row = panel.getByText(name).closest('li') as HTMLElement;
+      await user.click(within(row).getByRole('button', { name: /^Actions: / }));
+      const menu = within(row).getByRole('menu');
+      const text = menu.textContent ?? '';
+      await user.keyboard('{Escape}');
+      return text;
+    };
+    expect(panel.queryByText(/not linked to an account/)).toBeNull();
+    expect(await payer('Gym')).toContain('from Everyday');
+    expect(await payer('Streaming')).toContain('Visa ending 0000');
+    expect(await payer('Broadband')).toContain('not linked to an account');
     await user.type(panel.getByRole('searchbox', { name: 'Search payments' }), 'streamco');
     expect(names()).toEqual(['Streaming']);
     await user.clear(panel.getByRole('searchbox', { name: 'Search payments' }));

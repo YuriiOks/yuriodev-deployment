@@ -39,11 +39,13 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; acc
         {item.covered === false && item.accountShortTotal !== null && item.shortfall !== null && item.accountShortTotal > item.shortfall && item.accountCurrency && (
           <span className={styles.note}>{fill(r.shortTotal, { amount: formatMinor(item.accountShortTotal, item.accountCurrency, lang as 'ru' | 'en') })}</span>
         )}
+      </span>
+      <span className={styles.dueEnd}>
+        <strong className={styles.dueAmount}>
+          <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} />
+        </strong>
         <TruthMark evidence={evidence} />
       </span>
-      <strong className={styles.dueAmount}>
-        <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} />
-      </strong>
     </li>
   );
 };
