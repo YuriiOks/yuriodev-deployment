@@ -112,12 +112,17 @@ afterEach(() => {
 const wallet = () => within(within(main()).getByRole('region', { name: 'Wallet' }));
 const bankButton = (name: string) => wallet().getByRole('button', { name: new RegExp(`^${name}`) });
 const opened = () => within(wallet().getByRole('article'));
+/** The wallet's region exists once the bootstrap has answered; the banks once the accounts have. */
+const banksReady = async () => {
+  await within(main()).findByRole('region', { name: 'Wallet' });
+  return wallet().findByRole('group', { name: 'Banks' });
+};
 
 describe('the Money page: totals and the wallet', () => {
   it('shows the totals per currency with their symbol and the part in pots, and never a sum across currencies', async () => {
     setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     const blocks = within(main().querySelector('header') as HTMLElement).getAllByRole('listitem');
     // GBP: the open accounts of two banks (an overdraft counts as negative); archived accounts are left out.
     expect(blocks.map((block) => block.textContent)).toEqual([
@@ -137,7 +142,7 @@ describe('the Money page: totals and the wallet', () => {
     setup();
     const user = userEvent.setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => button.querySelector('strong')?.textContent);
     expect(names).toEqual(['Acme bank', 'Monzo', 'Monobank']);
     expect(bankButton('Acme bank')).toHaveAttribute('aria-pressed', 'true');
@@ -154,7 +159,7 @@ describe('the Money page: totals and the wallet', () => {
   it('colours a bank we know in its brand pair, and any other in the neutral card', async () => {
     setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     expect(bankButton('Monzo').getAttribute('style')).toContain('--bank-bg: #b3261e');
     expect(bankButton('Monobank').getAttribute('style')).toContain('--bank-fg: #ffffff');
     expect(bankButton('Acme bank').getAttribute('style')).toBeNull();
@@ -164,7 +169,7 @@ describe('the Money page: totals and the wallet', () => {
     setup();
     const user = userEvent.setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     const accounts = opened().getByRole('region', { name: 'Accounts' });
     const rows = within(accounts).getAllByRole('listitem').map((row) => row.textContent ?? '');
     expect(rows).toHaveLength(4);
@@ -197,7 +202,7 @@ describe('the Money page: totals and the wallet', () => {
     setup();
     const user = userEvent.setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     await user.click(bankButton('Monobank'));
     const card = opened().getByText('Platinum credit').closest('li') as HTMLElement;
     expect(card.getAttribute('data-kind')).toBe('debt');
@@ -215,7 +220,7 @@ describe('the Money page: totals and the wallet', () => {
     setup();
     const user = userEvent.setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     await user.click(bankButton('Monzo'));
     const main_ = opened().getByText('Main').closest('li') as HTMLElement;
     expect(main_.getAttribute('data-kind')).toBe('overdrawn');
@@ -226,7 +231,7 @@ describe('the Money page: totals and the wallet', () => {
     setup();
     const user = userEvent.setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     expect(bankButton('Acme bank')).toHaveTextContent(/connected · updated/);
     expect(bankButton('Monzo')).toHaveTextContent('needs reconnecting');
     await user.click(bankButton('Monzo'));
@@ -416,7 +421,7 @@ describe('the Money page: pounds by default, originals beside', () => {
   it('offers no display choice, and shows the originals, while the server sends no converted figures', async () => {
     setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     expect(within(main()).queryByRole('group', { name: 'Amounts' })).toBeNull();
     expect(main()).not.toHaveTextContent('≈');
   });
@@ -424,7 +429,7 @@ describe('the Money page: pounds by default, originals beside', () => {
   it('shows pounds by default with one grand total, the rate once, the currency with no rate named, and the per-currency parts under it', async () => {
     setup({ finance: converted() });
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     const choice = within(main()).getByRole('group', { name: 'Amounts' });
     expect(within(choice).getByRole('button', { name: 'in pounds' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(choice).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'false');
@@ -443,7 +448,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     setup({ finance: converted() });
     const user = userEvent.setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     // Monobank: UAH and USD converted into one figure; JPY has no rate and stays.
     expect(bankButton('Monobank')).toHaveTextContent('≈ £293.00');
     expect(bankButton('Monobank')).toHaveTextContent('¥99,900');
@@ -466,7 +471,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     setup({ finance: converted() });
     const user = userEvent.setup();
     const first = renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     await user.click(within(main()).getByRole('button', { name: 'in account currency' }));
     expect(within(main()).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'true');
     expect(main()).not.toHaveTextContent('≈');
@@ -476,7 +481,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     resetBootstrap();
     installFakeApi({ finance: converted() });
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     expect(within(main()).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
@@ -495,7 +500,7 @@ describe('the Money page: bank logos', () => {
   it('shows a wordmark in place of the text name, keeps the name as the accessible name, and picks the variant by the card', async () => {
     setup({ finance: withLogos() });
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     const acme = bankButton('Acme bank');
     // The decorative image carries no text of its own; the name is there for a screen reader.
     expect(acme.querySelectorAll('img')).toHaveLength(2);
@@ -511,7 +516,7 @@ describe('the Money page: bank logos', () => {
   it('shows the text name when the server has no logo', async () => {
     setup();
     renderAt(PATH);
-    await wallet().findByRole('group', { name: 'Banks' });
+    await banksReady();
     expect(bankButton('Acme bank').querySelector('img')).toBeNull();
     expect(bankButton('Acme bank').querySelector('.sr-only')).toBeNull();
   });
