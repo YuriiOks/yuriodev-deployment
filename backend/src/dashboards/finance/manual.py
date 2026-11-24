@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, time, tzinfo
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -500,6 +500,33 @@ _LAYOUT_REFUSALS = {
 }
 
 
+async def _payee_categories(session: AsyncSession, names: Sequence[str]) -> dict[str, str]:
+    """The category the owner last chose for each payee (lower-case counterparty): a payee that
+    comes back in a later statement keeps it."""
+    wanted = sorted({name.lower() for name in names})
+    if not wanted:
+        return {}
+    lowered = func.lower(Transaction.counterparty)
+    rows = await session.execute(
+        select(lowered, Transaction.category_override)
+        .where(lowered.in_(wanted), Transaction.category_override.is_not(None))
+        .order_by(lowered, Transaction.booked_at.desc())
+    )
+    found: dict[str, str] = {}
+    for name, chosen in rows:
+        found.setdefault(name, chosen)  # the newest choice for a payee comes first
+    return found
+
+
+def _category_of(entry: Entry, provider: str, ruled: dict[str, str]) -> str:
+    """The file's own category, else the owner's earlier choice for the payee, else the rules."""
+    if entry.category is not None:
+        return entry.category
+    if entry.counterparty and (chosen := ruled.get(entry.counterparty.lower())) is not None:
+        return chosen
+    return categorize(provider, None, entry.amount, False)
+
+
 async def _store(
     session: AsyncSession,
     row: Account,
@@ -519,6 +546,7 @@ async def _store(
         )
         known.update(found)
     fresh = [(external, entry) for external, entry in numbered if external not in known]
+    ruled = await _payee_categories(session, [e.counterparty for _, e in fresh if e.counterparty])
     created = len(fresh)
     if not dry_run:
         created = 0
@@ -537,7 +565,8 @@ async def _store(
                     "pending": entry.pending,
                     "declined": entry.declined,
                     "internal_transfer": False,
-                    "category": categorize(row.provider, None, entry.amount, False),
+                    "time_known": entry.at is not None,
+                    "category": _category_of(entry, row.provider, ruled),
                     "created_at": now,
                 }
                 for external, entry in fresh[start : start + INSERT_CHUNK]

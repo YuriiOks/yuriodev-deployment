@@ -182,6 +182,8 @@ class TransactionOut(BaseModel):
     balance_after: int | None
     pending: bool
     internal_transfer: bool  # the counterparty is another account of the same owner
+    internal_transfer_by_owner: bool  # the owner set or cleared it: nothing changes it again
+    time_known: bool  # false for a statement line that had only a day (booked at noon)
     declined: bool  # refused by the bank: not money that moved, never counted as spent
     settled_at: datetime | None
     category: str  # the owner's override, else the normalised one (never null)
@@ -191,8 +193,15 @@ class TransactionOut(BaseModel):
 
     @classmethod
     def from_row(cls, row: Any, display: Display | None = None) -> Self:
-        derived = ("category", "category_overridden", "display_amount_minor", "converted")
+        derived = (
+            "category",
+            "category_overridden",
+            "display_amount_minor",
+            "converted",
+            "internal_transfer_by_owner",
+        )
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
+        values["internal_transfer_by_owner"] = row.transfer_locked
         values["category"] = row.category_override or row.category or "other"
         values["category_overridden"] = row.category_override is not None
         converted = display.convert(row.amount, row.currency) if display else None
@@ -292,6 +301,7 @@ class DisplayCategory(BaseModel):
     spent: int
     previous: int
     previous_to_date: int | None
+    converted: bool  # a currency other than the display currency is in these figures
 
 
 class CategoriesDisplay(DisplayOut):

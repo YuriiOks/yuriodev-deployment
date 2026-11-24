@@ -90,8 +90,10 @@ def register(
         limit: int = service.DEFAULT_LIMIT,
         cursor: str | None = None,
         category: str | None = None,
+        provider: str | None = None,
     ) -> str:
-        """Search transactions, newest first. query is a case-insensitive text found in the
+        """Search transactions, newest first. provider (such as monobank) limits them to that
+        provider's accounts. query is a case-insensitive text found in the
         description or the counterparty; account is an account id from finance_accounts;
         from_date and to_date are YYYY-MM-DD (both days included); min_amount and max_amount
         are signed minor units (money out is negative, so max_amount=-5000 finds payments of 50
@@ -102,7 +104,14 @@ def register(
         except ValueError:
             raise ToolError("Invalid account id") from None
         flt = service.TransactionFilter(
-            account_id, from_date, to_date, query, min_amount, max_amount, category
+            account_id,
+            from_date,
+            to_date,
+            query,
+            min_amount,
+            max_amount,
+            category,
+            provider=provider,
         )
         async with scope("finance_transactions") as (session, now):
             rows, next_cursor = await service.list_transactions(session, flt, zone, limit, cursor)

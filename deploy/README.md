@@ -949,9 +949,12 @@ in `category_code`); a transfer between your own accounts and pots is always `tr
 never spending. Money sent to another person (a money-transfer code, MCC 4829 or 6538-6540, money
 out) is `transfers_out` and is spending; the same code with money in is `income`. Monobank does
 not say that a card-to-card move is between your own cards, so the two legs are paired (equal and
-opposite amounts in one currency, on two different accounts, within 2 minutes, both money-transfer
-lines, each the only candidate of the other; two lookalike sends and one receipt are paired with
-nothing), at startup for everything stored and after every refresh for the last 7 days; both
+opposite amounts in one currency, or in two currencies when the bank states the other amount
+(`original_amount`) or the converted amount is within 3% at the current rate; on two different
+accounts, within 2 minutes, both money-transfer lines, each the only candidate of the other, lines
+already internal counting as candidates; two lookalike sends and one receipt are paired with
+nothing), and only once every open account of the provider has been read past the legs' time plus
+the 2 minutes (a leg whose rival has not arrived yet decides nothing), at startup for everything stored and after every refresh for the last 7 days; both
 legs become internal (`transfers`, out of spend and income). A line once internal stays so when its
 window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM`
 gives money out per currency and category with the month before beside it, and, for the month in
@@ -966,8 +969,16 @@ pre-authorisation) is marked declined and stops counting as money out. An overdr
 bank's) only counts towards `available_minor` of a current or business account, and only those can
 be given one. You can change one transaction's category
 (`PATCH /finance/transactions/{id}`, or the MCP tool `finance_set_category`); that is a note on our
-copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
-categories existed are categorised when the backend next starts.
+copy only (nothing is sent to a bank) and a re-import keeps it. The same PATCH takes
+`internal_transfer: true|false` (with `counterpart_id`, the other leg on another account and the
+other way, both are marked): your decision sticks, no refetch or pairing changes it again
+(`internal_transfer_by_owner` in every row). At every start the categories of the lines that carry
+a provider code are worked out again (only where the result differs; an override is a separate
+column and is never touched), so a corrected or extended rule (more merchant codes: hotels, car
+rental, dealers, insurance, hosting, retail) reaches old lines. `display.categories[].converted`
+is true when a currency other than the display currency is in that line. Every row has
+`time_known` (false for a statement line that had only a day: it is booked at noon). `GET
+/transactions` takes `account` more than once, and `provider=<id>`.
 
 Overdraft limit you set yourself. Monzo sends no overdraft limit, so set it by hand:
 `PATCH /api/dashboards/v1/finance/accounts/{id}` with `{"overdraft_limit": 100000}` (minor units,
@@ -1169,7 +1180,10 @@ them against the bank's own statement with `dry_run` first. `apply_balance` sets
 balance from the file's newest balance unless a newer one is already set (`balance_applied`);
 `balance`, `balance_date` and `balance_would_apply` tell what it would do, on a dry run too;
 a credit card's balance is set by its own endpoint. Imported lines get the category `income` or
-`other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again).
+`other` (change one with `PATCH /transactions/{id}`; it is kept when the file is loaded again), or
+the file's own: a generic CSV may have a `category` column with one of the 14 names (anything else
+is a line error `category_unknown`). A payee (counterparty, any case) whose category you changed
+before keeps it on later statement lines.
 MCP: `finance_add_manual_connection`, `finance_add_manual_account`, `finance_set_manual_balance`,
 `finance_update_manual_account` (archive with `archived: true`).
 `GET /finance/providers` now returns for every built-in brand, every id with a logo and every

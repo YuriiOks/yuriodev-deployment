@@ -28,9 +28,8 @@ from src.dashboards.collectors.manager import (
 )
 from src.dashboards.finance.maintenance import (
     PAIRING_PROVIDERS,
-    fill_categories,
     pair_own_transfers,
-    recategorize_transfers,
+    recompute_categories,
 )
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
@@ -107,8 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 async def after_migrate(sessions: async_sessionmaker[AsyncSession]) -> None:
     """What runs once the schema is at head: the projects' schemas, the categories still missing."""
     await upgrade_projects(sessions)
-    await fill_categories(sessions)
-    await recategorize_transfers(sessions)
+    await recompute_categories(sessions)
     for provider in PAIRING_PROVIDERS:
         await pair_own_transfers(sessions, provider)
 
