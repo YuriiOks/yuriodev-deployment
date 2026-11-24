@@ -4,12 +4,16 @@ run-name: >-
   || format('Images: {0} @ {1}', github.event.workflow_run.head_branch, github.event.workflow_run.head_sha) }}
 
 # One scanned image per commit, then an environment tag:
-#   master           -> sha-<commit>, and :stage follows the newest built master head
-#   any other branch -> dev-<commit> (or the commit's existing sha-<commit>), and :dev = that
-#                       branch while it is still the branch head (the last build to finish wins)
+#   master           -> sha-<commit>, and :stage AND :dev follow the newest built master head
+#   a `dev/*` branch -> dev-<commit> (or the commit's existing sha-<commit>), and :dev = that
+#                       branch while it is still the branch head (an explicit preview; the
+#                       last build to finish wins, and the next master build ends it)
+#   any other branch -> dev-<commit> (or the commit's existing sha-<commit>) and nothing else:
+#                       built and scanned so it can be previewed on demand, but no tag moves
 # Images are pushed by digest, scanned with Trivy, and only then given their immutable
 # <sha|dev>-<commit> tag; a commit that already has one is reused, never rebuilt. :dev and
 # :stage move only when BOTH services exist for the commit.
+# Putting any built branch (or master) on dev by hand: workflow_dispatch below.
 # Production only moves through promote-production.yml (release tag + approval), whose gate
 # requires :stage to be running exactly sha-<tagged commit>. An rc tag (promote-stage.yml)
 # can pin :stage to an older master commit until the next master build.
@@ -17,7 +21,7 @@ run-name: >-
 # branches pushed by anyone but the repository owner (bots included).
 # Registry tags are the source of truth: a workflow_run run is filed under master's tip,
 # not the commit it built, so never look runs up by head_sha here.
-# workflow_dispatch puts an already-built branch back on dev without rebuilding.
+# workflow_dispatch puts an already-built branch (or master) on dev without rebuilding.
 on:
   workflow_run:
     workflows: [CI]
@@ -26,7 +30,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch to put back on dev (its head commit must already have a scanned image)
+        description: Branch to put on dev, master for the default (its head commit must already have a scanned image)
         required: true
         type: string
 
@@ -47,18 +51,19 @@ jobs:
          github.event.workflow_run.triggering_actor.login == github.repository_owner))
     runs-on: ubuntu-24.04
     outputs:
-      target: ${{ steps.p.outputs.target }}
+      targets: ${{ steps.p.outputs.targets }}
       prefix: ${{ steps.p.outputs.prefix }}
     steps:
       - id: p
         env:
           BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          if [ "$BRANCH" = master ]; then
-            echo "target=stage" >> "$GITHUB_OUTPUT"; echo "prefix=sha" >> "$GITHUB_OUTPUT"
-          else
-            echo "target=dev" >> "$GITHUB_OUTPUT"; echo "prefix=dev" >> "$GITHUB_OUTPUT"
-          fi
+          # targets: the environment tags this build may move (a JSON list for the retag matrix)
+          case "$BRANCH" in
+            master) echo 'targets=["stage","dev"]' >> "$GITHUB_OUTPUT"; echo "prefix=sha" >> "$GITHUB_OUTPUT" ;;
+            dev/*)  echo 'targets=["dev"]' >> "$GITHUB_OUTPUT"; echo "prefix=dev" >> "$GITHUB_OUTPUT" ;;
+            *)      echo 'targets=[]' >> "$GITHUB_OUTPUT"; echo "prefix=dev" >> "$GITHUB_OUTPUT" ;;
+          esac
 
   build:
     needs: plan
@@ -153,18 +158,26 @@ jobs:
           echo "### ${{ matrix.service }}: \`$PREFIX-$SHA\` -> \`$DIGEST\` ($BRANCH)" >> "$GITHUB_STEP_SUMMARY"
 
   retag:
+    # A branch that is neither master nor dev/* has no target: it was built and scanned above and
+    # stops there.
+    if: needs.plan.outputs.targets != '[]'
     needs: [plan, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false  # a master build moves :stage and :dev; one failing must not stop the other
+      matrix:
+        target: ${{ fromJSON(needs.plan.outputs.targets) }}
+    # The group names are the old ones: retag-stage is shared with promote-stage.yml.
     concurrency:
-      group: retag-${{ needs.plan.outputs.target }}
+      group: retag-${{ matrix.target }}
       cancel-in-progress: false
     env:
       SHA: ${{ github.event.workflow_run.head_sha }}
       BRANCH: ${{ github.event.workflow_run.head_branch }}
-      TARGET: ${{ needs.plan.outputs.target }}
+      TARGET: ${{ matrix.target }}
     steps:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -172,18 +185,18 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Point :${{ needs.plan.outputs.target }} at a commit whose images both exist
+      - name: Point :${{ matrix.target }} at a commit whose images both exist
         run: |
           set -euo pipefail
           ref() { docker buildx imagetools inspect "$1" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"'; }
           head=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY" "refs/heads/$BRANCH" | awk -v r="refs/heads/$BRANCH" '$2 == r { print $1 }')
-          if [ "$TARGET" = stage ]; then
+          if [ "$BRANCH" = master ]; then
             # Converge on the newest master head that has been built, whatever order builds finish in.
-            # If that head never builds (CI or scan failed), stage stays on the last good build
-            # until a fix lands on master, or an rc tag pins an older good commit.
+            # If that head never builds (CI or scan failed), :stage and :dev stay on the last good
+            # build until a fix lands on master (stage may also be pinned by an rc tag).
             want=$head
           else
-            # A branch that moved on (or a re-run of an old build) never takes dev back.
+            # A dev/* preview that moved on (or a re-run of an old build) never takes dev back.
             [ "$head" = "$SHA" ] || { echo "::notice::$BRANCH is now at ${head:-nothing}, not $SHA; :dev stays"; exit 0; }
             want=$SHA
           fi
@@ -192,7 +205,7 @@ jobs:
           for svc in frontend backend; do
             img="ghcr.io/yuriioks/yuriodev-$svc"
             d=$(ref "$img:sha-$want") || d=""
-            if [ -z "$d" ] && [ "$TARGET" = dev ]; then d=$(ref "$img:dev-$want") || d=""; fi
+            if [ -z "$d" ] && [ "$BRANCH" != master ]; then d=$(ref "$img:dev-$want") || d=""; fi
             if [ -z "$d" ]; then
               echo "::notice::no scanned $svc image for $want yet; :$TARGET stays (its own build will move it)"; exit 0
             fi
@@ -228,7 +241,7 @@ jobs:
           set -euo pipefail
           [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::invalid branch name"; exit 1; }
           case "$BRANCH" in
-            master|production|dependabot/*) echo "::error::'$BRANCH' cannot be put on dev (master runs on stage)"; exit 1 ;;
+            production|dependabot/*) echo "::error::'$BRANCH' cannot be put on dev"; exit 1 ;;
           esac
           sha=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY" "refs/heads/$BRANCH" | awk -v r="refs/heads/$BRANCH" '$2 == r { print $1 }')
           [ -n "$sha" ] || { echo "::error::no branch '$BRANCH'"; exit 1; }
