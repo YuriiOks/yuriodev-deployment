@@ -77,6 +77,9 @@ class RecurringOut(BaseModel):
     completed_installments: int | None
     remaining_installments: int | None  # the total less the confirmed ones
     assumed_installments: int  # passed by the schedule only, never seen in a line
+    # The balance left if every assumed instalment had been paid at `amount` (an estimate: the
+    # confirmed `remaining_balance` less assumed times amount, never below 0); null without one.
+    scheduled_remaining_balance: int | None
     scheduled_installments: int | None  # confirmed plus assumed, at most the total
     schedule_state: ScheduleState | None  # null for a payment that is switched off
     evidence: EvidenceOut | None  # null when no account of ours pays it
@@ -100,6 +103,7 @@ class RecurringOut(BaseModel):
         derived = (
             "remaining_installments",
             "scheduled_installments",
+            "scheduled_remaining_balance",
             "schedule_state",
             "evidence",
             "display_amount",
@@ -112,6 +116,10 @@ class RecurringOut(BaseModel):
         values["remaining_installments"] = None if total is None else max(total - (done or 0), 0)
         values["scheduled_installments"] = (
             None if total is None else min(total, (done or 0) + row.assumed_installments)
+        )
+        left = row.remaining_balance
+        values["scheduled_remaining_balance"] = (
+            None if left is None else max(left - row.assumed_installments * row.amount, 0)
         )
         values["schedule_state"] = state = schedule_state(row, today)
         values["evidence"] = None

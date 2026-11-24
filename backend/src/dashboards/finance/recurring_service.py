@@ -247,16 +247,18 @@ def _step(row: Recurring, end_once: bool = True) -> bool:
     return True
 
 
-def _confirm(row: Recurring) -> None:
-    """An instalment is confirmed paid (by a matching line, or by the owner): the count and the
-    balance that is left move on by one instalment."""
+def _confirm(row: Recurring, paid: int | None = None) -> None:
+    """A payment is confirmed (by a matching line, whose amount is `paid`, or by the owner, when
+    it is the recorded `amount`): the balance that is left of a debt goes down by it, and an
+    instalment plan counts one more instalment."""
+    if row.remaining_balance is not None:
+        taken = row.amount if paid is None else paid
+        row.remaining_balance = max(row.remaining_balance - taken, 0)
     if not row.is_installment:
         return
     total, done = row.total_installments, row.completed_installments
     if total is not None or done is not None:
         row.completed_installments = min((done or 0) + 1, total) if total else (done or 0) + 1
-    if row.remaining_balance is not None:
-        row.remaining_balance = max(row.remaining_balance - row.amount, 0)
 
 
 def _assume(row: Recurring) -> None:
@@ -474,7 +476,7 @@ async def roll_forward(session: AsyncSession, now: datetime, zone: tzinfo) -> in
                 row.last_paid_on = row.last_matched_on = found.booked_at.astimezone(zone).date()
                 row.last_charged_amount = -found.amount
                 row.last_transaction_id = found.id
-                _confirm(row)
+                _confirm(row, -found.amount)
                 _outcome(row, matched=True)
             elif row.account_id is not None or today <= due:
                 break  # waiting for a line, or not due yet

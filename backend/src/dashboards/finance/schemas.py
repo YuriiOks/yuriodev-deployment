@@ -1,12 +1,13 @@
 """Response shapes of the finance API. Money is an `int` in minor units next to its ISO code."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 from src.dashboards.finance.fx import Display
+from src.dashboards.finance.models import OVERDRAFT_KINDS
 
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
 
@@ -98,7 +99,9 @@ class AccountOut(BaseModel):
         own = row.balance - row.credit_limit
         owner, bank = row.overdraft_limit_override, row.overdraft_limit
         limit = bank if owner is None else owner  # the owner's figure wins, always
-        available = row.balance + (limit or 0)
+        # What can be spent: the balance plus the overdraft of a current or business account (a
+        # credit card's balance already counts its limit, a pot or jar has no overdraft).
+        available = row.balance + ((limit or 0) if row.kind in OVERDRAFT_KINDS else 0)
         values["overdraft_limit"] = limit
         values["overdraft_limit_bank"] = bank
         source = "owner" if owner is not None else "bank" if bank is not None else None
@@ -185,7 +188,10 @@ class TransactionsOut(BaseModel):
 
 class CurrencySummary(BaseModel):
     """One currency: the balances of the open accounts and this month's movement (`spent` and
-    `received` are positive; moves between the owner's own accounts count on both sides)."""
+    `received` are positive). Moves between the owner's own accounts, declined payments and lines
+    called `transfers` are left out; a refund (money in on a spending category) is taken off that
+    category's spending, never below 0, and is not `received`. The movement counts every account,
+    archived ones too (their balance is not in `balance`), so a line may have `accounts: 0`."""
 
     model_config = _RESPONSE
 
@@ -227,9 +233,11 @@ class CategorySpend(BaseModel):
 
     category: str
     spent: int
-    previous: int  # the same category the month before
+    previous: int  # the same category the month before, in full
+    previous_to_date: int | None  # the month before up to the same day and time as now
     display_spent: int | None
     display_previous: int | None
+    display_previous_to_date: int | None
 
 
 class CurrencyCategories(BaseModel):
@@ -241,9 +249,11 @@ class CurrencyCategories(BaseModel):
     currency: str
     spent: int
     previous_spent: int
+    previous_to_date_spent: int | None
     categories: list[CategorySpend]
     display_spent: int | None  # the sum of its converted lines
     display_previous_spent: int | None
+    display_previous_to_date_spent: int | None
     converted: bool
 
 
@@ -253,6 +263,7 @@ class DisplayCategory(BaseModel):
     category: str
     spent: int
     previous: int
+    previous_to_date: int | None
 
 
 class CategoriesDisplay(DisplayOut):
@@ -262,6 +273,7 @@ class CategoriesDisplay(DisplayOut):
     complete: bool
     spent: int
     previous_spent: int
+    previous_to_date_spent: int | None  # null for a month that is over
     categories: list[DisplayCategory]
 
 
@@ -270,6 +282,9 @@ class CategoriesOut(BaseModel):
 
     month: str  # YYYY-MM, in the configured time zone
     previous_month: str
+    # The day of the previous month up to which `previous_to_date` is counted (the same day and
+    # time of day as now, clamped to the month's length); null unless the month is the current one.
+    previous_to_date_day: date | None
     currencies: list[CurrencyCategories]
     display: CategoriesDisplay
 

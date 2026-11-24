@@ -945,8 +945,18 @@ opposite amounts in one currency, on two different accounts, within 2 minutes, b
 lines, each the only candidate of the other; two lookalike sends and one receipt are paired with
 nothing), at startup for everything stored and after every refresh for the last 7 days; both
 legs become internal (`transfers`, out of spend and income). A line once internal stays so when its
-window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM` gives money out per currency and category with
-the month before beside it. You can change one transaction's category
+window is fetched again; an owner override is never touched. `GET /finance/categories?month=YYYY-MM`
+gives money out per currency and category with the month before beside it, and, for the month in
+progress, the month before up to the same day and time of day as now (`previous_to_date` on every
+line, currency and in the display block, `previous_to_date_day` the day it reaches, clamped to the
+month's length; null for a month that is over), the like-for-like comparison. Refunds: money in on
+a spending category (a card refund keeps the merchant's category) is taken off that category's
+spending, never below 0, and is not income in `/finance/summary` either, so the report and the
+summary agree. A line whose category is `transfers` (set by you, or by the bank) is left out of
+both. A hold that the bank no longer lists in a window that was fetched whole (a released
+pre-authorisation) is marked declined and stops counting as money out. An overdraft (yours or the
+bank's) only counts towards `available_minor` of a current or business account, and only those can
+be given one. You can change one transaction's category
 (`PATCH /finance/transactions/{id}`, or the MCP tool `finance_set_category`); that is a note on our
 copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
 categories existed are categorised when the backend next starts.

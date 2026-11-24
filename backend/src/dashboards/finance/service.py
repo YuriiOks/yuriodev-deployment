@@ -3,20 +3,21 @@ our copy); every failure of the database becomes 503 `dashboards_unavailable` th
 `service.guarded` (the class is logged, never a statement)."""
 
 import base64
+import calendar
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 
-from sqlalchemy import case, func, literal_column, or_, select, tuple_
+from sqlalchemy import and_, case, false, func, literal_column, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
 from src.dashboards.finance.brands import Brand
-from src.dashboards.finance.categories import CATEGORIES
+from src.dashboards.finance.categories import CATEGORIES, REFUNDABLE
 from src.dashboards.finance.fx import Display, load_rates
-from src.dashboards.finance.models import Account, Connection, Transaction
+from src.dashboards.finance.models import OVERDRAFT_KINDS, Account, Connection, Transaction
 from src.dashboards.finance.schemas import (
     CategoriesDisplay,
     CategoriesOut,
@@ -110,7 +111,7 @@ async def list_accounts(
 
 @guarded
 async def set_overdraft(
-    session: AsyncSession, account_id: uuid.UUID, limit: int | None
+    session: AsyncSession, account_id: uuid.UUID, limit: int | None, commit: bool = True
 ) -> tuple[Account, datetime | None]:
     """The owner's overdraft limit of an account in minor units (None clears it, back to what the
     bank sends). Nothing is sent to a bank, and no collector ever writes this column."""
@@ -119,10 +120,11 @@ async def set_overdraft(
     row = await session.get(Account, account_id)
     if row is None:
         raise AppError(404, "not_found", "Account not found")
-    if row.kind == "pot":
-        raise invalid("A pot has no overdraft")
+    if row.kind not in OVERDRAFT_KINDS and limit is not None:
+        raise invalid("Only a current or business account has an overdraft")
     row.overdraft_limit_override = limit
-    await session.commit()
+    if commit:
+        await session.commit()
     oldest = await session.scalar(
         select(func.min(Transaction.booked_at)).where(
             Transaction.account_id == account_id, Transaction.declined.is_(False)
@@ -253,26 +255,30 @@ async def summary(
             .group_by(Account.currency)
         )
     ).all()
+    category = effective_category()
     out = case((Transaction.amount < 0, -Transaction.amount), else_=0)
     received = case((Transaction.amount > 0, Transaction.amount), else_=0)
     flows = (
         await session.execute(
-            select(Transaction.currency, func.sum(out), func.sum(received))
+            select(Transaction.currency, category, func.sum(out), func.sum(received))
             .where(
                 Transaction.booked_at >= day_start(first, zone),
                 Transaction.booked_at < day_start(following, zone),
                 Transaction.declined.is_(False),  # a refused payment never moved money
                 Transaction.internal_transfer.is_(False),  # nor does a move between own accounts
+                category != "transfers",  # nor one the owner (or the bank) calls that
             )
-            .group_by(Transaction.currency)
+            .group_by(Transaction.currency, category)
         )
     ).all()
     by_currency: dict[str, list[int]] = {}  # count, balance, own balance, spent, received
     for currency, count, total, own, _ in balances:
         by_currency[currency] = [int(count), int(total), int(own), 0, 0]
-    for currency, spent, got in flows:
+    for currency, name, money_out, money_in in flows:
         entry = by_currency.setdefault(currency, [0, 0, 0, 0, 0])
-        entry[3], entry[4] = int(spent), int(got)
+        spent, got = net_flow(name, int(money_out), int(money_in))
+        entry[3] += spent
+        entry[4] += got
     as_of = min((row[4] for row in balances), default=None)
     lines: list[CurrencySummary] = []
     totals = [0, 0, 0, 0]  # the converted parts that have a rate, added
@@ -311,6 +317,15 @@ async def summary(
     )
 
 
+def net_flow(category: str, money_out: int, money_in: int) -> tuple[int, int]:
+    """(spent, received) of one category in one month. Money in on a spending category is a refund:
+    it is taken off what was spent there (never below 0) and is not income; elsewhere (income, and
+    what is sent to people) money out is spent and money in is received."""
+    if category in REFUNDABLE:
+        return max(money_out - money_in, 0), 0
+    return money_out, money_in
+
+
 def shift_month(first: date, months: int) -> date:
     index = first.year * 12 + first.month - 1 + months
     return date(index // 12, index % 12 + 1, 1)
@@ -328,75 +343,118 @@ def month_bounds(month: str | None, now: datetime, zone: tzinfo) -> tuple[date, 
             if dash != "-" or len(year_text) != 4 or len(month_text) != 2:
                 raise ValueError
             first = date(int(year_text), int(month_text), 1)
-        except ValueError:
+            before, after = shift_month(first, -1), shift_month(first, 1)
+        except ValueError:  # also the first and the last month a date can hold: no neighbour
             raise invalid("Invalid month") from None
+        return before, first, after
     return shift_month(first, -1), first, shift_month(first, 1)
+
+
+def _previous_cutoff(
+    before: date, first: date, now: datetime, zone: tzinfo
+) -> tuple[datetime, date] | None:
+    """For the month in progress: the instant in the previous month that is the same day and time
+    of day as now (the day clamped to that month's length), and its day. None for a past month."""
+    local = now.astimezone(zone)
+    if first != date(local.year, local.month, 1):
+        return None
+    day = min(local.day, calendar.monthrange(before.year, before.month)[1])
+    moment = datetime(
+        before.year, before.month, day, local.hour, local.minute, local.second, tzinfo=zone
+    )
+    return moment.astimezone(UTC), date(before.year, before.month, day)
 
 
 @guarded
 async def categories_report(
     session: AsyncSession, month: str | None, now: datetime, zone: tzinfo, display: Display
 ) -> CategoriesOut:
-    """Money out per currency and category for a month and the one before. Left out: transfers
-    between the owner's own accounts and pots, declined payments, and money in."""
+    """Money out per currency and category for a month and the one before, refunds netted off the
+    category they refund. Left out: moves between the owner's own accounts and pots (and what is
+    called `transfers`), declined payments, and money in (apart from refunds). For the month in
+    progress the previous month is also given up to the same day and time (`previous_to_date`),
+    the fair comparison."""
     before, first, after = month_bounds(month, now, zone)
     start_before, start, end = (day_start(day, zone) for day in (before, first, after))
+    cutoff = _previous_cutoff(before, first, now, zone)
     category = effective_category()
-    this_month = case((Transaction.booked_at >= start, -Transaction.amount), else_=0)
-    last_month = case((Transaction.booked_at < start, -Transaction.amount), else_=0)
+    money_out = case((Transaction.amount < 0, -Transaction.amount), else_=0)
+    money_in = case((Transaction.amount > 0, Transaction.amount), else_=0)
+    this_month = Transaction.booked_at >= start
+    last_month = Transaction.booked_at < start
+    to_date = and_(last_month, Transaction.booked_at < cutoff[0]) if cutoff else false()
     rows = (
         await session.execute(
             select(
                 Transaction.currency,
                 category,
-                func.sum(this_month),
-                func.sum(last_month),
+                func.sum(case((this_month, money_out), else_=0)),
+                func.sum(case((this_month, money_in), else_=0)),
+                func.sum(case((last_month, money_out), else_=0)),
+                func.sum(case((last_month, money_in), else_=0)),
+                func.sum(case((to_date, money_out), else_=0)),
+                func.sum(case((to_date, money_in), else_=0)),
             )
             .where(
                 Transaction.booked_at >= start_before,
                 Transaction.booked_at < end,
-                Transaction.amount < 0,
                 Transaction.declined.is_(False),
                 Transaction.internal_transfer.is_(False),
+                category != "transfers",
             )
             .group_by(Transaction.currency, category)
         )
     ).all()
-    grouped: dict[str, list[tuple[str, int, int]]] = {}
-    for currency, name, spent, previous in rows:
-        if int(spent) or int(previous):
-            grouped.setdefault(currency, []).append((name, int(spent), int(previous)))
+    grouped: dict[str, list[tuple[str, int, int, int]]] = {}
+    for currency, name, out_now, in_now, out_before, in_before, out_td, in_td in rows:
+        spent = net_flow(name, int(out_now), int(in_now))[0]
+        previous = net_flow(name, int(out_before), int(in_before))[0]
+        so_far = net_flow(name, int(out_td), int(in_td))[0]
+        if spent or previous:
+            grouped.setdefault(currency, []).append((name, spent, previous, so_far))
     currencies = []
-    merged: dict[str, list[int]] = {}  # per category in the display currency: spent, previous
+    merged: dict[str, list[int]] = {}  # per category, display currency: spent, previous, to date
     for currency in sorted(grouped):
         lines = []
         ordered = sorted(grouped[currency], key=lambda line: (-line[1], line[0]))
-        for name, spent, previous in ordered:
+        for name, spent, previous, so_far in ordered:
             shown_spent = display.convert(spent, currency)
             shown_previous = display.convert(previous, currency)
+            shown_so_far = display.convert(so_far, currency) if cutoff else None
             lines.append(
                 CategorySpend(
                     category=name,
                     spent=spent,
                     previous=previous,
+                    previous_to_date=so_far if cutoff else None,
                     display_spent=shown_spent,
                     display_previous=shown_previous,
+                    display_previous_to_date=shown_so_far,
                 )
             )
             if shown_spent is not None and shown_previous is not None:
-                entry = merged.setdefault(name, [0, 0])
+                entry = merged.setdefault(name, [0, 0, 0])
                 entry[0] += shown_spent
                 entry[1] += shown_previous
+                entry[2] += shown_so_far or 0
         has_rate = display.convert(0, currency) is not None
         currencies.append(
             CurrencyCategories(
                 currency=currency,
                 spent=sum(line.spent for line in lines),
                 previous_spent=sum(line.previous for line in lines),
+                previous_to_date_spent=(
+                    sum(line.previous_to_date or 0 for line in lines) if cutoff else None
+                ),
                 categories=lines,
                 display_spent=sum(line.display_spent or 0 for line in lines) if has_rate else None,
                 display_previous_spent=(
                     sum(line.display_previous or 0 for line in lines) if has_rate else None
+                ),
+                display_previous_to_date_spent=(
+                    sum(line.display_previous_to_date or 0 for line in lines)
+                    if has_rate and cutoff
+                    else None
                 ),
                 converted=display.converted(currency),
             )
@@ -406,15 +464,22 @@ async def categories_report(
     return CategoriesOut(
         month=f"{first.year:04d}-{first.month:02d}",
         previous_month=f"{before.year:04d}-{before.month:02d}",
+        previous_to_date_day=cutoff[1] if cutoff else None,
         currencies=currencies,
         display=CategoriesDisplay(
             **shown,
             complete=not shown["missing"],
-            spent=sum(spent for spent, _ in merged.values()),
-            previous_spent=sum(previous for _, previous in merged.values()),
+            spent=sum(entry[0] for entry in merged.values()),
+            previous_spent=sum(entry[1] for entry in merged.values()),
+            previous_to_date_spent=sum(entry[2] for entry in merged.values()) if cutoff else None,
             categories=[
-                DisplayCategory(category=name, spent=spent, previous=previous)
-                for name, (spent, previous) in ranked
+                DisplayCategory(
+                    category=name,
+                    spent=entry[0],
+                    previous=entry[1],
+                    previous_to_date=entry[2] if cutoff else None,
+                )
+                for name, entry in ranked
             ],
         ),
     )

@@ -35,6 +35,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 SCHEMA = "finance"
 CONNECTION_STATUSES = ("ok", "needs_reconsent", "paused")
 ACCOUNT_KINDS = ("current", "credit_card", "savings", "pot", "business")
+OVERDRAFT_KINDS = ("current", "business")  # the only kinds that can have an overdraft
 
 
 class FinanceBase(DeclarativeBase):

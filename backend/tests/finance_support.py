@@ -288,7 +288,7 @@ def money(value):
         return {
             key: money(item)
             for key, item in value.items()
-            if not key.startswith("display") and key != "converted"
+            if not key.startswith(("display", "previous_to_date")) and key != "converted"
         }
     if isinstance(value, list):
         return [money(v) for v in value]
