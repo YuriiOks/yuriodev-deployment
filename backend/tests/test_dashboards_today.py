@@ -27,7 +27,15 @@ TODAY = date(2026, 11, 22)
 
 
 def task(title, space="personal", **extra):
-    values = {"space_id": space, "title": title, "created_at": NOW - timedelta(days=10)}
+    values = {
+        "space_id": space,
+        "title": title,
+        "created_at": NOW - timedelta(days=10),
+        "status": "open",  # what the database would fill in
+        "priority": False,
+        "draft": False,
+        "source": "web",
+    }
     return Task(id=uuid.uuid4(), **{**values, **extra})
 
 
@@ -205,7 +213,7 @@ async def test_work_1_counts_reviews_and_issues_by_stage(db_url, make_dashboards
             app,
             pr("Review A", 50),
             pr("Review B", 3),
-            pr("Review C", 1),
+            pr("Review C", 2),
             pr("Review D", 1),
             issue("Urgent", "urgent", 5),
             issue("High", "high", 1),
