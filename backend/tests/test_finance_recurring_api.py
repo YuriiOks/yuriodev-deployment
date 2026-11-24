@@ -1136,8 +1136,8 @@ async def test_a_stale_occurrence_on_a_collected_account_is_checked_once_its_win
     assert after["evidence"] == {
         "last_matched_on": "2026-10-31",
         "last_matched_amount": 7_000,
-        "matched_of_last": 0,
-        "checked": 3,  # the last three: two misses, and the date of 20 November, late
+        "matched_of_last": 1,  # the 30 October date was found; the window of 20 November is open
+        "checked": 3,  # the last three: the match and two misses
     }
 
 
@@ -1652,7 +1652,7 @@ async def test_a_file_body_is_not_taken_when_it_is_what_an_html_form_sends(
     async with running(app, AUTH) as client:
         response = await client.post(
             f"{BASE}/recurring/import?dry_run=true",
-            content=b"name,amount,currency,frequency\nA,1,GBP,monthly\n",
+            content=b"name,amount,currency,frequency,next_payment_date\nA,1,GBP,monthly,2026-12-01",
             headers=headers,
         )
 
