@@ -5,7 +5,7 @@ import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { minorToInput, parseMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { createRecurring, FREQUENCIES, RECURRING_KINDS, refusal, updateRecurring, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
+import { createRecurring, FREQUENCIES, RECURRING_KINDS, refreshIcon, refusal, updateRecurring, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
 import type { LoadStatus } from '../../../hooks/useFinance';
 import InlineError from '../InlineError/InlineError';
 import Amount from './Amount';
@@ -24,10 +24,46 @@ interface FormProps {
   /** False until the accounts have been read: the Account choice waits, so a saved payment never loses its account to an empty list. */
   accountsReady?: boolean;
   onDone: (saved: boolean) => void;
+  /** The icon was asked for again (the lists refresh to show it pending). */
+  onIconRefreshed?: () => void;
 }
 
+/** "Refresh icon": asks the server to look for the payment's icon again; says when it is being looked for or could not be found. */
+const RefreshIcon: React.FC<{ row: Recurring; onDone?: () => void }> = ({ row, onDone }) => {
+  const { t } = useDashboardLang();
+  const r = t.money.rec;
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const ask = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await refreshIcon(row.id);
+      onDone?.();
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" className={styles.ghost} disabled={busy} onClick={() => void ask()}>
+        {r.refreshIcon}
+      </button>
+      {row.iconState === 'pending' && <span className={styles.note}>{r.iconPending}</span>}
+      {row.iconState === 'failed' && <span className={styles.note}>{r.iconFailed}</span>}
+      {failed && (
+        <span role="alert" className={styles.error}>
+          {r.actionFailed}
+        </span>
+      )}
+    </>
+  );
+};
+
 /** One payment's fields: name, amount, currency, kind, frequency, next date, the paying account (or a free-text method) and the text its bank line contains. */
-const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = true, onDone }) => {
+const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = true, onDone, onIconRefreshed }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const id = useId();
@@ -41,6 +77,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
   const [accountId, setAccountId] = useState(initial?.accountId ?? '');
   const [method, setMethod] = useState(initial?.paymentMethod ?? '');
   const [match, setMatch] = useState(initial?.matchText ?? '');
+  const [website, setWebsite] = useState(initial?.website ?? '');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const payable = accounts.filter((account) => !account.archived && account.kind !== 'pot');
@@ -69,6 +106,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
     if (initial ? (accountId || null) !== initial.accountId : accountId !== '') body.account_id = accountId || null;
     if (initial ? (method.trim() || null) !== initial.paymentMethod : method.trim() !== '') body.payment_method = method.trim() || null;
     if (initial ? (match.trim() || null) !== initial.matchText : match.trim() !== '') body.match_text = match.trim() || null;
+    if (initial ? (website.trim() || null) !== initial.website : website.trim() !== '') body.website = website.trim() || null;
     setBusy(true);
     setProblem(null);
     try {
@@ -167,6 +205,16 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
             {r.matchHint}
           </span>
         </div>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={`${id}-website`}>
+            {r.fWebsite}
+          </label>
+          <input id={`${id}-website`} className={styles.input} value={website} maxLength={255} placeholder="example.com" aria-describedby={`${id}-website-hint`} onChange={(event) => setWebsite(event.target.value)} />
+          <span id={`${id}-website-hint`} className={styles.note}>
+            {r.websiteHint}
+          </span>
+          {initial && <RefreshIcon row={initial} onDone={onIconRefreshed} />}
+        </div>
       </div>
       {problem && (
         <p role="alert" className={styles.error}>
@@ -241,7 +289,7 @@ const ManagerRow: React.FC<{ row: Recurring; accounts: readonly FinanceAccount[]
           {r.actionFailed}
         </p>
       )}
-      {editing && <PaymentForm initial={row} accounts={accounts} accountsReady={accountsReady} onDone={onDone} />}
+      {editing && <PaymentForm initial={row} accounts={accounts} accountsReady={accountsReady} onDone={onDone} onIconRefreshed={onChanged} />}
     </li>
   );
 };

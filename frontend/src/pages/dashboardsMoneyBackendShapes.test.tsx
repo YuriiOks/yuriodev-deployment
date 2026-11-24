@@ -347,3 +347,83 @@ describe('the Money page: loading, error and refresh states', () => {
     expect(panel.queryByRole('button', { name: 'Clear filters' })).toBeNull();
   });
 });
+
+describe('the Money page: what the backend added after the audit', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+
+  it('shows a payment\'s inlined icon, the colour tile while it is pending, and offers a website and "Refresh icon" in the form', async () => {
+    const api = setup({
+      finance: {
+        recurring: [payment('r-1', 'Streaming', { icon_data: PNG, icon_state: 'ok', website: 'streaming.example.com' }), payment('r-2', 'Gym', { icon_data: null, icon_state: 'pending', color: '#3366cc' })],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    const streaming = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
+    expect(streaming.querySelector('img')).toHaveAttribute('src', PNG);
+    const gym = panel.getByText('Gym').closest('li') as HTMLElement;
+    expect(gym.querySelector('img')).toBeNull();
+    expect(gym).toHaveTextContent('G');
+    await user.click(within(streaming).getByRole('button', { name: /Edit/ }));
+    expect(panel.getByLabelText('Website')).toHaveValue('streaming.example.com');
+    await user.click(panel.getByRole('button', { name: 'Refresh icon' }));
+    await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-1/icon/refresh')).toHaveLength(1));
+    await user.clear(panel.getByLabelText('Website'));
+    await user.type(panel.getByLabelText('Website'), 'cdn.example.org');
+    await user.click(panel.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-1')[0]?.body).toEqual({ website: 'cdn.example.org' }));
+  });
+
+  it('reads the way to reconnect from the provider: a link for oauth, the hint only for a token', async () => {
+    setup({
+      finance: {
+        connections: [
+          { id: 'c-1', provider: 'acme-bank', status: 'needs_reconsent', last_ok_at: '2026-11-20T09:00:00Z' },
+          { id: 'c-2', provider: 'globex-bank', status: 'needs_reconsent', last_ok_at: '2026-11-20T09:00:00Z' },
+        ],
+        accounts: [account(), account({ id: 'a-2', connection_id: 'c-2', provider: 'globex-bank', name: 'Globex main' })],
+        providers: [
+          { id: 'acme-bank', name: 'Acme Bank', reconnect: 'oauth', reconnect_path: '/api/dashboards/v1/finance/acme/connect' },
+          { id: 'globex-bank', name: 'Globex', reconnect: 'token', reconnect_path: null },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const wallet = within(await within(main()).findByRole('region', { name: 'Wallet' }));
+    await user.click(await wallet.findByRole('button', { name: /Acme Bank/ }));
+    for (const link of await wallet.findAllByRole('link', { name: 'Reconnect' })) expect(link).toHaveAttribute('href', '/api/dashboards/v1/finance/acme/connect');
+    await user.click(wallet.getByRole('button', { name: /Globex/ }));
+    await waitFor(() => expect(wallet.queryByRole('link', { name: 'Reconnect' })).toBeNull());
+  });
+
+  it('shows the result of the bank\'s consent page once and cleans the address', async () => {
+    setup();
+    renderAt(`${PATH}?monzo=denied`);
+    expect(await screen.findByText('Access was not approved: Monzo was refused.')).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).not.toContain('monzo'));
+  });
+
+  it('hides the time of a line that had only a day, and marks a line as a move between the owner\'s own accounts', async () => {
+    const api = setup({
+      finance: {
+        transactions: [
+          { id: 't-1', account_id: 'a-current', booked_at: '2026-11-20T12:00:00Z', amount: -1500, currency: 'GBP', description: 'Statement line', counterparty: 'Corner Cafe', pending: false, declined: false, internal_transfer: false, internal_transfer_by_owner: false, time_known: false, converted: false, category: 'other' },
+          { id: 't-2', account_id: 'a-current', booked_at: '2026-11-21T09:30:00Z', amount: -2500, currency: 'GBP', description: 'Card payment', counterparty: 'Fresh Market', pending: false, declined: false, internal_transfer: false, internal_transfer_by_owner: false, time_known: true, converted: false, category: 'other' },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Transactions' }));
+    const dayOnly = (await panel.findByText('Corner Cafe')).closest('li') as HTMLElement;
+    expect(dayOnly).toHaveTextContent(/Nov 20, 2026/);
+    expect(dayOnly).not.toHaveTextContent(/AM|PM/);
+    const timed = panel.getByText('Fresh Market').closest('li') as HTMLElement;
+    expect(timed).toHaveTextContent(/AM|PM/);
+    await user.click(within(dayOnly).getByRole('button', { name: 'Mark as a move between my accounts' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/transactions/t-1')[0]?.body).toEqual({ internal_transfer: true }));
+    expect(await within((await panel.findByText('Corner Cafe')).closest('li') as HTMLElement).findByRole('button', { name: 'Not a move between my accounts' })).toBeInTheDocument();
+  });
+});

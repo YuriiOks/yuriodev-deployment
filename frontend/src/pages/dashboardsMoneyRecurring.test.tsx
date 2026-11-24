@@ -106,6 +106,8 @@ function finance(overrides: Partial<FinanceData> = {}): FinanceData {
   return {
     accounts: [acct('a-current', 'Everyday', 45050, { mask_last4: '1234' }), acct('a-card', 'Plastic card', 217400, { type: 'credit', credit_limit: 300000, own_balance_minor: -82600 })],
     connections: [{ provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z' }],
+    // How the server says a bank that needs approving again is mended.
+    providers: [{ id: 'monzo', name: 'Monzo', reconnect: 'oauth', reconnect_path: '/api/dashboards/v1/finance/monzo/connect' }],
     transactions: [],
     summary: { month: '2026-11', as_of: '2026-11-23T09:00:00Z', currencies: [{ currency: 'GBP', accounts: 2, balance: 45050, own_balance: 45050, spent: 0, received: 0 }] },
     ...overrides,
@@ -606,7 +608,7 @@ describe('the Money page: upcoming payments', () => {
     to_date: '2026-12-07',
     items: [
       due('r-1', 'Streaming', '2026-11-23', 0, { covered: true, account_id: 'a-current', color: '#3366cc' }),
-      due('r-2', 'Gym', '2026-11-24', 1, { amount: 2500, covered: false, shortfall: 700, account_currency: 'GBP', account_id: 'a-current', icon_url: 'https://icons.example.com/gym.png' }),
+      due('r-2', 'Gym', '2026-11-24', 1, { amount: 2500, covered: false, shortfall: 700, account_currency: 'GBP', account_id: 'a-current', icon_data: 'data:image/png;base64,iVBORw0KGgo=' }),
       due('r-3', 'Cloud storage', '2026-11-24', 1, { amount: 500, currency: 'USD', display_amount: 395, converted: true, payment_method: 'Visa ending 0000', covered: null }),
       due('r-4', 'Rent', '2026-12-01', 8, { amount: 90000, kind: 'housing' }),
     ],
@@ -646,15 +648,15 @@ describe('the Money page: upcoming payments', () => {
     expect(panel.getByText('Currencies with no rate are not in the total.')).toBeInTheDocument();
   });
 
-  it('shows the picture only from an https address with no referrer, hides it when it fails to load, and falls back to a tile in its colour', async () => {
-    setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_url: 'http://icons.example.com/x.png' })] } } });
+  it('shows the inlined picture with no referrer (never an http address), hides it when it fails to load, and falls back to a tile in its colour', async () => {
+    setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_data: 'http://icons.example.com/x.png' })] } } });
     const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     await user.click(await panel.findByRole('button', { name: 'Show all 5' }));
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
     const image = gym.querySelector('img') as HTMLImageElement;
-    expect(image).toHaveAttribute('src', 'https://icons.example.com/gym.png');
+    expect(image).toHaveAttribute('src', 'data:image/png;base64,iVBORw0KGgo=');
     expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
     fireEvent.error(image);
     expect(gym.querySelector('img')).toBeNull();

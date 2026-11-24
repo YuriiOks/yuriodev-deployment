@@ -54,7 +54,7 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
   const totals = shownTotals(bank.accounts, mode);
   const [lead, ...rest] = totals;
   const warn = bank.connection?.status === 'needs_reconsent';
-  const reconnect = warn ? reconnectPath(bank.provider) : null;
+  const reconnect = warn ? reconnectPath(logo) : null;
   const id = `money-bank-${bank.provider}`;
   return (
     <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider, logo)}>
@@ -207,7 +207,7 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
   const accounts = showEmpty ? [...split.accounts, ...split.emptyAccounts] : split.accounts;
   const pots = showEmpty ? [...split.pots, ...split.emptyPots] : split.pots;
   const potsSum = pots.length > 0 ? totals.filter((total) => total.pots !== 0) : [];
-  const reconnect = bank.connection?.status === 'needs_reconsent' ? reconnectPath(bank.provider) : null;
+  const reconnect = bank.connection?.status === 'needs_reconsent' ? reconnectPath(logo) : null;
   const manual = bank.connection?.manual === true;
   const connectionId = bank.connection?.id ?? null;
   const [addingAccount, setAddingAccount] = useState(false);

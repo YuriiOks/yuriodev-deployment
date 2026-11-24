@@ -53,7 +53,7 @@ const AttentionRow: React.FC<RowContext & { item: AttentionItem }> = ({ item, re
   const [failed, setFailed] = useState<'failed' | 'moved' | null>(null);
   const hidden = item.state !== 'active';
   const provider = subject.provider;
-  const reconnect = item.kind === 'reconsent' && provider ? reconnectPath(provider) : null;
+  const reconnect = item.kind === 'reconsent' && provider ? reconnectPath(logos[provider]) : null;
   const payment = subject.payment;
   const paymentLink = payment ? `?view=recurring&edit=${encodeURIComponent(payment.id)}` : null;
   const charged = item.kind === 'amount_changed' && payment && item.amount !== null && item.amount > 0 && item.currency === payment.currency ? item.amount : null;

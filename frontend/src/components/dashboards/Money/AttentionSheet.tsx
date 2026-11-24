@@ -101,7 +101,7 @@ const AttentionSheet: React.FC<AttentionSheetProps> = ({ item, recurring, accoun
   const payment = subject.payment;
   const provider = subject.provider;
   const charged = item.kind === 'amount_changed' && payment && item.amount !== null && item.amount > 0 && item.currency === payment.currency ? item.amount : null;
-  const reconnect = item.kind === 'reconsent' && provider ? reconnectPath(provider) : null;
+  const reconnect = item.kind === 'reconsent' && provider ? reconnectPath(logos[provider]) : null;
   const paymentLink = payment ? `?view=recurring&edit=${encodeURIComponent(payment.id)}` : null;
   const titleId = 'money-attention-sheet-title';
 

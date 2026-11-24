@@ -38,9 +38,11 @@ describe('providers', () => {
   it('shows an id as a name, and knows a reconnect route only for the provider that has one', () => {
     expect(providerName('some-bank')).toBe('Some bank');
     expect(providerName('')).toBe('');
-    expect(reconnectPath('toString')).toBeNull();
-    expect(reconnectPath('acme-bank')).toBeNull();
-    expect(reconnectPath('monzo')).toBe('/api/dashboards/v1/finance/monzo/connect');
+    // The way to reconnect is what the server says: a link for oauth, nothing to link for a token or a bank by hand or before the answer arrives.
+    expect(reconnectPath(undefined)).toBeNull();
+    expect(reconnectPath({ reconnect: 'token', reconnectPath: null })).toBeNull();
+    expect(reconnectPath({ reconnect: null, reconnectPath: null })).toBeNull();
+    expect(reconnectPath({ reconnect: 'oauth', reconnectPath: '/api/dashboards/v1/finance/monzo/connect' })).toBe('/api/dashboards/v1/finance/monzo/connect');
   });
 });
 

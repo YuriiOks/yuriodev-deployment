@@ -94,6 +94,7 @@ function finance(overrides: Partial<FinanceData> = {}): FinanceData {
       as_of: '2026-11-23T09:00:00Z',
       currencies: [{ currency: 'GBP', accounts: 8, balance: 73550, own_balance: 73550, spent: 3000, received: 150000 }],
     },
+    providers: [{ id: 'monzo', name: 'Monzo', reconnect: 'oauth', reconnect_path: '/api/dashboards/v1/finance/monzo/connect' }],
     ...overrides,
   };
 }

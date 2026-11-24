@@ -111,13 +111,13 @@ describe('finance parsers', () => {
         ],
       }),
     ).toEqual({
-      one: { onLight: svg, onDark: png, mark: null, name: null, colors: null, entry: null },
-      two: { onLight: null, onDark: svg, mark: png, name: null, colors: null, entry: null },
-      six: { onLight: null, onDark: null, mark: png, name: null, colors: null, entry: null },
-      seven: { onLight: png, onDark: null, mark: null, name: null, colors: null, entry: null },
+      one: { onLight: svg, onDark: png, mark: null, name: null, colors: null, entry: null, reconnect: null, reconnectPath: null },
+      two: { onLight: null, onDark: svg, mark: png, name: null, colors: null, entry: null, reconnect: null, reconnectPath: null },
+      six: { onLight: null, onDark: null, mark: png, name: null, colors: null, entry: null, reconnect: null, reconnectPath: null },
+      seven: { onLight: png, onDark: null, mark: null, name: null, colors: null, entry: null, reconnect: null, reconnectPath: null },
       // A bank with only a name, colours and an entry kind (no logo files) is kept; a colour that is not #rrggbb is dropped with its pair.
-      hand: { onLight: null, onDark: null, mark: null, name: 'Hand Bank', colors: { background: '#aa2244', foreground: '#ffffff' }, entry: 'manual' },
-      badcolors: { onLight: null, onDark: null, mark: null, name: 'Odd', colors: null, entry: null },
+      hand: { onLight: null, onDark: null, mark: null, name: 'Hand Bank', colors: { background: '#aa2244', foreground: '#ffffff' }, entry: 'manual', reconnect: null, reconnectPath: null },
+      badcolors: { onLight: null, onDark: null, mark: null, name: 'Odd', colors: null, entry: null, reconnect: null, reconnectPath: null },
     });
     expect(parseProviders({ providers: [] })).toEqual({});
     expect(parseProviders({})).toBeNull();

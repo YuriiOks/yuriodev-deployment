@@ -94,7 +94,12 @@ export interface Recurring {
   readonly totalOwed: number | null;
   readonly remainingBalance: number | null;
   readonly creditor: string | null;
+  /** The picture the server fetched and inlined (`icon_data`: a PNG or SVG data URI), null while there is none. */
   readonly iconUrl: string | null;
+  /** none (nothing to fetch), pending, ok or failed: while it is not ok the payment shows its colour tile. */
+  readonly iconState: 'none' | 'pending' | 'ok' | 'failed';
+  /** A host such as example.com, whose own icon the server looks for. */
+  readonly website: string | null;
   readonly color: string | null;
   readonly notes: string | null;
   readonly lastPaidOn: string | null;
@@ -141,7 +146,9 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
     totalOwed: int(raw.total_owed),
     remainingBalance: int(raw.remaining_balance),
     creditor: text(raw.creditor),
-    iconUrl: iconUrl(raw.icon_url),
+    iconUrl: iconUrl(raw.icon_data),
+    iconState: oneOf(['none', 'pending', 'ok', 'failed'] as const, raw.icon_state) ?? 'none',
+    website: text(raw.website),
     color: color(raw.color),
     notes: text(raw.notes),
     lastPaidOn: date(raw.last_paid_on),
@@ -237,7 +244,7 @@ export function parseUpcoming(body: unknown): Upcoming | null {
         converted: raw.converted === true,
         accountId: text(raw.account_id),
         paymentMethod: text(raw.payment_method),
-        iconUrl: iconUrl(raw.icon_url),
+        iconUrl: iconUrl(raw.icon_data),
         color: color(raw.color),
         covered: typeof raw.covered === 'boolean' ? raw.covered : null,
         shortfall: int(raw.shortfall),
@@ -414,6 +421,8 @@ export type RecurringBody = Partial<{
   account_id: string | null;
   payment_method: string | null;
   match_text: string | null;
+  /** A host such as example.com: the server looks for the payment's own icon there. */
+  website: string | null;
   reminder_days: number | null;
   is_active: boolean;
   notes: string | null;
@@ -422,6 +431,13 @@ export type RecurringBody = Partial<{
 export async function createRecurring(body: RecurringBody): Promise<Recurring> {
   const parsed = parseRecurring(await request('/finance/recurring', { method: 'POST', body }));
   if (!parsed) throw BAD('the new payment');
+  return parsed;
+}
+
+/** Looks for the payment's icon again: it goes back to pending and is fetched after the answer. */
+export async function refreshIcon(id: string): Promise<Recurring> {
+  const parsed = parseRecurring(await request(`/finance/recurring/${encodeURIComponent(id)}/icon/refresh`, { method: 'POST', body: {} }));
+  if (!parsed) throw BAD('the payment');
   return parsed;
 }
 
