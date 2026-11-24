@@ -31,6 +31,8 @@
     padding-bottom: 0;
     position: relative;
     isolation: isolate;
+    /* Clipped, not hidden: `hidden` makes this a scroll container and a position: sticky inside the page would then stick to it instead of the window. */
+    overflow-x: clip;
 }
 
 .bareContent:focus {

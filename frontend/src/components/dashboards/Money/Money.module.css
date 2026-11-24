@@ -87,6 +87,14 @@
   .wallet {
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   }
+
+  /* The opened bank stays in view while a tall stack of cards scrolls past it (and scrolls inside itself when it is taller than the window). */
+  .wallet > .detail {
+    position: sticky;
+    top: calc(var(--dash-h-bar) + var(--space-4));
+    max-height: calc(100vh - var(--dash-h-bar) - 2 * var(--space-4));
+    overflow-y: auto;
+  }
 }
 
 .stack {
