@@ -112,12 +112,12 @@
   visibility: hidden;
 }
 
-@media (hover: none), (pointer: coarse) {
+@media (hover: none), (pointer: coarse), (max-width: 47.99rem) {
   .row {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .arrow {
+  .row .arrow {
     display: none;
   }
 }
