@@ -2,13 +2,12 @@
 the stale-data notice. Every name and amount is invented."""
 
 import uuid
-from datetime import datetime, timedelta
 
 import pytest
 
 from src.dashboards.finance.brands import BRANDS
 from tests.dashboards_support import AUTH, execute, running
-from tests.finance_support import LINK, seed, seed_rates
+from tests.finance_support import LINK, seed
 from tests.test_finance_statements import OFX_SGML, PAYPAL_FILE
 
 pytestmark = pytest.mark.anyio

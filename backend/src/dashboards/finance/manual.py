@@ -41,6 +41,7 @@ from src.dashboards.finance.statements import (
 )
 from src.dashboards.service import guarded
 
+
 def _day_or_time(value: Any) -> Any:
     """`2026-11-20` is a day (it would also parse as midnight of a time): keep it a day."""
     if isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value.strip()):
@@ -342,9 +343,7 @@ def _newest_balance(statement: Statement) -> tuple[int, date] | None:
         newest = max(found, key=lambda e: (e.day, e.at or time.min))
     elif found[0].day < found[-1].day:
         newest = found[-1]
-    elif found[0].day > found[-1].day:
-        newest = found[0]
-    elif len({e.balance for e in found}) == 1:
+    elif found[0].day > found[-1].day or len({e.balance for e in found}) == 1:
         newest = found[0]
     else:
         raise invalid("The newest balance of the file cannot be told: the lines share a day")
