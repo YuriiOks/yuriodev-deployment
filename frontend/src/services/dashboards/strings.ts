@@ -160,6 +160,9 @@ export interface Strings {
     readonly rateAsOf: string;
     readonly notConverted: string;
     readonly accountsFailed: string;
+    readonly summaryFailed: string;
+    readonly refreshFailed: string;
+    readonly checkingAttention: string;
     readonly linkOk: string;
     readonly linkNeedsReconsent: string;
     readonly linkPaused: string;
@@ -456,6 +459,9 @@ export const STRINGS: Record<Lang, Strings> = {
       rateAsOf: 'курс на {when}',
       notConverted: 'без пересчёта: {list}',
       accountsFailed: 'Не удалось загрузить счета.',
+      summaryFailed: 'Не удалось загрузить итоги месяца и общую сумму.',
+      refreshFailed: 'Не удалось обновить: на экране прошлые данные, они могли устареть.',
+      checkingAttention: 'Проверяю, что требует внимания…',
       linkOk: 'подключено',
       linkNeedsReconsent: 'нужно переподключить',
       linkPaused: 'приостановлено',
@@ -767,6 +773,9 @@ export const STRINGS: Record<Lang, Strings> = {
       rateAsOf: 'rate as of {when}',
       notConverted: 'not converted: {list}',
       accountsFailed: 'Could not load the accounts.',
+      summaryFailed: 'Could not load the month\'s totals and the grand total.',
+      refreshFailed: 'Could not refresh: the last data is shown and may be out of date.',
+      checkingAttention: 'Checking what needs attention…',
       linkOk: 'connected',
       linkNeedsReconsent: 'needs reconnecting',
       linkPaused: 'paused',

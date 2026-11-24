@@ -12,10 +12,10 @@ import MoneyViewSwitch, { type MoneyView } from '../components/dashboards/Money/
 import { orderedActive } from '../components/dashboards/Money/attentionModel';
 import MoneyCategories from '../components/dashboards/Money/MoneyCategories';
 import MoneyDebts from '../components/dashboards/Money/MoneyDebts';
-import { debtsOf, endedOf } from '../components/dashboards/Money/recurringLabels';
+import { debtsOf, endedOf, todayIso } from '../components/dashboards/Money/recurringLabels';
 import MoneyTotals from '../components/dashboards/Money/MoneyTotals';
 import MoneyTransactions from '../components/dashboards/Money/MoneyTransactions';
-import MoneyUpcoming from '../components/dashboards/Money/MoneyUpcoming';
+import MoneyUpcoming, { UpcomingToolbar } from '../components/dashboards/Money/MoneyUpcoming';
 import MoneyWallet from '../components/dashboards/Money/MoneyWallet';
 import RecurringManager from '../components/dashboards/Money/RecurringManager';
 import money from '../components/dashboards/Money/Money.module.css';
@@ -27,6 +27,7 @@ import { groupBanks } from '../services/dashboards/wallet';
 import { pagePath } from '../data/site';
 import { useDashboardMode } from '../hooks/useDashboardMode';
 import { useFinanceAccounts, useFinanceCategories, useFinanceSummary, useProviderLogos } from '../hooks/useFinance';
+import { useOnResume } from '../hooks/useOnResume';
 import { useAttention, useRecurring, useUpcoming } from '../hooks/useRecurring';
 import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './dashboards-money.module.css';
@@ -34,6 +35,9 @@ import styles from './dashboards-money.module.css';
 /** No logos (until the server sends them, or when it cannot): the text names show. */
 /** An API bank whose balances are older than this is called out (the same two hours the server calls a connection stale after). */
 const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
+
+/** A tab that was hidden for this long asks again for the payments and what needs attention when it comes back. */
+const RESUME_AFTER_MS = 5 * 60 * 1000;
 
 const NO_LOGOS: Readonly<Record<string, ProviderLogo>> = {};
 
@@ -67,6 +71,16 @@ const DashboardsMoney = () => {
   // Resolves when the new answers are in, so a button stays busy until the list it acted on is current.
   const changed = async () => {
     await Promise.all([attention.reload(), upcoming.reload(), recurring.reload()]);
+  };
+  // A tab left open: when it comes back after a while, or the day has changed, what depends on today is asked again.
+  useOnResume(live, (away) => {
+    const staleDay = upcoming.value !== null && upcoming.value.from !== '' && upcoming.value.from !== todayIso();
+    if (away >= RESUME_AFTER_MS || staleDay) void changed();
+  });
+  // Something that was read before could not be read again: the last answer stays, and this says it may be out of date.
+  const outdated = [accounts, summary, spend, providers, recurring, upcoming, attention].filter((slot) => slot.refreshFailed);
+  const retryOutdated = () => {
+    for (const slot of outdated) void slot.reload();
   };
   // A bank entered by hand changed (a balance set, a statement imported): the accounts, the totals, what needs attention and the transactions are asked again.
   const [txKey, setTxKey] = useState(0);
@@ -151,7 +165,15 @@ const DashboardsMoney = () => {
         </div>
         {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
       </header>
+      {live && summary.status === 'error' && <InlineError message={m.summaryFailed} onRetry={summary.reload} />}
+      {live && outdated.length > 0 && <InlineError message={m.refreshFailed} onRetry={retryOutdated} />}
       {live && <MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
+      {live && view === 'overview' && attention.status === 'loading' && (
+        <p role="status" className={money.none}>
+          {m.checkingAttention}
+        </p>
+      )}
+      {live && view === 'overview' && attention.status === 'error' && <InlineError message={m.rec.attentionFailed} onRetry={attention.reload} />}
       {live && view === 'overview' && ordered.length > 0 && (
         <AttentionScroller items={ordered} allHref="?view=attention" recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} onOpen={(entry, trigger) => setSheet({ key: entry.key, opener: trigger })} />
       )}
@@ -168,7 +190,7 @@ const DashboardsMoney = () => {
               </div>
               {recurring.status === 'loading' && <LoadingBlock rows={4} />}
               {recurring.status === 'error' && <InlineError message={m.rec.managerFailed} onRetry={recurring.reload} />}
-              {recurring.value && <RecurringManager key={params.get('edit') ?? ''} rows={recurring.value.recurring} accounts={accounts.value?.accounts ?? []} mode={mode} editId={params.get('edit')} onChanged={changed} />}
+              {recurring.value && <RecurringManager key={params.get('edit') ?? ''} rows={recurring.value.recurring} accounts={accounts.value?.accounts ?? []} accountsStatus={accounts.status} onRetryAccounts={accounts.reload} mode={mode} editId={params.get('edit')} onChanged={changed} />}
             </section>
           ) : view === 'attention' ? (
             <>
@@ -197,9 +219,10 @@ const DashboardsMoney = () => {
                 {m.rec.upcomingTitle}
               </h2>
             </div>
+            <UpcomingToolbar days={days} onDays={setDays} />
             {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
             {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
-            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} onDays={setDays} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
+            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
           </section>
           {/* Shown while the payments load and when they cannot be read (a failure must not look like having no debts); hidden only when they were read and there are none. */}
           {(recurring.status !== 'ready' || debts.length > 0 || endedDebts.length > 0) && (

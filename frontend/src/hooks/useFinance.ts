@@ -44,14 +44,22 @@ export interface Kept<T> {
   readonly status: LoadStatus;
   readonly value: T | null;
   readonly reload: () => Promise<void>;
+  /** The last good answer is on screen while a new one is being asked for. */
+  readonly refreshing: boolean;
+  /** The last good answer is still on screen, but asking again failed: it may be out of date. */
+  readonly refreshFailed: boolean;
 }
 
-/** While an answer is being asked again (after a change, or for another window) the last good one stays on screen, so the cards do not vanish and come back; an error shows as one. */
-export function useKeepLast<T>(slot: Kept<T>): Kept<T> {
+/**
+ * While an answer is being asked again (after a change, or for another window) the last good one stays on screen, so the cards do not
+ * vanish and come back; when asking again fails it stays too, flagged `refreshFailed` so the page can say it may be out of date. Only a
+ * failure with nothing to show yet is an error.
+ */
+export function useKeepLast<T>(slot: { readonly status: LoadStatus; readonly value: T | null; readonly reload: () => Promise<void> }): Kept<T> {
   const [kept, setKept] = useState<T | null>(null);
   if (slot.value && slot.value !== kept) setKept(slot.value);
-  const value = slot.status === 'error' ? null : (slot.value ?? kept);
-  return { status: value && slot.status === 'loading' ? 'ready' : slot.status, value, reload: slot.reload };
+  const value = slot.value ?? kept;
+  return { status: value ? 'ready' : slot.status, value, reload: slot.reload, refreshing: value !== null && slot.status === 'loading', refreshFailed: value !== null && slot.status === 'error' };
 }
 
 const loadAccounts = (signal: AbortSignal) => fetchFinanceAccounts(signal);

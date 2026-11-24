@@ -54,10 +54,38 @@ const UPCOMING_WEEK_DAYS = 6;
 const UPCOMING_ROWS = 8;
 const UPCOMING_FALLBACK_ROWS = 3;
 
+/** The 14 or 30 days choice and the link to all payments: always there, also while the answer is loading or failed, so the window can be changed out of a failure. */
+export const UpcomingToolbar: React.FC<{ days: number; onDays: (days: number) => void }> = ({ days, onDays }) => {
+  const { t } = useDashboardLang();
+  const r = t.money.rec;
+  return (
+    <div className={styles.body}>
+      <div className={styles.toolbar}>
+        <div role="group" aria-label={r.windowLabel} className={styles.segment}>
+          {WINDOWS.map((choice) => (
+            <button key={choice} type="button" className={cx(styles.segmentOption, days === choice && styles.segmentOn)} aria-pressed={days === choice} onClick={() => onDays(choice)}>
+              {fill(r.windowDays, { n: choice })}
+            </button>
+          ))}
+        </div>
+        <Link className={styles.secondary} to="?view=recurring">
+          {r.allRecurring}
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+/** How many days an answer spans (its first and last day), to tell whether it is for the window that is chosen. */
+function spanDays(data: Upcoming): number | null {
+  const from = Date.parse(`${data.from}T12:00:00`);
+  const to = Date.parse(`${data.to}T12:00:00`);
+  return Number.isNaN(from) || Number.isNaN(to) ? null : Math.round((to - from) / 86400000);
+}
+
 export interface MoneyUpcomingProps {
   data: Upcoming;
   days: number;
-  onDays: (days: number) => void;
   accounts: readonly FinanceAccount[];
   /** The payments, for how far each is verified and which plans have ended by their schedule. */
   recurring: readonly Recurring[];
@@ -65,7 +93,7 @@ export interface MoneyUpcomingProps {
 }
 
 /** The "Upcoming payments" body: the window switch, the payments grouped by day, and the totals the server added up. */
-const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accounts, recurring, mode }) => {
+const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, recurring, mode }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
   // By default the next 7 days, at most 8 rows (when nothing falls in the week, the first few that follow); "Show all" opens the whole window.
@@ -82,24 +110,15 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, onDays, accou
     if (last && last.date === item.dueDate && last.overdue === item.overdue) last.items.push(item);
     else groups.push({ date: item.dueDate, daysUntil: item.daysUntil, overdue: item.overdue, items: [item] });
   }
+  // The answer on screen is for the other window until the new one arrives: it is dimmed and marked busy, not passed off as the chosen one.
+  const span = spanDays(data);
+  const busy = span !== null && Math.abs(span - days) > 1;
   const split = splitDue(items, (id) => truthOf(byId.get(id)?.evidence ?? null), mode);
   // A grand total (and its "≈") is only for a window that has something converted in it; one currency is one figure, told once.
   const showGrand = mode === 'base' && data.grand !== null && data.totals.some((total) => total.converted && total.display !== null);
   const single = !showGrand && data.totals.length === 1 ? data.totals[0] : null;
   return (
-    <div className={styles.body}>
-      <div className={styles.toolbar}>
-        <div role="group" aria-label={r.windowLabel} className={styles.segment}>
-          {WINDOWS.map((choice) => (
-            <button key={choice} type="button" className={cx(styles.segmentOption, days === choice && styles.segmentOn)} aria-pressed={days === choice} onClick={() => onDays(choice)}>
-              {fill(r.windowDays, { n: choice })}
-            </button>
-          ))}
-        </div>
-        <Link className={styles.secondary} to="?view=recurring">
-          {r.allRecurring}
-        </Link>
-      </div>
+    <div className={styles.body} aria-busy={busy || undefined} data-busy={busy ? 'true' : undefined}>
       {items.length === 0 ? (
         <p className={styles.none}>{fill(r.upcomingNone, { days })}</p>
       ) : (

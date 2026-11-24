@@ -38,6 +38,10 @@
   line-height: var(--dash-lh-meta);
 }
 
+.body[data-busy="true"] {
+  opacity: 0.6;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

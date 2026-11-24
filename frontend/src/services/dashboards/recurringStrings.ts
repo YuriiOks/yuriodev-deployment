@@ -158,6 +158,8 @@ export interface RecurringStrings {
   readonly activate: string;
   readonly inactive: string;
   readonly noMatches: string;
+  readonly noneYet: string;
+  readonly clearFilters: string;
   readonly fName: string;
   readonly fAmount: string;
   readonly fCurrency: string;
@@ -364,6 +366,8 @@ export const RECURRING_RU: RecurringStrings = {
   activate: 'Включить',
   inactive: 'неактивен',
   noMatches: 'Ничего не найдено.',
+  noneYet: 'Регулярных платежей пока нет. Добавьте первый.',
+  clearFilters: 'Сбросить фильтры',
   fName: 'Название',
   fAmount: 'Сумма',
   fCurrency: 'Валюта',
@@ -570,6 +574,8 @@ export const RECURRING_EN: RecurringStrings = {
   activate: 'Activate',
   inactive: 'inactive',
   noMatches: 'Nothing matches.',
+  noneYet: 'No recurring payments yet. Add the first one.',
+  clearFilters: 'Clear filters',
   fName: 'Name',
   fAmount: 'Amount',
   fCurrency: 'Currency',
