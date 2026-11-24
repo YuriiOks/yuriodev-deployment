@@ -131,7 +131,7 @@ describe('finance parsers', () => {
         previous_month: '2026-10',
         currencies: [{ currency: 'GBP', spent: 100, previous_spent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }, { category: 'nonsense', spent: 1 }, { category: 'transport', spent: 'x' }] }, { currency: 'zz', spent: 1, categories: [] }],
       }),
-    ).toEqual({ month: '2026-11', previousMonth: '2026-10', currencies: [{ currency: 'GBP', spent: 100, previousSpent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }] }] });
+    ).toEqual({ month: '2026-11', previousMonth: '2026-10', currencies: [{ currency: 'GBP', spent: 100, previousSpent: 80, categories: [{ category: 'groceries', spent: 60, previous: 50 }], converted: false }], display: null });
     const merged = parseCategories({
       month: '2026-11',
       previous_month: '2026-10',
