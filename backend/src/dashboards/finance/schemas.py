@@ -1,11 +1,13 @@
 """Response shapes of the finance API. Money is an `int` in minor units next to its ISO code."""
 
 from datetime import date, datetime, timedelta
+from collections.abc import Sequence
 from typing import Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from src.dashboards.finance.brands import BRANDS, NEUTRAL, Brand
 from src.dashboards.finance.fx import Display
 from src.dashboards.finance.models import OVERDRAFT_KINDS
 
@@ -71,6 +73,9 @@ class AccountOut(BaseModel):
     name_generated: bool
     parent_id: UUID | None  # a pot's current account
     goal_amount: int | None  # a pot's goal, when the provider gives one
+    # A credit card's use of its limit, floored: the number the attention item uses (so the
+    # wallet and the alert never disagree); null for any other account.
+    used_percent: int | None
     overdraft_limit: int | None  # the one in force: the owner's if set, else the bank's
     overdraft_limit_source: Literal["owner", "bank"] | None
     overdraft_limit_bank: int | None  # what the bank sent, whether or not the owner overrides it
@@ -86,6 +91,7 @@ class AccountOut(BaseModel):
         cls, row: Any, history_from: datetime | None = None, display: Display | None = None
     ) -> Self:
         derived = (
+            "used_percent",
             "own_balance_minor",
             "history_from",
             "parent_id",
@@ -110,6 +116,12 @@ class AccountOut(BaseModel):
         source = "owner" if owner is not None else "bank" if bank is not None else None
         values["overdraft_limit_source"] = source
         values["own_balance_minor"] = own
+        owed = row.credit_limit - row.balance
+        values["used_percent"] = (
+            max(owed, 0) * 100 // row.credit_limit
+            if row.kind == "credit_card" and row.credit_limit > 0
+            else None
+        )
         values["history_from"] = history_from
         values["parent_id"] = row.parent_account_id
         values["available_minor"] = available
@@ -122,6 +134,15 @@ class AccountOut(BaseModel):
         values["display_available_minor"] = shown(available)
         values["converted"] = bool(display and display.converted(row.currency))
         return cls.model_validate(values)
+
+
+class ColorsOut(BaseModel):
+    """A brand colour and the text colour on it (contrast of at least 3:1)."""
+
+    model_config = _RESPONSE
+
+    background: str
+    foreground: str
 
 
 API_STALE_AFTER = timedelta(hours=2)  # a bank's API not read for this long: its balances are old
@@ -140,6 +161,11 @@ class ConnectionOut(BaseModel):
     last_ok_at: datetime | None  # for a manual connection: the date its newest data is as of
     manual: bool  # entered by hand: no collector reads it
     display_name: str | None
+    # What a bank card needs to be drawn before the logo arrives: the name in effect (yours, else
+    # the built-in brand's, else null) and the colours in effect (yours, else the brand's, else
+    # the neutral pair).
+    name: str | None
+    colors: ColorsOut
     last_error: str | None  # why the last read failed (a short kind), until one works
     # A bank's API that was last read more than two hours ago (nothing to say of a manual bank:
     # its age is `last_ok_at`, and a statement older than 30 days is an attention item). Its
@@ -154,11 +180,59 @@ class ConnectionOut(BaseModel):
         values = {
             name: getattr(row, name)
             for name in cls.model_fields
-            if name not in ("stale", "stale_since")
+            if name not in ("stale", "stale_since", "name", "colors")
         }
+        brand = BRANDS.get(row.provider)
+        pair = Brand("", row.brand_bg, row.brand_fg) if row.brand_bg and row.brand_fg else None
+        colors = pair or brand or NEUTRAL
         return cls.model_validate(
-            {**values, "stale": stale, "stale_since": since if stale else None}
+            {
+                **values,
+                "name": row.display_name or (brand.name if brand else None),
+                "colors": {"background": colors.background, "foreground": colors.foreground},
+                "stale": stale,
+                "stale_since": since if stale else None,
+            }
         )
+
+
+class ProviderTotal(BaseModel):
+    """What the open accounts of one provider come to in the display currency, each account
+    converted once: its own money (a credit card's debt counts negative; pots left out) and what
+    is in its pots and jars. `complete` is false when an account had no rate (it is left out)."""
+
+    model_config = _RESPONSE
+
+    provider: str
+    display_own_balance_minor: int
+    display_pots_minor: int
+    display_total_minor: int
+    complete: bool
+
+
+def provider_totals(accounts: Sequence[AccountOut]) -> list[ProviderTotal]:
+    found: dict[str, list[int]] = {}
+    for item in accounts:
+        if item.archived:
+            continue
+        entry = found.setdefault(item.provider, [0, 0, 1])
+        shown = item.display_balance_minor if item.kind == "pot" else item.display_own_balance_minor
+        if shown is None:
+            entry[2] = 0
+        elif item.kind == "pot":
+            entry[1] += shown
+        else:
+            entry[0] += shown
+    return [
+        ProviderTotal(
+            provider=name,
+            display_own_balance_minor=entry[0],
+            display_pots_minor=entry[1],
+            display_total_minor=entry[0] + entry[1],
+            complete=bool(entry[2]),
+        )
+        for name, entry in sorted(found.items())
+    ]
 
 
 class AccountsOut(BaseModel):
@@ -166,6 +240,7 @@ class AccountsOut(BaseModel):
 
     accounts: list[AccountOut]
     connections: list[ConnectionOut]
+    providers: list[ProviderTotal]
     display: DisplayOut
 
 
@@ -330,24 +405,29 @@ class CategoriesOut(BaseModel):
     display: CategoriesDisplay
 
 
+class LogoAspect(BaseModel):
+    """Width over height of each variant (null when the variant is absent or says no size)."""
+
+    model_config = _RESPONSE
+
+    on_light: float | None
+    on_dark: float | None
+    mark: float | None
+
+
 class LogoOut(BaseModel):
-    """A bank's logo as data URIs, for an `<img>`: `on_light` for a light card, `on_dark` for a
-    dark one, `mark` the square icon for small places; each may be null."""
+    """A bank's logo, for an `<img>`: `on_light` for a light card, `on_dark` for a dark one,
+    `mark` the square icon for small places. Each is the address of the image (served with
+    caching, `?v=` changes with the picture) or null: only a provider with a connection has them."""
 
     model_config = _RESPONSE
 
     on_light: str | None
     on_dark: str | None
     mark: str | None
-
-
-class ColorsOut(BaseModel):
-    """A brand colour and the text colour on it (contrast of at least 3:1)."""
-
-    model_config = _RESPONSE
-
-    background: str
-    foreground: str
+    aspect: LogoAspect  # so a page can reserve the room before the image arrives
+    scale: float  # an optical correction the owner gave (1 when none): enlarge or shrink by it
+    mono: bool  # one flat colour: a page may recolour it for a dark card
 
 
 class ProviderOut(BaseModel):

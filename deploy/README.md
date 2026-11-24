@@ -1233,12 +1233,29 @@ in the repository: `{"<provider id>": {"on_light": "<data URI>", "on_dark": "<da
 ink), `mark` a square brand icon for small places such as a transaction row; any may be left out
 (the same validation for all three). A provider id is lower-case letters, digits and hyphens (1 to 32
 characters): `monobank`, `monzo` and whatever id a manual bank is given, including one that must
-not be named here. A value is a base64 data URI of a PNG or an SVG, at most 48 KiB; an SVG with a
-script, an event handler, `javascript:`, a foreignObject, an iframe/object/embed, an entity or an
-external reference is dropped, so it is safe as the source of an `<img>` (the only way it should
-be shown). Whatever is invalid is dropped one by one, never an error. `GET /finance/providers`
-returns `{providers: [{id, logo: {on_light, on_dark, mark}}]}` for every id with a logo and every
-provider that has accounts; fetch it once (the accounts answer does not repeat the logos).
+not be named here. A value is a base64 data URI of a PNG (a real header with a size) or an SVG,
+at most 48 KiB. An SVG must be XML in the SVG namespace with no document type (so no entity), may
+only use shapes, paths, text, gradients, clips, masks, patterns, `use`, `style` and simple filter
+elements and the usual drawing attributes (`logos.SVG_ELEMENTS`, `SVG_ATTRIBUTES`), and may point
+only inside itself (`href="#id"`, `url(#id)`): no script, handler, image, link, animation,
+foreignObject or external reference, so it is safe as the source of an `<img>` and when opened by
+itself. A `mark` must be square (within 5%) when it says its size. A provider may also have
+`"scale"` (0.5 to 2, an optical correction the page applies to that logo) and `"mono": true` (one
+flat colour: the page may recolour it); to make a dark-card version, give `on_dark` an all-white
+file (a dark-ink wordmark is invisible on a dark card; the server cannot tell). Whatever is invalid
+is dropped one by one, never an error. `GET /finance/providers` returns for every provider
+`logo: {on_light, on_dark, mark, aspect: {on_light, on_dark, mark}, scale, mono}`; each variant is
+the address of the image (`GET /finance/providers/{id}/logo/{variant}`, with `Cache-Control:
+private, max-age=86400` and an `ETag`, so the one answer of the API the gate does not make
+`no-store`; `?v=` changes with the picture) or null, and only for a provider that has a connection.
+`aspect` is width over height, null when unknown, so a page can reserve room. The server does not
+trim a wordmark to its ink box (it cannot measure one without an imaging library): trim the files.
+The accounts answer does not repeat the logos, but each connection has `name` and `colors` in effect,
+each account of a credit card a `used_percent` (floored, the rule of the attention item) and the
+answer a `providers` list: per provider the open accounts' own balance and pots in the display
+currency, each converted once (`complete` is false when an account had no rate). `GET
+/finance/recurring` has `debts: {count, display_remaining_balance, complete}`, what is left on the
+active payments that have a remaining balance.
 
 Logos too big for one environment variable. The kernel refuses a single environment string of
 128 KiB or more (the container would not start), which a dozen images pass. Two ways out, both

@@ -2,6 +2,7 @@
 integer in minor units next to its ISO code; `display_*` is the same at the latest rate."""
 
 from datetime import date, datetime
+from collections.abc import Sequence
 from typing import Any, Literal, Self
 from uuid import UUID
 
@@ -156,10 +157,32 @@ class RecurringOut(BaseModel):
         return cls.model_validate(values)
 
 
+class DebtTotal(BaseModel):
+    """What is still owed on the active payments that have a remaining balance, in the display
+    currency, each converted once. `complete` is false when one had no rate (it is left out)."""
+
+    model_config = _RESPONSE
+
+    count: int
+    display_remaining_balance: int
+    complete: bool
+
+
+def debt_total(items: Sequence[RecurringOut]) -> DebtTotal:
+    owing = [i for i in items if i.is_active and i.remaining_balance is not None]
+    shown = [i.display_remaining_balance for i in owing]
+    return DebtTotal(
+        count=len(owing),
+        display_remaining_balance=sum(value or 0 for value in shown),
+        complete=all(value is not None for value in shown),
+    )
+
+
 class RecurringListOut(BaseModel):
     model_config = _RESPONSE
 
     recurring: list[RecurringOut]
+    debts: DebtTotal
     display: DisplayOut
 
 
