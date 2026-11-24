@@ -562,7 +562,6 @@ describe('the Money page: the whole attention list', () => {
         ],
       },
     });
-    const user = userEvent.setup();
     renderAt(`${PATH}?view=attention`);
     const panel = await attentionPanel();
     expect(panel.getAllByRole('group').filter((group) => group.getAttribute('data-kind')).map((group) => group.getAttribute('data-kind'))).toEqual(['overdraft', 'stale_statement', 'amount_changed', 'overdrawn']);
