@@ -6,9 +6,44 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from src.dashboards.finance.fx import Display
+
 _RESPONSE = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
 
 AccountKind = Literal["current", "credit_card", "savings", "pot", "business"]
+
+
+class FxRateOut(BaseModel):
+    """The rate a currency was converted with: `rate` display units per one unit of it, exact
+    decimal text, as of the source's own time (the older of the two it came from)."""
+
+    model_config = _RESPONSE
+
+    rate: str
+    as_of: datetime | None
+    source: str
+
+
+class DisplayOut(BaseModel):
+    """The currency figures were also converted to, at the latest rate. `rates` has the rate used
+    for every other currency in the answer; `missing` the currencies with no usable rate (none,
+    or older than 3 days): their figures stay in the original currency only, their display
+    fields are null. Whatever has `converted: true` is an approximation."""
+
+    model_config = _RESPONSE
+
+    currency: str
+    rates: dict[str, FxRateOut]
+    missing: list[str]
+
+
+def display_fields(display: Display, currencies: Any) -> dict[str, Any]:
+    used, missing = display.rates(currencies)
+    rates = {
+        name: FxRateOut(rate=rate.rate, as_of=rate.as_of, source=rate.source)
+        for name, rate in used.items()
+    }
+    return {"currency": display.currency, "rates": rates, "missing": missing}
 
 
 class AccountOut(BaseModel):
@@ -35,15 +70,40 @@ class AccountOut(BaseModel):
     overdraft_limit: int | None  # a current account's agreed overdraft, when known
     available_minor: int  # what can be spent: the balance plus the overdraft (a credit card's
     # balance already counts its limit)
+    display_balance_minor: int | None  # the same in the display currency, at the latest rate
+    display_own_balance_minor: int | None
+    display_available_minor: int | None
+    converted: bool  # the display figures are approximations (another currency)
 
     @classmethod
-    def from_row(cls, row: Any, history_from: datetime | None = None) -> Self:
-        derived = ("own_balance_minor", "history_from", "parent_id", "available_minor")
+    def from_row(
+        cls, row: Any, history_from: datetime | None = None, display: Display | None = None
+    ) -> Self:
+        derived = (
+            "own_balance_minor",
+            "history_from",
+            "parent_id",
+            "available_minor",
+            "display_balance_minor",
+            "display_own_balance_minor",
+            "display_available_minor",
+            "converted",
+        )
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
-        values["own_balance_minor"] = row.balance - row.credit_limit
+        own = row.balance - row.credit_limit
+        available = row.balance + (row.overdraft_limit or 0)
+        values["own_balance_minor"] = own
         values["history_from"] = history_from
         values["parent_id"] = row.parent_account_id
-        values["available_minor"] = row.balance + (row.overdraft_limit or 0)
+        values["available_minor"] = available
+
+        def shown(amount: int) -> int | None:
+            return display.convert(amount, row.currency) if display else None
+
+        values["display_balance_minor"] = shown(row.balance)
+        values["display_own_balance_minor"] = shown(own)
+        values["display_available_minor"] = shown(available)
+        values["converted"] = bool(display and display.converted(row.currency))
         return cls.model_validate(values)
 
 
@@ -64,6 +124,7 @@ class AccountsOut(BaseModel):
 
     accounts: list[AccountOut]
     connections: list[ConnectionOut]
+    display: DisplayOut
 
 
 class TransactionOut(BaseModel):
@@ -86,13 +147,18 @@ class TransactionOut(BaseModel):
     settled_at: datetime | None
     category: str  # the owner's override, else the normalised one (never null)
     category_overridden: bool
+    display_amount_minor: int | None  # at the latest rate, not the one of the day (yet)
+    converted: bool
 
     @classmethod
-    def from_row(cls, row: Any) -> Self:
-        derived = ("category", "category_overridden")
+    def from_row(cls, row: Any, display: Display | None = None) -> Self:
+        derived = ("category", "category_overridden", "display_amount_minor", "converted")
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
         values["category"] = row.category_override or row.category or "other"
         values["category_overridden"] = row.category_override is not None
+        converted = display.convert(row.amount, row.currency) if display else None
+        values["display_amount_minor"] = converted
+        values["converted"] = bool(display and display.converted(row.currency))
         return cls.model_validate(values)
 
 
@@ -101,6 +167,7 @@ class TransactionsOut(BaseModel):
 
     transactions: list[TransactionOut]
     next_cursor: str | None
+    display: DisplayOut
 
 
 class CurrencySummary(BaseModel):
@@ -115,6 +182,22 @@ class CurrencySummary(BaseModel):
     own_balance: int  # the balance minus the credit limits
     spent: int
     received: int
+    display_balance: int | None
+    display_own_balance: int | None
+    display_spent: int | None
+    display_received: int | None
+    converted: bool
+
+
+class SummaryDisplay(DisplayOut):
+    """The grand total in the display currency: the converted per-currency parts, each converted
+    once, added. `complete` is false when a currency without a rate was left out of them."""
+
+    complete: bool
+    balance: int
+    own_balance: int
+    spent: int
+    received: int
 
 
 class FinanceSummaryOut(BaseModel):
@@ -123,6 +206,7 @@ class FinanceSummaryOut(BaseModel):
     month: str  # YYYY-MM, in the configured time zone
     as_of: datetime | None  # the oldest balance among the accounts counted
     currencies: list[CurrencySummary]
+    display: SummaryDisplay
 
 
 class CategorySpend(BaseModel):
@@ -131,6 +215,8 @@ class CategorySpend(BaseModel):
     category: str
     spent: int
     previous: int  # the same category the month before
+    display_spent: int | None
+    display_previous: int | None
 
 
 class CurrencyCategories(BaseModel):
@@ -143,6 +229,27 @@ class CurrencyCategories(BaseModel):
     spent: int
     previous_spent: int
     categories: list[CategorySpend]
+    display_spent: int | None  # the sum of its converted lines
+    display_previous_spent: int | None
+    converted: bool
+
+
+class DisplayCategory(BaseModel):
+    model_config = _RESPONSE
+
+    category: str
+    spent: int
+    previous: int
+
+
+class CategoriesDisplay(DisplayOut):
+    """Every currency's lines converted (each once) and added per category, biggest first; the
+    totals are the sums of those lines, so what a page shows always adds up."""
+
+    complete: bool
+    spent: int
+    previous_spent: int
+    categories: list[DisplayCategory]
 
 
 class CategoriesOut(BaseModel):
@@ -151,3 +258,27 @@ class CategoriesOut(BaseModel):
     month: str  # YYYY-MM, in the configured time zone
     previous_month: str
     currencies: list[CurrencyCategories]
+    display: CategoriesDisplay
+
+
+class LogoOut(BaseModel):
+    """A bank's logo as data URIs, for an `<img>`: `on_light` for a light card, `on_dark` for a
+    dark one; either may be null."""
+
+    model_config = _RESPONSE
+
+    on_light: str | None
+    on_dark: str | None
+
+
+class ProviderOut(BaseModel):
+    model_config = _RESPONSE
+
+    id: str
+    logo: LogoOut
+
+
+class ProvidersOut(BaseModel):
+    model_config = _RESPONSE
+
+    providers: list[ProviderOut]

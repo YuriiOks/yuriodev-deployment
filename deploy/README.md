@@ -944,6 +944,39 @@ the month before beside it. You can change one transaction's category
 copy only (nothing is sent to a bank) and a re-import keeps it. Transactions imported before
 categories existed are categorised when the backend next starts.
 
+Display currency and rates. Stored amounts are never converted: they stay integers in minor units
+of their own currency. `FINANCE_DISPLAY_CURRENCY` (default `GBP`, three capital letters) is the
+currency the Money page also shows every amount in, beside the original and never instead of it:
+accounts (`display_balance_minor`, `display_own_balance_minor`, `display_available_minor`),
+transactions (`display_amount_minor`), `/finance/summary` (per-currency `display_*` and one grand
+total in `display`), `/finance/categories` (the same, and the lines of all currencies added per
+category in `display`). Everything converted has `converted: true` (show it as an approximation);
+each answer's `display` block lists the rate used per currency (`rate` = display units per one
+unit, an exact decimal, with its `as_of` and `source`) and `missing`, the currencies with no
+usable rate, whose display fields are null: nothing is ever guessed. Conversion is at the CURRENT
+rate, not the one of each payment's day. The source is Monobank's public rates
+(`GET https://api.monobank.ua/bank/currency`, no token, cached by the bank for up to 5 minutes;
+asked every 30 minutes, only while a bank collector runs, so with no bank credential nothing is
+fetched). Each currency is hryvnia per unit: the pair's `rateCross` when it has one (GBP and PLN
+only have that), else the mid of buy and sell (USD and EUR), never one side of the spread; any
+pair is the quotient of two, a cross through hryvnia. A rate older than 3 days is treated as
+missing. Rounding: one rounding per converted figure, half-even on the minor unit of the display
+currency (a tie goes to the even neighbour), with the minor-unit difference of currencies like
+JPY (none) or KWD (three) applied first; a total is the sum of the converted parts it is made of
+(each currency's, each category's), so what a page shows adds up.
+
+Bank logos. `DASHBOARDS_PROVIDER_LOGOS` (secrets file, a JSON object) holds the logos, so none is
+in the repository: `{"<provider id>": {"on_light": "<data URI>", "on_dark": "<data URI>"}}`.
+`on_light` is the version for a light card (dark ink), `on_dark` for a dark brand colour (white
+ink); either may be left out. A provider id is lower-case letters, digits and hyphens (1 to 32
+characters): `monobank`, `monzo` and whatever id a manual bank is given, including one that must
+not be named here. A value is a base64 data URI of a PNG or an SVG, at most 48 KiB; an SVG with a
+script, an event handler, `javascript:`, a foreignObject, an iframe/object/embed, an entity or an
+external reference is dropped, so it is safe as the source of an `<img>` (the only way it should
+be shown). Whatever is invalid is dropped one by one, never an error. `GET /finance/providers`
+returns `{providers: [{id, logo: {on_light, on_dark}}]}` for every id with a logo and every
+provider that has accounts; fetch it once (the accounts answer does not repeat the logos).
+
 Other banks later (a bank's own API with short-lived tokens, an Open Banking aggregator with
 expiring consents): add a provider that returns the neutral account and transaction shapes
 (`backend/src/dashboards/finance/base.py`); its auth or consent state lives in tables of its own

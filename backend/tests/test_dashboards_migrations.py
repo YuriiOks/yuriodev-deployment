@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0011"
+    assert version == "dashboards_0012"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -242,7 +242,7 @@ async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty
         "('amount', 'balance', 'credit_limit', 'original_amount', 'balance_after')",
     )
 
-    assert inside == "account,connection,monzo_oauth_state,monzo_token,transaction"
+    assert inside == "account,connection,fx_rate,monzo_oauth_state,monzo_token,transaction"
     assert outside == 0
     assert money == "bigint"
 
