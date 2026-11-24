@@ -67,7 +67,9 @@ class AccountOut(BaseModel):
     label: str | None  # a neutral sub-type ("Joint", "Platinum"): never a holder's name
     parent_id: UUID | None  # a pot's current account
     goal_amount: int | None  # a pot's goal, when the provider gives one
-    overdraft_limit: int | None  # a current account's agreed overdraft, when known
+    overdraft_limit: int | None  # the one in force: the owner's if set, else the bank's
+    overdraft_limit_source: Literal["owner", "bank"] | None
+    overdraft_limit_bank: int | None  # what the bank sent, whether or not the owner overrides it
     available_minor: int  # what can be spent: the balance plus the overdraft (a credit card's
     # balance already counts its limit)
     display_balance_minor: int | None  # the same in the display currency, at the latest rate
@@ -84,6 +86,9 @@ class AccountOut(BaseModel):
             "history_from",
             "parent_id",
             "available_minor",
+            "overdraft_limit",
+            "overdraft_limit_source",
+            "overdraft_limit_bank",
             "display_balance_minor",
             "display_own_balance_minor",
             "display_available_minor",
@@ -91,7 +96,13 @@ class AccountOut(BaseModel):
         )
         values = {name: getattr(row, name) for name in cls.model_fields if name not in derived}
         own = row.balance - row.credit_limit
-        available = row.balance + (row.overdraft_limit or 0)
+        owner, bank = row.overdraft_limit_override, row.overdraft_limit
+        limit = bank if owner is None else owner  # the owner's figure wins, always
+        available = row.balance + (limit or 0)
+        values["overdraft_limit"] = limit
+        values["overdraft_limit_bank"] = bank
+        source = "owner" if owner is not None else "bank" if bank is not None else None
+        values["overdraft_limit_source"] = source
         values["own_balance_minor"] = own
         values["history_from"] = history_from
         values["parent_id"] = row.parent_account_id

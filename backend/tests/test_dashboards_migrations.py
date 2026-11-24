@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0012"
+    assert version == "dashboards_0013"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -341,3 +341,19 @@ async def test_accounts_and_transactions_get_their_presentation_and_category_col
         with pytest.raises(IntegrityError):
             await execute(empty_db_url, statement)
     await execute(empty_db_url, "UPDATE finance.transaction SET category_override = 'health'")
+
+
+async def test_the_owners_overdraft_limit_is_its_own_nullable_column(empty_db_url):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_LINK, NEW_ACCOUNT)
+
+    column = await scalar(
+        empty_db_url,
+        "SELECT data_type || ':' || is_nullable FROM information_schema.columns "
+        "WHERE table_schema = 'finance' AND column_name = 'overdraft_limit_override'",
+    )
+    await execute(empty_db_url, "UPDATE finance.account SET overdraft_limit_override = 0")
+    with pytest.raises(IntegrityError):
+        await execute(empty_db_url, "UPDATE finance.account SET overdraft_limit_override = -1")
+
+    assert column == "bigint:YES"
