@@ -29,22 +29,30 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
     const { naturalWidth, naturalHeight } = event.currentTarget;
     if (naturalWidth > 0 && naturalHeight > 0) setSquare(naturalWidth / naturalHeight < 1.6);
   };
-  const dark = logo.onDark ?? logo.onLight;
-  const light = logo.onLight ?? logo.onDark;
-  // A brand card is one colour: pick by its luminance. A neutral card shows both and the stylesheet picks by theme.
-  const single = brand ? (prefersWhiteInk(brand.bg) ? dark : light) : null;
+  // The variant must contrast with the surface it sits on; a wrong-contrast image would be invisible, so when the right one is missing
+  // the text name shows instead (on a brand card, in its ink; on a theme surface, in the themes that lack the variant).
+  const dark = logo.onDark;
+  const light = logo.onLight;
+  if (brand) {
+    const single = prefersWhiteInk(brand.bg) ? dark : light;
+    if (!single) return <>{name}</>;
+    return (
+      <>
+        <span className="sr-only">{name}</span>
+        <span aria-hidden="true" className={styles.logos} data-surface="brand" data-shape={square ? 'square' : 'wide'} data-size={size}>
+          <img className={styles.logoOnDark} src={single} alt="" draggable={false} onLoad={watch} />
+        </span>
+      </>
+    );
+  }
+  if (!dark && !light) return <>{name}</>;
   return (
     <>
       <span className="sr-only">{name}</span>
-      <span aria-hidden="true" className={styles.logos} data-surface={brand ? 'brand' : 'theme'} data-shape={square ? 'square' : 'wide'} data-size={size}>
-        {single ? (
-          <img className={styles.logoOnDark} src={single} alt="" draggable={false} onLoad={watch} />
-        ) : (
-          <>
-            {dark && <img className={styles.logoOnDark} src={dark} alt="" draggable={false} onLoad={watch} />}
-            {light && <img className={styles.logoOnLight} src={light} alt="" draggable={false} onLoad={watch} />}
-          </>
-        )}
+      <span aria-hidden="true" className={styles.logos} data-surface="theme" data-missing={!light ? 'light' : !dark ? 'dark' : undefined} data-shape={square ? 'square' : 'wide'} data-size={size}>
+        {dark && <img className={styles.logoOnDark} src={dark} alt="" draggable={false} onLoad={watch} />}
+        {light && <img className={styles.logoOnLight} src={light} alt="" draggable={false} onLoad={watch} />}
+        {(!dark || !light) && <span className={styles.logoText}>{name}</span>}
       </span>
     </>
   );
