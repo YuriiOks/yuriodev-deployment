@@ -21,7 +21,6 @@ const BRANDS: Readonly<Record<string, Brand>> = {
   monobank: { bg: '#000000', fg: '#ffffff', mark: 'm' },
   monzo: { bg: '#c9364a', fg: '#ffffff', mark: 'M' },
   barclays: { bg: '#0079b3', fg: '#ffffff' },
-  hsbc: { bg: '#db0011', fg: '#ffffff' },
   lloyds: { bg: '#006a4d', fg: '#ffffff' },
   starling: { bg: '#50ffeb', fg: '#321e37' },
   wise: { bg: '#9fe870', fg: '#163300' },
