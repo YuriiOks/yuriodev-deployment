@@ -306,7 +306,8 @@ def register(
     @server.tool(structured_output=False)
     async def finance_update_manual_account(account: str, changes: dict[str, Any]) -> str:
         """Change an account entered by hand: name, label, mask_last4, credit_limit (a credit
-        card; what is owed stays) or archived (true hides it, false brings it back)."""
+        card; what is owed stays), kind (a current account becomes a credit_card together with
+        its credit_limit, and back), or archived (true hides it, false brings it back)."""
         try:
             account_id = uuid.UUID(account)
         except ValueError:

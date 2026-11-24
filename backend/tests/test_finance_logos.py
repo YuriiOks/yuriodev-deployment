@@ -172,3 +172,84 @@ async def test_the_logos_are_not_in_the_accounts_answer(db_url, make_dashboards_
         accounts = await client.get("/api/dashboards/v1/finance/accounts")
 
     assert GOOD_SVG not in accounts.text  # the page fetches /providers once
+
+
+def test_the_logos_can_come_from_a_file_and_every_source_is_merged(make_settings, tmp_path):
+    file = tmp_path / "logos.json"
+    file.write_text(json.dumps({"monzo": {"mark": GOOD_SVG}, "lloyds": {"on_dark": GOOD_PNG}}))
+    settings = make_settings(
+        dashboards_provider_logos=json.dumps({"monzo": {"on_light": GOOD_SVG}}),
+        dashboards_provider_logos_2=json.dumps({"monzo": {"on_dark": GOOD_PNG}}),
+        dashboards_provider_logos_3=json.dumps({"wise": {"on_light": GOOD_PNG}}),
+        dashboards_provider_logos_file=str(file),
+    )
+
+    assert settings.provider_logos == {
+        "monzo": {"on_light": GOOD_SVG, "on_dark": GOOD_PNG, "mark": GOOD_SVG},
+        "wise": {"on_light": GOOD_PNG},
+        "lloyds": {"on_dark": GOOD_PNG},
+    }
+
+
+def test_a_later_source_wins_for_the_same_variant(make_settings, tmp_path):
+    file = tmp_path / "logos.json"
+    file.write_text(json.dumps({"monzo": {"on_light": GOOD_PNG}}))
+    settings = make_settings(
+        dashboards_provider_logos=json.dumps({"monzo": {"on_light": GOOD_SVG}}),
+        dashboards_provider_logos_file=str(file),
+    )
+
+    assert settings.provider_logos == {"monzo": {"on_light": GOOD_PNG}}
+
+
+def test_a_changed_file_is_read_again_and_a_bad_one_is_no_logos(make_settings, tmp_path):
+    file = tmp_path / "logos.json"
+    file.write_text(json.dumps({"monzo": {"on_light": GOOD_SVG}}))
+    settings = make_settings(dashboards_provider_logos_file=str(file))
+    first = settings.provider_logos
+    file.write_text(json.dumps({"monzo": {"on_light": GOOD_SVG}, "wise": {"on_dark": GOOD_PNG}}))
+    second = settings.provider_logos
+    file.write_bytes(b"\xff\xfe\x00")
+    broken = settings.provider_logos
+    file.write_text("not json")
+    garbage = settings.provider_logos
+    file.write_text("")
+    empty = settings.provider_logos
+
+    assert set(first) == {"monzo"}
+    assert set(second) == {"monzo", "wise"}
+    assert broken == garbage == empty == {}
+
+
+def test_a_missing_directory_or_oversized_file_falls_back_to_the_variable(make_settings, tmp_path):
+    big = tmp_path / "big.json"
+    big.write_bytes(b" " * (4 * 1024 * 1024 + 1))
+    variable = json.dumps({"monzo": {"on_light": GOOD_SVG}})
+    expected = {"monzo": {"on_light": GOOD_SVG}}
+
+    for path in (str(tmp_path / "missing.json"), str(tmp_path), str(big), ""):
+        settings = make_settings(
+            dashboards_provider_logos=variable, dashboards_provider_logos_file=path
+        )
+        assert settings.provider_logos == expected
+
+
+def test_space_icons_can_come_from_a_file_too(make_settings, tmp_path):
+    file = tmp_path / "icons.json"
+    file.write_text(json.dumps({"work-1": GOOD_PNG, "work-2": "data:text/plain;base64,AAAA"}))
+    settings = make_settings(
+        dashboards_space_icons=json.dumps({"personal": GOOD_PNG, "work-1": GOOD_SVG}),
+        dashboards_space_icons_file=str(file),
+    )
+
+    assert settings.space_icons == {"personal": GOOD_PNG, "work-1": GOOD_PNG}
+
+
+async def test_the_providers_answer_uses_the_file(db_url, make_dashboards_app, tmp_path):
+    file = tmp_path / "logos.json"
+    file.write_text(json.dumps({"lloyds": {"mark": GOOD_PNG}}))
+    app = make_dashboards_app(db_url, dashboards_provider_logos_file=str(file))
+    async with running(app, AUTH) as client:
+        found = (await client.get("/api/dashboards/v1/finance/providers")).json()["providers"]
+
+    assert next(p for p in found if p["id"] == "lloyds")["logo"]["mark"] == GOOD_PNG

@@ -135,9 +135,10 @@ class ManualAccountPatch(BaseModel):
     mask_last4: str | None = Field(default=None, pattern=r"^[0-9]{4}$")
     archived: bool | None = None
     credit_limit: Minor | None = None
+    kind: ManualKind | None = None  # to or from credit_card only together with the limit rules
 
 
-MANUAL_FIELDS = frozenset({"name", "label", "mask_last4", "archived", "credit_limit"})
+MANUAL_FIELDS = frozenset({"name", "label", "mask_last4", "archived", "credit_limit", "kind"})
 
 
 def _brand(background: str | None, foreground: str | None) -> tuple[str | None, str | None]:
@@ -268,15 +269,39 @@ async def create_account(
     return row
 
 
+def _change_kind(row: Account, changes: dict[str, Any]) -> None:
+    """A manual account becomes another kind. To a credit card it needs `credit_limit` (above 0)
+    in the same request and what it owed (a negative balance) stays owed: the balance becomes the
+    limit plus the old balance. From a credit card the limit goes and the balance becomes what is
+    owed (limit taken off), so nothing is lost either way."""
+    new = changes["kind"]
+    if new == "credit_card":
+        limit = changes.pop("credit_limit", None)
+        if not limit:
+            raise invalid("A credit card needs credit_limit above 0")
+        row.balance += limit
+        row.credit_limit = limit
+        row.overdraft_limit_override = None  # a card has no overdraft
+    elif row.kind == "credit_card":
+        if "credit_limit" in changes:
+            raise invalid("Only a credit card has a limit")
+        row.balance -= row.credit_limit
+        row.credit_limit = 0
+    row.kind = new
+
+
 @guarded
 async def update_account(
     session: AsyncSession, account_id: uuid.UUID, patch: ManualAccountPatch, now: datetime
 ) -> Account:
     row, _ = await _manual_account(session, account_id, lock=True)
     changes = {name: getattr(patch, name) for name in patch.model_fields_set & MANUAL_FIELDS}
-    for name in ("name", "archived", "credit_limit"):
+    for name in ("name", "archived", "credit_limit", "kind"):
         if name in changes and changes[name] is None:
             raise invalid("That field cannot be cleared")
+    if changes.get("kind") not in (None, row.kind):
+        _change_kind(row, changes)
+    changes.pop("kind", None)
     if "credit_limit" in changes:
         if row.kind != "credit_card" or not changes["credit_limit"]:
             raise invalid("Only a credit card has a limit, above 0")
