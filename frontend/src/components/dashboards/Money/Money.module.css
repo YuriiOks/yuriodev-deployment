@@ -689,6 +689,24 @@
   display: none;
 }
 
+/* The text name stands in, in the theme whose variant of the wordmark is missing (never an invisible image). */
+.logoText {
+  display: none;
+  white-space: nowrap;
+}
+
+.logos[data-missing="dark"] .logoText {
+  display: inline;
+}
+
+:root[data-theme="light"] .logos[data-missing="dark"] .logoText {
+  display: none;
+}
+
+:root[data-theme="light"] .logos[data-missing="light"] .logoText {
+  display: inline;
+}
+
 :root[data-theme="light"] .logos[data-surface="theme"] .logoOnLight {
   display: block;
 }
