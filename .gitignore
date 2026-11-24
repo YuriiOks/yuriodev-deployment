@@ -39,6 +39,8 @@ yuriodev.html
 !.env.*.template
 # env/<env>.env is tracked (public config); env/<env>.secrets.env never is.
 env/*.secrets.env
+# Real logos and icons too big for an environment variable (mounted into the backend).
+env/dashboards/
 
 # Secrets and private material that must never be committed (this repo is public)
 certbot/

@@ -6,12 +6,12 @@ transaction is seen, and what he did with an attention item.
 """
 
 from datetime import date
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.errors import AppError
 from src.dashboards.finance import recurring_service as service
@@ -25,6 +25,7 @@ from src.dashboards.finance.recurring import (
     parse_csv,
 )
 from src.dashboards.finance.recurring_schemas import (
+    AttentionBulkOut,
     AttentionItem,
     AttentionOut,
     ImportOut,
@@ -37,6 +38,7 @@ from src.dashboards.finance.service import display_for
 from src.routes.dashboards import ClockDep, SessionDep, SettingsDep, ZoneDep
 
 router = APIRouter(prefix="/api/dashboards/v1/finance", tags=["finance"])
+MAX_BULK_KEYS = 200
 
 
 async def _display(session: SessionDep, settings: SettingsDep, clock: ClockDep) -> Display:
@@ -229,6 +231,22 @@ class AttentionSnooze(AttentionKey):
     days: int = Field(strict=True, ge=1, le=service.MAX_SNOOZE_DAYS)
 
 
+class AttentionBulk(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    keys: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
+        min_length=1, max_length=MAX_BULK_KEYS
+    )
+    action: Literal["dismiss", "snooze", "restore"]
+    days: int | None = Field(default=None, strict=True, ge=1, le=service.MAX_SNOOZE_DAYS)
+
+    @model_validator(mode="after")
+    def _days_only_for_snooze(self) -> Self:
+        if (self.action == "snooze") != (self.days is not None):
+            raise ValueError("days goes with snooze and only with it")
+        return self
+
+
 async def _state(
     session: SessionDep,
     settings: SettingsDep,
@@ -268,3 +286,20 @@ async def restore(
 ) -> AttentionItem:
     """Bring a dismissed or snoozed item back."""
     return await _state(session, settings, clock, zone, body.key, "restore")
+
+
+@router.post("/attention/bulk")
+async def bulk_state(
+    body: AttentionBulk,
+    session: SessionDep,
+    settings: SettingsDep,
+    clock: ClockDep,
+    zone: ZoneDep,
+) -> AttentionBulkOut:
+    """Dismiss, snooze (`days`) or restore many items at once (at most 200 keys). Keys that are
+    not an item right now are returned in `missing` and nothing is done for them."""
+    display = await _display(session, settings, clock)
+    items, missing = await service.set_attention_states(
+        session, clock(), zone, display, body.keys, body.action, body.days
+    )
+    return AttentionBulkOut(items=items, missing=missing)

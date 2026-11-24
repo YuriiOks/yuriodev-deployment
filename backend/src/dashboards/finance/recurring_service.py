@@ -77,9 +77,22 @@ ORDER = (
     "amount_changed",
     "credit_high",
     "overdraft",
+    "overdrawn",
     "reconsent",
     "stale_statement",
 )
+# How much an item matters, so a page can order and summarise without knowing the kinds.
+SEVERITY = {
+    "due_not_covered": "high",
+    "missed_payment": "high",
+    "overdraft": "high",
+    "reconsent": "high",
+    "amount_changed": "medium",
+    "credit_high": "medium",
+    "stale_statement": "medium",
+    "overdrawn": "info",
+}
+SEVERITY_RANK = {"high": 0, "medium": 1, "info": 2}
 STATEMENT_STALE_AFTER = timedelta(days=30)
 
 
@@ -528,6 +541,7 @@ def _item(
         {
             "key": key,
             "kind": kind,
+            "severity": SEVERITY[kind],
             "title": title,
             "subject_type": subject[0],
             "subject_id": subject[1],
@@ -541,6 +555,11 @@ def _item(
             "snoozed_until": None,
         }
     )
+
+
+def _order(item: AttentionItem) -> tuple[int, int, date, str]:
+    rank, kind = SEVERITY_RANK[item.severity], ORDER.index(item.kind)
+    return rank, kind, item.due_date or date.max, item.key
 
 
 def _when(days: int) -> str:
@@ -645,10 +664,23 @@ async def _conditions(
                         (owed, account.currency),
                     )
                 )
-        elif account.kind in {"current", "business"}:
+        elif account.kind in {"current", "business"} and account.balance < 0:
             limit = overdraft_in_force(account)
-            over = -account.balance - (limit or 0)
-            if over > 0:
+            if limit is None:  # no limit known, from the owner or the bank: only a plain fact
+                items.append(
+                    _item(
+                        display,
+                        f"overdrawn:{account.id}:{month}",
+                        "overdrawn",
+                        f"{account.name} is overdrawn and no overdraft limit is known",
+                        ("account", account.id),
+                        {"balance": account.balance, "overdraft_limit": None},
+                        None,
+                        (-account.balance, account.currency),
+                    )
+                )
+            elif -account.balance > limit:
+                over = -account.balance - limit
                 items.append(
                     _item(
                         display,
@@ -698,7 +730,7 @@ async def _conditions(
                     },
                 )
             )
-    items.sort(key=lambda i: (ORDER.index(i.kind), i.due_date or date.max, i.key))
+    items.sort(key=_order)
     return items
 
 
@@ -741,6 +773,59 @@ async def attention(
 
 
 @guarded
+async def set_attention_states(
+    session: AsyncSession,
+    now: datetime,
+    zone: tzinfo,
+    display: Display,
+    keys: Sequence[str],
+    action: Literal["dismiss", "snooze", "restore"],
+    days: int | None = None,
+) -> tuple[list[AttentionItem], list[str]]:
+    """Dismiss (for good: the key names the occasion, so a new occasion is a new item), snooze
+    for 1 to 90 days, or bring back the items of `keys`. Returns the items as they are now and
+    the keys that are not an item right now (nothing is done for those)."""
+    if action == "snooze" and (days is None or not 1 <= days <= MAX_SNOOZE_DAYS):
+        raise invalid("Invalid days")
+    found = await _conditions(session, now, zone, display)
+    by_key = {item.key: item for item in found}
+    wanted = list(dict.fromkeys(keys))
+    rows = {
+        row.key: row
+        for row in await session.scalars(
+            select(AttentionState).where(AttentionState.key.in_(wanted))
+        )
+    }
+    changed: list[AttentionItem] = []
+    missing: list[str] = []
+    for key in wanted:
+        item = by_key.get(key)
+        if item is None:
+            missing.append(key)
+            continue
+        row = rows.get(key)
+        if action == "restore":
+            if row is not None:
+                await session.delete(row)
+            row = None
+        else:
+            until = now + timedelta(days=days or 0) if action == "snooze" else None
+            state = "snoozed" if action == "snooze" else "dismissed"
+            if row is None:
+                row = AttentionState(key=key, state=state, until=until, updated_at=now)
+                session.add(row)
+            else:
+                row.state, row.until, row.updated_at = state, until, now
+        changed.append(_with_state(item, row, now))
+    await session.execute(
+        delete(AttentionState).where(
+            AttentionState.key.not_in(list(by_key)), AttentionState.updated_at < now - STATE_KEEP
+        )
+    )
+    await session.commit()
+    return changed, missing
+
+
 async def set_attention_state(
     session: AsyncSession,
     now: datetime,
@@ -750,32 +835,8 @@ async def set_attention_state(
     action: Literal["dismiss", "snooze", "restore"],
     days: int | None = None,
 ) -> AttentionItem:
-    """Dismiss (for good: the key names the occasion, so a new occasion is a new item), snooze
-    for 1 to 90 days, or bring back an item. The key must be one that exists now."""
-    if action == "snooze" and (days is None or not 1 <= days <= MAX_SNOOZE_DAYS):
-        raise invalid("Invalid days")
-    found = await _conditions(session, now, zone, display)
-    item = next((i for i in found if i.key == key), None)
-    if item is None:
+    """One item of `set_attention_states`; a key that is not an item now is 404."""
+    changed, _ = await set_attention_states(session, now, zone, display, [key], action, days)
+    if not changed:
         raise AppError(404, "not_found", "Attention item not found")
-    row = await session.get(AttentionState, key)
-    if action == "restore":
-        if row is not None:
-            await session.delete(row)
-        row = None
-    else:
-        until = now + timedelta(days=days or 0) if action == "snooze" else None
-        state = "snoozed" if action == "snooze" else "dismissed"
-        if row is None:
-            row = AttentionState(key=key, state=state, until=until, updated_at=now)
-            session.add(row)
-        else:
-            row.state, row.until, row.updated_at = state, until, now
-    current = [i.key for i in found]
-    await session.execute(
-        delete(AttentionState).where(
-            AttentionState.key.not_in(current), AttentionState.updated_at < now - STATE_KEEP
-        )
-    )
-    await session.commit()
-    return _with_state(item, row, now)
+    return changed[0]

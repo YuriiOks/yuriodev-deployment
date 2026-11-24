@@ -1024,13 +1024,19 @@ when a currency has no rate).
 2, and not covered), `missed_payment` (past its date with no matching transaction, only when we
 collect the paying account), `amount_changed` (the matched charge differs from the recorded
 amount by more than 1%, for a charge paid in the last 60 days), `credit_high` (a credit card above 90% of its limit), `overdraft` (a
-current or business account past its overdraft in force), `reconsent` (a connection that needs
+current or business account past its overdraft in force), `overdrawn` (a current or business account with a negative balance and NO overdraft limit known,
+from you or the bank: only a plain fact, `info`; once a limit is set a balance below it is
+`overdraft` instead), `reconsent` (a connection that needs
 approving again). A manual statement older than 30 days comes with manual banks. Each item has a
 stable `key` (it names the occasion: a new due date, month or charge is a new item), `kind`,
-`title`, `subject_type`/`subject_id`, `due_date`, `amount`/`currency`/`display_amount`/`converted`,
+`severity` (`high`: act now: due_not_covered, missed_payment, overdraft, reconsent; `medium`:
+amount_changed, credit_high, stale_statement; `info`: a plain fact: overdrawn; the list is ordered by
+severity, then kind, then date), `title`, `subject_type`/`subject_id`, `due_date`, `amount`/`currency`/`display_amount`/`converted`,
 `facts`, `state` (`active`, `snoozed`, `dismissed`) and `snoozed_until`. Dismissed and snoozed
 items are left out and counted in `hidden`. `POST /attention/dismiss` `{key}`, `/attention/snooze`
-`{key, days: 1..90}`, `/attention/restore` `{key}`; an unknown key is 404; unused states of items
+`{key, days: 1..90}`, `/attention/restore` `{key}`; an unknown key is 404; `POST /attention/bulk`
+`{keys: [...up to 200], action: dismiss|snooze|restore, days?}` does it for many at once and returns
+`{items, missing}` (keys that are not an item now are listed, not an error); unused states of items
 that are gone are deleted after 90 days.
 
 Banks without an API (migration `dashboards_0015`, REST under `/finance/manual`). Nothing is read
@@ -1124,6 +1130,24 @@ external reference is dropped, so it is safe as the source of an `<img>` (the on
 be shown). Whatever is invalid is dropped one by one, never an error. `GET /finance/providers`
 returns `{providers: [{id, logo: {on_light, on_dark, mark}}]}` for every id with a logo and every
 provider that has accounts; fetch it once (the accounts answer does not repeat the logos).
+
+Logos too big for one environment variable. The kernel refuses a single environment string of
+128 KiB or more (the container would not start), which a dozen images pass. Two ways out, both
+merged with `DASHBOARDS_PROVIDER_LOGOS` (later over earlier, per provider and per variant, in this
+order: the variable, `DASHBOARDS_PROVIDER_LOGOS_2`, `DASHBOARDS_PROVIDER_LOGOS_3`, the file):
+(1) no compose change: split the JSON object over the variables in `env/<env>.secrets.env` (each
+under 128 KiB; the total environment may be about 2 MiB); (2) a file: `DASHBOARDS_PROVIDER_LOGOS_FILE`
+names a JSON file of the same shape (at most 4 MiB, UTF-8, read again when it changes). The files
+live in the untracked directory `env/dashboards/` on the box (`env/dashboards/logos.json`,
+`env/dashboards/space-icons.json`; the directory is in `.gitignore`), and the backend service needs
+that directory mounted read-only, which is a compose change that has to be agreed:
+`volumes: ["../../env/dashboards:/run/dashboards:ro"]` on the dev backend service (stage and prod
+alike when they get logos), then `DASHBOARDS_PROVIDER_LOGOS_FILE=/run/dashboards/logos.json` (and
+`DASHBOARDS_SPACE_ICONS_FILE=/run/dashboards/space-icons.json`, the same idea for the space icons)
+in `env/<env>.secrets.env`, then the manual recreate of the backend (`deploy/README.md`, "Environment
+config"). Mount the directory, never a single file (a missing file would be created as a
+directory), and never `env/` itself (it holds the other secrets files). A missing, unreadable or
+oversized file is no logos, not an error; the variable still applies.
 
 Other banks later (a bank's own API with short-lived tokens, an Open Banking aggregator with
 expiring consents): add a provider that returns the neutral account and transaction shapes

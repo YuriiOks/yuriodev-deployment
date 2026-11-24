@@ -12,6 +12,7 @@ import pytest
 
 from src.dashboards.finance.models import AttentionState
 from src.dashboards.finance.recurring_schemas import RecurringOut
+from src.dashboards.finance.recurring_service import SEVERITY
 from tests.dashboards_support import AUTH, execute, running, scalar
 from tests.finance_support import ACC_A, ACC_B, ACC_C, LINK, NOW, at, seed, seed_rates, tx
 from tests.test_finance_recurring_logic import HEADER, LOAN, STREAMING
@@ -872,11 +873,14 @@ async def test_a_card_close_to_its_limit_and_an_account_past_its_overdraft_are_r
     assert card["facts"] == {"used_percent": 92, "owed": 460_000, "credit_limit": 500_000}
     assert (card["amount"], card["currency"]) == (460_000, "UAH")
     assert at_ninety["items"] == []  # exactly 90% is not above it
-    (over,) = past["items"]
+    (plain,) = past["items"]  # no limit is known: a plain fact, not "past the overdraft"
+    assert (plain["kind"], plain["key"]) == ("overdrawn", f"overdrawn:{MAIN}:2026-11")
+    assert plain["facts"] == {"balance": -10_000, "overdraft_limit": None}
+    assert (plain["amount"], plain["severity"]) == (10_000, "info")
+    (over,) = still["items"]  # a limit is known and passed
     assert (over["kind"], over["key"]) == ("overdraft", f"overdraft:{MAIN}:2026-11")
-    assert over["facts"] == {"balance": -10_000, "overdraft_limit": None, "over_by": 10_000}
-    assert over["amount"] == 10_000
-    assert still["items"][0]["facts"]["over_by"] == 6_000  # the owner's limit counts
+    assert over["facts"] == {"balance": -10_000, "overdraft_limit": 4_000, "over_by": 6_000}
+    assert (over["amount"], over["severity"]) == (6_000, "high")
     assert within["items"] == []
 
 
@@ -912,7 +916,9 @@ async def test_items_come_in_a_fixed_order_by_kind_then_date(db_url, make_dashbo
         await pay(client, "Big", 2_000_000, "2026-11-23")
         body = await attention(client)
 
-    assert kinds(body) == ["due_not_covered", "missed_payment", "overdraft", "reconsent"]
+    # By severity (high first), then by kind: the plain overdrawn fact comes last.
+    assert kinds(body) == ["due_not_covered", "missed_payment", "reconsent", "overdrawn"]
+    assert [i["severity"] for i in body["items"]] == ["high", "high", "high", "info"]
 
 
 async def test_dismissing_snoozing_and_restoring_an_item(db_url, make_dashboards_app, clock):
@@ -957,7 +963,7 @@ async def test_a_new_occasion_is_a_new_item_after_a_dismissal(db_url, make_dashb
         next_month = await attention(client)
 
     assert same_month["items"] == []
-    assert [i["key"] for i in next_month["items"]] == [f"overdraft:{MAIN}:2026-12"]
+    assert [i["key"] for i in next_month["items"]] == [f"overdrawn:{MAIN}:2026-12"]
 
 
 @pytest.mark.parametrize(
@@ -1034,6 +1040,7 @@ async def test_every_new_route_needs_the_token(db_url, make_dashboards_app):
         ("get", "/attention"),
         ("post", "/attention/dismiss"),
         ("post", "/attention/snooze"),
+        ("post", "/attention/bulk"),
         ("post", "/attention/restore"),
     ]
     async with running(app, {"X-Dashboards-Token": "nope"}) as client:
@@ -1069,3 +1076,71 @@ async def test_an_occurrence_more_than_one_period_old_is_rolled_past_not_matched
 
     assert after["next_payment_date"] == "2026-11-20"  # rolled up to the latest occurrence
     assert (after["last_paid_on"], after["last_charged_amount"]) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("kind", "severity"),
+    [
+        ("due_not_covered", "high"),
+        ("missed_payment", "high"),
+        ("amount_changed", "medium"),
+        ("credit_high", "medium"),
+        ("overdraft", "high"),
+        ("overdrawn", "info"),
+        ("reconsent", "high"),
+        ("stale_statement", "medium"),
+    ],
+)
+def test_every_kind_has_a_severity(kind, severity):
+    assert SEVERITY[kind] == severity
+
+
+async def test_several_items_are_dismissed_snoozed_and_restored_in_one_call(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await execute(db_url, "UPDATE finance.connection SET status = 'needs_reconsent'")
+        await execute(db_url, "UPDATE finance.account SET balance = -10000 WHERE name = 'Main'")
+        keys = [i["key"] for i in (await attention(client))["items"]]
+        url = f"{BASE}/attention/bulk"
+        everything = {"keys": [*keys, "nothing:here"], "action": "dismiss"}
+        dismissed = await client.post(url, json=everything)
+        hidden = await attention(client)
+        restored = await client.post(url, json={"keys": keys[:1], "action": "restore"})
+        snoozed = await client.post(url, json={"keys": keys[1:], "action": "snooze", "days": 2})
+        shown = await attention(client)
+        after = await attention(client, "?include_hidden=true")
+
+    assert len(keys) == 2
+    assert dismissed.status_code == 200
+    assert [i["state"] for i in dismissed.json()["items"]] == ["dismissed", "dismissed"]
+    assert dismissed.json()["missing"] == ["nothing:here"]
+    assert (hidden["items"], hidden["hidden"]) == ([], 2)
+    assert [i["state"] for i in restored.json()["items"]] == ["active"]
+    assert [i["state"] for i in snoozed.json()["items"]] == ["snoozed"]
+    assert [i["key"] for i in shown["items"]] == keys[:1]
+    assert sorted(i["state"] for i in after["items"]) == ["active", "snoozed"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"keys": [], "action": "dismiss"},
+        {"keys": ["k"] * 201, "action": "dismiss"},
+        {"keys": [""], "action": "dismiss"},
+        {"keys": ["k"], "action": "delete"},
+        {"keys": ["k"], "action": "snooze"},
+        {"keys": ["k"], "action": "snooze", "days": 0},
+        {"keys": ["k"], "action": "dismiss", "days": 3},
+        {"keys": ["k"], "action": "dismiss", "extra": 1},
+        {"action": "dismiss"},
+    ],
+)
+async def test_a_bad_bulk_state_change_is_refused(db_url, make_dashboards_app, body):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        response = await client.post(f"{BASE}/attention/bulk", json=body)
+
+    assert response.status_code == 422

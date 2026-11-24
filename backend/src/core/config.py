@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.core.filetext import read_text_file
 from src.dashboards.catalog import (
     DEFAULT_SPACE_NAMES,
     ICON_PREFIXES,
@@ -102,10 +103,19 @@ class Settings(BaseSettings):
     # (png, svg, ico, webp, at most 48 KiB each), so real logos can live in the untracked secrets
     # file. Text like the names, read through `space_icons`, never a startup error.
     dashboards_space_icons: str | None = None
+    # A file of the same JSON (`DASHBOARDS_SPACE_ICONS_FILE`), for when the environment variable
+    # would pass the 128 KiB the kernel allows one string: it is merged over the variable.
+    dashboards_space_icons_file: str | None = None
     # Bank logos for the Money page, a JSON object `{"<provider id>": {"on_light": "<data URI>",
     # "on_dark": "<data URI>"}}` in the secrets file (src/dashboards/finance/logos.py has the
     # rules). Text, read through `provider_logos`, never a startup error.
     dashboards_provider_logos: str | None = None
+    # More of the same object, for when one variable would pass the 128 KiB the kernel allows one
+    # string (`_2`, `_3`), and a file of it (`_FILE`); every source is merged, later over earlier
+    # (the variable, `_2`, `_3`, the file).
+    dashboards_provider_logos_2: str | None = None
+    dashboards_provider_logos_3: str | None = None
+    dashboards_provider_logos_file: str | None = None
 
     # Collectors (src/dashboards/collectors/): background pollers that turn outside work items
     # into tasks. They run only with the dashboards API on (DATABASE_URL) and each one only when
@@ -166,12 +176,24 @@ class Settings(BaseSettings):
     def space_icons(self) -> dict[str, str]:
         """The valid icons from DASHBOARDS_SPACE_ICONS: known space ids, an allowed image data
         URI with a valid base64 payload, at most 48 KiB. Anything else is dropped per key."""
-        return parse_space_icons(self.dashboards_space_icons)
+        icons = parse_space_icons(self.dashboards_space_icons)
+        icons.update(parse_space_icons(read_text_file(self.dashboards_space_icons_file)))
+        return icons
 
     @property
     def provider_logos(self) -> dict[str, dict[str, str]]:
-        """The valid logos of DASHBOARDS_PROVIDER_LOGOS, dropped one by one when invalid."""
-        return parse_provider_logos(self.dashboards_provider_logos)
+        """The valid logos of DASHBOARDS_PROVIDER_LOGOS (and its `_2`, `_3` and `_FILE` parts,
+        merged), dropped one by one when invalid."""
+        merged: dict[str, dict[str, str]] = {}
+        for raw in (
+            self.dashboards_provider_logos,
+            self.dashboards_provider_logos_2,
+            self.dashboards_provider_logos_3,
+            read_text_file(self.dashboards_provider_logos_file),
+        ):
+            for provider, variants in parse_provider_logos(raw).items():
+                merged.setdefault(provider, {}).update(variants)
+        return merged
 
     @property
     def collectors_enabled(self) -> bool:

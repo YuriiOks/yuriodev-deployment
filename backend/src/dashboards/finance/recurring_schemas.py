@@ -19,9 +19,11 @@ AttentionKind = Literal[
     "amount_changed",
     "credit_high",
     "overdraft",
+    "overdrawn",
     "reconsent",
     "stale_statement",
 ]
+Severity = Literal["high", "medium", "info"]
 ItemState = Literal["active", "snoozed", "dismissed"]
 Fact = str | int | bool | None
 
@@ -186,6 +188,7 @@ class AttentionItem(BaseModel):
 
     key: str  # names the condition and its occasion; what dismiss and snooze take
     kind: AttentionKind
+    severity: Severity  # high: act now; medium: look soon; info: a plain fact
     title: str
     subject_type: Literal["recurring", "account", "connection"]
     subject_id: UUID
@@ -197,6 +200,13 @@ class AttentionItem(BaseModel):
     facts: dict[str, Fact]
     state: ItemState
     snoozed_until: datetime | None
+
+
+class AttentionBulkOut(BaseModel):
+    model_config = _RESPONSE
+
+    items: list[AttentionItem]  # the items that were found, as they are now
+    missing: list[str]  # keys that are not an item right now: nothing was done for them
 
 
 class AttentionOut(BaseModel):
