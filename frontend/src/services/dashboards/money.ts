@@ -1,4 +1,4 @@
-import type { Lang } from './strings';
+import type { Lang } from './types';
 
 /** How many decimal places a currency has (2 for most, 0 for the yen, 3 for the dinar), from the platform's own tables. */
 function digitsOf(code: string): number {
