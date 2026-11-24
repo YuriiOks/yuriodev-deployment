@@ -26,7 +26,12 @@ from src.dashboards.collectors.manager import (
     build_collectors,
     build_finance_collectors,
 )
-from src.dashboards.finance.maintenance import fill_categories
+from src.dashboards.finance.maintenance import (
+    PAIRING_PROVIDERS,
+    fill_categories,
+    pair_own_transfers,
+    recategorize_transfers,
+)
 from src.dashboards.gate import MCP_PATH, DashboardsGate
 from src.dashboards.mcp_server import McpEndpoint, build_mcp_server
 from src.dashboards.projects import upgrade_projects
@@ -103,6 +108,9 @@ async def after_migrate(sessions: async_sessionmaker[AsyncSession]) -> None:
     """What runs once the schema is at head: the projects' schemas, the categories still missing."""
     await upgrade_projects(sessions)
     await fill_categories(sessions)
+    await recategorize_transfers(sessions)
+    for provider in PAIRING_PROVIDERS:
+        await pair_own_transfers(sessions, provider)
 
 
 async def _start_dashboards(

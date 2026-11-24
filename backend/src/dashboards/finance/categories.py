@@ -6,7 +6,11 @@ the raw code (`category_code`), which is never thrown away. The rules, in order:
 
 1. a transfer between the owner's own accounts and pots is `transfers`, whatever the provider says
    (and the reports leave internal transfers out of spending altogether);
-2. the provider's own label or code decides, through the tables below;
+2. the provider's own label or code decides, through the tables below; a money-transfer code
+   (MCC 4829, 6538-6540) is `transfers_out` when money leaves (a payment to another person: it is
+   spending) and `income` when money arrives; a provider that cannot tell a card-to-card move
+   between the owner's own accounts from that (Monobank) has the pair found afterwards
+   (`maintenance.pair_own_transfers`), which makes both legs internal, so `transfers`;
 3. money in (a positive amount) that nothing else explains is `income`; anything unknown is
    `other`.
 
@@ -29,6 +33,7 @@ Category = Literal[
     "debt",
     "income",
     "transfers",
+    "transfers_out",
     "cash",
     "other",
 ]
@@ -61,8 +66,8 @@ MCC_RANGES: tuple[tuple[int, int, str], ...] = (
     (4814, 4814, "housing_utilities"),  # telecommunication services
     (4899, 4899, "subscriptions"),  # cable, satellite and other pay TV and radio
     (4900, 4900, "housing_utilities"),  # utilities
-    (4829, 4829, "transfers"),  # money transfer
-    (6538, 6540, "transfers"),  # money send, stored value load
+    (4829, 4829, "transfers_out"),  # money transfer (to a person, or between own cards: see below)
+    (6538, 6540, "transfers_out"),  # money send, stored value load
     (6010, 6011, "cash"),  # financial institutions: manual cash, ATM
     (6012, 6012, "debt"),  # financial institutions: merchandise and services (loan payments)
     (6050, 6051, "cash"),  # quasi cash
@@ -117,6 +122,6 @@ def categorize(provider: str, code: str | None, amount: int, internal: bool) -> 
     if internal:
         return "transfers"
     found = category_from_monzo(code) if provider == "monzo" else category_from_mcc(code)
-    if found is None or found == "other":
+    if found is None or found == "other" or (found == "transfers_out" and amount > 0):
         return "income" if amount > 0 else "other"
     return found

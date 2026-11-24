@@ -31,11 +31,12 @@ from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 import httpx
-from sqlalchemy import literal_column, select, update
+from sqlalchemy import case, literal_column, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.http import UpstreamError
+from src.dashboards.finance.maintenance import pair_own_transfers
 from src.dashboards.finance.models import Account, Connection, Transaction
 
 logger = logging.getLogger("yuriodev.finance")
@@ -46,6 +47,7 @@ MAX_PAGES = 10  # a window of more than this many full pages is refused, never h
 # known. With an opening date the walk goes back to it however long the quiet stretch.
 EMPTY_WINDOWS_AT_END = 3
 INSERT_CHUNK = 500
+PAIR_LOOKBACK = timedelta(days=7)  # how far back the pairing of own-account moves looks
 BURST_BUDGET_SECONDS = 90.0  # a tick may keep going this long, so a manager timeout never hits
 FULL_HISTORY_MONTHS = 120  # how far back a provider with `full_history` is asked, at the most
 
@@ -98,6 +100,7 @@ class FinanceProvider(Protocol):
     page_limit: int  # a statement answer of this many items may have more behind it
     full_history: bool  # walk back as far as the account goes, not `FINANCE_BACKFILL_MONTHS`
     statement_less_types: frozenset[str]  # account types that have a balance but no statement
+    pairs_transfers: bool  # card-to-card moves between own accounts are found by pairing
 
     def burst(self, now: datetime) -> int:
         """How many requests one tick may make (it waits `min_call_gap` between them)."""
@@ -131,6 +134,7 @@ class ProviderDefaults:
 
     full_history = False
     statement_less_types: frozenset[str] = frozenset()
+    pairs_transfers = False
 
     def burst(self, now: datetime) -> int:
         return 1
@@ -242,6 +246,8 @@ class FinanceCollector:
             index += 1
         if counts["calls"]:
             await self._succeeded(sessions, connection_id, now)
+        if self._provider.pairs_transfers and (counts["added"] or counts["updated"]):
+            await pair_own_transfers(sessions, self._provider.name, now - PAIR_LOOKBACK)
         return counts
 
     def _gap(self) -> timedelta:
@@ -421,11 +427,20 @@ class FinanceCollector:
         async with sessions() as session, session.begin():
             for index in range(0, len(rows), INSERT_CHUNK):
                 chunk = insert(Transaction).values(rows[index : index + INSERT_CHUNK])
-                fresh = {
+                fresh: dict[str, Any] = {
                     name: chunk.excluded[name]
                     for name in rows[0]
                     if name not in ("account_id", "external_id")
                 }
+                # A line once found to be a move between the owner's own accounts (by the
+                # provider, or by pairing) stays one when the window is fetched again.
+                fresh["internal_transfer"] = or_(
+                    Transaction.internal_transfer, chunk.excluded.internal_transfer
+                )
+                fresh["category"] = case(
+                    (Transaction.internal_transfer, Transaction.category),
+                    else_=chunk.excluded.category,
+                )
                 outcome: Sequence[Any] = (
                     await session.execute(
                         chunk.on_conflict_do_update(
