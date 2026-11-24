@@ -113,7 +113,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   let body: ReactNode;
   let split: 'main' | 'even' | 'flow' | false = false;
   let wideFirst = false;
-  let rows = 1;
+  const rows = 1;
   let backlog: LiveTask[] = [];
   if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
     body = <NotConnected name={t.tabs[current]} />;
