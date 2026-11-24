@@ -238,6 +238,15 @@ describe('projects', () => {
     expect(parseProjects({ nope: [] })).toBeNull();
   });
 
+  it('reads the source fields of a collected task: the source priority, when it last changed, and a draft', () => {
+    const base = task('work-1', 'PR');
+    expect(parseTask(base)).toMatchObject({ sourcePriority: null, sourceUpdatedAt: null, draft: false });
+    const read = parseTask({ ...base, source: 'linear', source_priority: 'urgent', source_updated_at: '2026-11-24T10:00:00Z', draft: true });
+    expect(read).toMatchObject({ sourcePriority: 'urgent', sourceUpdatedAt: '2026-11-24T10:00:00Z', draft: true });
+    for (const bad of ['sideways', 3, null, '']) expect(parseTask({ ...base, source_priority: bad })?.sourcePriority).toBeNull();
+    expect(parseTask({ ...base, source_updated_at: 'yesterday', draft: 'yes' })).toMatchObject({ sourceUpdatedAt: null, draft: false });
+  });
+
   it('reads a project\'s task (project_id, no space_id) and still refuses a record with neither', () => {
     const parsed = parseTask(projectTask('garden', 'Buy seeds'));
     expect(parsed).toMatchObject({ projectId: 'garden', space: null, title: 'Buy seeds' });

@@ -65,6 +65,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const [area, setArea] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [showBacklog, setShowBacklog] = useState(false);
+  const [showReviewed, setShowReviewed] = useState(false);
 
   const current = tabs.includes(selected) ? selected : 'overview';
   const areaList = space === 'personal' ? areas : null;
@@ -117,6 +118,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   let wideFirst = false;
   const rows = 1;
   let backlog: LiveTask[] = [];
+  let reviewed: LiveTask[] = [];
   if (current !== 'overview' && current !== 'areas' && (!collectedSource || (tasks.status === 'ready' && fromSource.length === 0))) {
     body = <NotConnected name={t.tabs[current]} />;
   } else if (tasks.status === 'loading') {
@@ -128,10 +130,13 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       </div>
     );
   } else if (collectedSource) {
-    const open = openTasks(groups);
+    // The server orders collected tasks (the priority flag, then the source's own priority, then the newest change): the tabs keep that
+    // order and never regroup them by date.
+    const open = fromSource.filter((task) => task.status === 'open' || tasks.sticky.has(task.id));
     if (current === 'github') {
       const reviews = open.filter((task) => task.stage === 'review');
-      const mine = open.filter((task) => task.stage !== 'review');
+      reviewed = open.filter((task) => task.stage === 'reviewed');
+      const mine = open.filter((task) => task.stage !== 'review' && task.stage !== 'reviewed');
       split = 'even';
       body = [panel('github-mine', t.githubMine, mine, t.emptySource), panel('github-reviews', t.githubReviews, reviews, t.emptySource)];
     } else if (current === 'linear') {
@@ -280,6 +285,14 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
             {fill(t.showBacklog, { n: backlog.length })}
           </button>
           {showBacklog && panel('linear-backlog', t.linearBacklog, backlog)}
+        </div>
+      )}
+      {reviewed.length > 0 && (
+        <div className={live.done}>
+          <button type="button" className={live.doneToggle} aria-expanded={showReviewed} onClick={() => setShowReviewed((open) => !open)}>
+            {fill(t.showReviewed, { n: reviewed.length })}
+          </button>
+          {showReviewed && panel('github-reviewed', t.githubReviewed, reviewed)}
         </div>
       )}
       {workingTab && tasks.status === 'ready' && groups.done.length > 0 && (

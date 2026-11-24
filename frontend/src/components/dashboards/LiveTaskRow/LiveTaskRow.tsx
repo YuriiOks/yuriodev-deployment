@@ -5,6 +5,7 @@ import type { ApiError, LiveArea, LiveTask, TaskPatch } from '../../../services/
 import { dueTone } from '../../../services/dashboards/taskGroups';
 import { cx } from '../../../utils/cx';
 import AreaIcon from '../AreaIcon/AreaIcon';
+import ProjectIcon from '../ProjectIcon/ProjectIcon';
 import DashIcon from '../DashIcon/DashIcon';
 import InlineError from '../InlineError/InlineError';
 import rowStyles from '../PanelRow/PanelRow.module.css';
@@ -37,6 +38,8 @@ const LiveTaskRow: React.FC<LiveTaskRowProps> = ({ task, today, areas, failed, o
   const editorId = `${id}-editor`;
   const done = task.status === 'done';
   const tone = done ? 'neutral' : dueTone(task.dueDate, today);
+  // A Linear issue's urgent and high priority get a mark with a word and an arrow (never colour alone).
+  const markedPriority = task.source === 'linear' && (task.sourcePriority === 'urgent' || task.sourcePriority === 'high');
   const area = areas?.find((candidate) => candidate.id === task.areaId);
   const due = task.dueDate === null ? null : tone === 'danger' ? t.dueOverdue : tone === 'warn' ? t.dueToday : dateLabel(task.dueDate, t);
 
@@ -60,8 +63,15 @@ const LiveTaskRow: React.FC<LiveTaskRowProps> = ({ task, today, areas, failed, o
           task.title
         )}
       </span>
-      {(area || due) && (
+      {(area || due || task.draft || markedPriority) && (
         <span className={rowStyles.meta}>
+          {task.draft && <span className={styles.mark}>{t.draftMark}</span>}
+          {markedPriority && (
+            <span className={styles.mark} data-level={task.sourcePriority}>
+              <ProjectIcon name="arrow-up-right" size={14} />
+              {task.sourcePriority === 'urgent' ? t.priorityUrgent : t.priorityHigh}
+            </span>
+          )}
           {area && (
             <span className={styles.areaLabel}>
               <AreaIcon id={area.id} size={14} />
