@@ -440,6 +440,10 @@
   color: var(--dash-t1);
 }
 
+.debtList[hidden] {
+  display: none;
+}
+
 .debtList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
@@ -500,9 +504,27 @@
   border-radius: var(--radius-pill);
 }
 
+.bar {
+  display: flex;
+}
+
 .barFill {
+  flex: none;
+  min-width: 0.25rem;
   height: 100%;
   background: var(--dash-fill);
+}
+
+/* What the schedule alone adds to what the bank confirmed: the same colour, tinted. */
+.barAssumed {
+  flex: none;
+  height: 100%;
+  background: color-mix(in srgb, var(--dash-fill) 35%, transparent);
+}
+
+.note[data-late="true"] {
+  color: var(--dash-warn);
+  font-weight: 700;
 }
 
 /* The management view. */

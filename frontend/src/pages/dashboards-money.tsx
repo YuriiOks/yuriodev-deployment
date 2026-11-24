@@ -171,14 +171,17 @@ const DashboardsMoney = () => {
             {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
             {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} onDays={setDays} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
           </section>
-          {(debts.length > 0 || endedDebts.length > 0) && (
+          {/* Shown while the payments load and when they cannot be read (a failure must not look like having no debts); hidden only when they were read and there are none. */}
+          {(recurring.status !== 'ready' || debts.length > 0 || endedDebts.length > 0) && (
             <section aria-labelledby="money-debts-title" className={money.panel}>
               <div className={money.head}>
                 <h2 id="money-debts-title" className={money.title}>
                   {m.rec.debtsTitle}
                 </h2>
               </div>
-              <MoneyDebts rows={debts} ended={endedDebts} mode={mode} />
+              {recurring.status === 'loading' && <LoadingBlock rows={2} />}
+              {recurring.status === 'error' && <InlineError message={m.rec.debtsFailed} onRetry={recurring.reload} />}
+              {recurring.value && <MoneyDebts rows={debts} ended={endedDebts} mode={mode} />}
             </section>
           )}
           <section aria-labelledby="money-spend-title" className={money.panel}>

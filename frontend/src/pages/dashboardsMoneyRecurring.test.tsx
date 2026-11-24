@@ -710,7 +710,7 @@ describe('the Money page: debts and installments', () => {
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
     // Collapsed to one summary row: how many and how much is left.
-    expect(panel.getByText('2 · £700.00 remaining')).toBeInTheDocument();
+    expect(panel.getByText(/^2 · £700\.00 remaining/)).toBeInTheDocument();
     expect(panel.queryAllByRole('listitem')).toHaveLength(0);
     await user.click(panel.getByRole('button', { name: 'Show' }));
     const cards = panel.getAllByRole('listitem');
@@ -731,8 +731,8 @@ describe('the Money page: debts and installments', () => {
     setup({ finance: { recurring: [rec('r-1', 'Streaming')] } });
     renderAt(PATH);
     await within(main()).findByRole('region', { name: 'Wallet' });
-    await waitFor(() => expect(within(main()).queryByRole('region', { name: 'Upcoming payments' })).not.toBeNull());
-    expect(within(main()).queryByRole('region', { name: 'Debts and installments' })).toBeNull();
+    // Shown while the payments load, gone once they were read and there are no debts.
+    await waitFor(() => expect(within(main()).queryByRole('region', { name: 'Debts and installments' })).toBeNull());
   });
 });
 
@@ -869,7 +869,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
     const user = userEvent.setup();
     renderAt(PATH);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
-    expect(panel.getByText('1 · £450.00 remaining')).toBeInTheDocument();
+    expect(panel.getByText(/^1 · £450\.00 remaining/)).toBeInTheDocument();
     await user.click(panel.getAllByRole('button', { name: 'Show' })[0]);
     const cards = panel.getAllByRole('listitem');
     expect(cards).toHaveLength(1);
@@ -955,5 +955,131 @@ describe('the Money page: what is verified and what is only on the list', () => 
     expect(panel.getByText('Ended by schedule: 1')).toBeInTheDocument();
     await user.click(panel.getByRole('button', { name: 'Show' }));
     expect(panel.getByText('Old subscription')).toBeInTheDocument();
+  });
+});
+
+describe('the Money page: debts in detail', () => {
+  const debt = (id: string, name: string, extra: Record<string, unknown> = {}) => rec(id, name, { kind: 'debt', amount: 5000, next_payment_date: '2099-01-02', ...extra });
+  const openDebts = async (user: ReturnType<typeof userEvent.setup>) => {
+    const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    await user.click(await panel.findByRole('button', { name: 'Show' }));
+    return panel;
+  };
+
+  it('draws installment progress in two parts: what the bank confirmed, and what the schedule alone adds', async () => {
+    setup({ finance: { recurring: [debt('d-1', 'Sofa installments', { is_installment: true, total_installments: 12, completed_installments: 3, assumed_installments: 7, scheduled_installments: 10, scheduled_remaining_balance: 10000, remaining_balance: 45000 })] } });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openDebts(user);
+    const parts = Array.from(panel.getByRole('listitem').querySelectorAll('[aria-hidden="true"] > div'));
+    expect(parts.map((part) => (part as HTMLElement).style.width)).toEqual(['25%', '58%']);
+    // The estimate of what is left if the schedule is right, said as an estimate.
+    expect(panel.getByRole('listitem')).toHaveTextContent('by schedule about £100.00 (estimate)');
+  });
+
+  it('works a remaining figure out from the installments left and marks it an estimate, and says how many debts a total covers', async () => {
+    setup({
+      finance: {
+        recurring: [
+          debt('d-1', 'Sofa installments', { is_installment: true, total_installments: 12, completed_installments: 4, remaining_balance: null }),
+          debt('d-2', 'Family loan', { remaining_balance: 25000, total_owed: 100000 }),
+          debt('d-3', 'Mystery debt'),
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openDebts(user);
+    // 8 installments left at £50.00 = £400.00, an estimate; plus £250.00; the third debt has no figure.
+    expect(panel.getByText(/^3 · ≈ £650\.00 remaining · 2 of 3 with a known balance/)).toBeInTheDocument();
+    const sofa = panel.getByText('Sofa installments').closest('li') as HTMLElement;
+    expect(sofa).toHaveTextContent('Remaining (estimate)');
+    expect(sofa).toHaveTextContent('£400.00');
+    expect(panel.getByText('Mystery debt').closest('li')).not.toHaveTextContent('Remaining');
+  });
+
+  it('never reads 100% while something is left and never 0 once something is paid, and says when the balance is above the original amount', async () => {
+    setup({
+      finance: {
+        recurring: [
+          debt('d-1', 'Nearly done', { total_owed: 20000, remaining_balance: 100 }),
+          debt('d-2', 'Just started', { total_owed: 2500000, remaining_balance: 2499900 }),
+          debt('d-3', 'Grown', { total_owed: 10000, remaining_balance: 12000 }),
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openDebts(user);
+    const fill = (name: string) => (panel.getByText(name).closest('li') as HTMLElement).querySelector('[aria-hidden="true"] > div') as HTMLElement | null;
+    expect(fill('Nearly done')?.style.width).toBe('99%');
+    expect(fill('Just started')?.style.width).toBe('1%');
+    expect(fill('Grown')).toBeNull();
+    expect(panel.getByText('Grown').closest('li')).toHaveTextContent('balance above the original amount');
+  });
+
+  it('tells the repaid line in the display currency, marked approximate, when it is in pounds', async () => {
+    setup({
+      finance: {
+        display: { currency: 'GBP', rates: { USD: { rate: '0.79', as_of: '2026-11-24T08:00:00Z', source: 'bank' } }, missing: [] },
+        accounts: [{ id: 'a-1', connection_id: 'c-1', provider: 'acme-bank', type: 'current', name: 'Everyday', currency: 'GBP', balance: 100, credit_limit: 0, own_balance_minor: 100, mask_last4: null, balance_at: '2026-11-23T09:00:00Z', history_from: null, archived: false }],
+        recurring: [debt('d-1', 'Dollar loan', { currency: 'USD', total_owed: 100000, remaining_balance: 25000, display_total_owed: 79000, display_remaining_balance: 19750, converted: true })],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openDebts(user);
+    expect(panel.getByText('≈ £592.50 of £790.00 repaid')).toBeInTheDocument();
+  });
+
+  it('marks a payment date that has passed as "was due", with what the bank has seen, and a plan the schedule cannot work out as unclear', async () => {
+    setup({
+      finance: {
+        recurring: [
+          debt('d-1', 'Late loan', { next_payment_date: '2020-01-01', evidence: { last_matched_on: '2019-12-01', last_matched_amount: 5000, matched_of_last: 2, checked: 3 }, account_id: 'a-current' }),
+          debt('d-2', 'Open plan', { is_installment: true, total_installments: 12, completed_installments: 3, assumed_installments: 6, scheduled_installments: 9, schedule_state: 'unknown' }),
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = await openDebts(user);
+    const late = panel.getByText('Late loan').closest('li') as HTMLElement;
+    expect(late).toHaveTextContent('Was due Jan 1, 2020 · £50.00');
+    expect(late).toHaveTextContent('seen in the bank: 2 of the last 3');
+    const open = panel.getByText('Open plan').closest('li') as HTMLElement;
+    expect(open).toHaveTextContent('schedule unclear');
+    // Only what is confirmed is told for it.
+    expect(open).toHaveTextContent('3 of 12 confirmed by the bank');
+    expect(open).not.toHaveTextContent('by schedule 9 of 12');
+  });
+
+  it('has its own loading and error state with a retry, so a failure does not look like having no debts', async () => {
+    const api = setup({ fail: ['financeRecurring'] });
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    expect(await panel.findByRole('alert')).toHaveTextContent('Could not load the debts.');
+    api.fail.delete('financeRecurring');
+    await user.click(panel.getByRole('button', { name: /try again/i }));
+    await waitFor(() => expect(within(main()).queryByRole('region', { name: 'Debts and installments' })).toBeNull());
+  });
+
+  it('remembers whether the cards are open, keeps them in the page while closed, and puts the next payment in the summary', async () => {
+    setup({ finance: { recurring: [debt('d-1', 'Later loan', { next_payment_date: '2099-03-05', remaining_balance: 10000 }), debt('d-2', 'Sooner loan', { next_payment_date: '2099-02-01', amount: 7000, remaining_balance: 20000 })] } });
+    const user = userEvent.setup();
+    const first = renderAt(PATH);
+    const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    expect(await panel.findByText(/next: Feb 1, 2099 · £70\.00/)).toBeInTheDocument();
+    // Closed: the list is there but hidden.
+    expect(panel.queryAllByRole('listitem')).toHaveLength(0);
+    expect(panel.getByRole('list', { hidden: true })).toHaveAttribute('hidden');
+    await user.click(panel.getByRole('button', { name: 'Show' }));
+    expect(localStorage.getItem('dashboards-money-debts-open')).toBe('true');
+    first.unmount();
+    renderAt(PATH);
+    const again = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
+    expect(await again.findByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true');
+    expect(again.getAllByRole('listitem')).toHaveLength(2);
   });
 });

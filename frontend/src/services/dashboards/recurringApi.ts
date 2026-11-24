@@ -74,6 +74,10 @@ export interface Recurring {
   readonly completedInstallments: number | null;
   /** Passed by the schedule only, never seen in a line. */
   readonly assumedInstallments: number;
+  /** The total less the confirmed ones, as the server counts them. */
+  readonly remainingInstallments: number | null;
+  /** The balance if every assumed installment had been paid (an estimate), null without one. */
+  readonly scheduledRemainingBalance: number | null;
   /** Confirmed plus assumed, at most the total. */
   readonly scheduledInstallments: number | null;
   readonly scheduleState: ScheduleState | null;
@@ -89,6 +93,8 @@ export interface Recurring {
   /** The figures in the display currency (null: no rate, or already in it). */
   readonly display: Converted | null;
   readonly displayRemaining: Converted | null;
+  /** The amount first owed, in the display currency (null: no rate, or already in it). */
+  readonly displayTotalOwed: Converted | null;
   readonly converted: boolean;
 }
 
@@ -119,6 +125,8 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
     totalInstallments: int(raw.total_installments),
     completedInstallments: int(raw.completed_installments),
     assumedInstallments: int(raw.assumed_installments) ?? 0,
+    remainingInstallments: int(raw.remaining_installments),
+    scheduledRemainingBalance: int(raw.scheduled_remaining_balance),
     scheduledInstallments: int(raw.scheduled_installments),
     scheduleState: oneOf(SCHEDULE_STATES, raw.schedule_state),
     evidence: parseEvidence(raw.evidence),
@@ -131,6 +139,7 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
     lastPaidOn: date(raw.last_paid_on),
     display: converted(raw.display_amount, displayCurrency),
     displayRemaining: converted(raw.display_remaining_balance, displayCurrency),
+    displayTotalOwed: converted(raw.display_total_owed, displayCurrency),
     converted: raw.converted === true,
   };
 }
