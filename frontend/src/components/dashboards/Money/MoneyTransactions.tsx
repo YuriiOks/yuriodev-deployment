@@ -23,7 +23,7 @@ const WANTED_ROWS = 15;
 const MAX_AUTO_PAGES = 6;
 
 /** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when, which bank and account, and its marks. */
-const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; mode: MoneyDisplay }> = ({ item, account, mode }) => {
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay }> = ({ item, account, logo, mode }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const incoming = item.amount > 0;
@@ -40,7 +40,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
       <span aria-hidden="true" className={styles.arrow}>
         {item.amount !== 0 && <ProjectIcon name={incoming ? 'arrow-down-left' : 'arrow-up-right'} size={16} />}
       </span>
-      {account && <BankMark provider={account.provider} />}
+      {account && <BankMark provider={account.provider} logo={logo} />}
       <span className={styles.main}>
         <span className={styles.what} title={detail ? `${what}: ${detail}` : what}>
           {what}
@@ -134,7 +134,14 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
                 aria-pressed={provider === candidate.provider}
                 onClick={() => chooseBank(candidate.provider)}
               >
-                <BankName provider={candidate.provider} logo={logos[candidate.provider]} size="chip" />
+                {logos[candidate.provider]?.mark ? (
+                  <>
+                    <span className="sr-only">{providerName(candidate.provider)}</span>
+                    <BankMark provider={candidate.provider} logo={logos[candidate.provider]} />
+                  </>
+                ) : (
+                  <BankName provider={candidate.provider} logo={logos[candidate.provider]} size="chip" />
+                )}
               </button>
             ))}
         </div>
@@ -189,7 +196,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
       {list.status === 'ready' && shown.length > 0 && (
         <ul className={styles.list}>
           {shown.map((item) => (
-            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} mode={mode} />
+            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} />
           ))}
         </ul>
       )}

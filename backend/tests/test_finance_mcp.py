@@ -40,7 +40,14 @@ async def test_the_finance_tools_only_read_but_one_notes_a_category(db_url, make
 
     finance = {tool.name for tool in listed.tools if "finance" in tool.name}
     notes = {"finance_set_category", "finance_set_overdraft"}  # notes on our copy, not on a bank
-    assert finance == READ_ONLY | notes
+    recurring = {
+        "finance_recurring",
+        "finance_add_recurring",
+        "finance_update_recurring",
+        "finance_upcoming",
+        "finance_attention",
+    }  # the owner's own list of payments, also notes
+    assert finance == READ_ONLY | notes | recurring
 
 
 async def test_accounts_and_balances(db_url, make_dashboards_app):

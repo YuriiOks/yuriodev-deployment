@@ -98,6 +98,8 @@ export interface FinanceAccount {
 export interface ProviderLogo {
   readonly onLight: string | null;
   readonly onDark: string | null;
+  /** A square icon of the bank, for the small letter tiles (transaction rows, filter chips); null when the server has none. */
+  readonly mark: string | null;
 }
 
 export interface FinanceConnection {
@@ -444,7 +446,8 @@ export function parseProviders(body: unknown): Record<string, ProviderLogo> | nu
     const id = text(raw.id);
     const onLight = logoUri(raw.logo.on_light);
     const onDark = logoUri(raw.logo.on_dark);
-    if (id && (onLight || onDark)) logos[id] = { onLight, onDark };
+    const mark = logoUri(raw.logo.mark);
+    if (id && (onLight || onDark || mark)) logos[id] = { onLight, onDark, mark };
   }
   return logos;
 }

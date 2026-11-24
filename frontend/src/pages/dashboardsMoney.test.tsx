@@ -747,6 +747,28 @@ describe('the Money page: bank logos', () => {
     expect(monzo.querySelector('[data-missing]')).toBeNull();
   });
 
+  it('uses the bank\'s square icon for the small tiles in the transaction rows and the filter chips when the server sends one, the letter tile otherwise', async () => {
+    setup({
+      finance: finance({
+        providers: [
+          { id: 'acme-bank', logo: { on_light: DARK_INK, on_dark: WHITE_INK, mark: WHITE_INK } },
+          { id: 'monzo', logo: { on_light: DARK_INK, on_dark: WHITE_INK } },
+        ],
+      }),
+    });
+    renderAt(PATH);
+    await banksReady();
+    const transactions = within(main()).getByRole('region', { name: 'Transactions' });
+    const chips = within(transactions).getByRole('group', { name: 'Bank' });
+    const chip = within(chips).getByRole('button', { name: 'Acme bank' });
+    await waitFor(() => expect(chip.querySelector('img')?.getAttribute('src')).toBe(WHITE_INK));
+    expect(chip.querySelector('[data-size="chip"]')).toBeNull();
+    // A bank without an icon keeps the wordmark in its chip.
+    expect(within(chips).getByRole('button', { name: 'Monzo' }).querySelector('[data-size="chip"]')).not.toBeNull();
+    const rows = await within(transactions).findAllByRole('listitem');
+    expect(rows.some((row) => row.querySelector('img')?.getAttribute('src') === WHITE_INK)).toBe(true);
+  });
+
   it('shows a square mark taller than a wide one, once the image has loaded', async () => {
     setup({ finance: withLogos() });
     renderAt(PATH);

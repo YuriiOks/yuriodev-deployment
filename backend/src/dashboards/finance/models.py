@@ -9,15 +9,17 @@ plus an ISO 4217 alpha code; there is no float column.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
+    Integer,
     MetaData,
     Numeric,
     SmallInteger,
@@ -193,3 +195,122 @@ class MonzoOAuthState(FinanceBase):
     state_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+RECURRING_KINDS = (
+    "subscription",
+    "debt",
+    "utility",
+    "insurance",
+    "housing",
+    "service",
+    "one_time",
+)
+RECURRING_FREQUENCIES = ("once", "daily", "weekly", "monthly", "yearly")
+
+
+class Recurring(FinanceBase):
+    """A payment the owner makes again and again (or once, on a date), entered by hand: through
+    the API, the MCP tools or an import. Amounts are minor units of `currency`; `amount` is what
+    is paid (positive). `next_payment_date` moves on by itself once a matching transaction is
+    seen (see `recurring_service.roll_forward`). Nothing here is ever sent to a bank."""
+
+    __tablename__ = "recurring"
+    __table_args__ = (
+        UniqueConstraint("external_ref", name="uq_recurring_external_ref"),
+        CheckConstraint(
+            "kind IN ('subscription', 'debt', 'utility', 'insurance', 'housing', 'service', "
+            "'one_time')",
+            name="ck_recurring_kind",
+        ),
+        CheckConstraint(
+            "frequency IN ('once', 'daily', 'weekly', 'monthly', 'yearly')",
+            name="ck_recurring_frequency",
+        ),
+        CheckConstraint(
+            "frequency_interval BETWEEN 1 AND 366",
+            name="ck_recurring_frequency_interval",
+        ),
+        CheckConstraint("currency ~ '^[A-Z]{3}$'", name="ck_recurring_currency"),
+        CheckConstraint("amount >= 0", name="ck_recurring_amount"),
+        CheckConstraint(
+            "color IS NULL OR color ~ '^#[0-9a-f]{6}$'",
+            name="ck_recurring_color",
+        ),
+        CheckConstraint(
+            "icon_url IS NULL OR icon_url ~ '^https://'",
+            name="ck_recurring_icon_url",
+        ),
+        CheckConstraint(
+            "reminder_days IS NULL OR reminder_days BETWEEN 0 AND 90",
+            name="ck_recurring_reminder_days",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    external_ref: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    frequency: Mapped[str] = mapped_column(String(8), nullable=False)
+    frequency_interval: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default="1"
+    )
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    next_payment_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    payment_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    payment_mode: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    auto_renew: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    payment_method: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.account.id", ondelete="SET NULL"), nullable=True
+    )
+    match_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    reminder_days: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    icon_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    is_installment: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    total_installments: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completed_installments: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_owed: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    remaining_balance: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    creditor: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    target_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    current_saved: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    recipient: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    last_paid_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_charged_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    last_transaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.transaction.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AttentionState(FinanceBase):
+    """What the owner did with an attention item (`key` names the condition and its occasion, so a
+    new occasion is a new key): dismissed for good, or snoozed until a time."""
+
+    __tablename__ = "attention_state"
+    __table_args__ = (
+        CheckConstraint("state IN ('dismissed', 'snoozed')", name="ck_attention_state_state"),
+        CheckConstraint(
+            "state = 'dismissed' OR until IS NOT NULL",
+            name="ck_attention_state_until",
+        ),
+    )
+
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    state: Mapped[str] = mapped_column(String(10), nullable=False)
+    until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

@@ -59,7 +59,7 @@ async def test_an_empty_database_gets_the_schema_and_the_seed(empty_db_url):
     names = await scalar(empty_db_url, "SELECT name_en FROM area WHERE id = 'court-paperwork'")
 
     assert tables == len(TABLES)
-    assert version == "dashboards_0013"
+    assert version == "dashboards_0014"
     assert spaces == "personal,work-1,work-2"
     assert areas == 10
     assert sorts == "1,2,3,4,5,6,7,8,9,10"
@@ -242,7 +242,10 @@ async def test_finance_lives_in_its_own_schema_and_keeps_money_as_integers(empty
         "('amount', 'balance', 'credit_limit', 'original_amount', 'balance_after')",
     )
 
-    assert inside == "account,connection,fx_rate,monzo_oauth_state,monzo_token,transaction"
+    assert inside == (
+        "account,attention_state,connection,fx_rate,monzo_oauth_state,monzo_token,recurring,"
+        "transaction"
+    )
     assert outside == 0
     assert money == "bigint"
 
@@ -328,7 +331,8 @@ async def test_accounts_and_transactions_get_their_presentation_and_category_col
 
     assert columns == (
         "account.goal_amount,account.kind,account.label,account.overdraft_limit,"
-        "account.parent_account_id,transaction.category,transaction.category_override"
+        "account.parent_account_id,recurring.category,recurring.kind,transaction.category,"
+        "transaction.category_override"
     )
     assert kind == "current"
     assert category is True  # worked out at startup, not by the migration
@@ -357,3 +361,53 @@ async def test_the_owners_overdraft_limit_is_its_own_nullable_column(empty_db_ur
         await execute(empty_db_url, "UPDATE finance.account SET overdraft_limit_override = -1")
 
     assert column == "bigint:YES"
+
+
+NEW_PAYMENT = (
+    "INSERT INTO finance.recurring (id, name, kind, amount, currency, frequency) "
+    "VALUES (gen_random_uuid(), 'Acme', 'service', 100, 'GBP', 'monthly')"
+)
+NEW_PAYMENT_WITH_REF = (
+    "INSERT INTO finance.recurring (id, name, kind, amount, currency, frequency, external_ref) "
+    "VALUES (gen_random_uuid(), 'Acme', 'service', 100, 'GBP', 'monthly', 'r')"
+)
+
+
+async def test_recurring_payments_and_attention_state_are_checked_by_the_database(empty_db_url):
+    await migrate(empty_db_url)
+    await execute(empty_db_url, NEW_PAYMENT)
+    columns = await scalar(
+        empty_db_url,
+        "SELECT count(*) FROM information_schema.columns "
+        "WHERE table_schema = 'finance' AND table_name = 'recurring'",
+    )
+
+    for statement in (
+        "UPDATE finance.recurring SET kind = 'gift'",
+        "UPDATE finance.recurring SET frequency = 'never'",
+        "UPDATE finance.recurring SET frequency_interval = 0",
+        "UPDATE finance.recurring SET frequency_interval = 367",
+        "UPDATE finance.recurring SET currency = 'gbp'",
+        "UPDATE finance.recurring SET amount = -1",
+        "UPDATE finance.recurring SET color = '#ABCDEF'",
+        "UPDATE finance.recurring SET icon_url = 'http://example.test/a.png'",
+        "UPDATE finance.recurring SET reminder_days = 91",
+        "UPDATE finance.recurring SET account_id = gen_random_uuid()",
+        "INSERT INTO finance.attention_state (key, state) VALUES ('k', 'gone')",
+        "INSERT INTO finance.attention_state (key, state) VALUES ('k', 'snoozed')",
+    ):
+        with pytest.raises(IntegrityError):
+            await execute(empty_db_url, statement)
+    await execute(
+        empty_db_url,
+        "UPDATE finance.recurring SET color = '#12abef', icon_url = 'https://example.test/a.png'",
+        "INSERT INTO finance.attention_state (key, state) VALUES ('k', 'dismissed')",
+    )
+    with pytest.raises(IntegrityError):  # a reference is unique
+        await execute(
+            empty_db_url,
+            "UPDATE finance.recurring SET external_ref = 'r'",
+            NEW_PAYMENT_WITH_REF,
+        )
+
+    assert columns == 36
