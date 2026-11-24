@@ -251,7 +251,7 @@ def register(
     ) -> str:
         """Add a bank that has no API, entered by hand. provider is a lower-case id (barclays,
         lloyds, aqua, revolut, wise, starling, paypal, or your own neutral id); display_name and
-        the colours (#rrggbb pair with a contrast of 4.5) are for a bank that has no built-in
+        the colours (#rrggbb pair with a contrast of 3:1) are for a bank that has no built-in
         brand. monobank and monzo are connected through their APIs and are refused."""
         try:
             data = ConnectionIn.model_validate(

@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.dashboards.finance.brands import BRANDS, NEUTRAL, contrast_ratio, readable
+from src.dashboards.finance.brands import BRANDS, MIN_CONTRAST, NEUTRAL, contrast_ratio, readable
 from src.dashboards.finance.statements import (
     CellError,
     Entry,
@@ -334,10 +334,10 @@ def test_the_supported_layouts_are_listed():
     assert supported()[:3] == ["generic", "ofx", "paypal"]
 
 
-def test_every_built_in_brand_pair_passes_wcag_aa():
+def test_every_built_in_brand_pair_reaches_the_large_text_floor():
     assert BRANDS
     for brand in [*BRANDS.values(), NEUTRAL]:
-        assert contrast_ratio(brand.background, brand.foreground) >= 4.5, brand.name
+        assert contrast_ratio(brand.background, brand.foreground) >= MIN_CONTRAST, brand.name
     assert all(brand.name for brand in BRANDS.values())
 
 
@@ -348,3 +348,22 @@ def test_contrast_follows_the_wcag_formula():
     assert readable("#777777", "#888888") is False
     assert readable("#00AEEF", "#ffffff") is False  # upper case is not the stored form
     assert readable("blue", "#ffffff") is False
+
+
+def test_the_built_in_cards_are_the_brands_own_signature_colours_with_a_readable_ink():
+    pairs = {name: (brand.background, brand.foreground) for name, brand in BRANDS.items()}
+
+    assert pairs["monzo"] == ("#ff4f40", "#ffffff")  # the hot coral, white ink
+    assert pairs["starling"] == ("#50ffeb", "#321e37")  # mint-teal, dark purple ink
+    assert pairs["wise"] == ("#9fe870", "#163300")  # lime, dark green ink
+    assert pairs["revolut"] == ("#ffffff", "#191c1f")  # white, near-black ink
+    assert pairs["aqua"] == ("#0000a6", "#ffffff")
+    assert pairs["barclays"] == ("#00aeef", "#00395d")  # the cyan itself, navy ink
+    assert pairs["monobank"] == ("#000000", "#ffffff")
+
+
+def test_the_floor_is_three_to_one_for_a_pair_the_owner_types_in_too():
+    assert readable("#ff4f40", "#ffffff") is True  # 3.3: large text
+    assert readable("#0090d0", "#ffffff") is True
+    assert readable("#00aeef", "#ffffff") is False  # 2.5: white on pure cyan is under the floor
+    assert readable("#00aeef", "#00395d") is True
