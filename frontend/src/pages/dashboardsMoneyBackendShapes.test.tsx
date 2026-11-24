@@ -447,8 +447,7 @@ describe('the Money page: payment icons by address and uploads', () => {
     renderAt(`${PATH}?view=recurring`);
     const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
     const row = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
-    await user.click(within(row).getByRole('button', { name: /^Actions: / }));
-    await user.click(within(row).getByRole('menuitem', { name: 'Edit' }));
+    await user.click(within(row).getByRole('button', { name: 'Edit' }));
     expect(panel.getByText(/No icon found: the site did not answer in time/)).toBeInTheDocument();
     const input = panel.getByLabelText('Upload icon', { selector: 'input' }) as HTMLInputElement;
     // A file of a type the server refuses: its refusal is told in words.
