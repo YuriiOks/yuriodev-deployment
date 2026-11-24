@@ -42,7 +42,9 @@ logger = logging.getLogger("yuriodev.finance")
 
 OVERLAP = timedelta(days=3)  # every incremental window starts this far before the last one ended
 MAX_PAGES = 10  # a window of more than this many full pages is refused, never half stored
-EMPTY_WINDOWS_AT_END = 3  # this many empty windows in a row: the provider's history ended
+# This many empty windows in a row end the history walk of an account whose opening date is not
+# known. With an opening date the walk goes back to it however long the quiet stretch.
+EMPTY_WINDOWS_AT_END = 3
 INSERT_CHUNK = 500
 BURST_BUDGET_SECONDS = 90.0  # a tick may keep going this long, so a manager timeout never hits
 FULL_HISTORY_MONTHS = 120  # how far back a provider with `full_history` is asked, at the most
@@ -152,6 +154,7 @@ class _Window:
     cursor: datetime  # the end of the page asked for next
     depth_limit: datetime
     caught_up: bool  # an incremental window that ends at the moment it was planned
+    bounded: bool  # the account's opening date is known: the walk ends there, not on a streak
     items: dict[str, TransactionData] = field(default_factory=dict)
     pages: int = 0
 
@@ -200,6 +203,8 @@ class FinanceCollector:
         connection_id, status = await self._connection(sessions, now)
         if status == "paused":
             return counts
+        loop = asyncio.get_running_loop()
+        started = loop.time()
         slept = 0.0
         index = 0
         while True:
@@ -221,7 +226,8 @@ class FinanceCollector:
                 counts[key] += value
             # The burst is asked again after every step: a provider learns of a window by a step.
             steps = max(1, self._provider.burst(step_now))
-            if not step["calls"] or index + 1 >= steps or slept >= BURST_BUDGET_SECONDS:
+            spent = max(slept, loop.time() - started)  # requests take time too
+            if not step["calls"] or index + 1 >= steps or spent >= BURST_BUDGET_SECONDS:
                 break
             wait = self._gap().total_seconds()
             await self._sleep(wait)
@@ -368,6 +374,7 @@ class FinanceCollector:
             cursor=end,
             depth_limit=depth_limit,
             caught_up=caught_up,
+            bounded=cursors.opened_at is not None,
         )
 
     async def _mark_backfill_done(
@@ -442,7 +449,8 @@ class FinanceCollector:
         if window.kind == "incremental":
             return {"synced_until": window.end, "updated_at": now}
         streak = 0 if window.items else await self._streak(session, window.account_id) + 1
-        done = window.start <= window.depth_limit or streak >= EMPTY_WINDOWS_AT_END
+        quiet = not window.bounded and streak >= EMPTY_WINDOWS_AT_END
+        done = window.start <= window.depth_limit or quiet
         return {
             "backfilled_from": window.start,
             "empty_streak": streak,

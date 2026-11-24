@@ -294,8 +294,8 @@ const HUB_PAIRS: Pair[] = [
     // Hover, focus and pressed: the card's own flat tint (-h, then -p) with the name, labels and the Next line on it; the ink on the stat chips (the numbers).
     ...cross(['--dash-t1', '--dash-t2', `--hub-${scheme}-ink`], [[`--hub-${scheme}-h`], [`--hub-${scheme}-p`]], TEXT),
     // The stat chips carry the scheme's tint (-c at rest, -ch when the card is hovered): its number in the ink (the danger colour
-    // for an overdue one, t2 for a zero) and the label in t2.
-    ...cross([`--hub-${scheme}-ink`, '--dash-t2', '--dash-danger'], [[`--hub-${scheme}-c`], [`--hub-${scheme}-ch`]], TEXT),
+    // for an overdue one, -z, a muted step of the same hue, for a zero) and the label in t2.
+    ...cross([`--hub-${scheme}-ink`, `--hub-${scheme}-z`, '--dash-t2', '--dash-danger'], [[`--hub-${scheme}-c`], [`--hub-${scheme}-ch`]], TEXT),
   ]),
   // The tile: the brand clay with the warm black on it (the letter or drawing in warm white on the deeper clay; the tile itself is decorative: the name sits beside it).
   { fg: '--hub-project-on', bg: ['--hub-project-clay'], min: TEXT },

@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { clearBarCache } from './services/dashboards/barCache';
 import { primeBootstrap } from './services/dashboards/bootstrapStore';
 import { resetProjects } from './services/dashboards/projectsStore';
 
@@ -12,6 +13,7 @@ afterEach(() => {
 // The dashboards decide once per page load whether they run on the API; every test starts on the bundled sample
 // data (as if the bootstrap answered "disabled"), and the live tests prime their own answer.
 beforeEach(() => {
+  clearBarCache();
   primeBootstrap(null);
   resetProjects();
 });
