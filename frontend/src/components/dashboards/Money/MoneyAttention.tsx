@@ -279,12 +279,16 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
         <h3 id={titleId} className={styles.agroupTitle}>
           {r.groupTitle[group.kind]} <span className={styles.agroupCount}>{items.length}</span>
         </h3>
+        {/* A group of one has its row's own buttons: the group actions are for two or more. */}
+        {(items.length > 1 || acceptable.length > 0) && (
         <span className={styles.agroupActions}>
           {acceptable.length > 0 && (
             <button type="button" className={styles.small} disabled={busy} onClick={() => bulk(async (item) => void (await updateRecurring(item.subjectId, { amount: item.amount ?? 0 })), acceptable)}>
               {r.acceptAll}
             </button>
           )}
+          {items.length > 1 && (
+            <>
           <button type="button" className={styles.small} disabled={busy} onClick={() => bulk((item) => snoozeAttention(item.key, SNOOZE_ALL_DAYS))}>
             {r.snoozeAll}
           </button>
@@ -303,7 +307,10 @@ const AttentionGroupBlock: React.FC<RowContext & { group: AttentionGroup }> = ({
               {r.dismissAll}
             </button>
           )}
+            </>
+          )}
         </span>
+        )}
       </div>
       <ul className={styles.arows}>
         {shown.map((item) => (
