@@ -29,6 +29,20 @@ export function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: b
   return { status: current ? (current.value ? 'ready' : 'error') : 'loading', value: current?.value ?? null, reload: () => setToken((n) => n + 1) };
 }
 
+export interface Kept<T> {
+  readonly status: LoadStatus;
+  readonly value: T | null;
+  readonly reload: () => void;
+}
+
+/** While an answer is being asked again (after a change, or for another window) the last good one stays on screen, so the cards do not vanish and come back; an error shows as one. */
+export function useKeepLast<T>(slot: Kept<T>): Kept<T> {
+  const [kept, setKept] = useState<T | null>(null);
+  if (slot.value && slot.value !== kept) setKept(slot.value);
+  const value = slot.status === 'error' ? null : (slot.value ?? kept);
+  return { status: value && slot.status === 'loading' ? 'ready' : slot.status, value, reload: slot.reload };
+}
+
 const loadAccounts = (signal: AbortSignal) => fetchFinanceAccounts(signal);
 const loadSummary = (signal: AbortSignal) => fetchFinanceSummary(signal);
 const loadProviders = (signal: AbortSignal) => fetchProviders(signal);
@@ -41,10 +55,10 @@ export const useProviderLogos = (enabled: boolean) => useOnce<Record<string, Pro
 export const useFinanceCategories = (enabled: boolean) => useOnce<FinanceCategories>(loadCategories, enabled);
 
 /** The accounts with the state of each bank link (GET /finance/accounts). Each request has its own loading and error state. */
-export const useFinanceAccounts = (enabled: boolean) => useOnce<FinanceAccounts>(loadAccounts, enabled);
+export const useFinanceAccounts = (enabled: boolean) => useKeepLast(useOnce<FinanceAccounts>(loadAccounts, enabled));
 
 /** This month per currency (GET /finance/summary). */
-export const useFinanceSummary = (enabled: boolean) => useOnce<FinanceSummary>(loadSummary, enabled);
+export const useFinanceSummary = (enabled: boolean) => useKeepLast(useOnce<FinanceSummary>(loadSummary, enabled));
 
 export interface TransactionsState {
   readonly status: LoadStatus;

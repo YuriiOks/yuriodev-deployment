@@ -64,16 +64,21 @@ export function formatMinorParts(minor: number, code: string, lang: Lang): Amoun
 
 /**
  * A typed amount ("12.99", "12,99", "1 234.5") as minor units of a currency, or null when it is not a positive number with no more
- * decimals than the currency has. No rounding: an amount the currency cannot hold is refused, as the server does.
+ * decimals than the currency has (with `signed`: a balance, which may be negative or nothing). No rounding: an amount the currency cannot hold is refused, as the server does.
  */
-export function parseMinor(input: string, code: string): number | null {
-  const value = input.replace(/[\s\u00a0]/g, '').replace(',', '.');
+export function parseMinor(input: string, code: string, { signed = false }: { signed?: boolean } = {}): number | null {
+  const typed = input.replace(/[\s\u00a0]/g, '').replace(',', '.');
+  const negative = signed && typed.startsWith('-');
+  const value = negative ? typed.slice(1) : typed;
   if (!/^\d+(\.\d+)?$/.test(value)) return null;
   const digits = digitsOf(code);
   const [whole, fraction = ''] = value.split('.');
   if (fraction.length > digits) return null;
   const minor = Number(whole + fraction.padEnd(digits, '0'));
-  return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
+  if (!Number.isSafeInteger(minor)) return null;
+  // A payment is more than nothing; a balance (signed) may be nothing, and below it.
+  if (!signed && minor <= 0) return null;
+  return negative ? -minor : minor;
 }
 
 /** Minor units as the plain decimal text an input takes ("1299" in pounds is "12.99"). */

@@ -13,13 +13,16 @@ import { brandStyle } from './brandStyle';
 import BankName from './BankName';
 import HeroAmount from './HeroAmount';
 import { dayLabel, whenLabel } from './labels';
+import ManualTools from './ManualTools';
 import { reconnectPath } from './providers';
 import styles from './Money.module.css';
 
-/** The link's state in words, with when it last worked. */
+/** The link's state in words, with when it last worked (for a bank entered by hand: the date its balance is as of). */
 function useLinkLine(bank: Bank): string {
   const { t, lang } = useDashboardLang();
   const m = t.money;
+  // A bank entered by hand has no link to describe: its data is as of a date.
+  if (bank.connection?.manual) return bank.connection.lastOkAt ? fill(m.manual.balanceAsOf, { date: dayLabel(bank.connection.lastOkAt, lang) }) : m.linkNone;
   const status = bank.connection?.status;
   const label = status === 'ok' ? m.linkOk : status === 'needs_reconsent' ? m.linkNeedsReconsent : status === 'paused' ? m.linkPaused : m.linkNone;
   const when = bank.connection?.lastOkAt ? whenLabel(bank.connection.lastOkAt, lang) : '';
@@ -53,7 +56,7 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
   const reconnect = warn ? reconnectPath(bank.provider) : null;
   const id = `money-bank-${bank.provider}`;
   return (
-    <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider)}>
+    <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider, logo)}>
       <button type="button" className={styles.bankHead} aria-pressed={selected} onClick={onSelect}>
         <span className={styles.bankName}>
           <BankName provider={bank.provider} logo={logo} />
@@ -105,7 +108,7 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
   );
 };
 
-const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mode: MoneyDisplay }> = ({ account, distinguish, mode }) => {
+const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mode: MoneyDisplay; manual?: boolean; onChanged?: () => void }> = ({ account, distinguish, mode, manual = false, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const use = creditUse(account);
@@ -151,6 +154,7 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
           </span>
         </>
       )}
+      {manual && onChanged && <ManualTools account={account} onChanged={onChanged} />}
     </li>
   );
 };
@@ -182,7 +186,7 @@ const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ ac
 };
 
 /** The opened bank: its header in the brand colours, the main accounts as cards, the pots as tiles, the empty ones folded. */
-const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: MoneyDisplay }> = ({ bank, logo, mode }) => {
+const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: MoneyDisplay; onChanged: () => void }> = ({ bank, logo, mode, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const [showEmpty, setShowEmpty] = useState(false);
@@ -196,11 +200,12 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
   const pots = showEmpty ? [...split.pots, ...split.emptyPots] : split.pots;
   const potsSum = pots.length > 0 ? totals.filter((total) => total.pots !== 0) : [];
   const reconnect = bank.connection?.status === 'needs_reconsent' ? reconnectPath(bank.provider) : null;
+  const manual = bank.connection?.manual === true;
   const id = `money-bank-${bank.provider}`;
 
   return (
-    <article aria-labelledby={`${id}-name`} className={styles.detail} style={brandStyle(bank.provider)}>
-      <header className={styles.detailHead} style={brandStyle(bank.provider)}>
+    <article aria-labelledby={`${id}-name`} className={styles.detail} style={brandStyle(bank.provider, logo)}>
+      <header className={styles.detailHead} style={brandStyle(bank.provider, logo)}>
         <div className={styles.detailTitle}>
           <div className={styles.detailTitleText}>
             <h3 id={`${id}-name`} className={styles.detailName}>
@@ -237,7 +242,7 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
           <section aria-label={m.accountsTitle}>
             <ul className={styles.accountList}>
               {accounts.map((account) => (
-                <AccountCard key={account.id} account={account} distinguish={shared.has(account.name.trim().toLowerCase())} mode={mode} />
+                <AccountCard key={account.id} account={account} distinguish={shared.has(account.name.trim().toLowerCase())} mode={mode} manual={manual} onChanged={onChanged} />
               ))}
             </ul>
           </section>
@@ -270,7 +275,7 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
             {showBusiness && (
               <ul className={styles.accountList}>
                 {split.business.map((account) => (
-                  <AccountCard key={account.id} account={account} distinguish={shared.has(account.name.trim().toLowerCase())} mode={mode} />
+                  <AccountCard key={account.id} account={account} distinguish={shared.has(account.name.trim().toLowerCase())} mode={mode} manual={manual} onChanged={onChanged} />
                 ))}
               </ul>
             )}
@@ -306,10 +311,12 @@ export interface MoneyWalletProps {
   /** The banks' wordmarks by provider id (empty until the server sends them: the text names show). */
   logos: Readonly<Record<string, ProviderLogo>>;
   onSelect: (provider: string) => void;
+  /** The balance of a bank entered by hand was set, or a statement imported: the page asks for the accounts again. */
+  onChanged: () => void;
 }
 
 /** The wallet: every bank as a coloured card in a stack, and the selected bank opened beside it (below it on a phone). */
-const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, onSelect }) => {
+const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, onSelect, onChanged }) => {
   const { t } = useDashboardLang();
   const banks = groupBanks(data.accounts, data.connections);
   if (banks.length === 0) return <p className={styles.none}>{t.money.noAccounts}</p>;
@@ -323,7 +330,7 @@ const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, 
           <BankCard key={bank.provider} bank={bank} logo={logos[bank.provider]} first={index === 0} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
         ))}
       </div>
-      <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} />
+      <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} onChanged={onChanged} />
     </div>
   );
 };

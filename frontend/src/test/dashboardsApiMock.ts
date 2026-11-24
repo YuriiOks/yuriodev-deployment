@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'recurringWrite' | 'attentionWrite';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'recurringWrite' | 'attentionWrite' | 'manualWrite';
 
 export interface Call {
   readonly method: string;
@@ -120,6 +120,8 @@ export interface FinanceData {
   upcoming?: Record<string, unknown>;
   /** GET /finance/attention items (default: none); snooze, dismiss and restore change their state in place. */
   attention?: Record<string, unknown>[];
+  /** What POST /finance/manual/accounts/{id}/statement answers (its `dry_run` follows the query). Default: a clean file of three lines. */
+  manualStatement?: { status: number; body: Record<string, unknown> };
 }
 
 export interface FakeApiOptions {
@@ -211,6 +213,23 @@ export function installFakeApi({ enabled = true, tasks = sampleTasks(), events =
       found.state = attentionAction[1] === 'snooze' ? 'snoozed' : attentionAction[1] === 'dismiss' ? 'dismissed' : 'active';
       found.snoozed_until = attentionAction[1] === 'snooze' ? '2026-12-01T00:00:00Z' : null;
       return json(found);
+    }
+    const manualCall = /^\/finance\/manual\/accounts\/([\w-]+)\/(balance|statement)$/.exec(path);
+    if (manualCall && method === 'POST') {
+      if (api.fail.has('manualWrite')) return failure();
+      const account = api.finance.accounts.find((row) => row.id === manualCall[1]);
+      if (!account) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (manualCall[2] === 'balance') {
+        const asOf = typeof body?.as_of === 'string' ? `${body.as_of}T23:59:59Z` : '2026-11-24T12:00:00Z';
+        const minor = typeof body?.owed === 'number' ? (account.credit_limit as number) - body.owed : (body?.balance as number);
+        account.balance = minor;
+        account.own_balance_minor = typeof body?.owed === 'number' ? -body.owed : minor;
+        const link = api.finance.connections.find((row) => row.provider === account.provider);
+        if (link) link.last_ok_at = asOf;
+        return json(account);
+      }
+      const configured = api.finance.manualStatement ?? { status: 200, body: { layout: 'csv', parsed: 3, created: 3, duplicates: 0, first_date: '2026-10-01', last_date: '2026-10-31', money_in: 150000, money_out: 4550, balance_applied: false, errors: [] } };
+      return json({ ...configured.body, dry_run: url.searchParams.get('dry_run') === 'true' }, configured.status);
     }
     if (path === '/finance/providers') {
       if (api.fail.has('financeProviders')) return failure();
