@@ -148,6 +148,9 @@ async def test_a_task_is_created_with_defaults(db_url, make_dashboards_app):
         "source",
         "url",
         "stage",
+        "source_priority",
+        "source_updated_at",
+        "draft",
         "created_at",
         "updated_at",
     }

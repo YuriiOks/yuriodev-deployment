@@ -10,7 +10,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints, model_validator
 
-from src.dashboards.catalog import PROJECT_ICON_PATTERN, Source, TaskStatus
+from src.dashboards.catalog import PROJECT_ICON_PATTERN, Source, SourcePriority, TaskStatus
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 Notes = Annotated[str, StringConstraints(max_length=20_000)]
@@ -130,6 +130,9 @@ class TaskOut(BaseModel):
     source: Source
     url: str | None
     stage: str | None
+    source_priority: SourcePriority | None  # the source's own (Linear), never the Priority flag
+    source_updated_at: datetime | None  # when the item last changed at the source
+    draft: bool  # a GitHub pull request that is still a draft
     created_at: datetime
     updated_at: datetime
 

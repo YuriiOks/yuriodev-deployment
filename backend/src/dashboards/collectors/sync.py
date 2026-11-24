@@ -92,6 +92,14 @@ def _refresh(task: Task, item: ExternalItem, now: datetime, counts: SyncCounts) 
     if task.stage != item.stage:
         task.stage = item.stage
         changed = True
+    for name, value in (
+        ("source_priority", item.priority),
+        ("source_updated_at", item.updated_at),
+        ("draft", item.draft),
+    ):
+        if getattr(task, name) != value:
+            setattr(task, name, value)
+            changed = True
     if task.status != "open":
         task.status = "open"
         task.done_at = None
@@ -117,6 +125,9 @@ def _new_task(source: str, space: str, item: ExternalItem, now: datetime) -> Tas
         source_ref=item.external_id,
         url=item.url,
         stage=item.stage,
+        source_priority=item.priority,
+        source_updated_at=item.updated_at,
+        draft=item.draft,
         created_at=now,
         updated_at=now,
     )

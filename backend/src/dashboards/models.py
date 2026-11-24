@@ -58,6 +58,11 @@ class Task(Base):
         CheckConstraint(
             "source IN ('web', 'mcp', 'telegram', 'import', 'github', 'linear')", name="source"
         ),
+        CheckConstraint(
+            "source_priority IS NULL OR source_priority IN "
+            "('urgent', 'high', 'medium', 'low', 'none')",
+            name="source_priority",
+        ),
         Index("ix_task_space_id_status", "space_id", "status"),
         # One row per external item: a collector upserts on (source, source_ref).
         Index(
@@ -84,6 +89,14 @@ class Task(Base):
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Collector-owned grouping label of a collected task (a Linear state type, `mine`/`review`).
     stage: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Collector-owned, for ordering and marking (migration `dashboards_0010`): the source's own
+    # priority (`urgent`..`none`, Linear), when the item last changed there, a draft pull request.
+    # Never the user's `priority` flag, which is the hand-picked Priority panel.
+    source_priority: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    source_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    draft: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

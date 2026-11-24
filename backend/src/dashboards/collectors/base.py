@@ -33,6 +33,10 @@ class ExternalItem:
     due_date: date | None = None
     # A grouping label the collector owns (not part of the tombstone fingerprint).
     stage: str | None = None
+    # What the source says, for ordering and marking; all collector-owned like the stage.
+    priority: str | None = None  # urgent | high | medium | low | none
+    updated_at: datetime | None = None
+    draft: bool = False
 
 
 @dataclass(frozen=True)

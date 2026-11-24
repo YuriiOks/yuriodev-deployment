@@ -1,6 +1,6 @@
 """Collected tasks in the database: upsert, ownership, closing and tombstones (real Postgres)."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from mcp import Client
@@ -321,3 +321,126 @@ async def test_the_stage_is_in_the_mcp_task_output(db_url, make_dashboards_app):
         result = await mcp.call_tool("list_tasks", {"space": "work-1"})
 
     assert '"stage":"review"' in result.content[0].text
+
+
+def sourced(number, **fields):
+    url = f"https://example.test/{number}"
+    return ExternalItem(f"ref-{number}", f"Item {number}", url, **fields)
+
+
+async def test_the_sources_own_priority_time_and_draft_flag_are_kept_but_never_set_the_flag(
+    db_url, make_dashboards_app, clock
+):
+    seen = datetime(2026, 11, 20, 9, 0, tzinfo=UTC)
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await sync(
+            app, [sourced(1, priority="urgent", updated_at=seen, draft=True)], source="linear"
+        )
+        (task,) = await tasks(client)
+        clock.now += timedelta(hours=1)
+        later = datetime(2026, 11, 21, 9, 0, tzinfo=UTC)
+        counts = await sync(
+            app, [sourced(1, priority="low", updated_at=later, draft=False)], source="linear"
+        )
+        (changed,) = await tasks(client)
+        same = await sync(
+            app, [sourced(1, priority="low", updated_at=later, draft=False)], source="linear"
+        )
+
+    assert (task["source_priority"], task["source_updated_at"], task["draft"]) == (
+        "urgent",
+        "2026-11-20T09:00:00Z",
+        True,
+    )
+    assert task["priority"] is False  # an urgent issue is not in the hand-picked Priority panel
+    assert (changed["source_priority"], changed["source_updated_at"], changed["draft"]) == (
+        "low",
+        "2026-11-21T09:00:00Z",
+        False,
+    )
+    assert (counts.updated, same.updated) == (1, 0)
+    assert changed["priority"] is False
+
+
+async def test_manual_tasks_have_no_source_fields_and_nobody_can_set_them(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        manual = (await client.post(f"{BASE}/spaces/work-1/tasks", json={"title": "x"})).json()
+        await sync(app, [sourced(1, priority="high")], source="linear")
+        (collected,) = [t for t in await tasks(client) if t["source"] == "linear"]
+        attempts = [
+            await client.patch(f"{BASE}/tasks/{collected['id']}", json={field: value})
+            for field, value in (
+                ("source_priority", "urgent"),
+                ("source_updated_at", "2026-11-20T09:00:00Z"),
+                ("draft", True),
+            )
+        ]
+        create = await client.post(
+            f"{BASE}/spaces/work-1/tasks", json={"title": "y", "source_priority": "urgent"}
+        )
+
+    assert (manual["source_priority"], manual["source_updated_at"], manual["draft"]) == (
+        None,
+        None,
+        False,
+    )
+    assert [r.status_code for r in attempts] == [422, 422, 422]
+    assert create.status_code == 422
+    assert collected["source_priority"] == "high"
+
+
+async def test_collected_tasks_come_most_urgent_first_then_most_recently_updated(
+    db_url, make_dashboards_app
+):
+    def when(day):
+        return datetime(2026, 11, day, 9, 0, tzinfo=UTC)
+
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        manual = (await client.post(f"{BASE}/spaces/work-1/tasks", json={"title": "mine"})).json()
+        flagged = await client.post(
+            f"{BASE}/spaces/work-1/tasks", json={"title": "flagged", "priority": True}
+        )
+        await sync(
+            app,
+            [
+                sourced(1, priority="low", updated_at=when(20)),
+                sourced(2, priority="urgent", updated_at=when(10)),
+                sourced(3, priority="urgent", updated_at=when(15)),
+                sourced(4, priority="none", updated_at=when(21)),
+                sourced(5, priority="high", updated_at=when(1)),
+                sourced(6, priority="high", updated_at=None),
+            ],
+            source="linear",
+        )
+        listed = [t["title"] for t in await tasks(client, status="open")]
+        await sync(app, [], source="linear")
+        done = [t["title"] for t in await tasks(client, status="done")]
+
+    assert flagged.status_code == 201
+    assert listed == [
+        "flagged",  # the hand-picked Priority flag still comes first
+        "Item 3",
+        "Item 2",  # urgent: the more recently updated first
+        "Item 5",
+        "Item 6",  # high: one with a time before one without
+        "Item 1",
+        "Item 4",  # none after low
+        manual["title"],  # and a manual task after every collected one
+    ]
+    assert sorted(done) == ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6"]
+
+
+async def test_the_source_fields_are_in_the_mcp_task_output(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH), Client(app.state.mcp) as mcp:
+        await sync(app, [sourced(1, priority="urgent", draft=True)], source="linear")
+        result = await mcp.call_tool("list_tasks", {"space": "work-1"})
+
+    text = result.content[0].text
+    assert '"source_priority":"urgent"' in text
+    assert '"draft":true' in text

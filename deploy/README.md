@@ -750,14 +750,22 @@ only the collector name, counts and an error kind: never a URL, token, title or 
 
 | Collector | Switched on by | Reads | Target space |
 |---|---|---|---|
-| GitHub | `GITHUB_TOKEN` | open pull requests you authored (`author:@me`) and open pull requests with a review requested from you (`review-requested:@me`), through the REST search API; `GITHUB_SEARCH_SCOPE` is appended to both queries (for example an `org:<name>` qualifier) | `GITHUB_SPACE`, default `work-1` |
+| GitHub | `GITHUB_TOKEN` | open pull requests you authored (`author:@me`), open pull requests with a review requested from you or from a team you are in (`review-requested:@me` and `team-review-requested:<org>/<team>`), and open pull requests of others that you already reviewed and that do not ask for you again (`reviewed-by:@me -author:@me -review-requested:@me`, one query), through the REST search API; `GITHUB_SEARCH_SCOPE` is appended to both queries (for example an `org:<name>` qualifier) | `GITHUB_SPACE`, default `work-1` |
 | Linear | `LINEAR_API_KEY` | issues assigned to the key's user whose state type is not `completed`, `canceled` or `duplicate`, through GraphQL | `LINEAR_SPACE`, default `work-1` |
 
 `stage` is a short grouping label the collector sets (the page groups the GitHub and Linear tabs by it;
 you cannot set it, and manual tasks have none): Linear, the issue's workflow state type (`started`,
 `unstarted`, `backlog` or `triage`; anything else is no stage); GitHub, `mine` for pull requests you
-opened and `review` for pull requests waiting for your review. A change of stage alone updates the
+opened, `review` for pull requests waiting for your review (yours or your team's) and `reviewed` for
+open pull requests you reviewed already (a new review request moves one back to `review`). A change of stage alone updates the
 task and never brings a deleted one back (the tombstone fingerprint is title and link only).
+
+Every collected task also carries what the source says, for ordering and marking (`GET .../tasks`
+and the MCP tools): `source_priority` (Linear: `urgent`, `high`, `medium`, `low` or `none`; null
+for GitHub and for manual tasks), `source_updated_at` (when the issue or pull request last changed
+there) and `draft` (a GitHub pull request that is still a draft). They are never your Priority
+flag: an urgent Linear issue does not appear in the hand-picked Priority panel unless you set it.
+Lists come most urgent first, then most recently updated.
 
 Tasks are titled `PR #123: <title>`, `Review PR #123: <title>` and `<IDENTIFIER>: <title>`, and
 carry a link (the page shows it). The target space can be `personal` or `work-1`: `work-2` is
@@ -765,7 +773,11 @@ refused at startup.
 
 Minimum credentials: GitHub, a fine-grained personal access token with read-only "Pull
 requests" and "Metadata" on the repositories to watch (a classic token needs `repo` for
-private repositories, `public_repo` for public ones); Linear, a personal API key (read
+private repositories, `public_repo` for public ones). **Team review requests also need the token to
+see your team membership**: classic `read:org`, or a fine-grained token with the organisation
+permission "Members: read" (the organisation must have approved the token). Without it only direct
+requests arrive, silently (compare the review list with GitHub's own "Review requests" page);
+the collector never fails for it. A token created with only the minimum above has no such access; Linear, a personal API key (read
 access is enough; it is sent as the `Authorization` header as is).
 
 Who owns what: the collector owns a collected task's title, link, `stage` and open/done status and

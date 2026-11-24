@@ -187,3 +187,39 @@ async def test_the_query_asks_for_the_state_and_the_priority():
 
     assert "state { name type }" in seen[0]
     assert "priority" in seen[0]
+
+
+@pytest.mark.parametrize(
+    ("number", "label"),
+    [(0, "none"), (1, "urgent"), (2, "high"), (3, "medium"), (4, "low")],
+)
+async def test_linears_priority_number_becomes_a_label(number, label):
+    async with client_for(lambda request: issues_page([issue(1, priority=number)])) as client:
+        (item,) = await collector().fetch(client)
+
+    assert item.priority == label
+
+
+@pytest.mark.parametrize("odd", [5, -1, True, "1", 1.5, None, []])
+async def test_an_unknown_priority_is_no_priority_not_an_error(odd):
+    async with client_for(lambda request: issues_page([issue(1, priority=odd)])) as client:
+        (item,) = await collector().fetch(client)
+
+    assert item.priority is None
+
+
+async def test_the_update_time_is_asked_for_and_read():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content)["query"])
+        rows = [issue(1, updated="2026-11-20T09:15:00.000Z"), issue(2, updated="soon")]
+        return issues_page([*rows, issue(3, updated=None)])
+
+    async with client_for(handler) as client:
+        items = await collector().fetch(client)
+
+    assert "updatedAt" in seen[0]
+    assert items[0].updated_at.isoformat() == "2026-11-20T09:15:00+00:00"
+    assert items[1].updated_at is None
+    assert items[2].updated_at is None

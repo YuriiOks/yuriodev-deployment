@@ -8,6 +8,10 @@ SpaceId = Literal["personal", "work-1", "work-2"]
 TaskStatus = Literal["open", "done"]
 TaskStatusFilter = Literal["open", "done", "all"]
 Source = Literal["web", "mcp", "telegram", "import", "github", "linear", "calendar"]
+# A collected task's own priority at its source (Linear's), most urgent first. Not the user's
+# `priority` flag (the hand-picked Priority panel).
+SourcePriority = Literal["urgent", "high", "medium", "low", "none"]
+SOURCE_PRIORITIES: tuple[SourcePriority, ...] = ("urgent", "high", "medium", "low", "none")
 # Sources whose tasks a collector owns (title, url and status); `source_ref` holds the external id.
 COLLECTED_SOURCES: tuple[Source, ...] = ("github", "linear")
 
