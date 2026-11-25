@@ -1233,6 +1233,78 @@ Images in one answer each (a CDN in front of the site refuses bursts of requests
 
 The assistant ("Ask Claude", `src/dashboards/assistant/`, `src/routes/assistant.py`, migration `dashboards_0025` `assistant_usage`). Off without `ANTHROPIC_API_KEY` (secrets file; `/today` reports `assistant {enabled}` per page). Settings: `ASSISTANT_MODEL` (default `claude-opus-5-5`), `ASSISTANT_SCOPES` (default `personal,money`; add `work-1` to allow it; `work-2` is refused whatever this says), `ASSISTANT_DAILY_REQUESTS` (30), `ASSISTANT_DAILY_TOKENS` (400000, input plus output, the day in `DASHBOARDS_TIMEZONE`), `ASSISTANT_MAX_ROUNDS` (6 model calls per question). `POST /api/dashboards/v1/assistant/ask {scope, question, conversation_id?}` answers `text/event-stream`: `meta {conversation_id, model}`, `delta {text}`, `tool {name, state: running|done}`, `confirm {token, action, subject {type, id, name}, changes, scope, expires_in: 300}`, `error {code: auth|rate_limited|overloaded|invalid_request|...}` and a last `done {stop: end_turn|length|refused|confirm|cap|error, usage {input_tokens, output_tokens}, remaining {requests, tokens}}`. A `confirm` ends the stream with `done.stop = confirm`; the page shows `action`, `subject` and `changes` and calls `POST /assistant/confirm {token, decision: approve|decline}`, which streams the rest of the turn (`meta`, ..., `done`). Refusals are ordinary JSON before any stream: 403 `assistant_scope_refused` (work-2, a page the settings do not allow, no key), 409 `assistant_busy` (a question or a confirmation is open in that conversation), 410 `assistant_confirmation_gone` (unknown, expired after 5 minutes or already used token), 422. The model gets the same tools as MCP with the page's scope fixed (personal and work-1: tasks and events, writes `add_task`, `update_task`, `complete_task`, `reopen_task`, `add_event`; money: finance reads and `set_category`, `attention_action`, `mark_paid`); no deletes, one confirmed write at a time, nothing is changed before the owner approves. For `add_event` the `confirm` `changes` carry `title`, `starts_at`/`ends_at` (UTC as stored), `local_date`, `local_start`, `local_end`, `local_end_date` and `in_the_past`. Conversations live in server memory only (30 minutes idle); the page sends only the new question and the `conversation_id`. Tool results are scrubbed of secret-shaped keys and capped at 40000 characters; nothing but counts is logged (never a question, an answer or a result); a 400 from the API is logged with the API's own error text and answered as `error {code: invalid_request}`. Request shape: Messages API over plain `httpx`, version header `2026-10-21`, streaming, `max_tokens` 2048, `output_config.effort` `low`, automatic tool choice, no sampling parameters, no `thinking` field; thinking blocks are passed back unchanged and `stop_reason: refusal` ends the turn as `refused`.
 
+Refusals by code (the page words every refusal itself from these; the English `message` is for logs and people and may change). Every refusal of the dashboards and finance routes is `{error, message, request_id}` with `error` the stable code of the family, plus, where there is a finer one, `reason` (and for a 422 about fields, `fields` and `issues`). `/bootstrap` has `limits` (below). Codes by status: 400 `bad_request`; 401 `unauthorized`; 403 `cross_site`, `assistant_scope_refused`; 404 `not_found` with `reason` `<thing>_not_found` (`task_`, `event_`, `project_`, `account_`, `transaction_`, `connection_`, `recurring_payment_`, `attention_item_`, `space_`, `logo_`, `icon_`); 405 `method_not_allowed`; 409 `conflict` (`reason` `payment_reference_exists`, `payment_moved_on`), `project_exists`, `project_archived`, `assistant_busy`; 410 `assistant_confirmation_gone`; 413 `file_too_large`, `payload_too_large`; 415 `unsupported_media_type`; 422 `validation_error`, `as_of_future`, `not_utf8`, `invalid_icon`, and the statement layouts `empty_file`, `other_bank`, `unknown_layout`; 429 comes from the CDN in front of the site, never from the app; 500 `internal_error`; 503 `dashboards_disabled`, `dashboards_unavailable`, `monzo_not_configured`.
+
+A 422 from request validation (and from a request model's own validators) is `{error: "validation_error", message, request_id, fields: [name, ...], issues: [{field, code, limit, bound, type, reason}]}`: `field` is the name as sent (`items.0.amount` for a nested one; `body` when the whole body is meant), `code` is one of `required`, `too_short`, `too_long`, `not_a_number`, `out_of_range`, `bad_format`, `unknown_value`, `unknown_field`, `wrong_type`, `bad_json`, `invalid`, or a rule code from the tables below; `limit` is the number that was broken (a length, or a bound) or null; `bound` is `min` or `max` for `out_of_range` and null otherwise. `type` and `reason` of an issue are the framework's kind and a fixed English word, kept for compatibility. At most 20 issues.
+
+A 422 the services raise on a rule (`error` `validation_error`, no failing type) carries `reason` (the rule code) and, when a field is to blame, `fields` and one `issue` with that `code`. The rules (`src/core/refusals.py`):
+
+| reason / issue code | field | sentence |
+|---|---|---|
+| `bad_counterpart` | counterpart | The counterpart must be on another account and go the other way |
+| `bad_format` | cursor | Invalid cursor |
+| `bad_format` | month | Invalid month |
+| `bad_format` | provider | A provider id is lower-case letters, digits and hyphens |
+| `bad_range` | from | Invalid date range |
+| `bad_range` | from | from must not be after to |
+| `cannot_clear` | - | That field cannot be cleared |
+| `cannot_clear` | - | A required field cannot be cleared |
+| `colours_contrast` | brand_bg | The brand colours must be #rrggbb with a contrast of at least 3 |
+| `colours_pair` | brand_bg | Give both brand colours or neither |
+| `credit_limit_required` | credit_limit | A credit card needs credit_limit above 0 |
+| `date_required` | next_payment_date | A repeating payment needs a next date or a start date |
+| `ends_before_start` | ends_at | ends_at must be after starts_at |
+| `exceeds_total` | completed_installments | completed_installments cannot exceed total_installments |
+| `needs_letter_or_digit` | name | The name needs a letter or a digit |
+| `needs_utc_offset` | as_of | as_of needs a UTC offset |
+| `not_allowed` | area_id | Projects have no areas |
+| `not_manual` | - | Only a manual connection can be changed by hand |
+| `not_manual` | - | Only an account entered by hand can be changed this way |
+| `not_utf8` | - | The file must be UTF-8 |
+| `nothing_to_change` | - | Nothing to change |
+| `out_of_range` | limit | Invalid limit |
+| `out_of_range` | overdraft_limit | Invalid overdraft limit |
+| `out_of_range` | days | Invalid days |
+| `payment_moved_on` | - | This payment has already moved on |
+| `payment_reference_exists` | external_ref | A payment with this reference exists |
+| `provider_is_api` | provider | That bank is connected through its own API |
+| `required` | counterpart | A counterpart goes with a move to mark |
+| `statement_balance_unknown` | - | The newest balance of the file cannot be told: the lines share a day |
+| `statement_has_no_balance` | - | The file has no balance to apply |
+| `too_long` | q | Search text is too long |
+| `unknown_value` | area_id | Unknown area for this space |
+| `unknown_value` | scope | Invalid scope |
+| `unknown_value` | category | Invalid category |
+| `unknown_value` | account_id | Unknown account |
+| `wrong_account_kind` | overdraft_limit | Only a current or business account has an overdraft |
+| `wrong_account_kind` | credit_limit | Only a credit card has a limit |
+| `wrong_account_kind` | credit_limit | Only a credit card has a limit, above 0 |
+| `wrong_account_kind` | balance | A credit card takes owed, any other account balance |
+| `wrong_account_kind` | balance | Set a credit card's balance with its own endpoint (owed) |
+
+Rules raised by a request model's validator (a 422 `issues[].code`, the field as shown):
+
+| issue code | field | sentence |
+|---|---|---|
+| `bad_format` | icon_url | icon_url must be a plain https URL |
+| `bad_format` | website | website must be a public host name such as example.com |
+| `bad_format` | color | color must be #rgb or #rrggbb |
+| `bad_format` | currency | currency must be three capital letters |
+| `bad_format` | internal_transfer | internal_transfer is true or false |
+| `balance_fields` | balance | this kind needs balance, and no owed or credit_limit |
+| `balance_or_owed` | balance | exactly one of balance and owed |
+| `credit_card_fields` | credit_limit | a credit card needs credit_limit above 0 and owed, not balance |
+| `date_required` | next_payment_date | next_payment_date or start_date is required for a repeating payment |
+| `days_only_for_snooze` | days | days goes with snooze and only with it |
+| `nothing_to_change` | - | no fields to change |
+| `nothing_to_change` | - | nothing to change |
+| `unknown_value` | currency | not a currency of ISO 4217 |
+| `wrong_account_kind` | overdraft_limit | an overdraft belongs to a current or business account |
+
+Also `cannot_be_null` (field named in the sentence) and `invalid` for a validator this table does not know.
+
+`GET /bootstrap` `limits` (integers, read from the constraints the server enforces): `task {title, notes}`, `project {name}`, `connection {provider, display_name}`, `account {name, label}`, `recurring {name, notes, payment_method, match_text, external_ref, reminder_days, bulk_rows, csv_rows, csv_bytes, amount}` (`amount` is the largest figure in minor units), `statement {bytes, rows}`, `icon {bytes}`, `attention {bulk_keys, snooze_days}`, `transactions {page, search}`, `assistant {question}`. Lengths count characters (after trimming where the field trims).
+
 Bank logos. `DASHBOARDS_PROVIDER_LOGOS` (secrets file, a JSON object) holds the logos, so none is
 in the repository: `{"<provider id>": {"on_light": "<data URI>", "on_dark": "<data URI>", "mark": "<data URI>"}}`.
 `on_light` is the version for a light card (dark ink), `on_dark` for a dark brand colour (white

@@ -2,8 +2,9 @@
 
 import re
 from collections.abc import Mapping
+from decimal import Decimal
 from http import HTTPStatus
-from typing import cast
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -11,6 +12,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.core.logging import get_request_id
+from src.core.refusals import reason_for, value_rule
 from src.core.schemas import ErrorBody
 
 _CODES = {
@@ -31,6 +33,8 @@ class AppError(Exception):
         self.status = status
         self.code = code
         self.message = message
+        # The finer, stable code a page words the refusal from (`src/core/refusals.py`).
+        self.field, self.reason = reason_for(code, message)
 
 
 def error_response(
@@ -62,7 +66,23 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
 
 async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
     app_exc = cast(AppError, exc)  # registered for this type only
-    return error_response(app_exc.status, app_exc.code, app_exc.message)
+    if app_exc.reason is None:
+        return error_response(app_exc.status, app_exc.code, app_exc.message)
+    body = ErrorBody(error=app_exc.code, message=app_exc.message, request_id=get_request_id())
+    content = body.model_dump() | {"reason": app_exc.reason}
+    if app_exc.status == 422 and app_exc.field is not None:
+        content["fields"] = [app_exc.field]
+        content["issues"] = [
+            {
+                "field": app_exc.field,
+                "code": app_exc.reason,
+                "limit": None,
+                "bound": None,
+                "type": "rule",
+                "reason": app_exc.message,
+            }
+        ]
+    return JSONResponse(content, status_code=app_exc.status)
 
 
 _PLACES = frozenset({"body", "query", "path", "header", "cookie"})
@@ -113,17 +133,99 @@ def _field(location: tuple[object, ...]) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "", name)[:64] or "body"
 
 
+_CODES_BY_TYPE = {
+    "missing": "required",
+    "string_too_short": "too_short",
+    "too_short": "too_short",
+    "string_too_long": "too_long",
+    "too_long": "too_long",
+    "string_pattern_mismatch": "bad_format",
+    "int_type": "not_a_number",
+    "int_parsing": "not_a_number",
+    "int_from_float": "not_a_number",
+    "float_type": "not_a_number",
+    "float_parsing": "not_a_number",
+    "decimal_type": "not_a_number",
+    "decimal_parsing": "not_a_number",
+    "greater_than": "out_of_range",
+    "greater_than_equal": "out_of_range",
+    "less_than": "out_of_range",
+    "less_than_equal": "out_of_range",
+    "literal_error": "unknown_value",
+    "enum": "unknown_value",
+    "extra_forbidden": "unknown_field",
+    "uuid_parsing": "bad_format",
+    "uuid_type": "bad_format",
+    "bool_type": "bad_format",
+    "bool_parsing": "bad_format",
+    "date_type": "bad_format",
+    "date_parsing": "bad_format",
+    "date_from_datetime_parsing": "bad_format",
+    "datetime_type": "bad_format",
+    "datetime_parsing": "bad_format",
+    "timezone_aware": "bad_format",
+    "json_invalid": "bad_json",
+    "string_type": "wrong_type",
+    "dict_type": "wrong_type",
+    "list_type": "wrong_type",
+    "model_attributes_type": "wrong_type",
+}
+# The constraint a failing value broke, by type: (key in the error's `ctx`, which end of a range).
+_LIMITS: dict[str, tuple[str, str | None]] = {
+    "string_too_short": ("min_length", None),
+    "too_short": ("min_length", None),
+    "string_too_long": ("max_length", None),
+    "too_long": ("max_length", None),
+    "greater_than": ("gt", "min"),
+    "greater_than_equal": ("ge", "min"),
+    "less_than": ("lt", "max"),
+    "less_than_equal": ("le", "max"),
+}
+
+
+def _number(value: object) -> int | float | None:
+    """A limit as a plain JSON number (a Decimal bound comes out as an int when it is whole)."""
+    if isinstance(value, bool) or not isinstance(value, int | float | Decimal):
+        return None
+    return int(value) if value == int(value) else float(value)
+
+
+def _issue(problem: Mapping[str, Any]) -> dict[str, Any]:
+    kind = str(problem.get("type", ""))
+    key, bound = _LIMITS.get(kind, ("", None))
+    limit = _number((problem.get("ctx") or {}).get(key)) if key else None
+    field = _field(tuple(problem.get("loc", ())))
+    code = _CODES_BY_TYPE.get(kind, "invalid")
+    if kind == "json_invalid":
+        field = "body"  # the location is a character offset: not a field
+    if kind == "value_error":
+        # A validator of ours raised `ValueError("<fixed sentence>")`: the table names the rule.
+        rule = value_rule(str((problem.get("ctx") or {}).get("error", "")))
+        if rule is not None:
+            field, code = rule[0] or field, rule[1]
+    return {
+        "field": field,
+        "code": code,
+        "limit": limit,
+        "bound": bound,
+        "type": kind,
+        "reason": _REASONS.get(kind, "Not valid"),
+    }
+
+
 async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """422 with the names of the failing fields and a fixed sentence per kind of failure. Never
-    the input (FastAPI's default body echoes it back) and never a message built from it."""
+    """422 with the failing fields: `issues` is `[{field, code, limit, bound, type, reason}]`
+    (`code` is stable: required, too_short, too_long, not_a_number, out_of_range, bad_format,
+    unknown_value, unknown_field, wrong_type, bad_json or invalid; `limit` is the number that was
+    broken, `bound` says whether it is a minimum or a maximum for out_of_range) and `fields` the
+    names alone. Never the input (FastAPI's default body echoes it back) and never a message built
+    from it."""
     problems = cast(RequestValidationError, exc).errors()
-    issues: list[dict[str, str]] = []
+    issues: list[dict[str, Any]] = []
     for problem in problems:
-        kind = str(problem.get("type", ""))
-        field = _field(tuple(problem.get("loc", ())))
-        reason = _REASONS.get(kind, "Not valid")
-        if not any(i["field"] == field and i["type"] == kind for i in issues):
-            issues.append({"field": field, "type": kind, "reason": reason})
+        issue = _issue(problem)
+        if not any(i["field"] == issue["field"] and i["type"] == issue["type"] for i in issues):
+            issues.append(issue)
     issues = issues[:MAX_ISSUES]
     body = ErrorBody(
         error="validation_error", message="Invalid request", request_id=get_request_id()
