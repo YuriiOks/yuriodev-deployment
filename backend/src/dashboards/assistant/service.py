@@ -23,7 +23,7 @@ import logging
 import secrets
 import time
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import date, tzinfo
 from typing import Any
@@ -31,6 +31,7 @@ from typing import Any
 import httpx
 from sqlalchemy.dialects.postgresql import insert
 
+from src.core.clock import Clock
 from src.core.config import Settings
 from src.core.errors import AppError
 from src.dashboards.assistant.claude_api import ApiError, MessageBuilder, stream_events
@@ -90,10 +91,10 @@ class Assistant:
     def __init__(
         self,
         settings: Settings,
-        runtime_of: Any,
-        clock: Any,
+        runtime_of: Callable[[], DashboardsRuntime | None],
+        clock: Clock,
         zone: tzinfo,
-        transport_of: Any,
+        transport_of: Callable[[], httpx.AsyncBaseTransport | None],
     ) -> None:
         self._settings = settings
         self._runtime_of = runtime_of
