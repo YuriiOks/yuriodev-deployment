@@ -95,6 +95,7 @@ async def today_page(
         settings.finance_display_currency,
         assistant_enabled=settings.assistant_enabled(scope),
         owner_name=settings.owner_name,
+        provider_logos=settings.provider_logos,
     )
 
 
