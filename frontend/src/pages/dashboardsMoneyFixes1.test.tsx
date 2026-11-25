@@ -173,8 +173,8 @@ describe('the Money page: money that must not be wrong', () => {
     renderAt(ALL);
     const list = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     const row = (await list.findByText('Corner Cafe')).closest('li') as HTMLElement;
-    expect(row).toHaveTextContent('-£10.00');
-    expect(row).toHaveTextContent('-€12.00');
+    expect(row).toHaveTextContent('−£10.00');
+    expect(row).toHaveTextContent('−€12.00');
     expect(row).not.toHaveTextContent('≈');
     expect(row).not.toHaveTextContent('originally');
   });

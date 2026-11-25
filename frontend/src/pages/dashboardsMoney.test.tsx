@@ -139,10 +139,10 @@ describe('the Money page: totals and the wallet', () => {
       expect.stringContaining('UAH · accounts: 1'),
       expect.stringContaining('EUR · accounts: 1'),
     ]);
-    expect(blocks[0]).toHaveTextContent('-£1.32');
+    expect(blocks[0]).toHaveTextContent('−£1.32');
     expect(blocks[0]).toHaveTextContent('of which in pots £275.00');
     expect(blocks[0]).toHaveTextContent('this month: spent £30.00 · received £1,500.00');
-    expect(blocks[1]).toHaveTextContent('-₴67,826.00');
+    expect(blocks[1]).toHaveTextContent('−₴67,826.00');
     expect(blocks[2]).toHaveTextContent('€0.21');
     expect(strip).not.toHaveTextContent(/UAH [\d.,]+|EUR [\d.,]+/);
   });
@@ -254,7 +254,7 @@ describe('the Money page: totals and the wallet', () => {
     await user.click(bankButton('Monzo'));
     const main_ = opened().getByText('Main').closest('li') as HTMLElement;
     expect(main_.getAttribute('data-kind')).toBe('overdrawn');
-    expect(main_).toHaveTextContent('overdrawn -£747.82');
+    expect(main_).toHaveTextContent('overdrawn −£747.82');
   });
 
   it('says what the bank link is doing; one that needs reconsent is a clear call to reconnect, with a link where the provider has a route', async () => {
@@ -305,7 +305,7 @@ describe('the Money page: transactions', () => {
     await waitFor(() => expect(list().getAllByRole('listitem')[0]).toHaveTextContent('Acme bank · Everyday'));
     const rows = list().getAllByRole('listitem');
     expect(rows).toHaveLength(5);
-    expect(rows[0]).toHaveTextContent(/Money out: -£4\.50/);
+    expect(rows[0]).toHaveTextContent(/Money out: −£4\.50/);
     expect(rows[0]).toHaveTextContent('pending');
     expect(rows[0].getAttribute('data-direction')).toBe('out');
     expect(rows[0].querySelector('svg[data-icon="arrow-up-right"]')).not.toBeNull();
@@ -500,7 +500,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     await banksReady();
     await user.click(bankButton('Monzo'));
     const over = opened().getByText('Main').closest('li') as HTMLElement;
-    expect(over).toHaveTextContent('overdrawn -£747.82');
+    expect(over).toHaveTextContent('overdrawn −£747.82');
     expect(over).toHaveTextContent('your limit · 74% of the £1,000.00 overdraft used · £252.18 free');
     const trip = opened().getByText('Trip').closest('li') as HTMLElement;
     expect(trip).toHaveTextContent('25% of £1,000.00');
@@ -519,7 +519,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     expect(rows.map((row) => row.getAttribute('data-category'))).toEqual(['groceries', 'eating_out']);
     expect(rows[0]).toHaveTextContent('Groceries');
     expect(rows[0]).toHaveTextContent('£60.00 · 60% · +£10.00 (was £50.00)');
-    expect(rows[1]).toHaveTextContent('£40.00 · 40% · -£16.38 (was £56.38)');
+    expect(rows[1]).toHaveTextContent('£40.00 · 40% · −£16.38 (was £56.38)');
     expect(rows[0].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '100%' });
     // A bar is scaled to the largest category (40 of 60), not to the total.
     expect(rows[1].querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '67%' });
@@ -660,8 +660,8 @@ describe('the Money page: pounds by default, originals beside', () => {
     expect(yen).toHaveTextContent('¥99,900');
     const list = within(within(main()).getByRole('region', { name: 'Transactions' }));
     const taxi = (await list.findByText('Taxi')).closest('li') as HTMLElement;
-    expect(taxi).toHaveTextContent(/Money out: approximately ≈ -£12\.50/);
-    expect(taxi.querySelector('small')).toHaveTextContent('-₴650.00');
+    expect(taxi).toHaveTextContent(/Money out: approximately ≈ −£12\.50/);
+    expect(taxi.querySelector('small')).toHaveTextContent('−₴650.00');
     expect((await list.findByText('Snack')).closest('li')).not.toHaveTextContent('≈');
     expect((await list.findByText('Bus')).closest('li')).not.toHaveTextContent('≈');
   });
