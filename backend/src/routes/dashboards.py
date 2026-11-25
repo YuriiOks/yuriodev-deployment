@@ -21,6 +21,7 @@ from src.core.errors import AppError
 from src.dashboards import projects as project_service
 from src.dashboards import service, streak, today
 from src.dashboards.catalog import DEFAULT_SPACE_NAMES, TaskStatusFilter
+from src.dashboards.limits import limits
 from src.dashboards.runtime import get_runtime, session_scope
 from src.dashboards.schemas import (
     AreaOut,
@@ -59,7 +60,9 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
     `enabled: false` (no authentication needed) when there is no database."""
     now = clock()
     if not settings.dashboards_enabled:
-        return BootstrapOut(enabled=False, spaces=[], projects=[], areas=[], server_time=now)
+        return BootstrapOut(
+            enabled=False, spaces=[], projects=[], areas=[], server_time=now, limits=limits()
+        )
     async with session_scope(get_runtime(request)) as session:
         spaces = await service.list_spaces(session)
         areas = await service.list_areas(session)
@@ -73,6 +76,7 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
         areas=[AreaOut.model_validate(area) for area in areas],
         server_time=now,
         owner_name=settings.owner_name,
+        limits=limits(),
     )
 
 

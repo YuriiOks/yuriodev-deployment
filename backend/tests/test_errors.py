@@ -107,5 +107,12 @@ def test_validation_error_names_the_failing_fields_with_a_fixed_reason(app_with_
     body = response.json()
     assert body["fields"] == ["item_id"]
     assert body["issues"] == [
-        {"field": "item_id", "type": "int_parsing", "reason": "Must be a whole number"}
+        {
+            "field": "item_id",
+            "code": "not_a_number",
+            "limit": None,
+            "bound": None,
+            "type": "int_parsing",
+            "reason": "Must be a whole number",
+        }
     ]
