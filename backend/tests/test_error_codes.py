@@ -22,9 +22,7 @@ def issue_of(body, field):
     return found
 
 
-async def test_a_too_long_title_names_the_field_the_code_and_the_limit(
-    db_url, make_dashboards_app
-):
+async def test_a_too_long_title_names_the_field_the_code_and_the_limit(db_url, make_dashboards_app):
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         limits = (await client.get(f"{BASE}/bootstrap")).json()["limits"]
