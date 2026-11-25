@@ -93,7 +93,7 @@ async def today_page(
         clock(),
         zone,
         settings.finance_display_currency,
-        assistant_enabled=False,
+        assistant_enabled=settings.assistant_enabled(scope),
         owner_name=settings.owner_name,
     )
 
