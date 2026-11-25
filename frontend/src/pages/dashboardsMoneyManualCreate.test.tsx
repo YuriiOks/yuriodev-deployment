@@ -163,7 +163,7 @@ describe('the Money page: adding a bank entered by hand', () => {
     expect(api.callsTo('POST', '/finance/manual/accounts')[0].body).toMatchObject({ kind: 'credit_card', currency: 'GBP', credit_limit: 300000, owed: 12050 });
   });
 
-  it('keeps the bank when only its account is refused: the server\'s words are shown and a second try adds only the account', async () => {
+  it('keeps the bank when only its account is refused: the page\'s words for the refusal are shown and a second try adds only the account', async () => {
     const api = setup({ fail: ['manualAccount'] });
     const user = userEvent.setup();
     renderAt(ALL);
@@ -171,7 +171,7 @@ describe('the Money page: adding a bank entered by hand', () => {
     const form = await openForm(user);
     await user.type(form.getByLabelText('Balance'), '10');
     await user.click(form.getByRole('button', { name: 'Add bank' }));
-    expect(await form.findByRole('alert')).toHaveTextContent('The bank was added but its account was not: a credit card needs credit_limit above 0');
+    expect(await form.findByRole('alert')).toHaveTextContent('The bank was added but its account was not: check the values you entered');
     api.fail.delete('manualAccount');
     // The bank choice is locked: the bank exists now.
     expect(form.getByLabelText('Bank')).toBeDisabled();
