@@ -459,7 +459,7 @@ async def test_the_banks_are_ordered_by_need_then_by_when_they_were_read_or_ente
         await bank(app, "Amy Manual New", "m2", manual=True, balance_at=NOW - hours)
         await bank(app, "Bank Two Hours", "a", read=NOW - 2 * hours)
         await bank(app, "Bank One Hour", "b", read=NOW - hours)
-        await bank(app, "Broken", "f", status="error", read=NOW - 30 * hours)
+        await bank(app, "Broken", "f", status="paused", read=NOW - 30 * hours)
         top = await page(client, "money")
 
         await execute(db_url, "DELETE FROM finance.account", "DELETE FROM finance.connection")
