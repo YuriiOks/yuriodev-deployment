@@ -42,7 +42,7 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
       <>
         <span className="sr-only">{name}</span>
         <span ref={image.ref} aria-hidden="true" className={styles.logoMark}>
-          <img key={image.attempt} onError={image.onError} src={image.ready ? logo.mark : undefined} alt="" decoding="async" draggable={false} onLoad={image.onLoad} />
+          {image.ready && <img key={image.attempt} onError={image.onError} src={logo.mark} alt="" decoding="async" draggable={false} onLoad={image.onLoad} />}
         </span>
       </>
     );
@@ -54,7 +54,7 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
       <>
         <span className="sr-only">{name}</span>
         <span ref={image.ref} aria-hidden="true" className={styles.logos} data-surface="brand" data-shape={square ? 'square' : 'wide'} data-size={size}>
-          <img key={image.attempt} onError={image.onError} className={styles.logoOnDark} src={image.ready ? single : undefined} alt="" decoding="async" draggable={false} onLoad={(event) => { image.onLoad(); watch(event); }} />
+          {image.ready && <img key={image.attempt} onError={image.onError} className={styles.logoOnDark} src={single} alt="" decoding="async" draggable={false} onLoad={(event) => { image.onLoad(); watch(event); }} />}
         </span>
       </>
     );
@@ -64,8 +64,8 @@ const BankName: React.FC<BankNameProps> = ({ provider, logo, size = 'card' }) =>
     <>
       <span className="sr-only">{name}</span>
       <span ref={image.ref} aria-hidden="true" className={styles.logos} data-surface="theme" data-missing={!light ? 'light' : !dark ? 'dark' : undefined} data-shape={square ? 'square' : 'wide'} data-size={size}>
-        {dark && <img key={`dark-${image.attempt}`} onError={image.onError} className={styles.logoOnDark} src={image.ready ? dark : undefined} alt="" decoding="async" draggable={false} onLoad={(event) => { image.onLoad(); watch(event); }} />}
-        {light && <img key={`light-${image.attempt}`} onError={image.onError} className={styles.logoOnLight} src={image.ready ? light : undefined} alt="" decoding="async" draggable={false} onLoad={(event) => { image.onLoad(); watch(event); }} />}
+        {dark && image.ready && <img key={`dark-${image.attempt}`} onError={image.onError} className={styles.logoOnDark} src={dark} alt="" decoding="async" draggable={false} onLoad={(event) => { image.onLoad(); watch(event); }} />}
+        {light && image.ready && <img key={`light-${image.attempt}`} onError={image.onError} className={styles.logoOnLight} src={light} alt="" decoding="async" draggable={false} onLoad={(event) => { image.onLoad(); watch(event); }} />}
         {(!dark || !light) && <span className={styles.logoText}>{name}</span>}
       </span>
     </>

@@ -428,13 +428,23 @@ describe('the Money page: what the backend added after the audit', () => {
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     const dayOnly = (await panel.findByText('Corner Cafe')).closest('li') as HTMLElement;
-    expect(dayOnly).toHaveTextContent(/20 Nov 2026/);
+    // The day is the group's heading; a row tells only its time, and none when the bank gave only a day.
+    expect(panel.getByRole('heading', { level: 3, name: /20 Nov/ })).toBeInTheDocument();
+    expect(panel.getByRole('heading', { level: 3, name: /21 Nov/ })).toBeInTheDocument();
     expect(dayOnly).not.toHaveTextContent(/\d{2}:\d{2}/);
     const timed = panel.getByText('Fresh Market').closest('li') as HTMLElement;
     expect(timed).toHaveTextContent(/\d{2}:\d{2}/);
+    // The move between the owner's own accounts is in the row's menu.
+    expect(within(dayOnly).queryByRole('button', { name: 'Mark as a move between my accounts' })).toBeNull();
+    await user.click(within(dayOnly).getByRole('button', { name: 'Actions for this line: Corner Cafe' }));
     await user.click(within(dayOnly).getByRole('button', { name: 'Mark as a move between my accounts' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/transactions/t-1')[0]?.body).toEqual({ internal_transfer: true }));
-    expect(await within((await panel.findByText('Corner Cafe')).closest('li') as HTMLElement).findByRole('button', { name: 'Not a move between my accounts' })).toBeInTheDocument();
+    const marked = (await panel.findByText('Corner Cafe')).closest('li') as HTMLElement;
+    await user.click(within(marked).getByRole('button', { name: 'Actions for this line: Corner Cafe' }));
+    expect(await within(marked).findByRole('button', { name: 'Not a move between my accounts' })).toBeInTheDocument();
+    // The category is changed from the same menu: a note on our own copy.
+    await user.selectOptions(within(marked).getByRole('combobox', { name: 'Category' }), 'groceries');
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/transactions/t-1').some((call) => (call.body as { category?: string }).category === 'groceries')).toBe(true));
   });
 });
 

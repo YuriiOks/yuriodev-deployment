@@ -335,6 +335,10 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
         found.internal_transfer = body.internal_transfer;
         found.internal_transfer_by_owner = true;
       }
+      if (body && 'category' in body) {
+        found.category_overridden = body.category !== null;
+        if (typeof body.category === 'string') found.category = body.category;
+      }
       return json(found);
     }
     if (path === '/finance/transactions') {

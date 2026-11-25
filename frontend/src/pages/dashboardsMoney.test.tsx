@@ -298,7 +298,7 @@ describe('the Money page: transactions', () => {
   /** The region exists once the bootstrap has answered. */
   const ready = () => within(main()).findByRole('region', { name: 'Transactions' });
 
-  it('lists them newest first with a bank mark, the bank and account, a sign, an arrow and a word for money in and out, and the marks', async () => {
+  it('lists them newest first with a bank mark, the bank and account, a sign and a word for money in and out (no arrow: the sign and the colour say it), and the marks', async () => {
     setup();
     renderAt(ALL);
     await ready();
@@ -309,10 +309,12 @@ describe('the Money page: transactions', () => {
     expect(rows[0]).toHaveTextContent(/Money out: −£4\.50/);
     expect(rows[0]).toHaveTextContent('pending');
     expect(rows[0].getAttribute('data-direction')).toBe('out');
-    expect(rows[0].querySelector('svg[data-icon="arrow-up-right"]')).not.toBeNull();
+    expect(rows[0].querySelector('svg[data-icon^="arrow-"]')).toBeNull();
     expect(rows[0].querySelector('[aria-hidden="true"]:not(svg)')).toBeTruthy();
     expect(rows[1]).toHaveTextContent(/Money in: \+£1,500\.00/);
-    expect(rows[1].querySelector('svg[data-icon="arrow-down-left"]')).not.toBeNull();
+    expect(rows[1].getAttribute('data-direction')).toBe('in');
+    // A picture is never rendered without its address (an <img> with no src is a request for the page itself).
+    expect(main().querySelectorAll('img:not([src]), img[src=""]')).toHaveLength(0);
     expect(rows[2]).toHaveTextContent('Monzo · Main');
     expect(rows[2]).toHaveTextContent('declined');
     expect(rows[2].getAttribute('data-declined')).toBe('true');
@@ -329,7 +331,8 @@ describe('the Money page: transactions', () => {
     await ready();
     await list().findByText('Corner Cafe');
     const chips = list().getByRole('group', { name: 'Bank' });
-    expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['All banks', 'Acme bank', 'Monzo', 'Monobank']);
+    // Each bank chip is its mark and its name, and the name is its tooltip too.
+    expect(within(chips).getAllByRole('button').map((chip) => chip.title || chip.textContent)).toEqual(['All banks', 'Acme bank', 'Monzo', 'Monobank']);
     expect(within(chips).getByRole('button', { name: 'All banks' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(within(chips).getByRole('button', { name: 'Monzo' }));
     expect(within(chips).getByRole('button', { name: 'Monzo' })).toHaveAttribute('aria-pressed', 'true');
@@ -752,13 +755,14 @@ describe('the Money page: bank logos', () => {
     const header = opened().getByRole('heading', { level: 3, name: 'Monzo' });
     await waitFor(() => expect(header.querySelector('img')).not.toBeNull());
     const chips = within(within(main()).getByRole('region', { name: 'Transactions' })).getByRole('group', { name: 'Bank' });
+    // A chip is one anatomy for every bank: its mark and its name (also its tooltip), never a wordmark.
     const chip = within(chips).getByRole('button', { name: 'Acme bank' });
-    await waitFor(() => expect(chip.querySelector('img')).not.toBeNull());
-    expect(chip.querySelector('[data-size="chip"]')).not.toBeNull();
+    expect(chip).toHaveAttribute('title', 'Acme bank');
+    expect(chip.querySelector('[data-size="chip"]')).toBeNull();
     expect(within(chips).getByRole('button', { name: 'Monobank' }).querySelector('img')).toBeNull();
   });
 
-  it('never draws a wordmark that would vanish on its surface: a chip whose only variant is the wrong-contrast one shows the text name in that theme', async () => {
+  it('never draws a wordmark in a chip, whatever variants the bank has: the chip is the mark and the name', async () => {
     setup({
       finance: finance({
         providers: [
@@ -770,14 +774,12 @@ describe('the Money page: bank logos', () => {
     renderAt(ALL);
     await banksReady();
     const chips = within(within(main()).getByRole('region', { name: 'Transactions' })).getByRole('group', { name: 'Bank' });
-    const acme = within(chips).getByRole('button', { name: 'Acme bank' });
-    await waitFor(() => expect(acme.querySelector('img')).not.toBeNull());
-    expect(acme.querySelectorAll('img')).toHaveLength(1);
-    expect(acme.querySelector('[data-missing="light"]')).not.toBeNull();
-    // Both variants: no text stand-in.
-    const monzo = within(chips).getByRole('button', { name: 'Monzo' });
-    await waitFor(() => expect(monzo.querySelectorAll('img')).toHaveLength(2));
-    expect(monzo.querySelector('[data-missing]')).toBeNull();
+    for (const name of ['Acme bank', 'Monzo']) {
+      const chip = within(chips).getByRole('button', { name });
+      expect(chip.querySelector('[data-size="chip"]')).toBeNull();
+      expect(chip.querySelector('img')).toBeNull();
+      expect(chip).toHaveTextContent(name);
+    }
   });
 
   it('uses the bank\'s square icon for the small tiles in the transaction rows and the filter chips when the server sends one, the letter tile otherwise', async () => {
@@ -796,8 +798,8 @@ describe('the Money page: bank logos', () => {
     const chip = within(chips).getByRole('button', { name: 'Acme bank' });
     await waitFor(() => expect(chip.querySelector('img')?.getAttribute('src')).toBe(WHITE_INK));
     expect(chip.querySelector('[data-size="chip"]')).toBeNull();
-    // A bank without an icon keeps the wordmark in its chip.
-    expect(within(chips).getByRole('button', { name: 'Monzo' }).querySelector('[data-size="chip"]')).not.toBeNull();
+    // A bank without an icon has the letter tile in its chip, with its name.
+    expect(within(chips).getByRole('button', { name: 'Monzo' }).querySelector('img')).toBeNull();
     const rows = await within(transactions).findAllByRole('listitem');
     expect(rows.some((row) => row.querySelector('img')?.getAttribute('src') === WHITE_INK)).toBe(true);
   });
