@@ -1,4 +1,5 @@
 import { converted, currency, int, isObject, parseDisplayInfo, text, type Converted, type DisplayInfo } from './financeApi';
+import type { RefusalStrings } from './refusalStrings';
 import { ApiError, request } from './liveApi';
 
 /*
@@ -467,7 +468,8 @@ export async function updateRecurring(id: string, body: RecurringBody): Promise<
   return parsed;
 }
 
-/** What the server said when it refused a change as a mistake of the request (a 4xx: its message is plain English about the field), or null: a server failure or a lost connection is told in the page's own words. */
-export function refusal(error: unknown): string | null {
-  return error instanceof ApiError && error.status >= 400 && error.status < 500 && error.message && !/^HTTP \d+$/.test(error.message) ? error.message : null;
+/** Why the server refused a change as a mistake of the request (a 4xx), in the page's own words for its error code, or null: a server failure, a lost connection or a code the page has no words for is told as the plain failure. The server's own text is never shown. */
+export function refusal(error: unknown, words: RefusalStrings): string | null {
+  if (!(error instanceof ApiError) || error.status < 400 || error.status >= 500) return null;
+  return Object.prototype.hasOwnProperty.call(words.codes, error.code) ? words.codes[error.code] : null;
 }

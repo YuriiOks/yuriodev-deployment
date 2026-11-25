@@ -217,7 +217,7 @@ describe('the Money page: a bank entered by hand', () => {
     await waitFor(() => expect(api.callsTo('GET', '/finance/accounts').length).toBeGreaterThan(1));
   });
 
-  it('lists every bad line of a refused file and offers no import, and shows the server\'s words when the layout is not known', async () => {
+  it('lists every bad line of a refused file and offers no import, and never shows the server\'s own text', async () => {
     const api = setup({
       finance: finance({ manualStatement: { status: 422, body: { layout: 'csv', parsed: 3, created: 0, duplicates: 0, first_date: null, last_date: null, money_in: 0, money_out: 0, balance_applied: false, errors: [{ row: 2, field: 'date', message: 'cannot read the date' }, { row: 3, field: 'amount', message: 'too many decimals' }] } } }),
     });
@@ -228,8 +228,8 @@ describe('the Money page: a bank entered by hand', () => {
     await user.upload(group.getByLabelText('Statement file'), new File(['x'], 'bad.csv', { type: 'text/csv' }));
     await user.click(group.getByRole('button', { name: 'Check the file' }));
     expect(await group.findByText('Lines to fix (2)')).toBeInTheDocument();
-    expect(group.getByText('Line 2: date: cannot read the date')).toBeInTheDocument();
-    expect(group.getByText('Line 3: amount: too many decimals')).toBeInTheDocument();
+    expect(group.getByText('Line 2: date: could not be read')).toBeInTheDocument();
+    expect(group.getByText('Line 3: amount: could not be read')).toBeInTheDocument();
     expect(group.queryByRole('button', { name: 'Import' })).toBeNull();
     expect(api.calls.filter((call) => call.url.includes('/statement'))).toHaveLength(1);
   });

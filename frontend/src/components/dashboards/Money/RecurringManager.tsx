@@ -150,7 +150,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
       else await createRecurring(body);
       onDone(true);
     } catch (error) {
-      const why = refusal(error);
+      const why = refusal(error, t.money.refusal);
       setProblem(why ? fill(r.saveRefused, { why }) : r.saveFailed);
       setBusy(false);
     }
