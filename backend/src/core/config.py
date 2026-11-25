@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     # and read through `space_names`: a malformed value must never stop the app, so it is not
     # parsed (or echoed) by pydantic.
     dashboards_space_names: str | None = None
+    # How the page greets the owner (a first name). In the untracked secrets file: the repository
+    # is public. Read through `owner_name`, never a startup error, never logged.
+    dashboards_owner_name: str | None = None
     # Icons of the spaces, a JSON object keyed by space id whose values are small base64 data URIs
     # (png, svg, ico, webp, at most 48 KiB each), so real logos can live in the untracked secrets
     # file. Text like the names, read through `space_icons`, never a startup error.
@@ -165,6 +168,15 @@ class Settings(BaseSettings):
     @property
     def dashboards_enabled(self) -> bool:
         return self.database_url is not None
+
+    @property
+    def owner_name(self) -> str | None:
+        """The owner's name for the greeting: one printable line of at most 60 characters."""
+        text = self.dashboards_owner_name
+        if text is None:
+            return None
+        line = "".join(ch for ch in " ".join(text.split()) if ch.isprintable())[:60].strip()
+        return line or None
 
     @property
     def space_names(self) -> dict[str, str]:

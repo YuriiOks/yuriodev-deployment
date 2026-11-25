@@ -924,6 +924,7 @@ async def build(
     zone: tzinfo,
     display_currency: str = "GBP",
     assistant_enabled: bool = False,
+    owner_name: str | None = None,
 ) -> TodayPageOut:
     """Everything the Today view of one page shows. An unknown scope is 422."""
     if scope not in SCOPES:
@@ -937,6 +938,10 @@ async def build(
         parts = await _work1(session, now, zone, today)
     else:
         parts = await _work2(session, now, zone, today)
+    headline = parts["summary"]
+    parts["summary"] = Headline(
+        code=headline.code, facts={**headline.facts, "owner_name": owner_name}
+    )
     await record(session, scope, today, parts["queue_total"], now)
     return TodayPageOut(
         scope=scope,  # type: ignore[arg-type]

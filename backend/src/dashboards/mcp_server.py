@@ -95,7 +95,11 @@ def _validated[M: BaseModel](model: type[M], fields: dict[str, Any]) -> M:
 
 
 def build_mcp_server(
-    get_runtime: RuntimeGetter, clock: Clock, zone: ZoneInfo, display_currency: str = "GBP"
+    get_runtime: RuntimeGetter,
+    clock: Clock,
+    zone: ZoneInfo,
+    display_currency: str = "GBP",
+    owner_name: str | None = None,
 ) -> MCPServer[Any]:
     """The server with its fifteen tools, and its streamable-HTTP session manager created
     (stateless, JSON answers). `get_runtime` is read per call: the runtime only exists once the
@@ -238,7 +242,9 @@ def build_mcp_server(
         two stats, a breakdown with an insight, today's rows)."""
         async with scope("today") as (session, now):
             if scope_name is not None:
-                page = await page_today.build(session, scope_name, now, zone, display_currency)
+                page = await page_today.build(
+                    session, scope_name, now, zone, display_currency, owner_name=owner_name
+                )
                 return _json(page.model_dump(mode="json"))
             if space is not None and space not in SPACE_IDS:
                 day = now.astimezone(zone).date()
