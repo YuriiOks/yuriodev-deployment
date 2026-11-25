@@ -549,7 +549,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     const user = userEvent.setup();
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
-    await panel.findByText(/November · GBP ≈ £138\.00 · 39% more than October/);
+    await panel.findByText(/November · ≈ £138\.00 · 39% more than October/);
     expect(panel.getAllByRole('listitem')).toHaveLength(1);
     expect(panel.getByRole('listitem')).toHaveTextContent('≈ £138.00 · 100% · +£39.00 (was £99.00)');
     expect(panel.getByText('not converted: JPY')).toBeInTheDocument();
@@ -637,7 +637,8 @@ describe('the Money page: pounds by default, originals beside', () => {
     expect(within(choice).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'false');
     const header = (await within(main()).findByText('in all')).closest('div')?.parentElement as HTMLElement;
     expect(header).toHaveTextContent('in all');
-    expect(header).toHaveTextContent('≈ £743.50');
+    // The hero writes the mark tight against the figure (a margin, not a space).
+    expect(header).toHaveTextContent('≈£743.50');
     // The rate's time is the oldest of the rates used (08:00, not 09:30).
     expect(header).toHaveTextContent(/rate as of 24 Nov.*08:00/);
     expect(header).toHaveTextContent('not converted: JPY');
@@ -653,7 +654,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     renderAt(ALL);
     await banksReady();
     // Monobank: UAH and USD converted into one figure; JPY has no rate and stays.
-    expect(bankButton('Monobank')).toHaveTextContent('≈ £293.00');
+    expect(bankButton('Monobank')).toHaveTextContent('≈£293.00');
     expect(bankButton('Monobank')).toHaveTextContent('¥99,900');
     await user.click(bankButton('Monobank'));
     const row = opened().getByText('Hryvnia card').closest('li') as HTMLElement;

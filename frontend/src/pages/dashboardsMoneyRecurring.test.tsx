@@ -646,7 +646,7 @@ describe('the Money page: upcoming payments', () => {
     expect(rows[2]).toHaveTextContent('$5.00');
     expect(rows[3]).toHaveTextContent('housing');
     // Totals: the grand one from the answer, the parts under it, and the note about a currency with no rate.
-    expect(panel.getByText(/In all: ≈ £938\.94/)).toBeInTheDocument();
+    expect(panel.getByText(/In all:/)).toHaveTextContent(/In all:.*≈.*£938\.94/);
     expect(panel.getByText('£934.99')).toBeInTheDocument();
     expect(panel.getByText('$5.00', { selector: 'li' })).toBeInTheDocument();
     expect(panel.getByText('Currencies with no rate are not in the total.')).toBeInTheDocument();

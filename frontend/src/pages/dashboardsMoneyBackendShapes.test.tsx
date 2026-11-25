@@ -429,9 +429,9 @@ describe('the Money page: what the backend added after the audit', () => {
     const panel = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     const dayOnly = (await panel.findByText('Corner Cafe')).closest('li') as HTMLElement;
     expect(dayOnly).toHaveTextContent(/20 Nov 2026/);
-    expect(dayOnly).not.toHaveTextContent(/AM|PM/);
+    expect(dayOnly).not.toHaveTextContent(/\d{2}:\d{2}/);
     const timed = panel.getByText('Fresh Market').closest('li') as HTMLElement;
-    expect(timed).toHaveTextContent(/AM|PM/);
+    expect(timed).toHaveTextContent(/\d{2}:\d{2}/);
     await user.click(within(dayOnly).getByRole('button', { name: 'Mark as a move between my accounts' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/transactions/t-1')[0]?.body).toEqual({ internal_transfer: true }));
     expect(await within((await panel.findByText('Corner Cafe')).closest('li') as HTMLElement).findByRole('button', { name: 'Not a move between my accounts' })).toBeInTheDocument();

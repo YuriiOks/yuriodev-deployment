@@ -137,7 +137,7 @@ describe('the Money page: money that must not be wrong', () => {
     setup({ finance: finance({ categories, display: { currency: 'GBP', rates: {}, missing: [] }, accounts: [acct('a-1', 'Everyday', 45050, { display_own_balance_minor: 45050 })] }) });
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
-    expect(await panel.findByText(/November · JPY ¥120,000/)).toBeInTheDocument();
+    expect(await panel.findByText(/November · ¥120,000/)).toBeInTheDocument();
     expect(panel.getByText('not converted: JPY')).toBeInTheDocument();
     expect(panel.queryByText('No spending this month yet')).toBeNull();
   });
