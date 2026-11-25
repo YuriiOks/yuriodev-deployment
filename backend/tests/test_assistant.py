@@ -487,4 +487,6 @@ async def test_every_read_tool_answers_with_json_on_its_own_page(
             ctx = Ctx(app.state.dashboards, scope, NOW, app.state.zone, "GBP")
             for tool in tools_for(scope).values():
                 if not tool.write:
-                    assert json.loads(render(await tool.run(ctx, {}))) is not None, tool.name
+                    args = {"from_date": "2026-11-22", "to_date": "2026-11-23"}
+                    out = await tool.run(ctx, args if tool.name == "list_events" else {})
+                    assert json.loads(render(out)) is not None, tool.name
