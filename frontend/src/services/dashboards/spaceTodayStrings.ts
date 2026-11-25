@@ -6,8 +6,6 @@ export interface SpaceTodayStrings {
   readonly queueAll: string;
   readonly queueEmpty: string;
   readonly oneAtATime: string;
-  /** The decision a queue item asks for, by the reason the server gives. */
-  readonly decision: Readonly<Record<string, string>>;
   /** One line of fact for each reason. */
   readonly fact: {
     readonly overdue: string;
@@ -66,14 +64,6 @@ export const SPACE_TODAY_RU: SpaceTodayStrings = {
   queueAll: 'Все {n}',
   queueEmpty: 'Решать нечего.',
   oneAtATime: 'По одному',
-  decision: {
-    overdue: 'Готово ли «{name}»?',
-    due_today: 'Закончить «{name}» сегодня?',
-    priority: 'Взяться за «{name}»?',
-    due_soon: 'Начать «{name}»? Срок близко',
-    review_waiting: 'Посмотреть «{name}»?',
-    issue_idle: 'Застряла ли «{name}»?',
-  },
   fact: {
     overdue: 'просрочено на {n} дн.',
     due_today: 'срок сегодня',
@@ -135,14 +125,6 @@ export const SPACE_TODAY_EN: SpaceTodayStrings = {
   queueAll: 'All {n}',
   queueEmpty: 'Nothing to decide.',
   oneAtATime: 'One at a time',
-  decision: {
-    overdue: 'Is “{name}” done?',
-    due_today: 'Finish “{name}” today?',
-    priority: 'Take up “{name}” next?',
-    due_soon: 'Start “{name}”? It is due soon',
-    review_waiting: 'Review “{name}”?',
-    issue_idle: 'Is “{name}” stuck?',
-  },
   fact: {
     overdue: '{n} d overdue',
     due_today: 'due today',
