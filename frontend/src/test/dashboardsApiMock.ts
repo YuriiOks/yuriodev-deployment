@@ -205,6 +205,10 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
       }
       const found = list.find((row) => row.id === path.split('/')[3]);
       if (!found) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (method === 'DELETE') {
+        list.splice(list.indexOf(found), 1);
+        return new Response(null, { status: 204 });
+      }
       if (path.endsWith('/icon/refresh')) {
         found.icon_state = 'pending';
         found.icon_url = null;
