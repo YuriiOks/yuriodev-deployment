@@ -243,6 +243,9 @@ const MAX_LOGO_PATH = 300;
  * A logo is a base64 PNG or SVG data URI of a sane size, or a same-origin path under the finance providers route (the server may serve the
  * image by address instead of inlining it): never another host, so it can only be an image the server vetted.
  */
+/** A png or svg data URI of a sane size, or null (what a bundle may hold). */
+export const logoDataUri = (value: unknown): string | null => (typeof value === 'string' && value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value) ? value : null);
+
 const logoUri = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
   if (value.length <= MAX_LOGO_LENGTH && DATA_URI.test(value)) return value;
@@ -521,6 +524,20 @@ export function parseProviders(body: unknown): Record<string, ProviderLogo> | nu
     if (id && (onLight || onDark || mark || name || colors || entry || reconnect)) logos[id] = { onLight, onDark, mark, name, colors, entry, reconnect, reconnectPath: reconnect === 'oauth' ? path : null };
   }
   return logos;
+}
+
+/** The providers answer with the version of the logo bundle it expects (`logos_version`; null from an older server). */
+export interface ProvidersAnswer {
+  readonly logos: Record<string, ProviderLogo>;
+  readonly logosVersion: string | null;
+}
+
+export async function fetchProvidersAnswer(signal?: AbortSignal): Promise<ProvidersAnswer> {
+  const body = await request('/finance/providers', { signal });
+  const parsed = parseProviders(body);
+  if (!parsed) throw BAD('providers');
+  const version = isObject(body) && typeof body.logos_version === 'string' && /^[0-9a-f]{16}$/.test(body.logos_version) ? body.logos_version : null;
+  return { logos: parsed, logosVersion: version };
 }
 
 export async function fetchProviders(signal?: AbortSignal): Promise<Record<string, ProviderLogo>> {
