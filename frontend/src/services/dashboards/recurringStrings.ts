@@ -198,6 +198,31 @@ export interface RecurringStrings {
   readonly saveFailed: string;
   readonly saveRefused: string;
   readonly notLinked: string;
+  /** The unit after "Every [N]" (a number of days, weeks, months or years), by frequency; "once" has none. */
+  readonly everyUnits: Readonly<Record<'daily' | 'weekly' | 'monthly' | 'yearly', string>>;
+  readonly fNotes: string;
+  readonly fReminder: string;
+  readonly fStart: string;
+  readonly fAutoRenew: string;
+  readonly currencyMismatch: string;
+  readonly accountGone: string;
+  readonly accountPot: string;
+  readonly accountArchived: string;
+  readonly dateRequired: string;
+  readonly datePast: string;
+  readonly sectionDebt: string;
+  readonly fIsInstallment: string;
+  readonly fTotalInst: string;
+  readonly fDoneInst: string;
+  readonly fTotalOwed: string;
+  readonly fRemaining: string;
+  readonly fCreditor: string;
+  readonly deleteLabel: string;
+  readonly deleteAsk: string;
+  readonly deleteYes: string;
+  readonly inactiveHidden: string;
+  readonly onlyInactive: string;
+  readonly gone: string;
 }
 
 export const RECURRING_RU: RecurringStrings = {
@@ -435,6 +460,30 @@ export const RECURRING_RU: RecurringStrings = {
   saveFailed: 'Не удалось сохранить. Повторите.',
   saveRefused: 'Не удалось сохранить: {why}',
   notLinked: 'не привязан к счёту',
+  everyUnits: { daily: 'дн.', weekly: 'нед.', monthly: 'мес.', yearly: 'г.' },
+  fNotes: 'Заметки',
+  fReminder: 'Напомнить за (дней)',
+  fStart: 'Дата начала',
+  fAutoRenew: 'Продлевается сам',
+  currencyMismatch: 'Счёт в {account}, а платёж в {payment}: сумма не пересчитывается.',
+  accountGone: 'Привязанного счёта больше нет (он в архиве или удалён).',
+  accountPot: 'копилка',
+  accountArchived: 'в архиве',
+  dateRequired: 'Включённому платежу нужна следующая дата.',
+  datePast: 'Эта дата уже прошла: платёж будет считаться просроченным.',
+  sectionDebt: 'Долг или рассрочка',
+  fIsInstallment: 'Это долг или рассрочка',
+  fTotalInst: 'Всего взносов',
+  fDoneInst: 'Выплачено взносов',
+  fTotalOwed: 'Всего должен',
+  fRemaining: 'Осталось отдать',
+  fCreditor: 'Кому должен',
+  deleteLabel: 'Удалить',
+  deleteAsk: 'Удалить «{name}» насовсем?',
+  deleteYes: 'Да, удалить',
+  inactiveHidden: 'Платежей: {n} · скрыто отключённых: {m}',
+  onlyInactive: 'Подходят только отключённые платежи.',
+  gone: 'Такого платежа больше нет.',
 };
 
 export const RECURRING_EN: RecurringStrings = {
@@ -672,4 +721,28 @@ export const RECURRING_EN: RecurringStrings = {
   saveFailed: 'Could not save. Try again.',
   saveRefused: 'Could not save: {why}',
   notLinked: 'not linked to an account',
+  everyUnits: { daily: 'day(s)', weekly: 'week(s)', monthly: 'month(s)', yearly: 'year(s)' },
+  fNotes: 'Notes',
+  fReminder: 'Remind me (days before)',
+  fStart: 'Start date',
+  fAutoRenew: 'Renews by itself',
+  currencyMismatch: 'The account is in {account} and the payment in {payment}: the amount is not converted.',
+  accountGone: 'The linked account is no longer available (archived or removed).',
+  accountPot: 'pot',
+  accountArchived: 'archived',
+  dateRequired: 'An active payment needs a next date.',
+  datePast: 'This date has passed: the payment will count as overdue.',
+  sectionDebt: 'Debt / installments',
+  fIsInstallment: 'This is a debt or an installment plan',
+  fTotalInst: 'Installments in all',
+  fDoneInst: 'Installments paid',
+  fTotalOwed: 'Total owed',
+  fRemaining: 'Still owed',
+  fCreditor: 'Creditor',
+  deleteLabel: 'Delete',
+  deleteAsk: 'Delete {name} for good?',
+  deleteYes: 'Yes, delete',
+  inactiveHidden: '{n} payments · {m} inactive hidden',
+  onlyInactive: 'Only inactive payments match.',
+  gone: 'This payment no longer exists.',
 };

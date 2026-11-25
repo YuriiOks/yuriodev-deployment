@@ -110,6 +110,9 @@ export interface Recurring {
   readonly website: string | null;
   readonly color: string | null;
   readonly notes: string | null;
+  /** Days before the date the owner wants to be reminded, and whether the plan renews by itself. */
+  readonly reminderDays: number | null;
+  readonly autoRenew: boolean;
   readonly lastPaidOn: string | null;
   /** The figures in the display currency (null: no rate, or already in it). */
   readonly display: Converted | null;
@@ -160,6 +163,8 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
     website: text(raw.website),
     color: color(raw.color),
     notes: text(raw.notes),
+    reminderDays: int(raw.reminder_days),
+    autoRenew: raw.auto_renew === true,
     lastPaidOn: date(raw.last_paid_on),
     display: converted(raw.display_amount, displayCurrency),
     displayRemaining: converted(raw.display_remaining_balance, displayCurrency),
@@ -440,6 +445,14 @@ export type RecurringBody = Partial<{
   reminder_days: number | null;
   is_active: boolean;
   notes: string | null;
+  start_date: string | null;
+  auto_renew: boolean;
+  is_installment: boolean;
+  total_installments: number | null;
+  completed_installments: number | null;
+  total_owed: number | null;
+  remaining_balance: number | null;
+  creditor: string | null;
 }>;
 
 export async function createRecurring(body: RecurringBody): Promise<Recurring> {
@@ -460,6 +473,11 @@ export async function uploadIcon(id: string, file: { arrayBuffer(): Promise<Arra
   const parsed = parseRecurring(await request(`/finance/recurring/${encodeURIComponent(id)}/icon`, { method: 'POST', raw: { data: await file.arrayBuffer(), contentType: file.type } }));
   if (!parsed) throw BAD('the payment');
   return parsed;
+}
+
+/** Removes a payment for good (the server keeps nothing of it). */
+export async function deleteRecurring(id: string): Promise<void> {
+  await request(`/finance/recurring/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 export async function updateRecurring(id: string, body: RecurringBody): Promise<Recurring> {

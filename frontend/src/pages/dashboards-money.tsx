@@ -58,12 +58,16 @@ const NO_LOGOS: Readonly<Record<string, ProviderLogo>> = {};
 const DashboardsMoney = () => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
-  usePageTitle(t.titles.money);
   const { mode: dataMode } = useDashboardMode();
   const live = dataMode === 'live';
   const [params, setParams] = useSearchParams();
   const viewParam = params.get('view');
   const view: MoneyView = (MONEY_VIEWS as readonly string[]).includes(viewParam ?? '') ? (viewParam as MoneyView) : 'today';
+  usePageTitle(view === 'recurring' ? t.money.rec.managerTitle : t.titles.money);
+  // Arriving at the recurring payments (from a link, or from Payments), the page's focus goes to its heading.
+  useEffect(() => {
+    if (view === 'recurring') document.getElementById('money-recurring-title')?.focus?.();
+  }, [view]);
   // Each list is asked for only when a view that shows it is open, and an answer held is kept across tab switches (the Today view needs none of them: it is one answer).
   const shows = (views: readonly MoneyView[]) => live && views.includes(view);
   const notToday = live && view !== 'today';
@@ -312,13 +316,13 @@ const DashboardsMoney = () => {
           {view === 'recurring' ? (
             <section aria-labelledby="money-recurring-title" className={money.panel}>
               <div className={money.head}>
-                <h2 id="money-recurring-title" className={money.title}>
+                <h2 id="money-recurring-title" className={money.title} tabIndex={-1}>
                   {m.rec.managerTitle}
                 </h2>
               </div>
               {recurring.status === 'loading' && <LoadingBlock rows={4} />}
               {recurring.status === 'error' && <InlineError message={m.rec.managerFailed} onRetry={recurring.reload} />}
-              {recurring.value && <RecurringManager key={params.get('edit') ?? ''} rows={recurring.value.recurring} accounts={accounts.value?.accounts ?? []} accountsStatus={accounts.status} onRetryAccounts={accounts.reload} mode={mode} editId={params.get('edit')} onChanged={changed} />}
+              {recurring.value && <RecurringManager rows={recurring.value.recurring} accounts={accounts.value?.accounts ?? []} accountsStatus={accounts.status} onRetryAccounts={accounts.reload} mode={mode} editId={params.get('edit')} onEditClosed={() => { const next = new URLSearchParams(params); next.delete('edit'); setParams(next, { replace: true }); }} onChanged={changed} />}
             </section>
           ) : view === 'attention' ? (
             <>

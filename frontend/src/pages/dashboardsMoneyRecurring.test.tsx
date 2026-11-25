@@ -790,8 +790,9 @@ describe('the Money page: managing recurring payments', () => {
     await user.click(panel.getByRole('checkbox', { name: 'Show inactive' }));
     expect(names().some((name) => name?.startsWith('Old magazine'))).toBe(true);
     expect(panel.getByText('· inactive')).toBeInTheDocument();
+    // "Back to Money" returns to the upcoming payments.
     await user.click(panel.getByRole('link', { name: 'Back to Money' }));
-    expect(await within(main()).findByRole('region', { name: /First this/ })).toBeInTheDocument();
+    expect(await within(main()).findByRole('region', { name: 'Upcoming payments' })).toBeInTheDocument();
   });
 
   it('edits the account, the amount, the next date and the match text, sending only what changed', async () => {
@@ -886,13 +887,69 @@ describe('the Money page: managing recurring payments', () => {
     await user.type(form.getByLabelText('Name'), 'Water bill');
     await user.type(form.getByLabelText('Amount'), '18');
     await user.selectOptions(form.getByLabelText('Kind'), 'utility');
+    // An active repeating payment needs a date to count from.
+    await user.click(form.getByRole('button', { name: 'Save' }));
+    expect(await form.findByText('An active payment needs a next date.')).toBeInTheDocument();
+    expect(api.callsTo('POST', '/finance/recurring')).toHaveLength(0);
+    await user.type(form.getByLabelText('Next payment date'), '2099-12-10');
     await user.click(form.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring')).toHaveLength(1));
-    expect(api.callsTo('POST', '/finance/recurring')[0].body).toEqual({ name: 'Water bill', amount: 1800, currency: 'GBP', kind: 'utility', frequency: 'monthly', frequency_interval: 1 });
+    expect(api.callsTo('POST', '/finance/recurring')[0].body).toEqual({ name: 'Water bill', amount: 1800, currency: 'GBP', kind: 'utility', frequency: 'monthly', frequency_interval: 1, next_payment_date: '2099-12-10' });
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
     await user.click(within(gym).getByRole('button', { name: /^Actions: / }));
     await user.click(within(gym).getByRole('menuitem', { name: 'Deactivate' }));
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-2')[0]?.body).toEqual({ is_active: false }));
+  });
+});
+
+describe('the Money page: the recurring manager, the rest', () => {
+  it('deletes a payment only after a confirmation, and keeps a switched-off one in place with Activate as its undo', async () => {
+    const api = setup({ finance: { recurring: rows() } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring`);
+    const panel = await managerPanel();
+    const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
+    await user.click(within(gym).getByRole('button', { name: 'Deactivate: Gym' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-2')[0]?.body).toEqual({ is_active: false }));
+    // Switched off, it is still where it was, with the way back.
+    expect(await within((await panel.findByText('Gym')).closest('li') as HTMLElement).findByRole('button', { name: 'Activate: Gym' })).toBeInTheDocument();
+    await user.click(within(gym).getByRole('button', { name: 'Delete: Gym' }));
+    expect(within(gym).getByText('Delete Gym for good?')).toBeInTheDocument();
+    expect(api.callsTo('DELETE', '/finance/recurring/r-2')).toHaveLength(0);
+    await user.click(within(gym).getByRole('button', { name: 'Yes, delete' }));
+    await waitFor(() => expect(api.callsTo('DELETE', '/finance/recurring/r-2')).toHaveLength(1));
+  });
+
+  it('says a payment named in the address no longer exists, and warns when the linked account is in another currency', async () => {
+    setup({ finance: { recurring: rows() } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring&edit=r-ghost`);
+    const panel = await managerPanel();
+    expect(await panel.findByText(/This payment no longer exists\./)).toBeInTheDocument();
+    await user.click(panel.getByRole('button', { name: 'Add payment' }));
+    const form = within(panel.getByRole('form', { name: 'Add payment' }));
+    await user.clear(form.getByLabelText('Currency'));
+    await user.type(form.getByLabelText('Currency'), 'EUR');
+    const account = form.getByLabelText('Account');
+    const options = within(account).getAllByRole('option');
+    const linked = options.find((option) => option.textContent?.includes('GBP'));
+    if (linked) await user.selectOptions(account, linked as HTMLOptionElement);
+    expect(form.getByText(/The account is in GBP and the payment in EUR/)).toBeInTheDocument();
+  });
+
+  it('hides the frequency number for a payment that happens once, and tells a date in the past', async () => {
+    setup({ finance: { recurring: rows() } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring`);
+    const panel = await managerPanel();
+    await user.click(await panel.findByRole('button', { name: 'Add payment' }));
+    const form = within(panel.getByRole('form', { name: 'Add payment' }));
+    expect(form.getByLabelText('Every')).toBeInTheDocument();
+    expect(form.getByText('month(s)')).toBeInTheDocument();
+    await user.selectOptions(form.getByLabelText('Frequency'), 'once');
+    expect(form.queryByLabelText('Every')).toBeNull();
+    await user.type(form.getByLabelText('Next payment date'), '2020-01-01');
+    expect(form.getByText('This date has passed: the payment will count as overdue.')).toBeInTheDocument();
   });
 });
 

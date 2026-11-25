@@ -91,6 +91,44 @@
   composes: label from '../../../assets/styles/dashboard-forms.module.css';
 }
 
+.textarea {
+  composes: textarea from '../../../assets/styles/dashboard-forms.module.css';
+}
+
+.fieldWide {
+  flex: 1 1 100%;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+/* "Every [N] month(s)": the number and its unit on one line. */
+.everyRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.everyRow .input {
+  flex: 0 1 5rem;
+}
+
 .check {
   composes: check from '../../../assets/styles/dashboard-forms.module.css';
 }
@@ -626,7 +664,31 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
   border-radius: var(--dash-r-surface);
+}
+
+/* The form's fields sit on a fixed grid (three columns from 64rem, two from 48rem, one on a phone), never at the width of their words. */
+.form .formFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  align-items: start;
+}
+
+.form .formFields .fieldWide {
+  grid-column: 1 / -1;
+}
+
+/* A form inside a row sits on the row's own surface, not on a second one. */
+.managed .form {
+  padding: var(--space-2) 0 0;
+  background: transparent;
+  border: 0;
+}
+
+/* The search and filters are no wider than they need to be. */
+.stickyTools .field {
+  max-width: 20rem;
 }
 
 .managedList {
@@ -639,6 +701,7 @@
 }
 
 .managed {
+  scroll-margin-top: calc(var(--dash-h-bar) + var(--space-4));
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -661,6 +724,23 @@
 
 .managed[data-active="false"] {
   opacity: 0.8;
+}
+
+/* From 64rem the row's actions are in the row itself (one line); below it they are behind the menu. */
+.inlineActions {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (min-width: 64rem) {
+  .inlineActions {
+    display: inline-flex;
+  }
+
+  .managedTop .menuWrap {
+    display: none;
+  }
 }
 
 .managedTop {
