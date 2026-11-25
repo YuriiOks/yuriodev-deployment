@@ -106,6 +106,7 @@ function setup(options: FakeApiOptions & { lang?: 'ru' | 'en' } = {}): FakeApi {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -149,7 +150,7 @@ describe('the Money page: attention items that name their own subject', () => {
     expect(cardOf(panel, 'k1')).toHaveTextContent('not read for 30 h');
     await user.click(cardOf(panel, 'k1'));
     const dialog = within(await screen.findByRole('dialog', { name: 'Acme Bank' }));
-    expect(dialog.getByText('The balances of Acme Bank have not been read for 30 h (last read Nov 22, 2026).')).toBeInTheDocument();
+    expect(dialog.getByText('The balances of Acme Bank have not been read for 30 h (last read 22 Nov 2026).')).toBeInTheDocument();
     expect(dialog.getByRole('link', { name: 'Open bank' })).toBeInTheDocument();
     // The raw error kind is not shown.
     expect(dialog.queryByText(/timeout/)).toBeNull();
@@ -190,7 +191,7 @@ describe('the Money page: upcoming payments that are already late', () => {
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     const headings = (await panel.findAllByRole('heading', { level: 3 })).map((heading) => heading.textContent);
-    expect(headings).toEqual(['Overdue since Nov 20', 'Today']);
+    expect(headings).toEqual(['Overdue since 20 Nov', 'Today']);
     const rows = panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-covered'));
     expect(rows[0]).toHaveAttribute('data-overdue', 'true');
     expect(rows[1]).not.toHaveAttribute('data-overdue');
@@ -226,8 +227,8 @@ describe('the Money page: spend by category, month to date', () => {
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
     // £100 against £200 by the same day last month: 50% less, not 75% less than the whole of it.
-    expect(await panel.findByText(/50% less than October by Oct 24, 2026/)).toBeInTheDocument();
-    expect(panel.getByText(/by Oct 24, 2026 was £200\.00/)).toBeInTheDocument();
+    expect(await panel.findByText(/50% less than October by 24 Oct 2026/)).toBeInTheDocument();
+    expect(panel.getByText(/by 24 Oct 2026 was £200\.00/)).toBeInTheDocument();
     expect(panel.queryByText(/was £400\.00/)).toBeNull();
   });
 
@@ -242,6 +243,9 @@ describe('the Money page: spend by category, month to date', () => {
 
 describe('the Money page: when the data was read', () => {
   it('says the newest read as updated, warns when an API bank has gone quiet, and refreshes from its own button', async () => {
+    // The freshness lines tell "today" and "yesterday" against now: the clock is fixed well after the dates the test uses.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-12-20T12:00:00Z'));
     const api = setup({
       finance: {
         connections: [{ id: 'c-1', provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-20T09:00:00Z', stale: true, stale_since: '2026-11-20T09:00:00Z' }],
@@ -251,9 +255,9 @@ describe('the Money page: when the data was read', () => {
     const user = userEvent.setup();
     renderAt(ALL);
     const sub = (await screen.findByRole('heading', { level: 1 })).closest('header') as HTMLElement;
-    await waitFor(() => expect(sub).toHaveTextContent(/updated Nov 24/));
-    expect(sub).not.toHaveTextContent(/updated Nov 20/);
-    expect(sub).toHaveTextContent('A bank has not been read since Nov 20');
+    await waitFor(() => expect(sub).toHaveTextContent(/updated 24 Nov/));
+    expect(sub).not.toHaveTextContent(/updated 20 Nov/);
+    expect(sub).toHaveTextContent('A bank has not been read since 20 Nov');
     const before = api.callsTo('GET', '/finance/summary').length;
     await user.click(within(sub).getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(api.callsTo('GET', '/finance/summary').length).toBeGreaterThan(before));
@@ -424,7 +428,7 @@ describe('the Money page: what the backend added after the audit', () => {
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Transactions' }));
     const dayOnly = (await panel.findByText('Corner Cafe')).closest('li') as HTMLElement;
-    expect(dayOnly).toHaveTextContent(/Nov 20, 2026/);
+    expect(dayOnly).toHaveTextContent(/20 Nov 2026/);
     expect(dayOnly).not.toHaveTextContent(/AM|PM/);
     const timed = panel.getByText('Fresh Market').closest('li') as HTMLElement;
     expect(timed).toHaveTextContent(/AM|PM/);

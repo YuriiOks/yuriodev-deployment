@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
-import { whenLabel } from '../components/dashboards/Money/labels';
+import { freshLabel } from '../components/dashboards/Money/labels';
 import AttentionScroller from '../components/dashboards/Money/AttentionScroller';
 import AttentionSheet from '../components/dashboards/Money/AttentionSheet';
 import MoneyAttentionView from '../components/dashboards/Money/MoneyAttentionView';
@@ -152,7 +152,7 @@ const DashboardsMoney = () => {
   const banks = accounts.value ? groupBanks(accounts.value.accounts, accounts.value.connections) : [];
   // "Updated" says the newest balance read, not the oldest; a bank read by its own API that has gone quiet is warned about apart.
   const newest = view === 'today' ? (todayData.value?.generatedAt ?? null) : (summary.value?.asOfNewest ?? summary.value?.asOf ?? null);
-  const asOf = newest ? whenLabel(newest, lang) : '';
+  const asOf = newest ? freshLabel(newest, lang) : '';
   const oldest = summary.value?.asOfOldest ?? null;
   const staleSince = (accounts.value?.connections ?? []).flatMap((link) => (link.stale && link.staleSince ? [link.staleSince] : [])).sort()[0] ?? (oldest && Date.now() - Date.parse(oldest) > STALE_AFTER_MS ? oldest : null);
   const [refreshing, setRefreshing] = useState(false);
@@ -241,7 +241,7 @@ const DashboardsMoney = () => {
           {refreshing ? m.refreshing : m.refresh}
         </button>
       )}
-      {staleSince && <span className={styles.stale}>{fill(m.staleBanks, { when: whenLabel(staleSince, lang) })}</span>}
+      {staleSince && <span className={styles.stale}>{fill(m.staleBanks, { when: freshLabel(staleSince, lang) })}</span>}
     </>
   );
 

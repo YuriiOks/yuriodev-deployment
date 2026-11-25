@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import { formatMinor } from '../../../services/dashboards/money';
+import { APPROX, formatMinor } from '../../../services/dashboards/money';
 import { readDebtsOpen, writeDebtsOpen, type MoneyDisplay } from '../../../services/dashboards/preferences';
 import type { Recurring } from '../../../services/dashboards/recurringApi';
 import type { RecurringStrings } from '../../../services/dashboards/recurringStrings';
@@ -50,7 +50,7 @@ function progressOf(row: Recurring, mode: MoneyDisplay, lang: 'ru' | 'en', r: Re
     const paid = row.totalOwed - row.remainingBalance;
     const shown = mode === 'base' && row.displayTotalOwed && row.displayRemaining && row.displayTotalOwed.currency === row.displayRemaining.currency;
     const words = shown
-      ? `≈ ${fill(r.repaidOf, { paid: formatMinor(Math.max(0, row.displayTotalOwed!.amount - row.displayRemaining!.amount), row.displayTotalOwed!.currency, lang), total: formatMinor(row.displayTotalOwed!.amount, row.displayTotalOwed!.currency, lang) })}`
+      ? `${APPROX}${fill(r.repaidOf, { paid: formatMinor(Math.max(0, row.displayTotalOwed!.amount - row.displayRemaining!.amount), row.displayTotalOwed!.currency, lang), total: formatMinor(row.displayTotalOwed!.amount, row.displayTotalOwed!.currency, lang) })}`
       : fill(r.repaidOf, { paid: formatMinor(paid, row.currency, lang), total: formatMinor(row.totalOwed, row.currency, lang) });
     return { confirmed: share(paid, row.totalOwed), assumed: 0, words, note: null };
   }
@@ -121,7 +121,7 @@ const MoneyDebts: React.FC<{ rows: readonly Recurring[]; ended: readonly Recurri
   const r = t.money.rec;
   const [open, setOpen] = useState(readDebtsOpen);
   const summary = remainingSummary(rows, mode);
-  const amount = summary.totals.map((total) => `${total.approx || summary.estimate ? '≈ ' : ''}${formatMinor(total.amount, total.currency, lang)}`).join(' · ');
+  const amount = summary.totals.map((total) => `${total.approx || summary.estimate ? APPROX : ''}${formatMinor(total.amount, total.currency, lang)}`).join(' · ');
   const soonest = rows.find((row) => row.nextDate !== null);
   const toggle = () => {
     writeDebtsOpen(!open);

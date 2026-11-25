@@ -3,12 +3,12 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { CurrencyCategories, FinanceCategories } from '../../../services/dashboards/financeApi';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { formatMinor } from '../../../services/dashboards/money';
+import { APPROX, formatMinor } from '../../../services/dashboards/money';
 import CategoryMark from './CategoryMark';
-import { dayLabel, monthName } from './labels';
+import { dayLabel, monthName, monthTitle } from './labels';
 import styles from './Money.module.css';
 
-const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previousMonth: string; previousDay: string | null; approx?: boolean }> = ({ block, month, previousMonth, previousDay, approx = false }) => {
+const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previousMonth: string; previousDay: string | null; approx?: boolean; showCode?: boolean }> = ({ block, month, previousMonth, previousDay, approx = false, showCode = true }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const previous = monthName(previousMonth, lang);
@@ -22,14 +22,14 @@ const CurrencyBlock: React.FC<{ block: CurrencyCategories; month: string; previo
     const words = toDate ? { same: m.spendSameBy, less: m.spendLessBy, more: m.spendMoreBy } : { same: m.spendSame, less: m.spendLess, more: m.spendMore };
     change = percent === 0 ? fill(words.same, { previous, date }) : fill(block.spent < base ? words.less : words.more, { percent, previous, date });
   }
-  const sign = approx ? '≈ ' : '';
+  const sign = approx ? APPROX : '';
   const rows = block.categories.filter((row) => row.spent > 0).sort((a, b) => b.spent - a.spent);
   // A bar is scaled to the largest category, not to the total, so the list reads as a comparison; the three largest are drawn stronger.
   const largest = rows[0]?.spent ?? 0;
   return (
     <div className={styles.spendCurrency}>
       <p className={styles.spendHead}>
-        {[monthName(month, lang), `${block.currency} ${sign}${formatMinor(block.spent, block.currency, lang)}`, change].filter(Boolean).join(' · ')}
+        {[monthTitle(month, lang), `${showCode ? `${block.currency} ` : ''}${sign}${formatMinor(block.spent, block.currency, lang)}`, change].filter(Boolean).join(' · ')}
       </p>
       <ul className={styles.spendList}>
         {rows.map((row, index) => {
@@ -74,6 +74,8 @@ const MoneyCategories: React.FC<{ data: FinanceCategories; mode: MoneyDisplay }>
   const merged = mode === 'base' ? data.display : null;
   // A currency with no usable rate is never dropped: its spending stays, in its own currency, after the converted block.
   const blocks = merged ? data.currencies.filter((block) => merged.missing.includes(block.currency) && block.spent > 0) : data.currencies.filter((block) => block.spent > 0);
+  // The currency code is told only when more than one block is shown.
+  const shown = (merged && merged.spent > 0 ? 1 : 0) + blocks.length;
   return (
     <div className={styles.spend}>
       {merged && merged.spent > 0 && (
@@ -83,12 +85,13 @@ const MoneyCategories: React.FC<{ data: FinanceCategories; mode: MoneyDisplay }>
           previousMonth={data.previousMonth}
           previousDay={data.previousToDateDay}
           approx={data.currencies.some((block) => block.converted)}
+          showCode={shown > 1}
         />
       )}
       {merged && merged.missing.length > 0 && <p className={styles.spendNote}>{fill(t.money.notConverted, { list: merged.missing.join(', ') })}</p>}
       {(merged ? merged.spent === 0 : true) && blocks.length === 0 && <p className={styles.none}>{t.money.spendNothing}</p>}
       {blocks.map((block) => (
-        <CurrencyBlock key={block.currency} block={block} month={data.month} previousMonth={data.previousMonth} previousDay={data.previousToDateDay} />
+        <CurrencyBlock key={block.currency} block={block} month={data.month} previousMonth={data.previousMonth} previousDay={data.previousToDateDay} showCode={shown > 1} />
       ))}
       <p className={styles.spendNote}>{t.money.spendNote}</p>
     </div>

@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, ProviderLogo } from '../../../services/dashboards/financeApi';
-import { formatMinor } from '../../../services/dashboards/money';
+import { APPROX, formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import type { Evidence, Recurring, Upcoming, UpcomingItem } from '../../../services/dashboards/recurringApi';
 import { cx } from '../../../utils/cx';
-import Amount from './Amount';
+import Amount, { Approx } from './Amount';
 import EndedPlans from './EndedPlans';
 import RecurringIcon from './RecurringIcon';
 import TruthMark from './TruthMark';
@@ -150,7 +150,8 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, rec
             <span className={styles.note}>{r.dueTotals}</span>
             {showGrand && data.grand && (
               <strong className={styles.grandDue}>
-                {r.dueGrand}: ≈ {formatMinor(data.grand.amount, data.grand.currency, lang)}
+                {r.dueGrand}: <Approx />
+                {formatMinor(data.grand.amount, data.grand.currency, lang)}
               </strong>
             )}
             {single ? (
@@ -169,7 +170,7 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, rec
               {TRUTHS.flatMap((truth) => {
                 const sums = split[truth];
                 if (sums.length === 0) return [];
-                const amount = sums.map((sum) => `${sum.approx ? '≈ ' : ''}${formatMinor(sum.amount, sum.currency, lang)}`).join(' · ');
+                const amount = sums.map((sum) => `${sum.approx ? APPROX : ''}${formatMinor(sum.amount, sum.currency, lang)}`).join(' · ');
                 const template = truth === 'confirmed' ? r.dueSplit.confirmed : truth === 'none_seen' ? r.dueSplit.noneSeen : r.dueSplit.unchecked;
                 return [
                   <li key={truth} data-truth={truth}>

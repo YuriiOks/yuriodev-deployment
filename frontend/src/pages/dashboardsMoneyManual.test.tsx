@@ -95,10 +95,10 @@ describe('the Money page: a bank entered by hand', () => {
     await openHandBank();
     expect(bankCard('Hand Bank').getAttribute('style')).toContain('--bank-bg: #aa2244');
     expect(bankCard('Acme Bank').getAttribute('style')).toContain('--bank-bg: #0b3d91');
-    expect(bankCard('Hand Bank')).toHaveTextContent('balance as of Nov 1, 2026');
+    expect(bankCard('Hand Bank')).toHaveTextContent('balance as of 1 Nov 2026');
     expect(bankCard('Hand Bank')).not.toHaveTextContent(/connected|updated/);
     expect(opened().getByRole('heading', { level: 3, name: 'Hand Bank' })).toBeInTheDocument();
-    expect(wallet().getByRole('article')).toHaveTextContent('balance as of Nov 1, 2026');
+    expect(wallet().getByRole('article')).toHaveTextContent('balance as of 1 Nov 2026');
   });
 
   it('keeps the table\'s colours and the id\'s name for a server that sends neither', async () => {
@@ -133,7 +133,7 @@ describe('the Money page: a bank entered by hand', () => {
     await user.click(form.getByRole('button', { name: 'Save balance' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')).toHaveLength(1));
     expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')[0].body).toEqual({ balance: -25050, as_of: '2026-11-20' });
-    await waitFor(() => expect(wallet().getByRole('article')).toHaveTextContent('balance as of Nov 20, 2026'));
+    await waitFor(() => expect(wallet().getByRole('article')).toHaveTextContent('balance as of 20 Nov 2026'));
     expect(opened().getByText('Current account').closest('li')).toHaveTextContent('−£250.50');
     // The form closed.
     expect(opened().queryByRole('form', { name: 'Update balance: Current account' })).toBeNull();
@@ -196,7 +196,7 @@ describe('the Money page: a bank entered by hand', () => {
     expect(await group.findByText('Lines read: 3')).toBeInTheDocument();
     expect(group.getByText('New: 3')).toBeInTheDocument();
     expect(group.getByText('Already there: 0')).toBeInTheDocument();
-    expect(group.getByText('From Oct 1, 2026 to Oct 31, 2026')).toBeInTheDocument();
+    expect(group.getByText('From 1 Oct 2026 to 31 Oct 2026')).toBeInTheDocument();
     expect(group.getByText('Money in: £1,500.00')).toBeInTheDocument();
     expect(group.getByText('Money out: £45.50')).toBeInTheDocument();
     expect(group.getByText(/Nothing is saved yet/)).toBeInTheDocument();
@@ -259,10 +259,10 @@ describe('the Money page: a statement that is out of date', () => {
     const panel = within(await within(main()).findByRole('region', { name: 'Needs attention' }));
     // A card in the row with the bank's own name and the fact in a few words.
     const card = panel.getByRole('button', { name: /Hand Bank/ });
-    expect(card).toHaveTextContent('as of Oct 1, 2026, 54 d old');
+    expect(card).toHaveTextContent('as of 1 Oct 2026, 54 d old');
     await userEvent.setup().click(card);
     const dialog = within(screen.getByRole('dialog', { name: 'Hand Bank' }));
-    expect(dialog.getByText('The data of Hand Bank is out of date: the newest is from Oct 1, 2026 (54 d ago).')).toBeInTheDocument();
+    expect(dialog.getByText('The data of Hand Bank is out of date: the newest is from 1 Oct 2026 (54 d ago).')).toBeInTheDocument();
     expect(dialog.getByRole('link', { name: 'Upload statement' })).toHaveAttribute('href', '#money-wallet-title');
   });
 });

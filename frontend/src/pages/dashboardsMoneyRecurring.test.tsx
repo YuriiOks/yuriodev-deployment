@@ -175,7 +175,7 @@ describe('the Money page: the row of attention cards', () => {
     expect(within(cards[3]).getByText('3 d overdue, £25.00')).toBeInTheDocument();
     expect(within(cards[5]).getByText('72% of the limit')).toBeInTheDocument();
     expect(within(cards[5]).getByText('Soon')).toBeInTheDocument();
-    expect(within(cards[6]).getByText('as of Oct 1, 2026, 54 d old')).toBeInTheDocument();
+    expect(within(cards[6]).getByText('as of 1 Oct 2026, 54 d old')).toBeInTheDocument();
     expect(within(cards[7]).getByText('£12.50, was £10.00')).toBeInTheDocument();
     expect(panel.getByRole('link', { name: 'All 12' })).toHaveAttribute('href', expect.stringContaining('view=attention'));
     // A card has nothing in it to press but itself.
@@ -286,7 +286,7 @@ describe('the Money page: an attention item in detail', () => {
     const dialog = dialogOf('Gym');
     expect(dialog.getByText('≈ £3.95')).toBeInTheDocument();
     expect(dialog.getByText('$5.00')).toBeInTheDocument();
-    expect(dialog.getByText('Oct 24, 2026')).toBeInTheDocument();
+    expect(dialog.getByText('24 Oct 2026')).toBeInTheDocument();
   });
 
   it('closes on Escape, giving the focus back to the card, and keeps Tab inside while open', async () => {
@@ -348,7 +348,7 @@ describe('the Money page: an attention item in detail', () => {
     ['k2', 'Gym', 'Gym was due 3 d ago (£25.00) and no matching transaction has been seen.'],
     ['k4', 'Plastic card', 'Plastic card has used 72% of its limit (£2,174.00 of £3,000.00).'],
     ['k6', 'Monzo', 'The Monzo connection needs to be approved again.'],
-    ['k8', 'Hand bank', 'The data of Hand bank is out of date: the newest is from Oct 1, 2026 (54 d ago).'],
+    ['k8', 'Hand bank', 'The data of Hand bank is out of date: the newest is from 1 Oct 2026 (54 d ago).'],
     ['k5', 'Everyday', 'Everyday is £40.00 past its overdraft.'],
   ])('tells the %s item in one plain sentence in the sheet', async (key, name, sentence) => {
     setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
@@ -445,7 +445,7 @@ describe('the Money page: the whole attention list', () => {
     expect(within(within(groups[3]).getByRole('listitem')).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
     expect(within(groups[4]).getByRole('listitem')).toHaveTextContent('72% of the limit');
     expect(within(groups[5]).getByRole('listitem')).toHaveTextContent('Hand bank');
-    expect(within(groups[5]).getByRole('listitem')).toHaveTextContent('as of Oct 1, 2026 · 54 d old');
+    expect(within(groups[5]).getByRole('listitem')).toHaveTextContent('as of 1 Oct 2026 · 54 d old');
     // Changed amounts last, three rows of five.
     const changed = within(groups[6]);
     expect(changed.getAllByRole('listitem')).toHaveLength(3);
@@ -727,7 +727,7 @@ describe('the Money page: debts and installments', () => {
     expect(cards[0]).toHaveTextContent('Creditor: Example Furniture Ltd');
     expect(cards[0]).toHaveTextContent('£450.00');
     expect(cards[0]).toHaveTextContent('3 of 12 confirmed by the bank');
-    expect(cards[0]).toHaveTextContent('Next: Dec 2, 2026 · £50.00');
+    expect(cards[0]).toHaveTextContent('Next: 2 Dec 2026 · £50.00');
     expect(cards[1]).toHaveTextContent('Family loan');
     expect(cards[1]).toHaveTextContent('£750.00 of £1,000.00 repaid');
     expect(cards[1]).toHaveTextContent('no next date');
@@ -873,7 +873,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
     renderAt(`${PATH}?view=recurring`);
     const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
     const row = (name: string) => within((panel.getByText(name).closest('li') as HTMLElement));
-    await waitFor(() => expect(row('Streaming').getByText('confirmed by the bank · last Nov 5, 2026')).toBeInTheDocument());
+    await waitFor(() => expect(row('Streaming').getByText('confirmed by the bank · last 5 Nov 2026')).toBeInTheDocument());
     expect(row('Gym').getByText('no charge seen')).toBeInTheDocument();
     expect(row('Phone plan').getByText('from your list, not checked')).toBeInTheDocument();
   });
@@ -896,7 +896,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
     expect(cards).toHaveLength(1);
     expect(cards[0]).toHaveTextContent('Sofa installments');
     expect(cards[0]).toHaveTextContent('by schedule 10 of 12 · 3 confirmed by the bank');
-    expect(cards[0]).toHaveTextContent('confirmed by the bank · last Nov 2, 2026');
+    expect(cards[0]).toHaveTextContent('confirmed by the bank · last 2 Nov 2026');
     expect(panel.queryByText('Old phone plan')).toBeNull();
     // The ended plan is listed apart: a count first, the plan on request.
     expect(panel.getByText('Ended by schedule: 1')).toBeInTheDocument();
@@ -968,7 +968,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
     expect(panel.queryByText('Finished plan')).toBeNull();
     const row = (name: string) => within(panel.getByText(name).closest('li') as HTMLElement);
     // In the rows one small mark says it, its words are its name; the footer says each sentence once.
-    expect(row('Streaming').getByRole('img', { name: 'confirmed by the bank · last Nov 5, 2026' })).toBeInTheDocument();
+    expect(row('Streaming').getByRole('img', { name: 'confirmed by the bank · last 5 Nov 2026' })).toBeInTheDocument();
     expect(row('Gym').getByRole('img', { name: 'no charge seen' })).toBeInTheDocument();
     expect(row('Phone plan').getByRole('img', { name: 'from your list, not checked' })).toHaveAttribute('title', 'from your list, not checked');
     expect(row('Phone plan').queryByText('from your list, not checked')).toBeNull();
@@ -1073,7 +1073,7 @@ describe('the Money page: debts in detail', () => {
     renderAt(ALL);
     const panel = await openDebts(user);
     const late = panel.getByText('Late loan').closest('li') as HTMLElement;
-    expect(late).toHaveTextContent('Was due Jan 1, 2020 · £50.00');
+    expect(late).toHaveTextContent('Was due 1 Jan 2020 · £50.00');
     expect(late).toHaveTextContent('seen in the bank: 2 of the last 3');
     const open = panel.getByText('Open plan').closest('li') as HTMLElement;
     expect(open).toHaveTextContent('schedule unclear');
@@ -1098,7 +1098,7 @@ describe('the Money page: debts in detail', () => {
     const user = userEvent.setup();
     const first = renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Debts and installments' }));
-    expect(await panel.findByText(/next: Feb 1, 2099 · £70\.00/)).toBeInTheDocument();
+    expect(await panel.findByText(/next: 1 Feb 2099 · £70\.00/)).toBeInTheDocument();
     // Closed: the list is there but hidden.
     expect(panel.queryAllByRole('listitem')).toHaveLength(0);
     expect(panel.getByRole('list', { hidden: true })).toHaveAttribute('hidden');

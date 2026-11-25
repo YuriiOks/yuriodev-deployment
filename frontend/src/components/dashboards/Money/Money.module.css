@@ -47,6 +47,11 @@
   line-height: var(--dash-lh-meta);
 }
 
+.totalNote[data-old="true"] {
+  color: var(--dash-t1);
+  font-weight: 700;
+}
+
 .totalSum {
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
   color: var(--dash-t1);
@@ -186,6 +191,13 @@
   font-size: var(--dash-fs-hero);
   font-weight: 700;
   line-height: var(--dash-lh-hero);
+}
+
+.heroApprox {
+  margin-inline-end: var(--space-1);
+  font-size: var(--dash-fs-page);
+  font-weight: 700;
+  line-height: var(--dash-lh-page);
 }
 
 .heroSmall {

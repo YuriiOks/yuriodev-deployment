@@ -14,6 +14,9 @@ export interface MoneyOptions {
   readonly signed?: boolean;
 }
 
+/** The approximation mark, with a no-break space so it never wraps away from its figure. */
+export const APPROX = '\u2248\u00a0';
+
 /** The minus the platform writes as a hyphen (English) is written as the real minus sign (U+2212), as Russian already is: one sign in both languages. */
 const typographic = (text: string): string => text.replace(/-/g, '\u2212');
 

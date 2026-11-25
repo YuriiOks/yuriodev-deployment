@@ -125,7 +125,7 @@ describe('Ask Claude', () => {
     const box = within(await card.findByRole('group', { name: 'Confirm the change' }));
     expect(box.getByText('Add an event')).toBeInTheDocument();
     expect(box.getByText('About: Dentist')).toBeInTheDocument();
-    expect(box.getByText('November 20, 2026')).toBeInTheDocument();
+    expect(box.getByText('20 November 2026')).toBeInTheDocument();
     expect(box.getByText('10:00')).toBeInTheDocument();
     expect(box.getByText('11:00')).toBeInTheDocument();
     expect(box.getByRole('alert')).toHaveTextContent('This event is in the past.');

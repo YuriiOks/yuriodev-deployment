@@ -274,14 +274,14 @@ describe('the Money page: Today', () => {
     expect(await within(main()).findByText('Spent in November')).toBeInTheDocument();
     expect(within(main()).getByText('£2,540.00')).toBeInTheDocument();
     // 254000 against 176000 by the same day: 44% more.
-    expect(within(main()).getByText(/44% more than by Oct 24, 2026/)).toBeInTheDocument();
+    expect(within(main()).getByText(/44% more than by 24 Oct 2026/)).toBeInTheDocument();
     expect(within(main()).getByText('Due in 14 days')).toBeInTheDocument();
     expect(within(main()).getByText('£1,071.99')).toBeInTheDocument();
     expect(within(main()).getByText(/of which confirmed by the bank: £0\.00/)).toBeInTheDocument();
     const breakdown = within(await within(main()).findByRole('region', { name: 'Where the money went' }));
     expect(breakdown.getAllByRole('listitem')).toHaveLength(4);
     expect(breakdown.getByText('What rose: Entertainment')).toBeInTheDocument();
-    expect(breakdown.getByText(/By Oct 24, 2026 last month it was £37\.00, now £460\.00/)).toBeInTheDocument();
+    expect(breakdown.getByText(/By 24 Oct 2026 last month it was £37\.00, now £460\.00/)).toBeInTheDocument();
   });
 
   it('lists the banks with how fresh each one\'s data is', async () => {
@@ -310,6 +310,9 @@ describe('the Money page: Today', () => {
   });
 
   it('has one header row: the mark (the way back), the name as the page\'s heading, the tabs, and the quiet controls at the far right; no separate box and no "Back to" link', async () => {
+    // The freshness lines tell "today" and "yesterday" against now: the clock is fixed well after the dates the test uses.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-12-20T12:00:00Z'));
     setup();
     renderAt(PATH);
     const heading = await within(main()).findByRole('heading', { level: 1, name: 'Money' });
@@ -317,7 +320,7 @@ describe('the Money page: Today', () => {
     expect(within(row).getByRole('link', { name: 'Back to Personal' })).toBeInTheDocument();
     expect(within(row).getByRole('navigation', { name: 'Money sections' })).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
-    expect(within(row).getByText(/updated Nov 24/)).toBeInTheDocument();
+    expect(within(row).getByText(/updated 24 Nov/)).toBeInTheDocument();
     expect(within(main()).queryByText('Back to Personal')).toBeNull();
   });
 
