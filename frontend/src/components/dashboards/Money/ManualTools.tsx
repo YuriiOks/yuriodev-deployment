@@ -42,7 +42,7 @@ const BalanceForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) 
       await setManualBalance(account.id, card ? { owed: minor } : { balance: minor }, asOf || null);
       onDone(true);
     } catch (error) {
-      const why = refusal(error);
+      const why = refusal(error, t.money.refusal);
       setProblem(why ?? x.balanceFailed);
       setBusy(false);
     }
@@ -95,7 +95,7 @@ const Summary: React.FC<{ result: StatementResult; currency: string }> = ({ resu
           <h4 className={styles.summaryTitle}>{fill(x.errorsTitle, { n: result.errors.length })}</h4>
           <ul className={styles.errorList}>
             {result.errors.map((error, index) => (
-              <li key={`${error.row}-${index}`}>{fill(x.errorLine, { row: error.row, message: error.field ? `${error.field}: ${error.message}` : error.message })}</li>
+              <li key={`${error.row}-${index}`}>{fill(x.errorLine, { row: error.row, message: error.field && Object.prototype.hasOwnProperty.call(t.money.refusal.fields, error.field) ? `${t.money.refusal.fields[error.field]}: ${t.money.refusal.line}` : t.money.refusal.line })}</li>
             ))}
           </ul>
         </>
@@ -143,7 +143,7 @@ const StatementUpload: React.FC<{ account: FinanceAccount; onDone: (saved: boole
         onImported();
       }
     } catch (error) {
-      const why = refusal(error);
+      const why = refusal(error, t.money.refusal);
       setStage({ kind: 'failed', message: why ? fill(x.uploadRefused, { why }) : x.uploadFailed });
     }
   };
@@ -267,7 +267,7 @@ const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boole
       await updateManualAccount(account.id, body as ManualAccountPatch);
       onDone(true);
     } catch (error) {
-      const why = refusal(error);
+      const why = refusal(error, t.money.refusal);
       setProblem(why ? fill(x.createRefused, { why }) : x.createFailed);
       setBusy(false);
     }

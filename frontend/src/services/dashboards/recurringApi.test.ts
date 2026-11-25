@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './liveApi';
+import { REFUSAL_EN } from './refusalStrings';
 import { bulkAttention, iconUrl, markPaid, movedOn, parseAttention, parseRecurring, parseRecurringList, parseUpcoming, refusal } from './recurringApi';
 
 const row = (extra: Record<string, unknown> = {}) => ({ id: 'r-1', name: 'Streaming', kind: 'subscription', amount: 999, currency: 'GBP', frequency: 'monthly', frequency_interval: 1, ...extra });
@@ -102,12 +103,13 @@ describe('the recurring payments parsers', () => {
     vi.unstubAllGlobals();
   });
 
-  it('passes on the server\'s refusal words and nothing generic', () => {
-    expect(refusal(new ApiError('validation_error', 422, 'amount must be positive'))).toBe('amount must be positive');
-    expect(refusal(new ApiError('http', 422, 'HTTP 422'))).toBeNull();
-    expect(refusal(new ApiError('internal_error', 500, 'boom'))).toBeNull();
-    expect(refusal(new ApiError('network', 0, 'network'))).toBeNull();
-    expect(refusal(new Error('amount must be positive'))).toBeNull();
-    expect(refusal('nope')).toBeNull();
+  it('tells a refusal in the page\'s own words by code, never the server\'s text, and nothing generic', () => {
+    expect(refusal(new ApiError('validation_error', 422, 'amount must be positive'), REFUSAL_EN)).toBe('check the values you entered');
+    expect(refusal(new ApiError('http', 422, 'HTTP 422'), REFUSAL_EN)).toBeNull();
+    expect(refusal(new ApiError('internal_error', 500, 'boom'), REFUSAL_EN)).toBeNull();
+    expect(refusal(new ApiError('network', 0, 'network'), REFUSAL_EN)).toBeNull();
+    expect(refusal(new Error('amount must be positive'), REFUSAL_EN)).toBeNull();
+    expect(refusal('nope', REFUSAL_EN)).toBeNull();
   });
+
 });

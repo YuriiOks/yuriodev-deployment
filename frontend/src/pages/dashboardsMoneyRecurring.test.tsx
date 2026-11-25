@@ -834,7 +834,7 @@ describe('the Money page: managing recurring payments', () => {
     await user.type(amount, '30');
     api.fail.add('recurringWrite');
     await user.click(form.getByRole('button', { name: 'Save' }));
-    expect(await form.findByRole('alert')).toHaveTextContent('Could not save: amount must be positive');
+    expect(await form.findByRole('alert')).toHaveTextContent('Could not save: check the values you entered');
   });
 
   it('adds a payment and deactivates one', async () => {
