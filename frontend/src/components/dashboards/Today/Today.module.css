@@ -435,3 +435,57 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The week of the "Queue cleared" card. */
+.streakHeadline {
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+}
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 2.5rem;
+  height: 2.25rem;
+  border: 2px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+}
+
+.day[data-state="cleared"] .cell {
+  background: var(--dash-accent);
+  border-color: var(--dash-accent);
+}
+
+.day[data-state="no_data"] .cell {
+  border-style: dotted;
+}
+
+.day[data-state="future"] .cell {
+  border-color: var(--dash-line);
+}
+
+.day[data-today="true"] .cell {
+  outline: 2px solid var(--dash-heading);
+  outline-offset: 2px;
+}
+
+.dayLetter {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}

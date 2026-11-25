@@ -175,4 +175,47 @@ describe('the Today view of the spaces', () => {
     expect(await within(main()).findByText(/Открыто задач: 12, из них в приоритете 3, просрочено 2\./)).toBeInTheDocument();
     expect(within(main()).getByText('Готово ли «File the form»?')).toBeInTheDocument();
   });
+
+  const week = (states: string[]) => states.map((state, index) => ({ date: `2026-11-${String(23 + index).padStart(2, '0')}`, state }));
+
+  it('draws the Queue cleared card from the streak: seven cells with their state in words, today outlined, the run as the headline', async () => {
+    const streak = { days: week(['cleared', 'cleared', 'open', 'no_data', 'future', 'future', 'future']), count: 2 };
+    setup({ today: { personal: { ...personal, streak } } });
+    renderAt('/dashboards/personal');
+    const card = within(await within(main()).findByRole('region', { name: 'Queue cleared' }));
+    expect(card.getByText('2 d in a row')).toBeInTheDocument();
+    const cells = card.getAllByRole('listitem');
+    expect(cells).toHaveLength(7);
+    expect(cells.map((cell) => cell.getAttribute('data-state'))).toEqual(['cleared', 'cleared', 'open', 'no_data', 'future', 'future', 'future']);
+    // A day with no data is told apart from an open one, in words.
+    expect(cells[2]).toHaveTextContent('queue not cleared');
+    expect(cells[3]).toHaveTextContent('no data');
+    expect(cells[0]).toHaveTextContent('queue cleared');
+    expect(cells.filter((cell) => cell.getAttribute('data-today') === 'true')).toHaveLength(1);
+  });
+
+  it('says how many days of the week were cleared when there is no run, and draws nothing when every day is without data', async () => {
+    const streak = { days: week(['cleared', 'open', 'open', 'future', 'future', 'future', 'future']), count: 0 };
+    const first = setup({ today: { personal: { ...personal, streak } } });
+    const view = renderAt('/dashboards/personal');
+    expect(await within(main()).findByText('1 of 3 days this week')).toBeInTheDocument();
+    expect(first.calls.length).toBeGreaterThan(0);
+    view.unmount();
+    setup({ today: { personal: { ...personal, streak: { days: week(['no_data', 'no_data', 'no_data', 'no_data', 'no_data', 'no_data', 'no_data']), count: 0 } } } });
+    renderAt('/dashboards/personal');
+    await within(main()).findByText(/12 open tasks/);
+    expect(within(main()).queryByRole('region', { name: 'Queue cleared' })).toBeNull();
+  });
+
+  it('greets by name when the server has one, and as before when it has none', async () => {
+    setup({ today: { personal: { ...personal, summary: { ...personal.summary, facts: { ...personal.summary.facts, owner_name: 'Sam' } } } } });
+    const view = renderAt('/dashboards/personal');
+    expect(await within(main()).findByRole('heading', { level: 2, name: /Good (morning|afternoon|evening), Sam/ })).toBeInTheDocument();
+    view.unmount();
+    setup({ today: { personal } });
+    renderAt('/dashboards/personal');
+    const heading = await within(main()).findByRole('heading', { level: 2, name: /Good (morning|afternoon|evening)/ });
+    expect(heading).not.toHaveTextContent(',');
+  });
 });
+
