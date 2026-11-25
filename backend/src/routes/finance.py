@@ -235,9 +235,7 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
 
 
 @router.get("/providers/logos")
-async def provider_logos(
-    request: Request, session: SessionDep, settings: SettingsDep
-) -> Response:
+async def provider_logos(request: Request, session: SessionDep, settings: SettingsDep) -> Response:
     """Every logo variant of the providers that have a connection, as data URIs in ONE answer
     (`{version, logos: {provider: {on_light, on_dark, mark}}}`, a variant that is not set is
     null), so a page does not request each image on its own. `ETag` is the version, `Cache-Control:
