@@ -1,14 +1,15 @@
 import type { Converted } from '../../../services/dashboards/financeApi';
-import { formatMinor } from '../../../services/dashboards/money';
+import { APPROX, formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { fill } from '../../../services/dashboards/calendarLabels';
+import { formatDate } from '../../../services/dashboards/dateFormat';
 import { momentOf } from './labels';
 import type { Recurring } from '../../../services/dashboards/recurringApi';
 import type { RecurringStrings } from '../../../services/dashboards/recurringStrings';
 
 /** An amount as plain text: in pounds mode a converted figure is marked "≈" (the original is told beside it where the page has room), else the original. */
 export function amountText(amount: number, code: string, display: Converted | null, mode: MoneyDisplay, lang: string): string {
-  if (mode === 'base' && display && display.currency !== code) return `≈ ${formatMinor(display.amount, display.currency, lang as 'ru' | 'en')}`;
+  if (mode === 'base' && display && display.currency !== code) return `${APPROX}${formatMinor(display.amount, display.currency, lang as 'ru' | 'en')}`;
   return formatMinor(amount, code, lang as 'ru' | 'en');
 }
 
@@ -27,10 +28,11 @@ export function frequencyLabel(row: Pick<Recurring, 'frequency' | 'frequencyInte
 /** A day's heading in a list of upcoming payments: Today, Tomorrow, then the date. */
 export function dayHeading(iso: string, daysUntil: number, lang: string, r: RecurringStrings, overdue = false): string {
   // Already due and not seen paid: it is late, not "today" (the server lists it first, with a negative day count).
-  if (overdue || daysUntil < 0) return fill(r.overdueSince, { date: new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short' }).format(momentOf(iso)) });
+  if (overdue || daysUntil < 0) return fill(r.overdueSince, { date: formatDate(momentOf(iso), lang, { day: 'numeric', month: 'short' }) });
   if (daysUntil === 0) return r.today;
   if (daysUntil === 1) return r.tomorrow;
-  return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(momentOf(iso));
+  // The weekday and the date are put together here, so the order and the comma do not depend on the platform's tables.
+  return `${formatDate(momentOf(iso), lang, { weekday: 'short' })}, ${formatDate(momentOf(iso), lang, { day: 'numeric', month: 'short' })}`;
 }
 
 /** The debts and installment plans among the payments (active ones), the soonest next payment first. */

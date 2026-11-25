@@ -111,6 +111,7 @@ function setup(options: FakeApiOptions = {}, lang: 'ru' | 'en' = 'en'): FakeApi 
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -206,8 +207,8 @@ describe('the Money page: totals and the wallet', () => {
     expect(rows[0]).toMatch(/Everyday.*•••• 1234.*£450\.50/);
     expect(rows[1]).toMatch(/Spare.*£10\.00/);
     // Two accounts with one name: the start of their history tells them apart.
-    expect(rows[2]).toMatch(/Savings.*history from Mar 1, 2022.*£5\.00/);
-    expect(rows[3]).toMatch(/Savings.*history from Jun 15, 2024.*£6\.00/);
+    expect(rows[2]).toMatch(/Savings.*history from 1 Mar 2022.*£5\.00/);
+    expect(rows[3]).toMatch(/Savings.*history from 15 Jun 2024.*£6\.00/);
     const pots = opened().getByRole('region', { name: 'Pots' });
     const tiles = within(pots).getAllByRole('listitem');
     expect(tiles).toHaveLength(2);
@@ -513,7 +514,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     setup({ finance: kinds() });
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
-    await panel.findByText(/November · GBP £100\.00 · 6% less than October/);
+    await panel.findByText(/November · £100\.00 · 6% less than October/);
     const rows = panel.getAllByRole('listitem');
     // Largest first; a category with nothing spent is not listed.
     expect(rows.map((row) => row.getAttribute('data-category'))).toEqual(['groceries', 'eating_out']);
@@ -548,7 +549,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     const user = userEvent.setup();
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Spend by category' }));
-    await panel.findByText(/November · GBP ≈ £138\.00 · 39% more than October/);
+    await panel.findByText(/November · ≈ £138\.00 · 39% more than October/);
     expect(panel.getAllByRole('listitem')).toHaveLength(1);
     expect(panel.getByRole('listitem')).toHaveTextContent('≈ £138.00 · 100% · +£39.00 (was £99.00)');
     expect(panel.getByText('not converted: JPY')).toBeInTheDocument();
@@ -625,6 +626,9 @@ describe('the Money page: pounds by default, originals beside', () => {
   });
 
   it('shows pounds by default with one grand total, the rate once, the currency with no rate named, and the per-currency parts under it', async () => {
+    // The rate note tells "today" and "yesterday" against now: the clock is fixed well after the date the test uses.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-12-20T12:00:00Z'));
     setup({ finance: converted() });
     renderAt(ALL);
     await banksReady();
@@ -633,9 +637,10 @@ describe('the Money page: pounds by default, originals beside', () => {
     expect(within(choice).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'false');
     const header = (await within(main()).findByText('in all')).closest('div')?.parentElement as HTMLElement;
     expect(header).toHaveTextContent('in all');
-    expect(header).toHaveTextContent('≈ £743.50');
+    // The hero writes the mark tight against the figure (a margin, not a space).
+    expect(header).toHaveTextContent('≈£743.50');
     // The rate's time is the oldest of the rates used (08:00, not 09:30).
-    expect(header).toHaveTextContent(/rate as of Nov 24.*08:00/);
+    expect(header).toHaveTextContent(/rate as of 24 Nov.*08:00/);
     expect(header).toHaveTextContent('not converted: JPY');
     // The parts under it, each in its own currency.
     const parts = within(header).getAllByRole('listitem').map((part) => part.textContent ?? '');
@@ -649,7 +654,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     renderAt(ALL);
     await banksReady();
     // Monobank: UAH and USD converted into one figure; JPY has no rate and stays.
-    expect(bankButton('Monobank')).toHaveTextContent('≈ £293.00');
+    expect(bankButton('Monobank')).toHaveTextContent('≈£293.00');
     expect(bankButton('Monobank')).toHaveTextContent('¥99,900');
     await user.click(bankButton('Monobank'));
     const row = opened().getByText('Hryvnia card').closest('li') as HTMLElement;

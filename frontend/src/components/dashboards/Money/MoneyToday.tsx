@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath } from '../../../data/site';
 import { useStoredImages } from '../../../hooks/useImageBundles';
+import { localeOf } from '../../../services/dashboards/dateFormat';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { converted, isCategory, type Category, type ProviderLogo } from '../../../services/dashboards/financeApi';
-import { formatMinor } from '../../../services/dashboards/money';
+import { APPROX, formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { ATTENTION_KINDS, markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type AttentionKind } from '../../../services/dashboards/recurringApi';
 import type { TodayData, TodayQueueEntry, TodaySoonEntry } from '../../../services/dashboards/todayApi';
@@ -16,7 +17,7 @@ import BankMark from './BankMark';
 import CategoryMark from './CategoryMark';
 import RecurringIcon from './RecurringIcon';
 import { useCardFact } from './attentionText';
-import { dayLabel, monthName } from './labels';
+import { dayLabel, monthName, monthTitle } from './labels';
 import { bankLabel } from './providers';
 import { dueWhen } from './recurringLabels';
 import { partOfDay } from './todayModel';
@@ -31,7 +32,7 @@ const text = (value: unknown): string | null => (typeof value === 'string' && va
 /** How long ago a moment was, in the page's language ("5 minutes ago"). */
 function ago(iso: string, lang: string): string {
   const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
-  const formatter = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  const formatter = new Intl.RelativeTimeFormat(localeOf(lang), { numeric: 'auto' });
   if (minutes < 60) return formatter.format(-minutes, 'minute');
   if (minutes < 60 * 24) return formatter.format(-Math.round(minutes / 60), 'hour');
   return formatter.format(-Math.round(minutes / (60 * 24)), 'day');
@@ -134,7 +135,7 @@ const SoonRow: React.FC<{ entry: TodaySoonEntry; displayCurrency: string | null;
   const amount = num(f.amount);
   const code = text(f.currency);
   const shown = converted(f.display_amount, displayCurrency);
-  const amountText = mode === 'base' && f.converted === true && shown ? `≈ ${formatMinor(shown.amount, shown.currency, lang)}` : amount !== null && code ? formatMinor(amount, code, lang) : '';
+  const amountText = mode === 'base' && f.converted === true && shown ? `${APPROX}${formatMinor(shown.amount, shown.currency, lang)}` : amount !== null && code ? formatMinor(amount, code, lang) : '';
   const when = days <= 1 ? dueWhen(days, t.money.rec) : dayLabel(due, lang);
   return <TodaySoonRow item={{ key: entry.key, icon: <RecurringIcon name={entry.subject.name ?? ''} iconUrl={id ? (images.icons[id] ?? null) : null} color={null} />, name: entry.subject.name ?? '', chips: [amountText, when].filter(Boolean), action: { label: td.paid, onClick: () => void paid(), busy } }} />;
 };
@@ -174,7 +175,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
   // The one sentence.
   const next = soon[0];
   const parts = [
-    totalMinor !== null && displayCurrency ? fill(td.summary.total, { amount: `${facts.complete === false ? '≈ ' : ''}${formatMinor(totalMinor, displayCurrency, lang)}` }) : '',
+    totalMinor !== null && displayCurrency ? fill(td.summary.total, { amount: `${facts.complete === false ? APPROX : ''}${formatMinor(totalMinor, displayCurrency, lang)}` }) : '',
     (data?.queueTotal ?? 0) > 0 ? fill(td.summary.waiting, { n: data?.queueTotal ?? 0 }) : data ? td.summary.nothingWaiting : '',
     next ? fill(td.summary.nextPayment, { when: dueWhen(num(next.facts.days_until) ?? 0, m.rec) }) : '',
   ].filter(Boolean);
@@ -194,7 +195,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
   }
   const dueCode = text(dueStat?.facts.currency) ?? displayCurrency ?? 'GBP';
   const dueCount = num(dueStat?.facts.count) ?? 0;
-  const approx = (stat: typeof spentStat) => (stat?.facts.complete === false ? '≈ ' : '');
+  const approx = (stat: typeof spentStat) => (stat?.facts.complete === false ? APPROX : '');
   const stats = [
     { key: 'spent', label: fill(td.stats.spentIn, { month: month ? monthName(month, lang) : '' }), value: spentStat?.value != null ? `${approx(spentStat)}${formatMinor(spentStat.value, spentCode, lang)}` : '—', note: spentStat ? spentNote : '' },
     { key: 'due', label: fill(td.stats.dueIn, { days: DUE_DAYS }), value: dueStat?.value != null && dueCount > 0 ? `${approx(dueStat)}${formatMinor(dueStat.value, dueCode, lang)}` : td.stats.dueEmpty, note: fill(td.stats.dueConfirmed, { amount: formatMinor(num(dueStat?.facts.confirmed_by_bank) ?? 0, dueCode, lang) }) },
@@ -238,7 +239,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
       }}
       soon={{ title: td.soonTitle, linkLabel: td.soonLink, linkTo: '?view=payments', rows: soon.map((entry) => <SoonRow key={entry.key} entry={entry} displayCurrency={displayCurrency} mode={mode} images={images} onChanged={onChanged} />), shown: soon.length, empty: td.soonEmpty }}
       stats={stats}
-      breakdown={{ title: td.breakdown.title, period: month ? monthName(month, lang) : '', rows: rows.map((row) => ({ key: row.key, icon: <CategoryMark category={row.key as Category} />, name: m.categories[row.key as Category], value: formatMinor(row.value, text(row.facts.currency) ?? spentCode, lang), width: largest > 0 ? Math.round((row.value / largest) * 100) : 0 })), insight, empty: td.breakdown.empty }}
+      breakdown={{ title: td.breakdown.title, period: month ? monthTitle(month, lang) : '', rows: rows.map((row) => ({ key: row.key, icon: <CategoryMark category={row.key as Category} />, name: m.categories[row.key as Category], value: formatMinor(row.value, text(row.facts.currency) ?? spentCode, lang), width: largest > 0 ? Math.round((row.value / largest) * 100) : 0 })), insight, empty: td.breakdown.empty }}
       side={
         <>
           {failed && <p role="alert">{td.failed}</p>}

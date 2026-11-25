@@ -3,6 +3,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useSpaceNames } from '../../../hooks/useSpaceNames';
 import { pagePath } from '../../../data/site';
 import type { TodayData, TodayEvent, TodayQueueEntry, TodaySoonEntry } from '../../../services/dashboards/todayApi';
+import { formatDate } from '../../../services/dashboards/dateFormat';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { LiveArea } from '../../../services/dashboards/liveApi';
 import { splitIso } from '../../../services/dashboards/liveTime';
@@ -32,7 +33,7 @@ function dueChip(due: string | null, daysUntil: number | null, s: SpaceTodayStri
   if (!due) return '';
   if (daysUntil === 0) return s.chips.today;
   if (daysUntil === 1) return s.chips.tomorrow;
-  return fill(s.chips.due, { date: new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short' }).format(new Date(`${due}T12:00:00`)) });
+  return fill(s.chips.due, { date: formatDate(new Date(`${due}T12:00:00`), lang, { day: 'numeric', month: 'short' }) });
 }
 
 /** The server's reason for a queue item, as one line of fact. */
@@ -107,7 +108,7 @@ function minutesLabel(minutes: number, s: SpaceTodayStrings): string {
   return h === 0 ? fill(s.minutes.short, { m }) : m === 0 ? fill(s.minutes.hours, { h }) : fill(s.minutes.mixed, { h, m });
 }
 
-const weekday = (iso: string, lang: string) => new Intl.DateTimeFormat(lang, { weekday: 'long' }).format(new Date(`${iso}T12:00:00`));
+const weekday = (iso: string, lang: string) => formatDate(new Date(`${iso}T12:00:00`), lang, { weekday: 'long' });
 
 function eventTime(event: TodayEvent): string {
   const start = event.startsAt ? splitIso(event.startsAt)?.time : null;

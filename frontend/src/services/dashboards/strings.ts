@@ -162,6 +162,8 @@ export interface Strings {
     readonly walletLabel: string;
     readonly noAccounts: string;
     readonly approximately: string;
+    /** Spoken before a card's last four digits ("ending in 4417"). */
+    readonly endingIn: string;
     readonly displayLabel: string;
     readonly displayBase: string;
     readonly displayNative: string;
@@ -475,6 +477,7 @@ export const STRINGS: Record<Lang, Strings> = {
       walletLabel: 'Банки',
       noAccounts: 'Счетов пока нет.',
       approximately: 'примерно',
+      endingIn: 'оканчивается на',
       displayLabel: 'Суммы',
       displayBase: 'в фунтах',
       displayNative: 'в валюте счёта',
@@ -801,6 +804,7 @@ export const STRINGS: Record<Lang, Strings> = {
       walletLabel: 'Banks',
       noAccounts: 'No accounts yet.',
       approximately: 'approximately',
+      endingIn: 'ending in',
       displayLabel: 'Amounts',
       displayBase: 'in pounds',
       displayNative: 'in account currency',

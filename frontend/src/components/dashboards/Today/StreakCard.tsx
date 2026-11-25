@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
+import { formatDate } from '../../../services/dashboards/dateFormat';
 import type { TodayStreak } from '../../../services/dashboards/todayApi';
 import styles from './Today.module.css';
 
@@ -31,7 +32,7 @@ const StreakCard: React.FC<{ streak: TodayStreak; today: string }> = ({ streak, 
               {s.dayLetters[index] ?? ''}
             </span>
             <span className="sr-only">
-              {new Intl.DateTimeFormat(lang, { weekday: 'long' }).format(new Date(`${day.date}T12:00:00`))}: {s.states[day.state]}
+              {formatDate(new Date(`${day.date}T12:00:00`), lang, { weekday: 'long' })}: {s.states[day.state]}
             </span>
           </li>
         ))}

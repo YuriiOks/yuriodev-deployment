@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, FinanceAccounts, ProviderLogo } from '../../../services/dashboards/financeApi';
-import { formatMinor } from '../../../services/dashboards/money';
+import { APPROX, formatMinor } from '../../../services/dashboards/money';
 import { shownTotals } from '../../../services/dashboards/display';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { creditUse, groupBanks, potParts, sharedNames, splitBank, type Bank } from '../../../services/dashboards/wallet';
 import { cx } from '../../../utils/cx';
 import DashIcon from '../DashIcon/DashIcon';
 import Amount, { ShownAmount } from './Amount';
+import Last4 from './Last4';
 import { brandStyle } from './brandStyle';
 import BankName from './BankName';
 import HeroAmount from './HeroAmount';
-import { dayLabel, whenLabel } from './labels';
+import { dayLabel, freshLabel } from './labels';
 import { AddAccountForm, AddBankForm } from './ManualCreate';
 import ManualTools from './ManualTools';
 import { bankLabel, reconnectPath } from './providers';
@@ -26,19 +27,19 @@ function useLinkLine(bank: Bank): string {
   if (bank.connection?.manual) return bank.connection.lastOkAt ? fill(m.manual.balanceAsOf, { date: dayLabel(bank.connection.lastOkAt, lang) }) : m.linkNone;
   const status = bank.connection?.status;
   const label = status === 'ok' ? m.linkOk : status === 'needs_reconsent' ? m.linkNeedsReconsent : status === 'paused' ? m.linkPaused : m.linkNone;
-  const when = bank.connection?.lastOkAt ? whenLabel(bank.connection.lastOkAt, lang) : '';
+  const when = bank.connection?.lastOkAt ? freshLabel(bank.connection.lastOkAt, lang) : '';
   return when ? `${label} · ${fill(m.lastOk, { when })}` : label;
 }
 
 /** The quiet facts of a bank's main account: its overdraft or credit limit, and its last four digits. */
-function useBankFacts(bank: Bank): { limit: string; last4: string } {
+function useBankFacts(bank: Bank): { limit: string; last4: string | null } {
   const { t, lang } = useDashboardLang();
   const main = splitBank(bank).accounts[0] ?? bank.accounts[0];
-  if (!main) return { limit: '', last4: '' };
+  if (!main) return { limit: '', last4: null };
   const m = t.money;
   const overdraft = main.overdraftLimit ?? 0;
   const limit = overdraft > 0 ? fill(m.overdraftLimit, { amount: formatMinor(overdraft, main.currency, lang) }) : main.creditLimit > 0 ? fill(m.creditLimit, { amount: formatMinor(main.creditLimit, main.currency, lang) }) : '';
-  return { limit, last4: main.maskLast4 ? `\u2022\u2022\u2022\u2022 ${main.maskLast4}` : '' };
+  return { limit, last4: main.maskLast4 || null };
 }
 
 /**
@@ -87,7 +88,11 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
       {selected && (
         <div className={styles.bankFoot}>
           <div className={styles.bankFacts}>
-            <span>{[facts.last4, facts.limit].filter(Boolean).join(' \u00b7 ')}</span>
+            <span>
+              {facts.last4 && <Last4 mask={facts.last4} />}
+              {facts.last4 && facts.limit ? ' \u00b7 ' : ''}
+              {facts.limit}
+            </span>
             <span>{line}</span>
           </div>
           <div className={styles.bankActions}>
@@ -115,7 +120,7 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
   const use = creditUse(account);
   const notes = [
     account.label ?? '',
-    account.maskLast4 ? `•••• ${account.maskLast4}` : '',
+    account.maskLast4 ? <Last4 key="last4" mask={account.maskLast4} /> : '',
     distinguish && account.historyFrom ? fill(m.historyFrom, { date: dayLabel(account.historyFrom, lang) }) : '',
     account.creditLimit > 0 && use.kind === 'none' ? fill(m.creditLimit, { amount: formatMinor(account.creditLimit, account.currency, lang) }) : '',
   ].filter(Boolean);
@@ -124,7 +129,16 @@ const AccountCard: React.FC<{ account: FinanceAccount; distinguish: boolean; mod
       <div className={styles.accountRow}>
         <div className={styles.accountText}>
           <strong className={styles.accountName}>{account.name}</strong>
-          {notes.length > 0 && <span className={styles.accountNote}>{notes.join(' · ')}</span>}
+          {notes.length > 0 && (
+            <span className={styles.accountNote}>
+              {notes.map((note, index) => (
+                <React.Fragment key={index}>
+                  {index > 0 ? ' \u00b7 ' : ''}
+                  {note}
+                </React.Fragment>
+              ))}
+            </span>
+          )}
         </div>
         <strong className={styles.accountAmount}>
           {use.kind === 'debt' && (
@@ -282,7 +296,7 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
             <div className={styles.sectionHead}>
               <h4 className={styles.sectionTitle}>{m.pots}</h4>
               <span className={styles.sectionNote}>
-                {fill(m.potsTotal, { n: pots.length, amount: potsSum.map((total) => `${total.approx ? '≈ ' : ''}${formatMinor(total.pots, total.currency, lang)}`).join(' · ') })}
+                {fill(m.potsTotal, { n: pots.length, amount: potsSum.map((total) => `${total.approx ? APPROX : ''}${formatMinor(total.pots, total.currency, lang)}`).join(' · ') })}
               </span>
             </div>
             <ul className={styles.potGrid}>

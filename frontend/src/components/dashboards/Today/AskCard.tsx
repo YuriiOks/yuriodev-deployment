@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
+import { formatDate } from '../../../services/dashboards/dateFormat';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useAssistant } from '../../../hooks/useAssistant';
 import type { AssistantConfirm, AssistantScope } from '../../../services/dashboards/assistantApi';
@@ -15,7 +16,7 @@ function valueText(value: unknown, s: AssistantStrings['confirm'], lang: string)
   if (value === null || value === undefined || value === '') return s.noValue;
   if (typeof value === 'boolean') return value ? s.yes : s.no;
   if (typeof value === 'number') return String(value);
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDate(new Date(`${value}T12:00:00`), lang, { day: 'numeric', month: 'long', year: 'numeric' });
   return typeof value === 'string' ? value : s.noValue;
 }
 

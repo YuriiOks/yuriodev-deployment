@@ -215,7 +215,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
                 {bank.accounts.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name} ({item.currency}
-                    {item.maskLast4 ? ` ····${item.maskLast4}` : ''})
+                    {item.maskLast4 ? `, ${t.money.endingIn} ${item.maskLast4}` : ''})
                   </option>
                 ))}
               </select>
