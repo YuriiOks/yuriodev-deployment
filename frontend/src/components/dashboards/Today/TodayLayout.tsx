@@ -8,6 +8,8 @@ export interface TodayAction {
   readonly label: string;
   readonly onClick?: () => void;
   readonly to?: string;
+  /** An address outside the page (a pull request, an issue): opened in a new tab. */
+  readonly href?: string;
   readonly busy?: boolean;
 }
 
@@ -27,6 +29,8 @@ export interface TodayQueueItem {
 
 export interface TodaySoonItem {
   readonly key: string;
+  /** The payment's picture or colour tile. */
+  readonly icon?: React.ReactNode;
   readonly name: string;
   readonly chips: readonly string[];
   readonly action: TodayAction;
@@ -51,10 +55,16 @@ export interface TodayBreakdownRow {
 
 export interface TodayProps {
   /** The space's own mark and name, at the top left. */
-  readonly mark: string;
+  readonly mark: React.ReactNode;
   readonly place: string;
+  /** The place is the page's h1 (a page with no heading of its own); else it is plain strong text. */
+  readonly placeIsHeading?: boolean;
   /** The section tabs (the caller's own nav). */
   readonly nav: React.ReactNode;
+  /** Quiet controls at the far right of the same row (when the data was read, Refresh, a display switch). */
+  readonly controls?: React.ReactNode;
+  /** Where the mark leads (the page above: the way back, so no "Back to" link is needed). */
+  readonly markTo?: { readonly to: string; readonly label: string };
   readonly hello: string;
   /** The one sentence that says what matters now. */
   readonly summary: string;
@@ -84,6 +94,13 @@ export interface TodayProps {
 
 const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'quiet' }> = ({ action, kind }) => {
   const className = cx(styles.action, kind === 'primary' && styles.actionPrimary, kind === 'secondary' && styles.actionSecondary, kind === 'quiet' && styles.actionQuiet);
+  if (action.href) {
+    return (
+      <a className={className} href={action.href} target="_blank" rel="noopener noreferrer">
+        {action.label}
+      </a>
+    );
+  }
   if (action.to) {
     return (
       <Link className={className} to={action.to}>
@@ -104,16 +121,25 @@ const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'q
  * at a time) and a short "due soon" list. Middle: two big figures and one breakdown that ends in a finding. Right: the caller's own cards.
  * Presentational only: it is given everything it shows.
  */
-const TodayLayout: React.FC<TodayProps> = ({ mark, place, nav, hello, summary, queue, soon, stats, breakdown, side }) => (
+const TodayLayout: React.FC<TodayProps> = ({ mark, place, placeIsHeading = false, nav, controls, markTo, hello, summary, queue, soon, stats, breakdown, side }) => (
   <div className={styles.today}>
     <header className={styles.top}>
       <div className={styles.space}>
-        <span aria-hidden="true" className={styles.mark}>
-          {mark}
-        </span>
-        <strong className={styles.place}>{place}</strong>
+        {markTo ? (
+          <Link className={styles.markLink} to={markTo.to} aria-label={markTo.label}>
+            <span aria-hidden="true" className={styles.mark}>
+              {mark}
+            </span>
+          </Link>
+        ) : (
+          <span aria-hidden="true" className={styles.mark}>
+            {mark}
+          </span>
+        )}
+        {placeIsHeading ? <h1 className={styles.place}>{place}</h1> : <strong className={styles.place}>{place}</strong>}
       </div>
       {nav}
+      {controls && <div className={styles.controls}>{controls}</div>}
     </header>
     <div className={styles.intro}>
       <h2 className={styles.hello}>
@@ -223,10 +249,13 @@ export const SideCard: React.FC<{ title: string; linkLabel?: string; linkTo?: st
 );
 
 /** One row of a side card: when (small) over what (strong). */
-export const SideRow: React.FC<{ when: string; what: string }> = ({ when, what }) => (
+export const SideRow: React.FC<{ when: string; what: string; icon?: React.ReactNode }> = ({ when, what, icon }) => (
   <div className={styles.sideRow}>
-    <span className={styles.sideWhen}>{when}</span>
-    <strong>{what}</strong>
+    {icon && <span className={styles.sideIcon}>{icon}</span>}
+    <span className={styles.sideText}>
+      <span className={styles.sideWhen}>{when}</span>
+      <strong>{what}</strong>
+    </span>
   </div>
 );
 
@@ -237,10 +266,10 @@ export const TodayCard: React.FC<{ item: TodayQueueItem }> = ({ item }) => (
     <div className={styles.cardBody}>
       <strong className={styles.cardTitle}>{item.title}</strong>
       <span className={styles.cardFact}>{item.fact}</span>
-      <div className={styles.cardActions}>
-        <Action action={item.primary} kind="primary" />
-        <Action action={item.secondary} kind="secondary" />
-      </div>
+    </div>
+    <div className={styles.cardActions}>
+      <Action action={item.primary} kind="primary" />
+      <Action action={item.secondary} kind="secondary" />
     </div>
   </li>
 );
@@ -248,6 +277,7 @@ export const TodayCard: React.FC<{ item: TodayQueueItem }> = ({ item }) => (
 /** One row of "due soon": the name, two small chips and one action. */
 export const TodaySoonRow: React.FC<{ item: TodaySoonItem }> = ({ item }) => (
   <li className={styles.soon} data-late={item.late ? 'true' : undefined}>
+    {item.icon && <span className={styles.soonIcon}>{item.icon}</span>}
     <div className={styles.soonMain}>
       <strong>{item.name}</strong>
       <span className={styles.chips}>

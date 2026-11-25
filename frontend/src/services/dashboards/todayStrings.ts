@@ -46,7 +46,7 @@ export interface TodayStrings {
   readonly banksTitle: string;
   readonly banksLink: string;
   readonly banksEmpty: string;
-  readonly bank: { readonly updated: string; readonly byHand: string; readonly never: string; readonly owed: string };
+  readonly bank: { readonly look: string; readonly updated: string; readonly byHand: string; readonly never: string; readonly owed: string };
   readonly failed: string;
 }
 
@@ -102,7 +102,7 @@ export const TODAY_RU: TodayStrings = {
   banksTitle: 'Банки сегодня',
   banksLink: 'Кошелёк →',
   banksEmpty: 'Банков пока нет.',
-  bank: { updated: 'обновлён {when}', byHand: 'баланс введён вручную {date}', never: 'данных ещё нет', owed: 'долг {amount}' },
+  bank: { look: 'нужен взгляд', updated: 'обновлён {when}', byHand: 'баланс введён вручную {date}', never: 'данных ещё нет', owed: 'долг {amount}' },
   failed: 'Не удалось загрузить часть данных.',
 };
 
@@ -158,6 +158,6 @@ export const TODAY_EN: TodayStrings = {
   banksTitle: 'Banks today',
   banksLink: 'Wallet →',
   banksEmpty: 'No banks yet.',
-  bank: { updated: 'updated {when}', byHand: 'balance entered by hand {date}', never: 'no data yet', owed: 'owed {amount}' },
+  bank: { look: 'needs a look', updated: 'updated {when}', byHand: 'balance entered by hand {date}', never: 'no data yet', owed: 'owed {amount}' },
   failed: 'Part of the data could not be loaded.',
 };

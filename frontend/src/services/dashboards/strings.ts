@@ -3,6 +3,7 @@ import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
 import { MANUAL_EN, MANUAL_RU, type ManualStrings } from './manualStrings';
 import { RECURRING_EN, RECURRING_RU, type RecurringStrings } from './recurringStrings';
+import { SPACE_TODAY_EN, SPACE_TODAY_RU, type SpaceTodayStrings } from './spaceTodayStrings';
 import { TODAY_EN, TODAY_RU, type TodayStrings } from './todayStrings';
 
 /** The page a document title is for. */
@@ -317,6 +318,8 @@ export interface Strings {
   /** January first, as after a day number ('23 November'). */
   readonly monthsOf: readonly string[];
   readonly tabs: Record<TabId, string>;
+  /** The Today view of the spaces. */
+  readonly spaceToday: SpaceTodayStrings;
   readonly actions: Record<ActionVerb, string>;
 }
 
@@ -622,7 +625,9 @@ export const STRINGS: Record<Lang, Strings> = {
     weekdaysShort: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
     months: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
     monthsOf: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+    spaceToday: SPACE_TODAY_RU,
     tabs: {
+      today: 'Сегодня',
       overview: 'Обзор',
       areas: 'Сферы',
       payments: 'Платежи',
@@ -942,7 +947,9 @@ export const STRINGS: Record<Lang, Strings> = {
     weekdaysShort: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     monthsOf: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    spaceToday: SPACE_TODAY_EN,
     tabs: {
+      today: 'Today',
       overview: 'Overview',
       areas: 'Life areas',
       payments: 'Payments',

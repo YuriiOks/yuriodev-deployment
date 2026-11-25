@@ -1,5 +1,6 @@
 import AreaIcon from '../components/dashboards/AreaIcon/AreaIcon';
 import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
 import { pagePath } from '../data/site';
 import InlineError from '../components/dashboards/InlineError/InlineError';
@@ -7,6 +8,7 @@ import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import WorkIncome from '../components/dashboards/Money/WorkIncome';
 import NotConnected from '../components/dashboards/NotConnected/NotConnected';
 import QuickAdd from '../components/dashboards/QuickAdd/QuickAdd';
+import SpaceToday from '../components/dashboards/Today/SpaceToday';
 import SourceTabs from '../components/dashboards/SourceTabs/SourceTabs';
 import SpaceHero from '../components/dashboards/SpaceHero/SpaceHero';
 import TaskPanel from '../components/dashboards/TaskPanel/TaskPanel';
@@ -16,6 +18,7 @@ import { useUpcomingEvents } from '../hooks/useUpcomingEvents';
 import { useLiveSummary } from '../hooks/useLiveSummary';
 import { useSpaceNames } from '../hooks/useSpaceNames';
 import { useLiveTasks } from '../hooks/useLiveTasks';
+import { useToday } from '../hooks/useToday';
 import { useNow } from '../hooks/useNow';
 import { fill } from '../services/dashboards/calendarLabels';
 import type { LiveArea, LiveTask } from '../services/dashboards/liveApi';
@@ -61,14 +64,25 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const today = localDate(now);
   // The same tabs as the sample space (the personal one has the life areas); only the overview and areas are live.
   // On real data the personal space's Payments tab is the Money page: a link in the tab row where the tab was.
-  const tabs = space === 'personal' ? getSpace(space).tabs.filter((tab) => tab !== 'payments') : getSpace(space).tabs;
-  const [selected, setSelected] = useState<TabId>('overview');
+  const base = space === 'personal' ? getSpace(space).tabs.filter((tab) => tab !== 'payments') : getSpace(space).tabs;
+  // Today is every space's first tab and its default; the tab is kept in the address (?tab=), so a link can lead to one.
+  const tabs: readonly TabId[] = ['today', ...base];
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab');
+  const selected: TabId = (tabs as readonly string[]).includes(asked ?? '') ? (asked as TabId) : 'today';
+  const setSelected = (tab: TabId) => {
+    const next = new URLSearchParams(params);
+    if (tab === 'today') next.delete('tab');
+    else next.set('tab', tab);
+    setParams(next, { replace: true });
+  };
   const [area, setArea] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [showBacklog, setShowBacklog] = useState(false);
   const [showReviewed, setShowReviewed] = useState(false);
 
-  const current = tabs.includes(selected) ? selected : 'overview';
+  const current = selected;
+  const today_ = useToday(space, current === 'today');
   const areaList = space === 'personal' ? areas : null;
   // The events of the next days: today's meetings for the overview of a space that has collected tasks (the work spaces), and
   // the next event of the strip, put through the calendar's rule for copies of work meetings.
@@ -113,6 +127,34 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       onDelete={tasks.remove}
     />
   );
+
+  const sourceTabs = (
+    <SourceTabs
+      tabs={tabs}
+      current={current}
+      counts={tabCounts}
+      onSelect={setSelected}
+      idPrefix={space}
+      link={space === 'personal' ? { to: pagePath('dashboards-money'), label: t.money.navLink, after: 'areas' } : undefined}
+    />
+  );
+  if (current === 'today') {
+    return (
+      <div role="tabpanel" id={`${space}-panel`} aria-labelledby={`${space}-tab-today`}>
+        <SpaceToday
+          space={space}
+          data={today_.value}
+          failed={today_.status === 'error' || today_.refreshFailed}
+          areas={areaList ?? []}
+          nav={sourceTabs}
+          onMarkDone={(id) => tasks.toggle(id)}
+          onOpenTab={setSelected}
+          onReload={() => void today_.reload()}
+          doneCount={tasks.tasks.filter((task) => task.status === 'done').length}
+        />
+      </div>
+    );
+  }
 
   let body: ReactNode;
   let split: 'main' | 'even' | 'flow' | false = false;
@@ -262,14 +304,7 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
     <>
       <div className={styles.top}>
         <SpaceHero space={space} hero={hero} />
-        <SourceTabs
-          tabs={tabs}
-          current={current}
-          counts={tabCounts}
-          onSelect={setSelected}
-          idPrefix={space}
-          link={space === 'personal' ? { to: pagePath('dashboards-money'), label: t.money.navLink, after: 'areas' } : undefined}
-        />
+        {sourceTabs}
       </div>
       {workingTab && <QuickAdd placeholder={t.addTask} onSubmit={create} />}
       <div

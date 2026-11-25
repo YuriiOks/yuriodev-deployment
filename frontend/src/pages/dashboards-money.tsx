@@ -210,12 +210,35 @@ const DashboardsMoney = () => {
           </section>
   );
   const todayFailed = [attention, upcoming, spend, accounts].some((slot) => slot.status === 'error');
+  // How fresh the data is, Refresh, and the pounds / account currency switch: quiet controls, in the Today row and in the other views' header.
+  const freshness = (
+    <>
+      {asOf && <span>{fill(m.updated, { when: asOf })}</span>}
+      {live && (
+        <button type="button" className={styles.refresh} disabled={refreshing} onClick={() => void refresh()}>
+          {refreshing ? m.refreshing : m.refresh}
+        </button>
+      )}
+      {staleSince && <span className={styles.stale}>{fill(m.staleBanks, { when: whenLabel(staleSince, lang) })}</span>}
+    </>
+  );
+  const modeSwitch =
+    live && converted ? (
+      <div role="group" aria-label={m.displayLabel} className={money.display}>
+        {(['base', 'native'] as const).map((choice) => (
+          <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
+            {choice === 'base' ? m.displayBase : m.displayNative}
+          </button>
+        ))}
+      </div>
+    ) : null;
 
   return (
     <>
+      {view !== 'today' && (
       <header className={styles.header}>
         <div className={styles.titles}>
-          <h1 className={view === 'today' ? 'sr-only' : styles.title}>{m.title}</h1>
+          <h1 className={styles.title}>{m.title}</h1>
           <p className={styles.sub}>
             <Link to={pagePath('dashboards-personal')} className={styles.back}>
               {m.back}
@@ -246,8 +269,9 @@ const DashboardsMoney = () => {
             </div>
           )}
         </div>
-        {live && view !== 'today' && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
+        {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
       </header>
+      )}
       {consent && (
         <div role={consent === 'connected' ? 'status' : 'alert'} className={styles.consent} data-result={consent}>
           <span>{m.consent[consent]}</span>
@@ -306,6 +330,12 @@ const DashboardsMoney = () => {
               failed={todayFailed}
               onOpenSheet={(entry, trigger) => setSheet({ key: entry.key, opener: trigger })}
               onChanged={changed}
+              controls={
+                <>
+                  <span className={styles.todayFresh}>{freshness}</span>
+                  {modeSwitch}
+                </>
+              }
             />
           ) : view === 'wallet' ? (
             walletSection
