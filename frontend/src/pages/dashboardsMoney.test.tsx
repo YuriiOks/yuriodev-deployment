@@ -209,7 +209,7 @@ describe('the Money page: totals and the wallet', () => {
   it('filters the transactions to a bank named in the address (the "Transactions" pill)', async () => {
     setup();
     renderAt(`${PATH}?view=transactions&bank=monzo&txbank=monzo`);
-    const chips = await within(within(main()).getByRole('region', { name: 'Transactions' })).findByRole('group', { name: 'Bank' });
+    const chips = await within(await within(main()).findByRole('region', { name: 'Transactions' })).findByRole('group', { name: 'Bank' });
     await waitFor(() => expect(within(chips).getByRole('button', { name: 'Monzo' })).toHaveAttribute('aria-pressed', 'true'));
     expect(within(chips).getByRole('button', { name: 'All banks' })).toHaveAttribute('aria-pressed', 'false');
   });

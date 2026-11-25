@@ -98,8 +98,8 @@ describe('display', () => {
     const debt = bank('debt', [acct('d', 'GBP', -200000, gbp(-200000))]);
     const nothing = bank('nothing', [acct('n', 'GBP', 0, gbp(0))]);
     const broken = bank('broken', [acct('x', 'GBP', 5, gbp(5))], 'needs_reconsent');
-    expect(sortBanks([nothing, small, big, debt, broken], 'base').map((entry) => entry.provider)).toEqual(['broken', 'debt', 'big', 'small', 'nothing']);
+    expect(sortBanks([nothing, small, big, debt, broken]).map((entry) => entry.provider)).toEqual(['broken', 'debt', 'big', 'small', 'nothing']);
     // The same input in another order gives the same stack.
-    expect(sortBanks([broken, debt, small, nothing, big], 'base').map((entry) => entry.provider)).toEqual(['broken', 'debt', 'big', 'small', 'nothing']);
+    expect(sortBanks([broken, debt, small, nothing, big]).map((entry) => entry.provider)).toEqual(['broken', 'debt', 'big', 'small', 'nothing']);
   });
 });

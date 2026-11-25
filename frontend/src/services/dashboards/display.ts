@@ -72,8 +72,8 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
       rest.push({ amount: entry.amount, currency, approx: false, originals: [], pots: entry.pots, potsApprox: false });
     }
   }
-  // The display currency first, then by the size of the figure (the converted ones are in the display currency already).
-  return [...fromConverted, ...rest].sort((a, b) => Number(b.approx) - Number(a.approx) || Math.abs(b.amount) - Math.abs(a.amount));
+  // The display currency first (the converted accounts are one figure in it), then the currencies that could not be converted, in the order they came.
+  return [...fromConverted, ...rest];
 }
 
 /**
@@ -81,11 +81,13 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
  * converted figure, so a debt counts as much as a balance), and a bank with nothing in it last. The order is the same on every render, so
  * choosing a bank never moves the cards.
  */
-export function sortBanks(banks: readonly Bank[], mode: MoneyDisplay): Bank[] {
+export function sortBanks(banks: readonly Bank[]): Bank[] {
   const rank = (bank: Bank) => {
     const open = bank.accounts.filter((account) => !account.archived);
     const empty = open.every((account) => account.balance === 0 && account.ownBalance === 0);
-    return [bank.connection?.status === 'needs_reconsent' ? 0 : 1, empty ? 1 : 0, -Math.abs(shownTotals(bank.accounts, mode)[0]?.amount ?? 0)] as const;
+    // The size is told in the display currency (what the server converted); an account it could not convert has no size to compare.
+    const size = open.reduce((sum, account) => sum + (account.display?.amount ?? 0), 0);
+    return [bank.connection?.status === 'needs_reconsent' ? 0 : 1, empty ? 1 : 0, -Math.abs(size)] as const;
   };
   return banks
     .map((bank, index) => ({ bank, index, key: rank(bank) }))

@@ -385,7 +385,7 @@ const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, 
   const { t } = useDashboardLang();
   const narrow = useNarrow();
   const [adding, setAdding] = useState(false);
-  const banks = sortBanks(groupBanks(data.accounts, data.connections), mode);
+  const banks = sortBanks(groupBanks(data.accounts, data.connections));
   // The banks the server lists as ones to enter by hand and that are not in the wallet yet, then "another bank".
   const taken = new Set([...banks.map((bank) => bank.provider), ...Object.keys(logos)]);
   const candidates = Object.entries(logos)
