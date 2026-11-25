@@ -503,3 +503,25 @@ async def test_the_money_page_carries_the_image_versions_and_the_bank_colours(
     assert row["facts"]["provider"] == "sample"
     assert set(row["facts"]["colors"]) == {"background", "foreground"}
     assert row["facts"]["provider_name"] is None  # an invented provider has no brand name
+
+
+async def test_the_money_headline_counts_the_hidden_attention_items(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    day = timedelta(hours=30)
+    async with running(app, AUTH) as client:
+        # Two banks read through their API and not read for 30 hours: two stale_connection items.
+        await bank(app, "First Bank", "one", read=NOW - day)
+        await bank(app, "Second Bank", "two", read=NOW - day)
+        before = await page(client, "money")
+        keys = [item["key"] for item in before["queue"]]
+        assert len(keys) == 2
+        assert {item["kind"] for item in before["queue"]} == {"stale_connection"}
+        await client.post(f"{BASE}/finance/attention/dismiss", json={"key": keys[0]})
+        await client.post(f"{BASE}/finance/attention/snooze", json={"key": keys[1], "days": 7})
+        after = await page(client, "money")
+        listing = (await client.get(f"{BASE}/finance/attention")).json()
+
+    assert before["summary"]["facts"]["hidden_attention"] == 0
+    assert after["summary"]["facts"]["hidden_attention"] == 2
+    assert listing["hidden"] == 2
+    assert after["queue"] == []
