@@ -1,7 +1,5 @@
-import React from 'react';
 import { refusal, refusalFields } from '../../../services/dashboards/recurringApi';
 import type { RefusalStrings } from '../../../services/dashboards/refusalStrings';
-import styles from '../../../assets/styles/dashboard-forms.module.css';
 
 /** The server's words for a refusal, by the field they are about (the field's name as the server sends it). */
 export type FieldIssues = Readonly<Record<string, string>>;
@@ -28,11 +26,3 @@ export function issueProps(issues: FieldIssues, field: string, id: string, hint?
   const described = [hint, issues[field] ? `${id}-${field}-issue` : undefined].filter(Boolean).join(' ');
   return { ...(issues[field] ? { 'aria-invalid': true as const } : {}), ...(described ? { 'aria-describedby': described } : {}) };
 }
-
-/** The message under an input: the server's rule in the page's words. */
-export const FieldIssue: React.FC<{ issues: FieldIssues; field: string; id: string }> = ({ issues, field, id }) =>
-  issues[field] ? (
-    <span id={`${id}-${field}-issue`} className={styles.issue} role="alert">
-      {issues[field]}
-    </span>
-  ) : null;

@@ -1,7 +1,8 @@
 import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useLimit } from '../../../hooks/useLimit';
-import { FieldIssue, issueProps, NO_ISSUES, splitRefusal, type FieldIssues } from './fieldIssues';
+import FieldIssue from './FieldIssue';
+import { issueProps, NO_ISSUES, splitRefusal, type FieldIssues } from './fieldIssues';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { createManualAccount, createManualConnection, type ManualAccountKind } from '../../../services/dashboards/manualApi';
 import { buildAccountBody, hasEnoughContrast, providerIdFor, type AccountFields, type AccountProblem } from './manualCreateModel';
