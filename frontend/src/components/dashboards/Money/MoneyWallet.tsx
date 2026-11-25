@@ -171,13 +171,17 @@ const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ ac
   const { t, lang } = useDashboardLang();
   const { emoji, label } = potParts(account.name);
   const goal = account.goalAmount !== null && account.goalAmount > 0 ? account.goalAmount : null;
-  const percent = goal ? Math.max(0, Math.min(100, Math.round((account.ownBalance / goal) * 100))) : 0;
+  // Floored, so a pot a little short of its goal never reads 100%; money in a pot shows at least 1%; the goal reached says so in words.
+  const reached = goal !== null && account.ownBalance >= goal;
+  const percent = goal ? (reached ? 100 : Math.max(account.ownBalance > 0 ? 1 : 0, Math.min(99, Math.floor((account.ownBalance / goal) * 100)))) : 0;
   return (
     <li className={styles.pot}>
       <span aria-hidden="true" className={styles.potPicture}>
         {emoji ?? Array.from(label)[0]?.toLocaleUpperCase()}
       </span>
-      <span className={styles.potName}>{label}</span>
+      <span className={styles.potName} title={label}>
+        {label}
+      </span>
       <strong className={styles.potAmount}>
         <Amount amount={account.ownBalance} currency={account.currency} display={account.display} mode={mode} />
       </strong>
@@ -186,7 +190,7 @@ const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ ac
           <div aria-hidden="true" className={styles.goalBar}>
             <div className={styles.goalFill} style={{ width: `${percent}%` }} />
           </div>
-          <span className={styles.accountNote}>{fill(t.money.goalOf, { percent, goal: formatMinor(goal, account.currency, lang) })}</span>
+          <span className={styles.accountNote}>{fill(reached ? t.money.goalReached : t.money.goalOf, { percent, goal: formatMinor(goal, account.currency, lang) })}</span>
         </>
       )}
     </li>

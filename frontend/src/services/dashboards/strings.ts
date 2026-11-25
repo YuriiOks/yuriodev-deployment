@@ -192,6 +192,7 @@ export interface Strings {
     readonly actionAccounts: string;
     readonly actionTransactions: string;
     readonly goalOf: string;
+    readonly goalReached: string;
     readonly businessFold: string;
     readonly hideBusiness: string;
     readonly categories: Readonly<Record<Category, string>>;
@@ -502,7 +503,8 @@ export const STRINGS: Record<Lang, Strings> = {
       overdraftLimit: 'овердрафт {amount}',
       actionAccounts: 'Счета',
       actionTransactions: 'Операции',
-      goalOf: '{percent}% от цели {goal}',
+      goalOf: '{percent}% из {goal}',
+      goalReached: 'цель {goal} достигнута',
       businessFold: 'Бизнес-счета: {n}',
       hideBusiness: 'Скрыть бизнес-счета',
       categories: {
@@ -826,7 +828,8 @@ export const STRINGS: Record<Lang, Strings> = {
       overdraftLimit: '{amount} overdraft limit',
       actionAccounts: 'Accounts',
       actionTransactions: 'Transactions',
-      goalOf: '{percent}% of the {goal} goal',
+      goalOf: '{percent}% of {goal}',
+      goalReached: 'goal of {goal} reached',
       businessFold: 'Business accounts: {n}',
       hideBusiness: 'Hide business accounts',
       categories: {
