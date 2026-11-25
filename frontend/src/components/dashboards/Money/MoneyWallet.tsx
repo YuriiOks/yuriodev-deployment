@@ -60,7 +60,6 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
   const [lead, ...rest] = totals;
   const warn = bank.connection?.status === 'needs_reconsent';
   const reconnect = warn ? reconnectPath(logo) : null;
-  const id = `money-bank-${bank.provider}`;
   return (
     <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider, logo)} data-empty={totals.length === 0 || bank.accounts.filter((account) => !account.archived).every((account) => account.balance === 0 && account.ownBalance === 0) ? 'true' : undefined}>
       <button type="button" className={styles.bankHead} aria-pressed={selected} onClick={onSelect}>
