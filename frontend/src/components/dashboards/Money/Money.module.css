@@ -730,6 +730,10 @@
   gap: 0 var(--space-2);
 }
 
+.tx .amount small {
+  display: block;
+}
+
 .amount {
   grid-area: amount;
   composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
@@ -833,7 +837,7 @@
 /* From 64rem a line is a table row: mark, payee, time, bank and account, category and marks, amount, menu. */
 @media (min-width: 64rem) {
   .tx {
-    grid-template-columns: 1.75rem minmax(0, 2fr) 3.5rem minmax(0, 1.5fr) minmax(0, 1.5fr) 9rem 2rem;
+    grid-template-columns: 1.75rem minmax(0, 2fr) 3.5rem minmax(0, 1.5fr) minmax(0, 1.5fr) 10.5rem 2rem;
     grid-template-areas: "mark main time bank tags amount menu";
   }
 

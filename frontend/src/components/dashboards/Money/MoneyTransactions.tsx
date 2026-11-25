@@ -167,7 +167,8 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           </span>
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
-          {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
+          {/* The category of a move between the owner's own accounts already says so: its word is not repeated in a second chip. */}
+          {item.internalTransfer && item.category !== 'transfers' && <span className={styles.tag}>{m.internal}</span>}
           {!exactOriginal && item.originalAmount !== null && item.originalCurrency && item.originalCurrency !== item.currency && (
             <span>{fill(m.originalAmount, { amount: formatMinor(Math.abs(item.originalAmount), item.originalCurrency, lang) })}</span>
           )}

@@ -4,9 +4,11 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useLimit } from '../../../hooks/useLimit';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
-import { minorToInput, parseMinor } from '../../../services/dashboards/money';
+import { formatMinor, minorToInput, parseMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { createRecurring, FREQUENCIES, RECURRING_KINDS, refreshIcon, refusal, updateRecurring, uploadIcon, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
+import { createRecurring, FREQUENCIES, RECURRING_KINDS, refreshIcon, updateRecurring, uploadIcon, type Frequency, type Recurring, type RecurringBody, type RecurringKind } from '../../../services/dashboards/recurringApi';
+import FieldIssue from './FieldIssue';
+import { issueProps, NO_ISSUES, splitRefusal, type FieldIssues } from './fieldIssues';
 import type { LoadStatus } from '../../../hooks/useFinance';
 import InlineError from '../InlineError/InlineError';
 import { ApiError } from '../../../services/dashboards/liveApi';
@@ -99,9 +101,13 @@ const RefreshIcon: React.FC<{ row: Recurring; onDone?: () => void }> = ({ row, o
   );
 };
 
+/** The server's field names the payment form shows an input for (a refusal about one of them is told under it). */
+const SHOWN = ['name', 'amount', 'currency', 'kind', 'frequency', 'frequency_interval', 'next_payment_date', 'account_id', 'payment_method', 'match_text', 'website'] as const;
+
 /** One payment's fields: name, amount, currency, kind, frequency, next date, the paying account (or a free-text method) and the text its bank line contains. */
 const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = true, onDone, onIconRefreshed }) => {
-  const { t } = useDashboardLang();
+  const { t, lang } = useDashboardLang();
+  const amountMax = useLimit('recurring', 'amount', Number.MAX_SAFE_INTEGER);
   const limits = { name: useLimit('recurring', 'name', 120), method: useLimit('recurring', 'payment_method', 80), match: useLimit('recurring', 'match_text', 80) };
   const r = t.money.rec;
   const id = useId();
@@ -117,6 +123,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
   const [match, setMatch] = useState(initial?.matchText ?? '');
   const [website, setWebsite] = useState(initial?.website ?? '');
   const [problem, setProblem] = useState<string | null>(null);
+  const [issues, setIssues] = useState<FieldIssues>(NO_ISSUES);
   const [busy, setBusy] = useState(false);
   const payable = accounts.filter((account) => !account.archived && account.kind !== 'pot');
 
@@ -127,6 +134,11 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
     const interval = Number(every);
     if (!name.trim()) return setProblem(fill(r.saveRefused, { why: r.fName }));
     if (minor === null || !/^[A-Z]{3}$/.test(code)) return setProblem(r.invalidAmount);
+    // The largest figure the server takes is checked before it is sent, and told under the amount like the server would.
+    if (minor > amountMax) {
+      setProblem(null);
+      return setIssues({ amount: t.money.refusal.issues.out_of_range_max.replace('{limit}', formatMinor(amountMax, code, lang)) });
+    }
     if (nextDate && !DATE.test(nextDate)) return setProblem(r.invalidDate);
     if (!Number.isInteger(interval) || interval < 1) return setProblem(fill(r.saveRefused, { why: r.fEvery }));
     const next = nextDate || null;
@@ -147,13 +159,15 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
     if (initial ? (website.trim() || null) !== initial.website : website.trim() !== '') body.website = website.trim() || null;
     setBusy(true);
     setProblem(null);
+    setIssues(NO_ISSUES);
     try {
       if (initial) await updateRecurring(initial.id, body);
       else await createRecurring(body);
       onDone(true);
     } catch (error) {
-      const why = refusal(error, t.money.refusal);
-      setProblem(why ? fill(r.saveRefused, { why }) : r.saveFailed);
+      const split = splitRefusal(error, t.money.refusal, SHOWN);
+      setIssues(split.issues);
+      setProblem(split.other ? fill(r.saveRefused, { why: split.other }) : Object.keys(split.issues).length > 0 ? null : r.saveFailed);
       setBusy(false);
     }
   };
@@ -165,61 +179,68 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
           <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
             {r.fName}
           </label>
-          <input id={`${id}-name`} className={styles.input} value={name} maxLength={limits.name} onChange={(event) => setName(event.target.value)} />
+          <input id={`${id}-name`} className={styles.input} {...issueProps(issues, 'name', id)} value={name} maxLength={limits.name} onChange={(event) => setName(event.target.value)} />
+          <FieldIssue issues={issues} field="name" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-amount`}>
             {r.fAmount}
           </label>
-          <input id={`${id}-amount`} className={styles.input} inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <input id={`${id}-amount`} className={styles.input} {...issueProps(issues, 'amount', id)} inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <FieldIssue issues={issues} field="amount" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-currency`}>
             {r.fCurrency}
           </label>
-          <input id={`${id}-currency`} className={styles.input} value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value.toUpperCase())} />
+          <input id={`${id}-currency`} className={styles.input} {...issueProps(issues, 'currency', id)} value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value.toUpperCase())} />
+          <FieldIssue issues={issues} field="currency" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-kind`}>
             {r.fKind}
           </label>
-          <select id={`${id}-kind`} className={styles.select} value={kind} onChange={(event) => setKind(event.target.value as RecurringKind)}>
+          <select id={`${id}-kind`} className={styles.select} {...issueProps(issues, 'kind', id)} value={kind} onChange={(event) => setKind(event.target.value as RecurringKind)}>
             {RECURRING_KINDS.map((choice) => (
               <option key={choice} value={choice}>
                 {r.kinds[choice]}
               </option>
             ))}
           </select>
+          <FieldIssue issues={issues} field="kind" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-frequency`}>
             {r.fFrequency}
           </label>
-          <select id={`${id}-frequency`} className={styles.select} value={frequency} onChange={(event) => setFrequency(event.target.value as Frequency)}>
+          <select id={`${id}-frequency`} className={styles.select} {...issueProps(issues, 'frequency', id)} value={frequency} onChange={(event) => setFrequency(event.target.value as Frequency)}>
             {FREQUENCIES.map((choice) => (
               <option key={choice} value={choice}>
                 {r.frequencies[choice]}
               </option>
             ))}
           </select>
+          <FieldIssue issues={issues} field="frequency" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-every`}>
             {r.fEvery}
           </label>
-          <input id={`${id}-every`} className={styles.input} inputMode="numeric" value={every} onChange={(event) => setEvery(event.target.value)} />
+          <input id={`${id}-every`} className={styles.input} {...issueProps(issues, 'frequency_interval', id)} inputMode="numeric" value={every} onChange={(event) => setEvery(event.target.value)} />
+          <FieldIssue issues={issues} field="frequency_interval" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-next`}>
             {r.fNextDate}
           </label>
-          <input id={`${id}-next`} className={styles.input} type="date" value={nextDate} onChange={(event) => setNextDate(event.target.value)} />
+          <input id={`${id}-next`} className={styles.input} {...issueProps(issues, 'next_payment_date', id)} type="date" value={nextDate} onChange={(event) => setNextDate(event.target.value)} />
+          <FieldIssue issues={issues} field="next_payment_date" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-account`}>
             {r.fAccount}
           </label>
-          <select id={`${id}-account`} className={styles.select} value={accountId} disabled={!accountsReady} onChange={(event) => setAccountId(event.target.value)}>
+          <select id={`${id}-account`} className={styles.select} {...issueProps(issues, 'account_id', id)} value={accountId} disabled={!accountsReady} onChange={(event) => setAccountId(event.target.value)}>
             <option value="">{r.noAccount}</option>
             {payable.map((account) => (
               <option key={account.id} value={account.id}>
@@ -227,18 +248,21 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
               </option>
             ))}
           </select>
+          <FieldIssue issues={issues} field="account_id" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-method`}>
             {r.fMethod}
           </label>
-          <input id={`${id}-method`} className={styles.input} value={method} maxLength={limits.method} onChange={(event) => setMethod(event.target.value)} />
+          <input id={`${id}-method`} className={styles.input} {...issueProps(issues, 'payment_method', id)} value={method} maxLength={limits.method} onChange={(event) => setMethod(event.target.value)} />
+          <FieldIssue issues={issues} field="payment_method" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-match`}>
             {r.fMatch}
           </label>
-          <input id={`${id}-match`} className={styles.input} value={match} maxLength={limits.match} aria-describedby={`${id}-match-hint`} onChange={(event) => setMatch(event.target.value)} />
+          <input id={`${id}-match`} className={styles.input} {...issueProps(issues, 'match_text', id, `${id}-match-hint`)} value={match} maxLength={limits.match} onChange={(event) => setMatch(event.target.value)} />
+          <FieldIssue issues={issues} field="match_text" id={id} />
           <span id={`${id}-match-hint`} className={styles.note}>
             {r.matchHint}
           </span>
@@ -247,7 +271,8 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
           <label className={styles.fieldLabel} htmlFor={`${id}-website`}>
             {r.fWebsite}
           </label>
-          <input id={`${id}-website`} className={styles.input} value={website} maxLength={255} placeholder="example.com" aria-describedby={`${id}-website-hint`} onChange={(event) => setWebsite(event.target.value)} />
+          <input id={`${id}-website`} className={styles.input} {...issueProps(issues, 'website', id, `${id}-website-hint`)} value={website} maxLength={255} placeholder="example.com" onChange={(event) => setWebsite(event.target.value)} />
+          <FieldIssue issues={issues} field="website" id={id} />
           <span id={`${id}-website-hint`} className={styles.note}>
             {r.websiteHint}
           </span>

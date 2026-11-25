@@ -318,7 +318,9 @@ describe('the Money page: transactions', () => {
     expect(rows[2]).toHaveTextContent('Monzo · Main');
     expect(rows[2]).toHaveTextContent('declined');
     expect(rows[2].getAttribute('data-declined')).toBe('true');
-    expect(rows[3]).toHaveTextContent('between your accounts');
+    // A move between the owner's own accounts says so once (its category chip, or its own chip when the category is another).
+    expect(rows[3].getAttribute('data-internal')).toBe('true');
+    expect((rows[3].textContent ?? '').match(/between (your|own) accounts/gi)?.length).toBe(1);
     expect(rows[3]).toHaveTextContent('Acme bank · 🏖️ Holiday fund');
     expect(rows[4]).toHaveTextContent('Monobank · Euro card');
     expect(rows[4]).toHaveTextContent(/originally £10\.00/);
@@ -660,6 +662,8 @@ describe('the Money page: pounds by default, originals beside', () => {
     expect(bankButton('Monobank')).toHaveTextContent('≈£293.00');
     expect(bankButton('Monobank')).toHaveTextContent('¥99,900');
     await user.click(bankButton('Monobank'));
+    // The opened bank's header tells the originals behind its converted figure, like the card does.
+    expect(opened().getByRole('heading', { level: 3, name: 'Monobank' }).closest('header')).toHaveTextContent(/₴/);
     const row = opened().getByText('Hryvnia card').closest('li') as HTMLElement;
     expect(row).toHaveTextContent('≈ £125.00');
     expect(row.querySelector('small')).toHaveTextContent('₴6,500.00');

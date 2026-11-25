@@ -470,19 +470,26 @@ export async function updateRecurring(id: string, body: RecurringBody): Promise<
 
 const has = (record: Readonly<Record<string, string>>, key: string): boolean => Object.prototype.hasOwnProperty.call(record, key);
 
-/** The words for each broken rule of a 422 (`issues`), each under its field's own name ("amount: at least 1"); at most the first three. */
-export function refusalIssues(error: unknown, words: RefusalStrings): string[] {
+/** Each broken rule of a 422 (`issues`): the field it is about (the last part of the name as sent; '' for the whole body) and the page's words for the rule. */
+export function refusalFields(error: unknown, words: RefusalStrings): { field: string; sentence: string }[] {
   if (!(error instanceof ApiError) || !isObject(error.body) || !Array.isArray(error.body.issues)) return [];
-  const lines: string[] = [];
-  for (const raw of error.body.issues.slice(0, 3)) {
+  const found: { field: string; sentence: string }[] = [];
+  for (const raw of error.body.issues.slice(0, 20)) {
     if (!isObject(raw) || typeof raw.code !== 'string') continue;
     const bound = raw.bound === 'min' || raw.bound === 'max' ? raw.bound : null;
     const key = raw.code === 'out_of_range' && bound ? `out_of_range_${bound}` : raw.code;
     const sentence = (has(words.issues, key) ? words.issues[key] : words.issues.invalid).replace('{limit}', typeof raw.limit === 'number' ? String(raw.limit) : '');
-    const field = typeof raw.field === 'string' ? (raw.field.split('.').pop() ?? '') : '';
-    lines.push(has(words.fields, field) ? `${words.fields[field]}: ${sentence}` : sentence);
+    const field = typeof raw.field === 'string' && raw.field !== 'body' ? (raw.field.split('.').pop() ?? '') : '';
+    found.push({ field, sentence });
   }
-  return lines;
+  return found;
+}
+
+/** The words for each broken rule of a 422 under its field's own name ("amount: at least 1"); at most the first three. */
+export function refusalIssues(error: unknown, words: RefusalStrings): string[] {
+  return refusalFields(error, words)
+    .slice(0, 3)
+    .map(({ field, sentence }) => (has(words.fields, field) ? `${words.fields[field]}: ${sentence}` : sentence));
 }
 
 /**

@@ -838,6 +838,39 @@ describe('the Money page: managing recurring payments', () => {
     expect(await form.findByRole('alert')).toHaveTextContent('Could not save: check the values you entered');
   });
 
+  it('tells a broken rule of a field under that input (invalid, described by the message), in the page\'s words with the number that was broken', async () => {
+    const api = setup({ finance: { recurring: rows() } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring&edit=r-2`);
+    const panel = await managerPanel();
+    const form = within(await panel.findByRole('form', { name: 'Edit: Gym' }));
+    const amount = form.getByLabelText('Amount');
+    await user.clear(amount);
+    await user.type(amount, '30');
+    api.fail.add('recurringIssues');
+    await user.click(form.getByRole('button', { name: 'Save' }));
+    const message = await form.findByText('at least 1');
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    expect(amount.getAttribute('aria-describedby')).toContain(message.id);
+    // Nothing else is said in a second alert.
+    expect(form.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('checks the largest amount the server takes before sending, and tells it under the amount', async () => {
+    const api = setup({ finance: { recurring: rows() }, limits: { recurring: { amount: 100000 } } });
+    const user = userEvent.setup();
+    renderAt(`${PATH}?view=recurring&edit=r-2`);
+    const panel = await managerPanel();
+    const form = within(await panel.findByRole('form', { name: 'Edit: Gym' }));
+    const amount = form.getByLabelText('Amount');
+    await user.clear(amount);
+    await user.type(amount, '1500');
+    await user.click(form.getByRole('button', { name: 'Save' }));
+    expect(await form.findByText(/at most £1,000\.00/)).toBeInTheDocument();
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    expect(api.callsTo('PATCH', '/finance/recurring/r-2')).toHaveLength(0);
+  });
+
   it('adds a payment and deactivates one', async () => {
     const api = setup({ finance: { recurring: rows() } });
     const user = userEvent.setup();

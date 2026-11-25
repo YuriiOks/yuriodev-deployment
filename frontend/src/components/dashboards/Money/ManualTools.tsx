@@ -1,6 +1,8 @@
 import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useLimit } from '../../../hooks/useLimit';
+import FieldIssue from './FieldIssue';
+import { issueProps, NO_ISSUES, splitRefusal, type FieldIssues } from './fieldIssues';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { providerName } from './providers';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
@@ -30,10 +32,14 @@ const BalanceForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) 
   const [amount, setAmount] = useState(minorToInput(card ? -account.ownBalance : account.ownBalance, account.currency));
   const [asOf, setAsOf] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  const [issues, setIssues] = useState<FieldIssues>(NO_ISSUES);
   const [busy, setBusy] = useState(false);
+  // The server's names for these inputs: the amount is a balance or what is owed.
+  const view: FieldIssues = { amount: issues.balance ?? issues.owed, asof: issues.as_of } as FieldIssues;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setIssues(NO_ISSUES);
     // A balance may be nothing or below it; what is owed on a card may be nothing (a card paid off) but never below it.
     const minor = parseMinor(amount, account.currency, { signed: true });
     if (minor === null) return setProblem(card ? x.owedInvalid : x.balanceInvalid);
@@ -44,8 +50,9 @@ const BalanceForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) 
       await setManualBalance(account.id, card ? { owed: minor } : { balance: minor }, asOf || null);
       onDone(true);
     } catch (error) {
-      const why = refusal(error, t.money.refusal);
-      setProblem(why ?? x.balanceFailed);
+      const split = splitRefusal(error, t.money.refusal, ['balance', 'owed', 'as_of']);
+      setIssues(split.issues);
+      setProblem(split.other ?? (Object.keys(split.issues).length > 0 ? null : x.balanceFailed));
       setBusy(false);
     }
   };
@@ -57,13 +64,15 @@ const BalanceForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) 
           <label className={styles.fieldLabel} htmlFor={`${id}-amount`}>
             {card ? x.fOwed : x.fBalance} ({account.currency})
           </label>
-          <input id={`${id}-amount`} className={styles.input} inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <input id={`${id}-amount`} className={styles.input} {...issueProps(view, 'amount', id)} inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <FieldIssue issues={view} field="amount" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-asof`}>
             {x.fAsOf}
           </label>
-          <input id={`${id}-asof`} className={styles.input} type="date" value={asOf} aria-describedby={`${id}-asof-hint`} onChange={(event) => setAsOf(event.target.value)} />
+          <input id={`${id}-asof`} className={styles.input} type="date" value={asOf} {...issueProps(view, 'asof', id, `${id}-asof-hint`)} onChange={(event) => setAsOf(event.target.value)} />
+          <FieldIssue issues={view} field="asof" id={id} />
           <span id={`${id}-asof-hint`} className={styles.note}>
             {x.asOfHint}
           </span>
@@ -249,11 +258,14 @@ const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boole
   const [kind, setKind] = useState<ManualAccountKind>(startKind);
   const [limit, setLimit] = useState(account.creditLimit > 0 ? minorToInput(account.creditLimit, account.currency) : '');
   const [problem, setProblem] = useState<string | null>(null);
+  const [issues, setIssues] = useState<FieldIssues>(NO_ISSUES);
   const [busy, setBusy] = useState(false);
+  const view: FieldIssues = { name: issues.name, kind: issues.kind, limit: issues.credit_limit } as FieldIssues;
   const kindLabel: Record<ManualAccountKind, string> = { current: x.kindCurrent, savings: x.kindSavings, business: x.kindBusiness, credit_card: x.kindCard };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setIssues(NO_ISSUES);
     if (!name.trim()) return setProblem(x.nameRequired);
     const body: { name?: string; kind?: ManualAccountKind; credit_limit?: number } = {};
     if (name.trim() !== account.name) body.name = name.trim();
@@ -270,8 +282,9 @@ const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boole
       await updateManualAccount(account.id, body as ManualAccountPatch);
       onDone(true);
     } catch (error) {
-      const why = refusal(error, t.money.refusal);
-      setProblem(why ? fill(x.createRefused, { why }) : x.createFailed);
+      const split = splitRefusal(error, t.money.refusal, ['name', 'kind', 'credit_limit']);
+      setIssues(split.issues);
+      setProblem(split.other ? fill(x.createRefused, { why: split.other }) : Object.keys(split.issues).length > 0 ? null : x.createFailed);
       setBusy(false);
     }
   };
@@ -283,26 +296,29 @@ const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boole
           <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
             {x.fAccountName}
           </label>
-          <input id={`${id}-name`} className={styles.input} value={name} maxLength={nameMax} onChange={(event) => setName(event.target.value)} />
+          <input id={`${id}-name`} className={styles.input} {...issueProps(view, 'name', id)} value={name} maxLength={nameMax} onChange={(event) => setName(event.target.value)} />
+          <FieldIssue issues={view} field="name" id={id} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-kind`}>
             {x.fKind}
           </label>
-          <select id={`${id}-kind`} className={styles.select} value={kind} onChange={(event) => setKind(event.target.value as ManualAccountKind)}>
+          <select id={`${id}-kind`} className={styles.select} {...issueProps(view, 'kind', id)} value={kind} onChange={(event) => setKind(event.target.value as ManualAccountKind)}>
             {KINDS.map((choice) => (
               <option key={choice} value={choice}>
                 {kindLabel[choice]}
               </option>
             ))}
           </select>
+          <FieldIssue issues={view} field="kind" id={id} />
         </div>
         {kind === 'credit_card' && (
           <div className={styles.field}>
             <label className={styles.fieldLabel} htmlFor={`${id}-limit`}>
               {x.fCreditLimit}
             </label>
-            <input id={`${id}-limit`} className={styles.input} inputMode="decimal" value={limit} onChange={(event) => setLimit(event.target.value)} />
+            <input id={`${id}-limit`} className={styles.input} {...issueProps(view, 'limit', id)} inputMode="decimal" value={limit} onChange={(event) => setLimit(event.target.value)} />
+            <FieldIssue issues={view} field="limit" id={id} />
           </div>
         )}
       </div>

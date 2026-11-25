@@ -248,9 +248,12 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
         <div className={styles.detailSums}>
           <span className={styles.detailState}>{m.ownMoney}</span>
           {totals.map((total) => (
-            <strong key={total.currency} className={styles.detailSum}>
-              <ShownAmount shown={total} />
-            </strong>
+            <React.Fragment key={total.currency}>
+              <strong className={styles.detailSum}>
+                <ShownAmount shown={total} />
+              </strong>
+              {total.approx && total.originals.length > 0 && <span className={styles.detailState}>{total.originals.map((original) => formatMinor(original.amount, original.currency, lang)).join(' \u00b7 ')}</span>}
+            </React.Fragment>
           ))}
         </div>
       </header>
@@ -296,7 +299,7 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
             <div className={styles.sectionHead}>
               <h4 className={styles.sectionTitle}>{m.pots}</h4>
               <span className={styles.sectionNote}>
-                {fill(m.potsTotal, { n: pots.length, amount: potsSum.map((total) => `${total.approx ? APPROX : ''}${formatMinor(total.pots, total.currency, lang)}`).join(' · ') })}
+                {fill(m.potsTotal, { n: pots.length, amount: potsSum.map((total) => `${total.potsApprox ? APPROX : ''}${formatMinor(total.pots, total.currency, lang)}`).join(' · ') })}
               </span>
             </div>
             <ul className={styles.potGrid}>

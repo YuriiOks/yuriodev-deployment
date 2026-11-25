@@ -1,9 +1,10 @@
 import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useLimit } from '../../../hooks/useLimit';
+import FieldIssue from './FieldIssue';
+import { issueProps, NO_ISSUES, splitRefusal, type FieldIssues } from './fieldIssues';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { createManualAccount, createManualConnection, type ManualAccountKind } from '../../../services/dashboards/manualApi';
-import { refusal } from '../../../services/dashboards/recurringApi';
 import { buildAccountBody, hasEnoughContrast, providerIdFor, type AccountFields, type AccountProblem } from './manualCreateModel';
 import styles from './Manual.module.css';
 
@@ -11,12 +12,18 @@ const KINDS: readonly ManualAccountKind[] = ['current', 'savings', 'business', '
 const CUSTOM = '__custom';
 
 /** The fields of one new account: its name and type, currency, balance (a card: its limit and what is owed), last four digits and the day it is as of. */
-const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: AccountFields) => void; idBase: string }> = ({ fields, onChange, idBase }) => {
+/** The server's field names of an account and of a bank entered by hand, which these forms show an input for (a refusal about one is told under it). */
+const ACCOUNT_FIELDS = ['name', 'kind', 'currency', 'balance', 'credit_limit', 'owed', 'mask_last4', 'as_of'] as const;
+const BANK_FIELDS = ['display_name'] as const;
+
+const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: AccountFields) => void; idBase: string; issues?: FieldIssues }> = ({ fields, onChange, idBase, issues = NO_ISSUES }) => {
   const { t } = useDashboardLang();
   const nameMax = useLimit('account', 'name', 120);
   const x = t.money.manual;
   const set = <K extends keyof AccountFields>(key: K, value: AccountFields[K]) => onChange({ ...fields, [key]: value });
   const card = fields.kind === 'credit_card';
+  // The server's names for the fields, as this form's inputs are named (a card's limit and a balance share the amount input).
+  const view: FieldIssues = { name: issues.name, kind: issues.kind, currency: issues.currency, amount: issues.balance ?? issues.credit_limit, owed: issues.owed, last4: issues.mask_last4, asof: issues.as_of } as FieldIssues;
   const kindLabel: Record<ManualAccountKind, string> = { current: x.kindCurrent, savings: x.kindSavings, business: x.kindBusiness, credit_card: x.kindCard };
   return (
     <div className={styles.fields}>
@@ -24,51 +31,58 @@ const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: Accoun
         <label className={styles.fieldLabel} htmlFor={`${idBase}-name`}>
           {x.fAccountName}
         </label>
-        <input id={`${idBase}-name`} className={styles.input} value={fields.name} maxLength={nameMax} onChange={(event) => set('name', event.target.value)} />
+        <input id={`${idBase}-name`} className={styles.input} {...issueProps(view, 'name', idBase)} value={fields.name} maxLength={nameMax} onChange={(event) => set('name', event.target.value)} />
+        <FieldIssue issues={view} field="name" id={idBase} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`${idBase}-kind`}>
           {x.fKind}
         </label>
-        <select id={`${idBase}-kind`} className={styles.select} value={fields.kind} onChange={(event) => set('kind', event.target.value as ManualAccountKind)}>
+        <select id={`${idBase}-kind`} className={styles.select} {...issueProps(view, 'kind', idBase)} value={fields.kind} onChange={(event) => set('kind', event.target.value as ManualAccountKind)}>
           {KINDS.map((kind) => (
             <option key={kind} value={kind}>
               {kindLabel[kind]}
             </option>
           ))}
         </select>
+        <FieldIssue issues={view} field="kind" id={idBase} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`${idBase}-currency`}>
           {x.fCurrency}
         </label>
-        <input id={`${idBase}-currency`} className={styles.input} value={fields.currency} maxLength={3} onChange={(event) => set('currency', event.target.value.toUpperCase())} />
+        <input id={`${idBase}-currency`} className={styles.input} {...issueProps(view, 'currency', idBase)} value={fields.currency} maxLength={3} onChange={(event) => set('currency', event.target.value.toUpperCase())} />
+        <FieldIssue issues={view} field="currency" id={idBase} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`${idBase}-amount`}>
           {card ? x.fCreditLimit : x.fBalance}
         </label>
-        <input id={`${idBase}-amount`} className={styles.input} inputMode="decimal" value={fields.amount} onChange={(event) => set('amount', event.target.value)} />
+        <input id={`${idBase}-amount`} className={styles.input} {...issueProps(view, 'amount', idBase)} inputMode="decimal" value={fields.amount} onChange={(event) => set('amount', event.target.value)} />
+        <FieldIssue issues={view} field="amount" id={idBase} />
       </div>
       {card && (
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${idBase}-owed`}>
             {x.fOwedNow}
           </label>
-          <input id={`${idBase}-owed`} className={styles.input} inputMode="decimal" value={fields.owed} onChange={(event) => set('owed', event.target.value)} />
+          <input id={`${idBase}-owed`} className={styles.input} {...issueProps(view, 'owed', idBase)} inputMode="decimal" value={fields.owed} onChange={(event) => set('owed', event.target.value)} />
+        <FieldIssue issues={view} field="owed" id={idBase} />
         </div>
       )}
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`${idBase}-last4`}>
           {x.fLast4}
         </label>
-        <input id={`${idBase}-last4`} className={styles.input} inputMode="numeric" value={fields.last4} maxLength={4} onChange={(event) => set('last4', event.target.value)} />
+        <input id={`${idBase}-last4`} className={styles.input} {...issueProps(view, 'last4', idBase)} inputMode="numeric" value={fields.last4} maxLength={4} onChange={(event) => set('last4', event.target.value)} />
+        <FieldIssue issues={view} field="last4" id={idBase} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`${idBase}-asof`}>
           {x.fAsOfOptional}
         </label>
-        <input id={`${idBase}-asof`} className={styles.input} type="date" value={fields.asOf} onChange={(event) => set('asOf', event.target.value)} />
+        <input id={`${idBase}-asof`} className={styles.input} {...issueProps(view, 'asof', idBase)} type="date" value={fields.asOf} onChange={(event) => set('asOf', event.target.value)} />
+        <FieldIssue issues={view} field="asof" id={idBase} />
       </div>
     </div>
   );
@@ -92,10 +106,12 @@ export const AddAccountForm: React.FC<{ connectionId: string; onDone: (saved: bo
   const problemText = useProblemText();
   const [fields, setFields] = useState(() => emptyFields(x.defaultAccountName));
   const [problem, setProblem] = useState<string | null>(null);
+  const [issues, setIssues] = useState<FieldIssues>(NO_ISSUES);
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setIssues(NO_ISSUES);
     const built = buildAccountBody(fields, connectionId);
     if ('problem' in built) return setProblem(problemText(built.problem));
     setBusy(true);
@@ -104,15 +120,16 @@ export const AddAccountForm: React.FC<{ connectionId: string; onDone: (saved: bo
       await createManualAccount(built.body);
       onDone(true);
     } catch (error) {
-      const why = refusal(error, t.money.refusal);
-      setProblem(why ? fill(x.createRefused, { why }) : x.createFailed);
+      const split = splitRefusal(error, t.money.refusal, ACCOUNT_FIELDS);
+      setIssues(split.issues);
+      setProblem(split.other ? fill(x.createRefused, { why: split.other }) : Object.keys(split.issues).length > 0 ? null : x.createFailed);
       setBusy(false);
     }
   };
 
   return (
     <form className={styles.form} onSubmit={submit} aria-label={x.addAccount}>
-      <AccountFieldset fields={fields} onChange={setFields} idBase={id} />
+      <AccountFieldset fields={fields} onChange={setFields} idBase={id} issues={issues} />
       {problem && (
         <p role="alert" className={styles.error}>
           {problem}
@@ -157,12 +174,16 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
   const [fields, setFields] = useState(() => emptyFields(x.defaultAccountName));
   const [made, setMade] = useState<{ id: string; provider: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [issues, setIssues] = useState<FieldIssues>(NO_ISSUES);
   const [busy, setBusy] = useState(false);
+  // A refusal about the bank's own name (the server calls it display_name) is told under the bank name input.
+  const bankIssues: FieldIssues = { name: issues.display_name } as FieldIssues;
   const custom = choice === CUSTOM;
   const contrastOk = hasEnoughContrast(background, foreground);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setIssues(NO_ISSUES);
     const check = buildAccountBody(fields, 'pending');
     if ('problem' in check) return setProblem(problemText(check.problem));
     let provider = made?.provider ?? choice;
@@ -180,8 +201,9 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
         connectionId = await createManualConnection(custom ? { provider, displayName: name.trim(), brandBg: background, brandFg: foreground } : { provider });
         setMade({ id: connectionId, provider });
       } catch (error) {
-        const why = refusal(error, t.money.refusal);
-        setProblem(why ? fill(x.createRefused, { why }) : x.createFailed);
+        const split = splitRefusal(error, t.money.refusal, BANK_FIELDS);
+        setIssues(split.issues);
+        setProblem(split.other ? fill(x.createRefused, { why: split.other }) : Object.keys(split.issues).length > 0 ? null : x.createFailed);
         setBusy(false);
         return;
       }
@@ -196,8 +218,9 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
       await createManualAccount(built.body);
       onDone(provider);
     } catch (error) {
-      const why = refusal(error, t.money.refusal);
-      setProblem(why ? fill(x.accountAfterBank, { why }) : x.createFailed);
+      const split = splitRefusal(error, t.money.refusal, ACCOUNT_FIELDS);
+      setIssues(split.issues);
+      setProblem(split.other ? fill(x.accountAfterBank, { why: split.other }) : Object.keys(split.issues).length > 0 ? null : x.createFailed);
       setBusy(false);
     }
   };
@@ -224,7 +247,8 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
               <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
                 {x.fBankName}
               </label>
-              <input id={`${id}-name`} className={styles.input} value={name} maxLength={bankNameMax} disabled={made !== null} onChange={(event) => setName(event.target.value)} />
+              <input id={`${id}-name`} className={styles.input} {...issueProps(bankIssues, 'name', id)} value={name} maxLength={bankNameMax} disabled={made !== null} onChange={(event) => setName(event.target.value)} />
+              <FieldIssue issues={bankIssues} field="name" id={id} />
             </div>
             <div className={styles.field}>
               <label className={styles.fieldLabel} htmlFor={`${id}-bg`}>
@@ -249,7 +273,7 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
           {x.contrastLow}
         </p>
       )}
-      <AccountFieldset fields={fields} onChange={setFields} idBase={`${id}-account`} />
+      <AccountFieldset fields={fields} onChange={setFields} idBase={`${id}-account`} issues={issues} />
       {problem && (
         <p role="alert" className={styles.error}>
           {problem}

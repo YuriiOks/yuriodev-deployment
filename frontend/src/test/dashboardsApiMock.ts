@@ -6,7 +6,7 @@ import { localDate } from '../services/dashboards/liveTime';
  * every call, applies writes to its own lists so a re-read sees them, and can be told which requests to refuse.
  */
 
-export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'today' | 'recurringWrite' | 'attentionWrite' | 'manualWrite' | 'manualConnection' | 'manualAccount';
+export type FailKey = 'bootstrap' | 'summary' | 'tasks' | 'events' | 'create' | 'patch' | 'delete' | 'createEvent' | 'projects' | 'createProject' | 'patchProject' | 'financeAccounts' | 'financeSummary' | 'financeTransactions' | 'financeMore' | 'financeCategories' | 'financeProviders' | 'financeRecurring' | 'financeUpcoming' | 'financeAttention' | 'today' | 'recurringWrite' | 'recurringIssues' | 'attentionWrite' | 'manualWrite' | 'manualConnection' | 'manualAccount';
 
 export interface Call {
   readonly method: string;
@@ -145,9 +145,11 @@ export interface FakeApiOptions {
   readonly spaceNames?: Record<string, string>;
   /** Icons (image data URIs) the server gives spaces, by id. */
   readonly spaceIcons?: Record<string, string>;
+  /** `limits` of the bootstrap (default: none, as an older server). */
+  readonly limits?: Record<string, Record<string, number>>;
 }
 
-export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {}, nextEvents = {} }: FakeApiOptions = {}): FakeApi {
+export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks(), events = [], projects = [], fail = [], spaceNames = {}, spaceIcons = {}, finance = {}, nextEvents = {}, limits }: FakeApiOptions = {}): FakeApi {
   const api: FakeApi = {
     calls: [],
     tasks,
@@ -175,7 +177,7 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
     const url = new URL(call.url, 'http://localhost');
     if (path === '/bootstrap') {
       if (api.fail.has('bootstrap')) return failure();
-      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal', icon: spaceIcons.personal ?? null }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1', icon: spaceIcons['work-1'] ?? null }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2', icon: spaceIcons['work-2'] ?? null }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name, icon }) => ({ id, name, icon })), server_time: new Date().toISOString() } : { enabled: false });
+      return json(enabled ? { enabled: true, spaces: [{ id: 'personal', name: spaceNames.personal ?? 'Personal', icon: spaceIcons.personal ?? null }, { id: 'work-1', name: spaceNames['work-1'] ?? 'Work 1', icon: spaceIcons['work-1'] ?? null }, { id: 'work-2', name: spaceNames['work-2'] ?? 'Work 2', icon: spaceIcons['work-2'] ?? null }], areas: AREAS, projects: api.projects.filter((p) => !p.archived).map(({ id, name, icon }) => ({ id, name, icon })), server_time: new Date().toISOString(), ...(limits ? { limits } : {}) } : { enabled: false });
     }
     if (path === '/today') {
       if (api.fail.has('today')) return failure();
@@ -192,6 +194,7 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
         const kind = url.searchParams.get('kind');
         return json({ ...(api.finance.iconsBundle ? { icons_version: api.finance.iconsBundle.version } : {}), recurring: list.filter((row) => !kind || row.kind === kind), display: api.finance.display ?? { currency: 'GBP', rates: {}, missing: [] } });
       }
+      if (api.fail.has('recurringIssues')) return json({ error: 'validation_error', message: 'x', request_id: 'test', fields: ['amount'], issues: [{ field: 'amount', code: 'out_of_range', limit: 1, bound: 'min', type: 'greater_than', reason: 'x' }] }, 422);
       if (api.fail.has('recurringWrite')) return json({ error: 'validation_error', message: 'amount must be positive', request_id: 'test' }, 422);
       if (path === '/finance/recurring') {
         const created = { id: `r-new-${++counter}`, is_active: true, frequency_interval: 1, kind: 'service', frequency: 'monthly', converted: false, ...body };
