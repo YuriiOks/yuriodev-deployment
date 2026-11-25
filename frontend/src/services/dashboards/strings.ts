@@ -161,6 +161,8 @@ export interface Strings {
     readonly walletHint: string;
     readonly walletLabel: string;
     readonly noAccounts: string;
+    /** A bank with no open account: said in words in its opened panel. */
+    readonly noOpenAccounts: string;
     readonly approximately: string;
     /** Spoken before a card's last four digits ("ending in 4417"). */
     readonly endingIn: string;
@@ -488,6 +490,7 @@ export const STRINGS: Record<Lang, Strings> = {
       walletHint: 'все банки стопкой, выберите банк',
       walletLabel: 'Банки',
       noAccounts: 'Счетов пока нет.',
+      noOpenAccounts: 'Открытых счетов нет.',
       approximately: 'примерно',
       endingIn: 'оканчивается на',
       displayLabel: 'Суммы',
@@ -824,6 +827,7 @@ export const STRINGS: Record<Lang, Strings> = {
       walletHint: 'every bank in a stack, pick one',
       walletLabel: 'Banks',
       noAccounts: 'No accounts yet.',
+      noOpenAccounts: 'No open accounts.',
       approximately: 'approximately',
       endingIn: 'ending in',
       displayLabel: 'Amounts',
