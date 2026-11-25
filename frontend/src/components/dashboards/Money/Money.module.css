@@ -773,6 +773,15 @@
   cursor: progress;
 }
 
+.list[data-refreshing="true"] {
+  opacity: 0.6;
+}
+
+/* A category the owner set is marked by a dashed edge (and said in words to a screen reader and in its tooltip). */
+.tag[data-overridden="true"] {
+  border-style: dashed;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
