@@ -10,6 +10,7 @@ import type { SpaceTodayStrings } from '../../../services/dashboards/spaceTodayS
 import type { SpaceId, TabId } from '../../../services/dashboards/types';
 import AreaIcon from '../AreaIcon/AreaIcon';
 import SpaceTile from '../SpaceTile/SpaceTile';
+import StreakCard from './StreakCard';
 import { partOfDay } from '../Money/todayModel';
 import TodayLayout, { SideCard, SideRow, TodayCard, TodaySoonRow, type TodayAction } from './TodayLayout';
 
@@ -197,13 +198,14 @@ const SpaceToday: React.FC<SpaceTodayProps> = ({ space, data, failed, areas, nav
   }
 
   const events = data?.today ?? [];
+  const ownerName = text(summaryFacts.owner_name);
   return (
     <TodayLayout
       mark={<SpaceTile space={space} />}
       place={nameOf(space)}
       placeIsHeading
       nav={nav}
-      hello={s.greeting[partOfDay(new Date().getHours())]}
+      hello={ownerName ? `${s.greeting[partOfDay(new Date().getHours())]}, ${ownerName}` : s.greeting[partOfDay(new Date().getHours())]}
       summary={[base, next].filter(Boolean).join(' ')}
       queue={{
         title: s.queueTitle,
@@ -222,6 +224,7 @@ const SpaceToday: React.FC<SpaceTodayProps> = ({ space, data, failed, areas, nav
           <SideCard title={s.todayTitle} linkLabel={s.todayLink} linkTo={pagePath('dashboards-calendar')}>
             {events.length === 0 ? <p>{s.todayEmpty}</p> : events.map((event, index) => <SideRow key={`${event.subject.id ?? index}`} when={eventTime(event)} what={event.facts.busy_only === true ? s.busy : (event.subject.name ?? '')} />)}
           </SideCard>
+          {data?.streak && <StreakCard streak={data.streak} today={data.date} />}
         </>
       }
     />

@@ -10,6 +10,7 @@ import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type Recurring, type Upcoming, type UpcomingItem } from '../../../services/dashboards/recurringApi';
 import { groupBanks } from '../../../services/dashboards/wallet';
 import DashIcon from '../DashIcon/DashIcon';
+import StreakCard from '../Today/StreakCard';
 import TodayLayout, { SideCard, SideRow, TodayCard, TodaySoonRow, type TodayAction } from '../Today/TodayLayout';
 import BankMark from './BankMark';
 import CategoryMark from './CategoryMark';
@@ -192,6 +193,8 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
   // The banks as the server orders them (the ones that need a look first); without its answer, from the accounts.
   const serverToday = useToday('money', true);
   const connectionRows = (serverToday.value?.today ?? []).filter((row) => row.kind === 'connection');
+  const ownerFact = serverToday.value?.summary.facts.owner_name;
+  const ownerName = typeof ownerFact === 'string' && ownerFact !== '' ? ownerFact : null;
 
   return (
     <TodayLayout
@@ -201,7 +204,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
       markTo={{ to: pagePath('dashboards-personal'), label: m.back }}
       controls={controls}
       nav={nav}
-      hello={td.greeting[partOfDay(hour)]}
+      hello={ownerName ? `${td.greeting[partOfDay(hour)]}, ${ownerName}` : td.greeting[partOfDay(hour)]}
       summary={parts.join(' ')}
       queue={{
         title: td.queueTitle,
@@ -253,6 +256,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
               })
             )}
           </SideCard>
+          {serverToday.value?.streak && <StreakCard streak={serverToday.value.streak} today={serverToday.value.date} />}
         </>
       }
     />

@@ -60,6 +60,13 @@ export interface TodayEvent {
   readonly facts: Facts;
 }
 
+export type StreakState = 'cleared' | 'open' | 'future' | 'no_data';
+
+export interface TodayStreak {
+  readonly days: readonly { readonly date: string; readonly state: StreakState }[];
+  readonly count: number;
+}
+
 export interface TodayData {
   readonly scope: TodayScope;
   readonly date: string;
@@ -70,6 +77,8 @@ export interface TodayData {
   readonly stats: readonly TodayStatEntry[];
   readonly breakdown: { readonly code: string; readonly rows: readonly TodayRowEntry[]; readonly insight: TodayInsight | null };
   readonly today: readonly TodayEvent[];
+  /** The seven days of this week (Monday to Sunday) and the run of cleared days; null from an older server. */
+  readonly streak: TodayStreak | null;
   /** The server says the assistant exists for this page (the page shows an Ask card only then, and never on Work 2). */
   readonly assistantEnabled: boolean;
 }
@@ -82,6 +91,19 @@ const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 function subject(value: unknown): TodaySubject {
   const raw = isObject(value) ? value : {};
   return { type: str(raw.type) ?? '', id: str(raw.id), name: str(raw.name) };
+}
+
+const STATES: readonly StreakState[] = ['cleared', 'open', 'future', 'no_data'];
+
+function parseStreak(value: unknown): TodayStreak | null {
+  if (!isObject(value) || !Array.isArray(value.days)) return null;
+  const days = value.days.flatMap((raw) => {
+    if (!isObject(raw)) return [];
+    const date = str(raw.date);
+    const state = STATES.find((candidate) => candidate === raw.state);
+    return date && state ? [{ date, state }] : [];
+  });
+  return days.length === 0 ? null : { days, count: int(value.count) ?? 0 };
 }
 
 const SCOPES: readonly TodayScope[] = ['personal', 'work-1', 'work-2', 'money'];
@@ -131,6 +153,7 @@ export function parseToday(body: unknown): TodayData | null {
       insight: isObject(breakdown.insight) && str(breakdown.insight.code) ? { code: str(breakdown.insight.code) ?? '', facts: facts(breakdown.insight.facts) } : null,
     },
     today: list(body.today).flatMap((raw): TodayEvent[] => (isObject(raw) ? [{ kind: str(raw.kind) ?? '', startsAt: str(raw.starts_at), endsAt: str(raw.ends_at), subject: subject(raw.subject), facts: facts(raw.facts) }] : [])),
+    streak: parseStreak(body.streak),
     assistantEnabled: isObject(body.assistant) && body.assistant.enabled === true,
   };
 }
