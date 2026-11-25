@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from mcp import Client
 
+from src.dashboards.finance.models import Account, Connection
 from src.dashboards.models import Event, Task
 from src.dashboards.today import (
     QUEUE_MAX,
@@ -16,7 +17,7 @@ from src.dashboards.today import (
     work1_queue,
     work2_queue,
 )
-from tests.dashboards_support import AUTH, running
+from tests.dashboards_support import AUTH, execute, running
 from tests.finance_support import seed, seed_rates
 
 pytestmark = pytest.mark.anyio
@@ -419,3 +420,63 @@ def test_the_owner_name_is_one_short_printable_line(make_settings):
     assert make_settings(dashboards_owner_name="  ").owner_name is None
     assert make_settings().owner_name is None
     assert make_settings(dashboards_owner_name="A\x07B" + "x" * 80).owner_name == "AB" + "x" * 58
+
+
+async def bank(app, name, ref, manual=False, status="ok", read=None, balance_at=NOW):
+    link = Connection(
+        id=uuid.uuid4(),
+        provider="sample",
+        ref=ref,
+        status=status,
+        last_ok_at=read,
+        manual=manual,
+        display_name=name,
+    )
+    held = Account(
+        id=uuid.uuid4(),
+        connection_id=link.id,
+        provider="sample",
+        external_id=ref,
+        name=name,
+        currency="GBP",
+        balance=100,
+        balance_at=balance_at,
+        created_at=NOW,
+    )
+    async with app.state.dashboards.sessions() as session, session.begin():
+        session.add(link)
+        await session.flush()
+        session.add(held)
+
+
+async def test_the_banks_are_ordered_by_need_then_by_when_they_were_read_or_entered(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    hours = timedelta(hours=1)
+    async with running(app, AUTH) as client:
+        await bank(app, "Zed Manual Old", "m1", manual=True, balance_at=NOW - 10 * hours)
+        await bank(app, "Amy Manual New", "m2", manual=True, balance_at=NOW - hours)
+        await bank(app, "Bank Two Hours", "a", read=NOW - 2 * hours)
+        await bank(app, "Bank One Hour", "b", read=NOW - hours)
+        await bank(app, "Broken", "f", status="error", read=NOW - 30 * hours)
+        top = await page(client, "money")
+
+        await execute(db_url, "DELETE FROM finance.account", "DELETE FROM finance.connection")
+        await bank(app, "Zed Manual Old", "m1", manual=True, balance_at=NOW - 10 * hours)
+        await bank(app, "Amy Manual New", "m2", manual=True, balance_at=NOW - hours)
+        await bank(app, "Bank Two Hours", "a", read=NOW - 2 * hours)
+        few = await page(client, "money")
+
+    assert [r["subject"]["name"] for r in top["today"]] == [
+        "Broken",
+        "Bank One Hour",
+        "Bank Two Hours",
+    ]
+    assert top["today_total"] == 5
+    assert [r["subject"]["name"] for r in few["today"]] == [
+        "Bank Two Hours",
+        "Amy Manual New",
+        "Zed Manual Old",
+    ]
+    assert few["today_total"] == 3

@@ -178,6 +178,7 @@ class TodayPageOut(BaseModel):
     stats: list[Stat]
     breakdown: Breakdown
     today: list[TodayRow]
+    today_total: int
     streak: Streak
     assistant: Assistant
 
@@ -522,6 +523,7 @@ async def _personal(
         "stats": _space_stats(tasks, today, closed),
         "breakdown": Breakdown(code="open_by_area", rows=rows, insight=insight),
         "today": [_event_row(e) for e in events[:TODAY_MAX]],
+        "today_total": len(events),
     }
 
 
@@ -605,6 +607,7 @@ async def _work1(session: AsyncSession, now: datetime, zone: tzinfo, today: date
         "stats": stats,
         "breakdown": _work1_breakdown(tasks, now),
         "today": [_event_row(e) for e in events[:TODAY_MAX]],
+        "today_total": len(events),
     }
 
 
@@ -643,6 +646,7 @@ async def _work2(session: AsyncSession, now: datetime, zone: tzinfo, today: date
         "stats": _space_stats(tasks, today, closed),
         "breakdown": Breakdown(code="meeting_minutes_by_day", rows=rows, insight=insight),
         "today": [_event_row(e) for e in todays[:TODAY_MAX]],
+        "today_total": len(todays),
     }
 
 
@@ -782,44 +786,47 @@ async def _confirmed_amount(session: AsyncSession, upcoming: Any) -> int:
 def _connection_rows(
     accounts: Sequence[Any], links: Sequence[Any], now: datetime
 ) -> list[TodayRow]:
-    """The bank connections, those that need a look first, with what each holds."""
+    """All the bank connections, in the order the page shows them: those that need a look first,
+    then the banks we read (most recently read first), then the hand-entered ones (the newest
+    balance date first), each with what it holds."""
     held: dict[uuid.UUID, Counter[str]] = defaultdict(Counter)
+    balance_date: dict[uuid.UUID, datetime] = {}
     for account in accounts:
         if not account.archived:
             held[account.connection_id][account.currency] += account.balance - account.credit_limit
-    rows: list[TodayRow] = []
+            known = balance_date.get(account.connection_id)
+            if known is None or account.balance_at > known:
+                balance_date[account.connection_id] = account.balance_at
+    rows: list[tuple[tuple[int, float, str], TodayRow]] = []
     for link in links:
         since = link.last_ok_at or link.created_at
         stale = not link.manual and link.status == "ok" and now - since > API_STALE_AFTER
-        rows.append(
-            TodayRow(
-                kind="connection",
-                starts_at=None,
-                ends_at=None,
-                subject=Subject(
-                    type="connection", id=str(link.id), name=link.display_name or link.provider
-                ),
-                facts={
-                    "provider": link.provider,
-                    "manual": link.manual,
-                    "status": link.status,
-                    "last_ok_at": None
-                    if link.last_ok_at is None
-                    else link.last_ok_at.astimezone(UTC).isoformat(),
-                    "stale": stale,
-                    "balances": [
-                        {"currency": c, "amount": a} for c, a in sorted(held[link.id].items())
-                    ],
-                },
-            )
+        needs_a_look = stale or link.status != "ok"
+        newest = balance_date.get(link.id) if link.manual else link.last_ok_at
+        group = 0 if needs_a_look else 2 if link.manual else 1
+        name = link.display_name or link.provider
+        key = (group, -(newest.timestamp() if newest else 0.0), name or "")
+        row = TodayRow(
+            kind="connection",
+            starts_at=None,
+            ends_at=None,
+            subject=Subject(type="connection", id=str(link.id), name=name),
+            facts={
+                "provider": link.provider,
+                "manual": link.manual,
+                "status": link.status,
+                "last_ok_at": None
+                if link.last_ok_at is None
+                else link.last_ok_at.astimezone(UTC).isoformat(),
+                "stale": stale,
+                "balances": [
+                    {"currency": c, "amount": a} for c, a in sorted(held[link.id].items())
+                ],
+            },
         )
-    rows.sort(
-        key=lambda r: (
-            not (r.facts["stale"] or r.facts["status"] != "ok"),
-            r.subject.name or "",
-        )
-    )
-    return rows[:TODAY_MAX]
+        rows.append((key, row))
+    rows.sort(key=lambda pair: pair[0])
+    return [row for _, row in rows]
 
 
 async def _money(
@@ -831,6 +838,7 @@ async def _money(
     categories = await finance_service.categories_report(session, None, now, zone, display)
     summary = await finance_service.summary(session, now, zone, display)
     accounts, links, _ = await finance_service.list_accounts(session)
+    rows = _connection_rows(accounts, links, now)
     large = large_payment(upcoming)
     shown = categories.display.categories[:ROWS_MAX]
     return {
@@ -894,7 +902,8 @@ async def _money(
             ],
             insight=category_insight(categories),
         ),
-        "today": _connection_rows(accounts, links, now),
+        "today": rows[:TODAY_MAX],
+        "today_total": len(rows),
     }
 
 
