@@ -78,7 +78,7 @@ const Confirm: React.FC<{ confirm: AssistantConfirm; busy: boolean; onDecide: (d
  * assistant wants to make is shown in words and happens only on Approve. Every refusal and failure is the page's own text.
  */
 const AskCard: React.FC<{ scope: AssistantScope }> = ({ scope }) => {
-  const { t, lang } = useDashboardLang();
+  const { t } = useDashboardLang();
   const s = t.assistant;
   const assistant = useAssistant(scope);
   const [draft, setDraft] = useState('');
