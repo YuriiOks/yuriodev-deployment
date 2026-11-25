@@ -153,9 +153,9 @@ describe('the Money page: totals and the wallet', () => {
     const user = userEvent.setup();
     renderAt(ALL);
     await banksReady();
-    // The open bank sits at the bottom of the stack; the others keep their order above it.
+    // The stack is in a fixed order (a link that needs approving first, then the biggest), whichever bank is open.
     const names = within(wallet().getByRole('group', { name: 'Banks' })).getAllByRole('button').map((button) => /^(Acme bank|Monzo|Monobank)/.exec(button.textContent ?? '')?.[1]);
-    expect(names).toEqual(['Monzo', 'Monobank', 'Acme bank']);
+    expect(names).toEqual(['Monzo', 'Acme bank', 'Monobank']);
     expect(bankButton('Acme bank')).toHaveAttribute('aria-pressed', 'true');
     expect(bankButton('Monzo')).toHaveAttribute('aria-pressed', 'false');
     expect(bankButton('Acme bank')).toHaveTextContent('£746.50');
@@ -178,12 +178,40 @@ describe('the Money page: totals and the wallet', () => {
     expect(hero.textContent).toBe('£746.50');
     expect(Array.from(hero.querySelectorAll('[data-part]')).map((part) => part.getAttribute('data-part'))).toEqual(['symbol', 'int', 'frac', 'frac']);
     expect(hero.querySelector('[data-part="int"]')?.textContent).toBe('746');
-    expect(within(acme).getByRole('link', { name: 'Accounts' })).toHaveAttribute('href', '#money-bank-acme-bank-name');
-    expect(within(acme).getByRole('link', { name: 'Transactions' })).toHaveAttribute('href', '#money-transactions-title');
+    // The panel beside the stack is the bank's accounts, so the card has no "Accounts" pill; its "Transactions" pill filters the transactions to this bank.
+    expect(within(acme).queryByRole('link', { name: 'Accounts' })).toBeNull();
+    expect(within(acme).getByRole('link', { name: 'Transactions' })).toHaveAttribute('href', expect.stringContaining('view=transactions&bank=acme-bank&txbank=acme-bank'));
     expect(within(bankCard('Monobank')).queryByRole('link')).toBeNull();
     await user.click(bankButton('Monobank'));
-    expect(within(bankCard('Monobank')).getByRole('link', { name: 'Accounts' })).toBeInTheDocument();
+    expect(within(bankCard('Monobank')).getByRole('link', { name: 'Transactions' })).toBeInTheDocument();
     expect(within(bankCard('Acme bank')).queryByRole('link')).toBeNull();
+  });
+
+  it('keeps the opened bank in the address and remembers it, and the transactions\' bank filter follows the pill', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt(`${ALL}&bank=monobank`);
+    await banksReady();
+    expect(bankButton('Monobank')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(bankButton('Monzo'));
+    expect(window.location.search).toContain('bank=monzo');
+    expect(localStorage.getItem('dashboards-money-bank')).toBe('monzo');
+  });
+
+  it('opens the remembered bank when the address names none, and the first bank that works when nothing is remembered', async () => {
+    setup();
+    localStorage.setItem('dashboards-money-bank', 'monobank');
+    renderAt(ALL);
+    await banksReady();
+    expect(bankButton('Monobank')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('filters the transactions to a bank named in the address (the "Transactions" pill)', async () => {
+    setup();
+    renderAt(`${PATH}?view=transactions&bank=monzo&txbank=monzo`);
+    const chips = await within(within(main()).getByRole('region', { name: 'Transactions' })).findByRole('group', { name: 'Bank' });
+    await waitFor(() => expect(within(chips).getByRole('button', { name: 'Monzo' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(within(chips).getByRole('button', { name: 'All banks' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('colours a bank we know in its brand pair, and any other in the neutral card', async () => {
@@ -263,13 +291,13 @@ describe('the Money page: totals and the wallet', () => {
     const user = userEvent.setup();
     renderAt(ALL);
     await banksReady();
-    // Connection status is told on the open card only; a card that needs attention elsewhere carries a warning mark.
-    expect(bankCard('Acme bank')).toHaveTextContent(/connected · updated/);
+    // Connection status is told in the open bank's panel (and on the card on a phone); a card that needs attention elsewhere carries a warning mark.
+    expect(opened().getByRole('heading', { level: 3, name: 'Acme bank' }).closest('header')).toHaveTextContent(/connected · updated/);
     expect(bankCard('Monzo')).not.toHaveTextContent(/updated/);
     expect(within(bankCard('Monzo')).getByTitle('needs reconnecting')).toBeInTheDocument();
     expect(within(bankCard('Acme bank')).queryByRole('link', { name: 'Reconnect' })).toBeNull();
     await user.click(bankButton('Monzo'));
-    expect(bankCard('Monzo')).toHaveTextContent('needs reconnecting');
+    expect(opened().getByRole('heading', { level: 3, name: 'Monzo' }).closest('header')).toHaveTextContent('needs reconnecting');
     expect(within(bankCard('Monzo')).getByRole('link', { name: 'Reconnect' })).toHaveAttribute('href', '/api/dashboards/v1/finance/monzo/connect');
     const alert = opened().getByRole('alert');
     expect(alert).toHaveTextContent('asks you to confirm access again');

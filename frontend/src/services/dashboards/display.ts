@@ -1,6 +1,6 @@
 import type { Converted, FinanceAccount, FinanceSummary } from './financeApi';
 import type { MoneyDisplay } from './preferences';
-import { isPot } from './wallet';
+import { isPot, type Bank } from './wallet';
 
 /** One figure on screen: an amount in a currency; `approx` when it was converted (shown with "≈"), with the originals it stands for. */
 export interface Shown {
@@ -72,7 +72,25 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
       rest.push({ amount: entry.amount, currency, approx: false, originals: [], pots: entry.pots, potsApprox: false });
     }
   }
-  return [...fromConverted, ...rest];
+  // The display currency first, then by the size of the figure (the converted ones are in the display currency already).
+  return [...fromConverted, ...rest].sort((a, b) => Number(b.approx) - Number(a.approx) || Math.abs(b.amount) - Math.abs(a.amount));
+}
+
+/**
+ * The banks in the order the stack shows them: a link that needs approving again first, then by the size of the bank's money (the absolute
+ * converted figure, so a debt counts as much as a balance), and a bank with nothing in it last. The order is the same on every render, so
+ * choosing a bank never moves the cards.
+ */
+export function sortBanks(banks: readonly Bank[], mode: MoneyDisplay): Bank[] {
+  const rank = (bank: Bank) => {
+    const open = bank.accounts.filter((account) => !account.archived);
+    const empty = open.every((account) => account.balance === 0 && account.ownBalance === 0);
+    return [bank.connection?.status === 'needs_reconsent' ? 0 : 1, empty ? 1 : 0, -Math.abs(shownTotals(bank.accounts, mode)[0]?.amount ?? 0)] as const;
+  };
+  return banks
+    .map((bank, index) => ({ bank, index, key: rank(bank) }))
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.index - b.index)
+    .map(({ bank }) => bank);
 }
 
 /** The grand total in the display currency: the server's when it sends one, else the converted accounts' sum; null when nothing was converted. */

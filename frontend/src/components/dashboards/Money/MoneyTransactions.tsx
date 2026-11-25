@@ -207,6 +207,9 @@ export interface MoneyTransactionsProps {
   /** The banks' wordmarks by provider id: the bank chips show them when there is one. */
   logos: Readonly<Record<string, ProviderLogo>>;
   enabled: boolean;
+  /** The bank filter (a provider id, or null for all banks) lives in the page's address: the opened bank's "Transactions" pill sets it. */
+  bank: string | null;
+  onBank: (provider: string | null) => void;
   /** A counter the page raises to ask for the lines again (a bank's data changed): the rows stay, dimmed, until the new ones are here. */
   refresh?: number;
   /** The owner's category of a line changed: the spending report is asked again. */
@@ -217,12 +220,11 @@ export interface MoneyTransactionsProps {
  * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled, refresh = 0, onCategoriesChanged }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled, bank: provider, onBank: setProvider, refresh = 0, onCategoriesChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const searchMax = useLimit('transactions', 'search', 200);
   const id = useId();
-  const [provider, setProvider] = useState<string | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
   const [typed, setTyped] = useState('');
