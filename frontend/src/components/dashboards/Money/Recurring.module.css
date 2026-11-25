@@ -695,6 +695,29 @@
   font-weight: 700;
 }
 
+/* The compact truth mark of a row: a hollow dot (the owner's note only), a check (confirmed by a statement) or a flag (nothing seen). */
+.truthMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  color: var(--dash-t2);
+}
+
+.truthMark[data-truth="confirmed"] {
+  color: var(--dash-t1);
+}
+
+.truthDot {
+  box-sizing: border-box;
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
 /* Plans its own schedule has finished, apart and collapsed. */
 .ended {
   display: flex;
