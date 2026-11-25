@@ -239,7 +239,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
       side={
         <>
           {failed && <p role="alert">{td.failed}</p>}
-          {serverToday.value?.assistantEnabled && <AskCard scope="money" />}
+          {data?.assistantEnabled && <AskCard scope="money" />}
           <SideCard title={td.banksTitle} linkLabel={td.banksLink} linkTo="?view=wallet">
             {connections.length === 0 ? (
               <p>{td.banksEmpty}</p>
