@@ -226,7 +226,7 @@ const DashboardsMoney = () => {
             <MoneyTransactions key={txKey} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
   );
-  // How fresh the data is, Refresh, and the pounds / account currency switch: quiet controls, in the Today row and in the other views' header.
+  // How fresh the data is, Refresh, and the pounds / account currency switch: quiet controls (Today's header row, and the other views' header).
   const freshness = (
     <>
       {asOf && <span>{fill(m.updated, { when: asOf })}</span>}
@@ -238,16 +238,6 @@ const DashboardsMoney = () => {
       {staleSince && <span className={styles.stale}>{fill(m.staleBanks, { when: whenLabel(staleSince, lang) })}</span>}
     </>
   );
-  const modeSwitch =
-    live && converted ? (
-      <div role="group" aria-label={m.displayLabel} className={money.display}>
-        {(['base', 'native'] as const).map((choice) => (
-          <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
-            {choice === 'base' ? m.displayBase : m.displayNative}
-          </button>
-        ))}
-      </div>
-    ) : null;
 
   return (
     <>
