@@ -22,10 +22,10 @@ describe('formatMinor', () => {
   });
 
   it('puts a sign on money in and out only when asked, and never on zero', () => {
-    expect(formatMinor(-450, 'GBP', 'en')).toBe('-£4.50');
+    expect(formatMinor(-450, 'GBP', 'en')).toBe('−£4.50');
     expect(formatMinor(450, 'GBP', 'en')).toBe('£4.50');
     expect(formatMinor(450, 'GBP', 'en', { signed: true })).toBe('+£4.50');
-    expect(formatMinor(-450, 'GBP', 'en', { signed: true })).toBe('-£4.50');
+    expect(formatMinor(-450, 'GBP', 'en', { signed: true })).toBe('−£4.50');
     expect(formatMinor(0, 'GBP', 'en', { signed: true })).toBe('£0.00');
   });
 
@@ -51,7 +51,7 @@ describe('formatMinorParts', () => {
   const kinds = (parts: ReturnType<typeof formatMinorParts>) => parts.map((part) => `${part.kind}:${part.text}`);
 
   it('splits an amount into sign, symbol, pounds and pence, in the order the language writes them', () => {
-    expect(kinds(formatMinorParts(-177169, 'GBP', 'en'))).toEqual(['sign:-', 'symbol:£', 'int:1', 'int:,', 'int:771', 'frac:.', 'frac:69']);
+    expect(kinds(formatMinorParts(-177169, 'GBP', 'en'))).toEqual(['sign:−', 'symbol:£', 'int:1', 'int:,', 'int:771', 'frac:.', 'frac:69']);
     expect(text(formatMinorParts(-177169, 'GBP', 'en'))).toBe(formatMinor(-177169, 'GBP', 'en'));
     // Russian puts the symbol after the figure.
     const ru = formatMinorParts(17, 'UAH', 'ru');
@@ -78,6 +78,8 @@ describe('parseMinor', () => {
     expect(parseMinor('', 'GBP')).toBeNull();
     // A balance may be below nothing, or nothing.
     expect(parseMinor('-12.50', 'GBP', { signed: true })).toBe(-1250);
+    // The real minus sign the page writes is read too (a figure copied from the page).
+    expect(parseMinor('−12.50', 'GBP', { signed: true })).toBe(-1250);
     expect(parseMinor('0', 'GBP', { signed: true })).toBe(0);
     expect(parseMinor('-', 'GBP', { signed: true })).toBeNull();
   });

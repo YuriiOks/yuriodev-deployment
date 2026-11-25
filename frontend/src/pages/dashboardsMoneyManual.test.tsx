@@ -134,7 +134,7 @@ describe('the Money page: a bank entered by hand', () => {
     await waitFor(() => expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')).toHaveLength(1));
     expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')[0].body).toEqual({ balance: -25050, as_of: '2026-11-20' });
     await waitFor(() => expect(wallet().getByRole('article')).toHaveTextContent('balance as of Nov 20, 2026'));
-    expect(opened().getByText('Current account').closest('li')).toHaveTextContent('-£250.50');
+    expect(opened().getByText('Current account').closest('li')).toHaveTextContent('−£250.50');
     // The form closed.
     expect(opened().queryByRole('form', { name: 'Update balance: Current account' })).toBeNull();
   });

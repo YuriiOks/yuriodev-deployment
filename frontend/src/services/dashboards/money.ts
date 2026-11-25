@@ -14,12 +14,15 @@ export interface MoneyOptions {
   readonly signed?: boolean;
 }
 
+/** The minus the platform writes as a hyphen (English) is written as the real minus sign (U+2212), as Russian already is: one sign in both languages. */
+const typographic = (text: string): string => text.replace(/-/g, '\u2212');
+
 /** An amount in minor units as text in the page's language, with the currency's own symbol in both languages ("1 234,50 ₴", "₴1,234.50"; never "UAH 1,234.50"). Falls back to "1234.50 XYZ" for a code the platform does not know. */
 export function formatMinor(minor: number, code: string, lang: Lang, { signed = false }: MoneyOptions = {}): string {
   const digits = digitsOf(code);
   const value = minor / 10 ** digits;
   try {
-    return new Intl.NumberFormat(lang, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', signDisplay: signed ? 'exceptZero' : 'auto' }).format(value);
+    return typographic(new Intl.NumberFormat(lang, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', signDisplay: signed ? 'exceptZero' : 'auto' }).format(value));
   } catch {
     return `${value.toFixed(digits)} ${code}`;
   }
@@ -44,7 +47,7 @@ export function formatMinorParts(minor: number, code: string, lang: Lang): Amoun
       switch (part.type) {
         case 'minusSign':
         case 'plusSign':
-          return { kind: 'sign', text: part.value };
+          return { kind: 'sign', text: typographic(part.value) };
         case 'currency':
           return { kind: 'symbol', text: part.value };
         case 'integer':
@@ -67,7 +70,8 @@ export function formatMinorParts(minor: number, code: string, lang: Lang): Amoun
  * decimals than the currency has (with `signed`: a balance, which may be negative or nothing). No rounding: an amount the currency cannot hold is refused, as the server does.
  */
 export function parseMinor(input: string, code: string, { signed = false }: { signed?: boolean } = {}): number | null {
-  const typed = input.replace(/[\s\u00a0]/g, '').replace(',', '.');
+  // Both the hyphen and the real minus sign (what the page itself writes) are read as a minus.
+  const typed = input.replace(/[\s\u00a0]/g, '').replace(',', '.').replace(/^\u2212/, '-');
   const negative = signed && typed.startsWith('-');
   const value = negative ? typed.slice(1) : typed;
   if (!/^\d+(\.\d+)?$/.test(value)) return null;
