@@ -657,6 +657,8 @@ describe('the Money page: pounds by default, originals beside', () => {
     expect(bankButton('Monobank')).toHaveTextContent('≈£293.00');
     expect(bankButton('Monobank')).toHaveTextContent('¥99,900');
     await user.click(bankButton('Monobank'));
+    // The opened bank's header tells the originals behind its converted figure, like the card does.
+    expect(opened().getByRole('heading', { level: 3, name: 'Monobank' }).closest('header')).toHaveTextContent(/₴/);
     const row = opened().getByText('Hryvnia card').closest('li') as HTMLElement;
     expect(row).toHaveTextContent('≈ £125.00');
     expect(row.querySelector('small')).toHaveTextContent('₴6,500.00');

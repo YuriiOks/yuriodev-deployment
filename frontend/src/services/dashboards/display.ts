@@ -11,6 +11,8 @@ export interface Shown {
   readonly originals: ReadonlyArray<{ readonly amount: number; readonly currency: string }>;
   /** The part of it that sits in pots, in the same currency. */
   readonly pots: number;
+  /** The pots part is itself approximate: a pot in another currency was converted into it (the rest may be plain). */
+  readonly potsApprox: boolean;
 }
 
 /** An open account the server really converted (it is in another currency than the display one) and has a display figure for. */
@@ -29,17 +31,18 @@ export function hasConversion(accounts: readonly FinanceAccount[]): boolean {
 export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisplay): Shown[] {
   const open = accounts.filter((account) => !account.archived);
   const natives = new Map<string, { amount: number; pots: number }>();
-  const converted = new Map<string, { amount: number; pots: number; approx: boolean; originals: Map<string, number> }>();
+  const converted = new Map<string, { amount: number; pots: number; approx: boolean; potsApprox: boolean; originals: Map<string, number> }>();
   for (const account of open) {
     const useDisplay = mode === 'base' && account.display !== null;
     const target = useDisplay ? (account.display as Converted) : { amount: account.ownBalance, currency: account.currency };
     const pots = isPot(account) ? target.amount : 0;
     if (useDisplay) {
-      const entry = converted.get(target.currency) ?? { amount: 0, pots: 0, approx: false, originals: new Map<string, number>() };
+      const entry = converted.get(target.currency) ?? { amount: 0, pots: 0, approx: false, potsApprox: false, originals: new Map<string, number>() };
       entry.amount += target.amount;
       entry.pots += pots;
       if (account.currency !== target.currency) {
         entry.approx = true;
+        if (pots !== 0) entry.potsApprox = true;
         entry.originals.set(account.currency, (entry.originals.get(account.currency) ?? 0) + account.ownBalance);
       }
       converted.set(target.currency, entry);
@@ -56,6 +59,7 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
     approx: entry.approx,
     originals: [...entry.originals.entries()].map(([code, amount]) => ({ amount, currency: code })),
     pots: entry.pots,
+    potsApprox: entry.potsApprox,
   }));
   // A currency the server did convert into is one figure with its converted parts; an unconverted account of that same currency joins it.
   const rest: Shown[] = [];
@@ -65,7 +69,7 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
       const index = fromConverted.indexOf(into);
       fromConverted[index] = { ...into, amount: into.amount + entry.amount, pots: into.pots + entry.pots };
     } else {
-      rest.push({ amount: entry.amount, currency, approx: false, originals: [], pots: entry.pots });
+      rest.push({ amount: entry.amount, currency, approx: false, originals: [], pots: entry.pots, potsApprox: false });
     }
   }
   return [...fromConverted, ...rest];

@@ -166,6 +166,8 @@ export interface Strings {
     readonly endingIn: string;
     readonly displayLabel: string;
     readonly displayBase: string;
+    /** The same for a display currency other than pounds: "in {currency}". */
+    readonly displayBaseIn: string;
     readonly displayNative: string;
     readonly grandTotal: string;
     readonly rateAsOf: string;
@@ -480,6 +482,7 @@ export const STRINGS: Record<Lang, Strings> = {
       endingIn: 'оканчивается на',
       displayLabel: 'Суммы',
       displayBase: 'в фунтах',
+      displayBaseIn: 'в {currency}',
       displayNative: 'в валюте счёта',
       grandTotal: 'всего',
       rateAsOf: 'курс на {when}',
@@ -807,6 +810,7 @@ export const STRINGS: Record<Lang, Strings> = {
       endingIn: 'ending in',
       displayLabel: 'Amounts',
       displayBase: 'in pounds',
+      displayBaseIn: 'in {currency}',
       displayNative: 'in account currency',
       grandTotal: 'in all',
       rateAsOf: 'rate as of {when}',

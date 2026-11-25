@@ -245,12 +245,15 @@ const DashboardsMoney = () => {
     </>
   );
 
+  // The label of the converted figures is built from the display currency the server converts into (pounds today).
+  const factCurrency = todayData.value?.summary.facts.currency;
+  const baseCode = summary.value?.display?.currency ?? (typeof factCurrency === 'string' ? factCurrency : 'GBP');
   const showSwitch = live && (view === 'today' ? todayConverted : converted);
   const modeSwitch = showSwitch ? (
     <div role="group" aria-label={m.displayLabel} className={money.display}>
       {(['base', 'native'] as const).map((choice) => (
         <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
-          {choice === 'base' ? m.displayBase : m.displayNative}
+          {choice === 'base' ? (baseCode === 'GBP' ? m.displayBase : fill(m.displayBaseIn, { currency: baseCode })) : m.displayNative}
         </button>
       ))}
     </div>
