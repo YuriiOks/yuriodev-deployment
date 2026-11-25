@@ -480,3 +480,23 @@ async def test_the_banks_are_ordered_by_need_then_by_when_they_were_read_or_ente
         "Zed Manual Old",
     ]
     assert few["today_total"] == 3
+
+
+async def test_the_money_page_carries_the_image_versions_and_the_bank_colours(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await seed_rates(app)
+        body = await page(client, "money")
+        providers = (await client.get(f"{BASE}/finance/providers")).json()
+        recurring = (await client.get(f"{BASE}/finance/recurring")).json()
+        elsewhere = await page(client, "personal")
+
+    assert body["logos_version"] == providers["logos_version"]
+    assert body["icons_version"] == recurring["icons_version"]
+    assert (elsewhere["logos_version"], elsewhere["icons_version"]) == (None, None)
+    (row,) = body["today"]
+    assert row["facts"]["provider"] == "sample"
+    assert set(row["facts"]["colors"]) == {"background", "foreground"}
