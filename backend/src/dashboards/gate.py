@@ -41,7 +41,8 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 # A logo image keeps its own `Cache-Control` (private, max-age) so the browser need not fetch it
 # again on every visit; everything else under the gate is no-store.
 LOGO_PATH = re.compile(
-    r"/api/dashboards/v1/finance/(?:providers/[^/]+/logo/[^/]+|recurring/[^/]+/icon)"
+    r"/api/dashboards/v1/finance/"
+    r"(?:providers/[^/]+/logo/[^/]+|recurring/[^/]+/icon|providers/logos|recurring/icons)"
 )
 
 

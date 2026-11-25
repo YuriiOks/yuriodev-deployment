@@ -451,3 +451,5 @@ class ProvidersOut(BaseModel):
     model_config = _RESPONSE
 
     providers: list[ProviderOut]
+    # The version of `GET /providers/logos` (every logo in one answer): re-fetch it when it changes.
+    logos_version: str
