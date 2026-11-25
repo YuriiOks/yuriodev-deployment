@@ -100,6 +100,8 @@ export interface TransactionsState {
   readonly status: LoadStatus;
   readonly transactions: readonly FinanceTransaction[];
   readonly hasMore: boolean;
+  /** A new filter or a refresh is being asked for while the rows of the last answer are still shown. */
+  readonly refreshing: boolean;
   readonly loadingMore: boolean;
   /** The last "load more" failed (the list stays as it was). */
   readonly moreFailed: boolean;
@@ -118,14 +120,17 @@ interface Pages {
 }
 
 /**
- * The transactions of one account or all, filtered by a text, newest first: the first page when the filter changes (the list
- * of the previous filter is not shown for the new one), the next page appended by `loadMore` with the server's cursor.
+ * The transactions of one account or all, filtered by a text, newest first: the first page when the filter changes, the next page appended by
+ * `loadMore` with the server's cursor. While a new filter (or a refresh) is on its way the last rows stay (`refreshing`: the page dims them);
+ * the loading state is only for the very first load. `refresh` is a counter the page raises to ask again (after a bank's data changed).
  */
-export function useTransactions(account: string | null, category: Category | null, q: string, enabled: boolean): TransactionsState {
+export function useTransactions(account: string | null, category: Category | null, q: string, enabled: boolean, refresh = 0): TransactionsState {
   const [token, setToken] = useState(0);
-  const key = `${account ?? ''}|${category ?? ''}|${q}|${token}`;
+  const key = `${account ?? ''}|${category ?? ''}|${q}|${token}|${refresh}`;
   const [pages, setPages] = useState<Pages | null>(null);
   const [more, setMore] = useState<{ key: string; busy: boolean; failed: boolean }>({ key: '', busy: false, failed: false });
+  // The request for the next page: dropped when the filter changes, so a late answer never lands on another filter's list.
+  const moreRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -138,31 +143,43 @@ export function useTransactions(account: string | null, category: Category | nul
         if (!controller.signal.aborted) setPages({ key, ok: false, items: [], cursor: null, pages: 0 });
       },
     );
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      moreRequest.current?.abort();
+      moreRequest.current = null;
+    };
   }, [account, category, q, key, enabled]);
 
-  const current = pages && pages.key === key ? pages : null;
+  // The rows of the last answer stay on screen while the next is asked for (a failed answer has none to keep).
+  const current = pages;
+  const fresh = pages !== null && pages.key === key;
   const loadMore = useCallback(() => {
-    if (!current || !current.cursor || more.busy) return;
+    if (!current || !fresh || !current.cursor || more.busy) return;
     const cursor = current.cursor;
+    const controller = new AbortController();
+    moreRequest.current = controller;
     setMore({ key, busy: true, failed: false });
-    fetchTransactions({ account, category, q, cursor }).then(
+    fetchTransactions({ account, category, q, cursor }, controller.signal).then(
       (page) => {
+        if (controller.signal.aborted) return;
         setPages((previous) => (previous && previous.key === key ? { key, ok: true, items: [...previous.items, ...page.transactions], cursor: page.nextCursor, pages: previous.pages + 1 } : previous));
         setMore({ key, busy: false, failed: false });
       },
-      () => setMore({ key, busy: false, failed: true }),
+      () => {
+        if (!controller.signal.aborted) setMore({ key, busy: false, failed: true });
+      },
     );
-  }, [account, category, q, key, current, more.busy]);
+  }, [account, category, q, key, current, fresh, more.busy]);
 
   const mine = more.key === key;
   return {
     status: current ? (current.ok ? 'ready' : 'error') : 'loading',
     transactions: current?.items ?? [],
-    hasMore: current?.cursor != null,
+    hasMore: fresh && current?.cursor != null,
+    refreshing: !fresh && enabled && current !== null,
     loadingMore: mine && more.busy,
     moreFailed: mine && more.failed,
-    pages: current?.pages ?? 0,
+    pages: fresh ? (current?.pages ?? 0) : 0,
     reload: () => setToken((n) => n + 1),
     loadMore,
   };

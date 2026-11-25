@@ -380,7 +380,39 @@ describe('the Money page: transactions', () => {
     expect(list().getByText('Example Ltd')).toBeInTheDocument();
     await user.clear(list().getByRole('searchbox', { name: 'Search transactions' }));
     await user.type(list().getByRole('searchbox', { name: 'Search transactions' }), 'nothing like this');
-    expect(await list().findByText('No transactions found.')).toBeInTheDocument();
+    // The empty state names the filter that is on, and one button clears every filter.
+    expect(await list().findByText(/No transactions for these filters: “nothing like this”\./)).toBeInTheDocument();
+    await user.click(list().getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(list().getAllByRole('listitem').length).toBeGreaterThan(1));
+    expect(list().getByRole('searchbox', { name: 'Search transactions' })).toHaveValue('');
+  });
+
+  it('keeps the last rows on screen (dimmed, busy) while a new filter is asked for, and the category chips never vanish', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt(ALL);
+    await ready();
+    await list().findByText('Corner Cafe');
+    const chips = () => within(list().getByRole('group', { name: 'Category' })).getAllByRole('button').map((chip) => chip.textContent);
+    const before = chips();
+    expect(before.length).toBeGreaterThan(2);
+    await user.type(list().getByRole('searchbox', { name: 'Search transactions' }), 'salary');
+    await waitFor(() => expect(list().getAllByRole('listitem')).toHaveLength(1));
+    // Fewer rows are shown, yet every chip that was offered still is.
+    expect(chips()).toEqual(before);
+  });
+
+  it('asks for the spending report again after the owner changes the category of a line', async () => {
+    const api = setup();
+    const user = userEvent.setup();
+    renderAt(ALL);
+    await ready();
+    const row = (await list().findByText('Corner Cafe')).closest('li') as HTMLElement;
+    const before = api.callsTo('GET', '/finance/categories').length;
+    await user.click(within(row).getByRole('button', { name: 'Actions for this line: Corner Cafe' }));
+    await user.selectOptions(within(row).getByRole('combobox', { name: 'Category' }), 'groceries');
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/transactions/')).toHaveLength(1));
+    await waitFor(() => expect(api.callsTo('GET', '/finance/categories').length).toBeGreaterThan(before));
   });
 
   it('loads more by the server\'s cursor, appends them, and drops the button at the end', async () => {

@@ -229,7 +229,7 @@ const DashboardsMoney = () => {
                 {m.transactionsTitle}
               </h2>
             </div>
-            <MoneyTransactions key={txKey} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
+            <MoneyTransactions refresh={txKey} onCategoriesChanged={() => void spend.reload()} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
   );
   // How fresh the data is, Refresh, and the pounds / account currency switch: quiet controls (Today's header row, and the other views' header).
