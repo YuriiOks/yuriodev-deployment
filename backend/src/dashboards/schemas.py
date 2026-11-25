@@ -232,6 +232,8 @@ class BootstrapOut(BaseModel):
     areas: list[AreaOut]
     server_time: datetime
     owner_name: str | None = None  # how to greet the owner (DASHBOARDS_OWNER_NAME), when set
+    # What the server enforces, by area: a page checks before it sends (src/dashboards/limits.py).
+    limits: dict[str, dict[str, int]] = {}
 
 
 class NextEvent(BaseModel):

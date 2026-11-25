@@ -83,7 +83,7 @@ async def schemas(url):
 
 def error_of(response):
     body = response.json()
-    assert set(body) - {"fields", "issues"} == {"error", "message", "request_id"}
+    assert set(body) - {"fields", "issues", "reason"} == {"error", "message", "request_id"}
     return body["error"]
 
 
