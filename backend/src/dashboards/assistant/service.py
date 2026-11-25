@@ -402,5 +402,3 @@ def sse(event: str, data: dict[str, Any]) -> str:
     """One server-sent event."""
     body = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
     return f"event: {event}\ndata: {body}\n\n"
-
-

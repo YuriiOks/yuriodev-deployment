@@ -55,7 +55,7 @@ def sse_message(blocks, stop="end_turn", tokens=(100, 20)):
         {"delta": {"stop_reason": stop}, "usage": {"output_tokens": tokens[1]}},
     )
     event("message_stop", {})
-    lines.append("event: ping\ndata: {\"type\": \"ping\"}\n")
+    lines.append('event: ping\ndata: {"type": "ping"}\n')
     return "\n".join(lines).encode()
 
 
@@ -197,9 +197,7 @@ async def test_a_read_tool_runs_at_once_and_thinking_blocks_go_back_unchanged(
     assert first["tools"] == second["tools"]
 
 
-async def test_a_write_waits_for_the_owner_and_then_runs_or_not(
-    db_url, make_dashboards_app, clock
-):
+async def test_a_write_waits_for_the_owner_and_then_runs_or_not(db_url, make_dashboards_app, clock):
     wanted = {"title": "Call the dentist", "due_date": "2026-11-25"}
     add_call = ("tool", "toolu_1", "add_task", wanted)
     api = FakeApi(
