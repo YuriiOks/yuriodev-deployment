@@ -589,8 +589,17 @@
 
 .dueEnd {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* One line: the name and the quiet words after it. */
+.dueLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
 }
 
 .managedNext {

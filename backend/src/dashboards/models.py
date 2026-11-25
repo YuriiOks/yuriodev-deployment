@@ -137,6 +137,26 @@ class CollectedTombstone(Base):
     )
 
 
+class QueueDay(Base):
+    """What the queue of a page looked like on a local day (the streak of cleared days). One row
+    per scope and day, written whenever the queue is computed or an item is completed: `opened`
+    (it was not empty at some point), `cleared_after_open` (it was empty after having been not
+    empty), `empty_now` (the last look found it empty)."""
+
+    __tablename__ = "queue_day"
+
+    scope: Mapped[str] = mapped_column(String(8), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    opened: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    cleared_after_open: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=false()
+    )
+    empty_now: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Event(Base):
     __tablename__ = "event"
     __table_args__ = (

@@ -6,6 +6,7 @@ and ids are 404, bad input is 422 (both in the app's error shape), a database th
 or not reachable is 503.
 """
 
+import contextlib
 from collections.abc import AsyncIterator
 from datetime import date
 from typing import Annotated
@@ -16,8 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.clock import Clock
 from src.core.config import Settings
+from src.core.errors import AppError
 from src.dashboards import projects as project_service
-from src.dashboards import service, today
+from src.dashboards import service, streak, today
 from src.dashboards.catalog import DEFAULT_SPACE_NAMES, TaskStatusFilter
 from src.dashboards.runtime import get_runtime, session_scope
 from src.dashboards.schemas import (
@@ -112,10 +114,14 @@ async def create_task(
 
 @router.patch("/tasks/{task_id}")
 async def update_task(
-    task_id: str, body: TaskPatch, session: SessionDep, clock: ClockDep
+    task_id: str, body: TaskPatch, session: SessionDep, clock: ClockDep, zone: ZoneDep
 ) -> TaskOut:
     task = await service.update_task(session, task_id, body, clock())
-    return TaskOut.model_validate(task)
+    out = TaskOut.model_validate(task)
+    if body.status == "done":  # a completed task may have emptied the page's queue
+        with contextlib.suppress(AppError):
+            await streak.note(session, task.space_id, clock(), zone)
+    return out
 
 
 @router.delete("/tasks/{task_id}", status_code=204)
