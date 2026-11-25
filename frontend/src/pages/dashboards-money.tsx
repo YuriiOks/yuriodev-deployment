@@ -209,7 +209,7 @@ const DashboardsMoney = () => {
             <UpcomingToolbar days={days} onDays={setDays} />
             {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
             {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
-            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} logos={logos} mode={mode} />}
+            {upcoming.value && <MoneyUpcoming key={days} data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} logos={logos} mode={mode} />}
           </section>
   );
   const debtsSection = (

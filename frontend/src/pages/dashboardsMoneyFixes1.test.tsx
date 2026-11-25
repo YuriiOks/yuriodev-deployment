@@ -299,6 +299,7 @@ describe('the Money page: the upcoming total', () => {
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByText('In all: £10.00')).toBeInTheDocument();
     expect(panel.queryByText(/≈/)).toBeNull();
-    expect(panel.getAllByText('£10.00')).toHaveLength(1);
+    // One currency is the whole total: no "of which" list under it (the figure also stands in its row and in its day's total).
+    expect(panel.queryByText(/of which/)).toBeNull();
   });
 });
