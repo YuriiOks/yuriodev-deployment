@@ -625,20 +625,20 @@ describe('the Money page: upcoming payments', () => {
 
   it('groups the payments by day, names what pays each and whether it is covered in words, and gives the totals the server added up', async () => {
     setup({ finance: { upcoming: upcoming() } });
-    const user = userEvent.setup();
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     expect(await panel.findByRole('heading', { level: 3, name: 'Today' })).toBeInTheDocument();
     expect(panel.getByRole('heading', { level: 3, name: 'Tomorrow' })).toBeInTheDocument();
-    // By default the next 7 days only: the payment 8 days away waits behind "Show all".
-    expect(panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-covered'))).toHaveLength(3);
-    await user.click(panel.getByRole('button', { name: 'Show all 4' }));
+    // The window is the list's range: every payment of it is listed (up to 8 rows at once, the rest behind "Show N more").
+    expect(panel.queryByRole('button', { name: /^Show \d+ more$/ })).toBeNull();
     const rows = panel.getAllByRole('listitem').filter((row) => row.getAttribute('data-covered'));
     expect(rows).toHaveLength(4);
     expect(rows[0]).toHaveTextContent('Streaming');
-    expect(rows[0]).toHaveTextContent('subscription · from Everyday · covered');
+    // An ordinary row does not say "covered"; one the account cannot cover says so as the account's state, with an icon and words.
+    expect(rows[0]).toHaveTextContent('subscription · from Everyday');
+    expect(rows[0]).not.toHaveTextContent('covered');
     expect(rows[1]).toHaveTextContent('Gym');
-    expect(rows[1]).toHaveTextContent('short by £7.00');
+    expect(rows[1]).toHaveTextContent('account short by £7.00 by then');
     expect(rows[2]).toHaveTextContent('Visa ending 0000');
     // Cover is said only when it is known: "cover unknown" is not noise on every row.
     expect(rows[2]).not.toHaveTextContent('cover unknown');
@@ -648,17 +648,18 @@ describe('the Money page: upcoming payments', () => {
     expect(rows[3]).toHaveTextContent('housing');
     // Totals: the grand one from the answer, the parts under it, and the note about a currency with no rate.
     expect(panel.getByText(/In all:/)).toHaveTextContent(/In all:.*≈.*£938\.94/);
-    expect(panel.getByText('£934.99')).toBeInTheDocument();
-    expect(panel.getByText('$5.00', { selector: 'li' })).toBeInTheDocument();
+    // The parts are told as parts of the grand total.
+    expect(panel.getByText(/of which: £934\.99 · \$5\.00/)).toBeInTheDocument();
+    // The window's range, and what the shortfall counts, said once.
+    expect(panel.getByText(/Due in the window · /)).toBeInTheDocument();
+    expect(panel.getByText('Counts earlier payments from the same account; no income assumed.')).toBeInTheDocument();
     expect(panel.getByText('Currencies with no rate are not in the total.')).toBeInTheDocument();
   });
 
   it('shows the inlined picture with no referrer (never an http address), hides it when it fails to load, and falls back to a tile in its colour', async () => {
     setup({ finance: { upcoming: { ...upcoming(), items: [...upcoming().items, due('r-5', 'Insecure', '2026-12-02', 9, { icon_url: 'http://icons.example.com/x.png' })] } } });
-    const user = userEvent.setup();
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
-    await user.click(await panel.findByRole('button', { name: 'Show all 5' }));
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
     const image = gym.querySelector('img') as HTMLImageElement;
     // The picture is given its address once it has had its turn at the loader (after a render).

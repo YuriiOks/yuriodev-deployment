@@ -48,7 +48,7 @@ export function endedOf(recurring: readonly Recurring[], debts: boolean): Recurr
 }
 
 /** The windows the upcoming payments can be asked for, in days. */
-export const WINDOWS = [14, 30] as const;
+export const WINDOWS = [7, 14, 30] as const;
 
 /** The local calendar day, as "YYYY-MM-DD" (what a payment's date is compared with). */
 export function todayIso(now: Date = new Date()): string {

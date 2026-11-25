@@ -133,10 +133,23 @@
   font-weight: 700;
 }
 
-.icon img {
+.icon {
+  position: relative;
+}
+
+.iconImage {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  background: var(--dash-well);
+  opacity: 0;
+  transition: opacity 160ms;
+}
+
+.icon[data-picture="true"] .iconImage {
+  opacity: 1;
 }
 
 /* The whole list of what needs attention (the Attention view): groups of dense rows. */
@@ -342,7 +355,7 @@
   white-space: nowrap;
 }
 
-/* Upcoming payments. */
+/* Upcoming payments: one surface per day (its date, what it adds up to, its payments divided by hairlines); from 64rem the date is a fixed column at the left. */
 .days {
   display: flex;
   flex-direction: column;
@@ -352,17 +365,27 @@
   list-style: none;
 }
 
+.day {
+  display: flex;
+  flex-direction: column;
+  background: var(--dash-chip);
+  border-radius: var(--dash-r-surface);
+}
+
+.dayTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) 0;
+}
+
 .dayHead {
-  margin: 0 0 var(--space-1);
+  margin: 0;
   color: var(--dash-heading);
   font-size: var(--dash-fs-ui);
   font-weight: 700;
   line-height: var(--dash-lh-ui);
-}
-
-.due[data-overdue="true"] {
-  border-inline-start: 0.1875rem solid var(--dash-warn);
-  padding-inline-start: var(--space-2);
 }
 
 .dayHead::before,
@@ -370,13 +393,32 @@
   content: none;
 }
 
+.dayTotal {
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.due[data-overdue="true"] {
+  border-inline-start: 0.1875rem solid var(--dash-warn);
+  padding-inline-start: var(--space-3);
+}
+
+.due[data-covered="false"] {
+  border-inline-start: 0.1875rem solid var(--dash-danger);
+  padding-inline-start: var(--space-3);
+}
+
 .dueList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.due + .due {
+  border-top: 1px solid var(--dash-line);
 }
 
 .due {
@@ -384,9 +426,36 @@
   grid-template-columns: 2.25rem minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background: var(--dash-chip);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--dash-r-surface);
+}
+
+/* A payment its paying account cannot cover: an icon and words (never colour alone), the shortfall as the account's state. */
+.shortChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--dash-danger);
+  border-radius: var(--radius-pill);
+  color: var(--dash-danger);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+}
+
+@media (min-width: 64rem) {
+  .day {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .dayTop {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: var(--space-3) var(--space-4);
+  }
 }
 
 .dueMain {
@@ -409,12 +478,26 @@
 }
 
 .dueTotals {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: var(--space-1) var(--space-4);
   padding-top: var(--space-2);
   border-top: 1px solid var(--dash-line);
+}
+
+/* The label at the left, the figures at the right. */
+.dueFigures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  text-align: right;
+}
+
+.dueTotals > .dueSplit,
+.dueTotals > .note:last-child {
+  grid-column: 1 / -1;
 }
 
 .grandDue {

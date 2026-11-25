@@ -129,6 +129,11 @@ export interface RecurringStrings {
   readonly everyN: string;
   readonly covered: string;
   readonly short: string;
+  /** Said once under the payments when one of them is not covered: what the shortfall counts. */
+  readonly shortNote: string;
+  readonly ofWhich: string;
+  readonly showMoreN: string;
+  readonly dueRange: string;
   readonly shortTotal: string;
   readonly overdue: string;
   readonly overdueSince: string;
@@ -351,7 +356,11 @@ export const RECURRING_RU: RecurringStrings = {
   frequencies: { once: 'один раз', daily: 'ежедневно', weekly: 'еженедельно', monthly: 'ежемесячно', yearly: 'ежегодно' },
   everyN: '{label}, каждые {n}',
   covered: 'хватает',
-  short: 'не хватает {amount}',
+  short: 'на счёте не хватит {amount} к этому дню',
+  shortNote: 'Считаются и более ранние платежи с того же счёта; доходы не предполагаются.',
+  ofWhich: 'в том числе',
+  showMoreN: 'Показать ещё {n}',
+  dueRange: '{from} – {to}',
   shortTotal: 'на счёте с учётом других платежей не хватает {amount}',
   overdue: 'Просрочено',
   overdueSince: 'Просрочено с {date}',
@@ -584,7 +593,11 @@ export const RECURRING_EN: RecurringStrings = {
   frequencies: { once: 'once', daily: 'daily', weekly: 'weekly', monthly: 'monthly', yearly: 'yearly' },
   everyN: '{label}, every {n}',
   covered: 'covered',
-  short: 'short by {amount}',
+  short: 'account short by {amount} by then',
+  shortNote: 'Counts earlier payments from the same account; no income assumed.',
+  ofWhich: 'of which',
+  showMoreN: 'Show {n} more',
+  dueRange: '{from} – {to}',
   shortTotal: 'the account is short {amount} in all, counting earlier payments',
   overdue: 'Overdue',
   overdueSince: 'Overdue since {date}',
