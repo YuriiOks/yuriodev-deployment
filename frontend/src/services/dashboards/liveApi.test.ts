@@ -51,7 +51,7 @@ describe('the bootstrap call', () => {
       areas: [{ id: 'money', space_id: 'personal', name_ru: 'Деньги', name_en: 'Money', sort: 0 }, { nope: 1 }],
       server_time: '2026-11-22T10:00:00+00:00',
     });
-    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {}, spaceIcons: {}, projects: [] });
+    expect(parsed).toEqual({ enabled: true, areas: [{ id: 'money', nameRu: 'Деньги', nameEn: 'Money' }], serverTime: '2026-11-22T10:00:00+00:00', spaceNames: {}, spaceIcons: {}, projects: [], limits: {} });
   });
 
   it('keeps the names the server gives spaces, and only real renames', () => {
@@ -96,7 +96,7 @@ describe('the bootstrap call', () => {
 
   it('says disabled as it is', async () => {
     installFakeApi({ enabled: false });
-    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {}, spaceIcons: {}, projects: [] });
+    expect(await fetchBootstrap()).toEqual({ enabled: false, areas: [], serverTime: null, spaceNames: {}, spaceIcons: {}, projects: [], limits: {} });
   });
 
   it('is null (the sample data) on a network error, a non-2xx answer, a non-JSON body or the wrong shape', async () => {

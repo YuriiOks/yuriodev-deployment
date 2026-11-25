@@ -1,4 +1,5 @@
 import { parseIconKey } from './projectIcons';
+import { parseLimits, type Limits } from './limits';
 import { SPACE_NAME } from './spaces';
 import type { SpaceId } from './types';
 
@@ -58,6 +59,8 @@ export interface Bootstrap {
   readonly spaceIcons: Readonly<Partial<Record<SpaceId, string>>>;
   /** The user's projects that are not archived (the server's names). */
   readonly projects: readonly LiveProjectRef[];
+  /** What the server holds each field to (lengths, one largest amount): the forms check them before they send. */
+  readonly limits: Limits;
 }
 
 /** A project with its counters (GET /projects). */
@@ -250,7 +253,7 @@ export function parseBootstrap(body: unknown): Bootstrap | null {
       if (isObject(raw) && typeof raw.id === 'string' && typeof raw.name === 'string') projects.push({ id: raw.id, name: raw.name, icon: parseIconKey(raw.icon) });
     }
   }
-  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces), spaceIcons: parseSpaceIcons(body.spaces), projects };
+  return { enabled: body.enabled, areas, serverTime: isDateTime(body.server_time) ? body.server_time : null, spaceNames: parseSpaceNames(body.spaces), spaceIcons: parseSpaceIcons(body.spaces), projects, limits: parseLimits(body.limits) };
 }
 
 export function parseTask(raw: unknown): LiveTask | null {

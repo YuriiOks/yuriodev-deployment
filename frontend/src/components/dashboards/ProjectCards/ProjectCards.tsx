@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import { projectPath } from '../../../data/site';
 import { useProjects } from '../../../hooks/useProjects';
 import { ApiError } from '../../../services/dashboards/liveApi';
@@ -15,6 +16,7 @@ import styles from './ProjectCards.module.css';
 /** The "new project" form: a card in the grid with a name, an icon and Create; the strip's button opens it. */
 const NewProjectForm: React.FC<{ onCreate: (name: string, icon: string | null) => Promise<string | null>; onClose: () => void }> = ({ onCreate, onClose }) => {
   const { t } = useDashboardLang();
+  const nameMax = useLimit('project', 'name', 80);
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState('');
@@ -60,7 +62,7 @@ const NewProjectForm: React.FC<{ onCreate: (name: string, icon: string | null) =
         ref={inputRef}
         className={styles.input}
         value={name}
-        maxLength={80}
+        maxLength={nameMax}
         placeholder={t.projectNamePlaceholder}
         aria-invalid={error ? true : undefined}
         onChange={(event) => {

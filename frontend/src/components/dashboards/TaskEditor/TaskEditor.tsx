@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import type { ApiError, LiveArea, LiveTask, TaskPatch } from '../../../services/dashboards/liveApi';
 import InlineError from '../InlineError/InlineError';
 import styles from './TaskEditor.module.css';
@@ -21,6 +22,7 @@ export interface TaskEditorProps {
  */
 const TaskEditor: React.FC<TaskEditorProps> = ({ task, areas, onSave, onDelete, onClose }) => {
   const { t, text } = useDashboardLang();
+  const titleMax = useLimit('task', 'title', 300);
   const id = useId();
   const titleRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(task.title);
@@ -95,7 +97,7 @@ const TaskEditor: React.FC<TaskEditorProps> = ({ task, areas, onSave, onDelete, 
         <label htmlFor={`${id}-title`} className={styles.label}>
           {t.fieldTitle}
         </label>
-        <input id={`${id}-title`} ref={titleRef} className={styles.input} value={title} maxLength={300} onChange={(e) => setTitle(e.target.value)} />
+        <input id={`${id}-title`} ref={titleRef} className={styles.input} value={title} maxLength={titleMax} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <div className={styles.field}>
         <label htmlFor={`${id}-notes`} className={styles.label}>

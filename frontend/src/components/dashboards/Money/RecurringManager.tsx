@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { minorToInput, parseMinor } from '../../../services/dashboards/money';
@@ -101,6 +102,7 @@ const RefreshIcon: React.FC<{ row: Recurring; onDone?: () => void }> = ({ row, o
 /** One payment's fields: name, amount, currency, kind, frequency, next date, the paying account (or a free-text method) and the text its bank line contains. */
 const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = true, onDone, onIconRefreshed }) => {
   const { t } = useDashboardLang();
+  const limits = { name: useLimit('recurring', 'name', 120), method: useLimit('recurring', 'payment_method', 80), match: useLimit('recurring', 'match_text', 80) };
   const r = t.money.rec;
   const id = useId();
   const [name, setName] = useState(initial?.name ?? '');
@@ -163,7 +165,7 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
           <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
             {r.fName}
           </label>
-          <input id={`${id}-name`} className={styles.input} value={name} maxLength={120} onChange={(event) => setName(event.target.value)} />
+          <input id={`${id}-name`} className={styles.input} value={name} maxLength={limits.name} onChange={(event) => setName(event.target.value)} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-amount`}>
@@ -230,13 +232,13 @@ const PaymentForm: React.FC<FormProps> = ({ initial, accounts, accountsReady = t
           <label className={styles.fieldLabel} htmlFor={`${id}-method`}>
             {r.fMethod}
           </label>
-          <input id={`${id}-method`} className={styles.input} value={method} maxLength={80} onChange={(event) => setMethod(event.target.value)} />
+          <input id={`${id}-method`} className={styles.input} value={method} maxLength={limits.method} onChange={(event) => setMethod(event.target.value)} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-match`}>
             {r.fMatch}
           </label>
-          <input id={`${id}-match`} className={styles.input} value={match} maxLength={80} aria-describedby={`${id}-match-hint`} onChange={(event) => setMatch(event.target.value)} />
+          <input id={`${id}-match`} className={styles.input} value={match} maxLength={limits.match} aria-describedby={`${id}-match-hint`} onChange={(event) => setMatch(event.target.value)} />
           <span id={`${id}-match-hint`} className={styles.note}>
             {r.matchHint}
           </span>
