@@ -151,13 +151,53 @@ function finance(overrides: Partial<FinanceData> = {}): FinanceData {
   };
 }
 
+const subject = (type: string, id: string, name: string) => ({ type, id, name });
+const queueEntry = (key: string, kind: string, subj: [string, string, string], facts: Record<string, unknown>, primary: string, secondary: string) => ({ key, kind, subject: subject(subj[0], subj[1], subj[2]), facts: { severity: 'medium', due_date: null, amount: null, currency: null, display_amount: null, converted: false, provider: null, ...facts }, primary, secondary, link: { kind: subj[0], id: subj[1], url: null } });
+const soonEntry = (id: string, name: string, dueDate: string, daysUntil: number, amount: number) => ({ key: `payment:${id}:${dueDate}`, kind: 'payment', subject: subject('payment', id, name), facts: { due_date: dueDate, days_until: daysUntil, amount, currency: 'GBP', display_amount: null, converted: false, covered: null, frequency_kind: 'subscription' }});
+const bankRow = (name: string, provider: string, extra: Record<string, unknown> = {}) => ({ kind: 'connection', starts_at: null, ends_at: null, subject: { type: 'connection', id: `c-${provider}`, name }, facts: { provider, manual: false, status: 'ok', last_ok_at: new Date(Date.now() - 5 * 60000).toISOString(), stale: false, balances: [{ currency: 'GBP', amount: 150000 }], ...extra } });
+
+/** What GET /today?scope=money answers (invented): the whole Today view is read from it. */
+function moneyToday(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    scope: 'money',
+    date: '2026-11-24',
+    generated_at: '2026-11-24T08:00:00Z',
+    summary: { code: 'money', facts: { currency: 'GBP', total: 150000, complete: true, queue_total: 4, large_payment: null, days_to_large_payment: null } },
+    queue: [
+      queueEntry('k2', 'missed_payment', ['payment', 'r-2', 'Gym'], { severity: 'high', days_overdue: 2, due_date: '2026-12-05', amount: 1800, currency: 'GBP' }, 'mark_paid', 'open_payment'),
+      queueEntry('k3', 'credit_high', ['account', 'a-current', 'Everyday'], { used_percent: 96, owed: 288000, credit_limit: 300000, amount: 300000, currency: 'GBP', provider: 'acme-bank' }, 'open_bank', 'snooze'),
+      queueEntry('k1', 'amount_changed', ['payment', 'r-1', 'Streaming'], { recorded_amount: 1299, charged_amount: 1999, amount: 1999, currency: 'GBP' }, 'accept_amount', 'open_payment'),
+    ],
+    queue_total: 4,
+    soon: [soonEntry('r-2', 'Gym', '2026-11-25', 1, 1800), soonEntry('r-1', 'Streaming', '2026-11-26', 2, 1999), soonEntry('r-3', 'Insurance', '2026-11-27', 3, 13400)],
+    stats: [
+      { code: 'spent_month_to_date', value: 254000, compare: { code: 'previous_to_date', value: 176000 }, facts: { currency: 'GBP', complete: true, month: '2026-11', previous_to_date_day: '2026-10-24' } },
+      { code: 'due_in_14_days', value: 107199, compare: null, facts: { currency: 'GBP', complete: true, confirmed_by_bank: 0, count: 4 } },
+    ],
+    breakdown: {
+      code: 'spent_by_category',
+      rows: [
+        { key: 'groceries', value: 62000, label: null, facts: { previous: 50000, previous_to_date: 40000, converted: false, currency: 'GBP' } },
+        { key: 'other', value: 52000, label: null, facts: { previous: 40000, previous_to_date: 50000, converted: false, currency: 'GBP' } },
+        { key: 'entertainment', value: 46000, label: null, facts: { previous: 20000, previous_to_date: 3700, converted: false, currency: 'GBP' } },
+        { key: 'eating_out', value: 29000, label: null, facts: { previous: 36000, previous_to_date: 30000, converted: false, currency: 'GBP' } },
+      ],
+      insight: { code: 'category_rise', facts: { category: 'entertainment', spent: 46000, before: 3700, rise: 42300, currency: 'GBP', converted: false } },
+    },
+    today: [bankRow('Acme Bank', 'acme-bank'), bankRow('Lloyds', 'lloyds', { manual: true, last_ok_at: '2026-10-01T09:00:00Z', balances: [{ currency: 'GBP', amount: -150556 }] })],
+    streak: null,
+    assistant: { enabled: false },
+    ...overrides,
+  };
+}
+
 function setup(options: FakeApiOptions & { lang?: 'ru' | 'en' } = {}): FakeApi {
   sessionStorage.setItem('appLoaded', 'true');
   localStorage.clear();
   localStorage.setItem(LANG_STORAGE_KEY, options.lang ?? 'en');
   resetStorageFallback();
   resetBootstrap();
-  return installFakeApi({ ...options, finance: finance(options.finance) });
+  return installFakeApi({ ...options, today: { money: moneyToday(), ...options.today }, finance: finance(options.finance) });
 }
 
 afterEach(() => {
@@ -204,7 +244,9 @@ describe('the Money page: Today', () => {
     await waitFor(() => expect(api.callsTo('PATCH', '/finance/recurring/r-1')[0]?.body).toEqual({ amount: 1999 }));
     await user.click(within(card('k2')).getByRole('button', { name: 'Mark paid' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/recurring/r-2/paid')[0]?.body).toEqual({ due_date: '2026-12-05' }));
-    await user.click(queue.getByRole('button', { name: 'One at a time' }));
+    // It leads to the attention list, which opens its details on the first item.
+    expect(queue.getByRole('link', { name: 'One at a time' })).toHaveAttribute('href', expect.stringContaining('walk=1'));
+    await user.click(queue.getByRole('link', { name: 'One at a time' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
@@ -247,12 +289,12 @@ describe('the Money page: Today', () => {
     renderAt(PATH);
     const banks = within(await within(main()).findByRole('region', { name: 'Banks today' }));
     expect(await banks.findByText(/updated 5 minutes ago/)).toBeInTheDocument();
-    expect(banks.getByText(/Acme bank · £1,500\.00/)).toBeInTheDocument();
+    expect(banks.getByText(/Acme Bank · £1,500\.00/)).toBeInTheDocument();
     expect(banks.getByRole('link', { name: 'Wallet →' })).toHaveAttribute('href', expect.stringContaining('view=wallet'));
   });
 
   it('says so, without inventing anything, when there is nothing to decide, nothing due and no spending', async () => {
-    setup({ finance: { attention: [], upcoming: { from_date: '2026-11-24', to_date: '2026-12-07', items: [], totals: [], display: { currency: 'GBP', rates: {}, missing: [], complete: true, total: 0 } }, categories: { month: '2026-11', previous_month: '2026-10', previous_to_date_day: '2026-10-24', currencies: [], display: { currency: 'GBP', rates: {}, missing: [], complete: true, spent: 0, previous_spent: 0, previous_to_date_spent: 0, categories: [] } } } });
+    setup({ today: { money: moneyToday({ queue: [], queue_total: 0, soon: [], stats: [], breakdown: { code: 'spent_by_category', rows: [], insight: null }, today: [] }) } });
     renderAt(PATH);
     expect(await within(main()).findByText('Nothing to decide.')).toBeInTheDocument();
     expect(within(main()).getByText('Nothing is due in the next few days.')).toBeInTheDocument();

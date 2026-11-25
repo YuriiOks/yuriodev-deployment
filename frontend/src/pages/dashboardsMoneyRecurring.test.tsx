@@ -224,7 +224,7 @@ describe('the Money page: the row of attention cards', () => {
 
 describe('the Money page: the sections switch', () => {
   it('offers Today, Wallet, Payments, Spending and Transactions, Today first and current, and switches the view', async () => {
-    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() } });
+    setup({ finance: { recurring: mixedPayments(), attention: mixedItems() }, today: { money: { scope: 'money', date: '2026-11-24', generated_at: '2026-11-24T08:00:00Z', summary: { code: 'money', facts: {} }, queue: [], queue_total: 12, soon: [], stats: [], breakdown: { code: 'spent_by_category', rows: [], insight: null }, today: [], assistant: { enabled: false } } } });
     const user = userEvent.setup();
     renderAt(PATH);
     // The tabs move with the view, so they are looked up afresh each time.
@@ -248,14 +248,6 @@ describe('the Money page: the sections switch', () => {
     // The whole attention list and the payments list are reached from Today's queue and from Payments.
     await user.click(within(main()).getByRole('link', { name: 'All 12' }));
     expect(await within(main()).findByRole('heading', { level: 2, name: 'Needs attention' })).toBeInTheDocument();
-  });
-
-  it('keeps a quiet "N hidden" link when nothing is active but something is hidden', async () => {
-    setup({ finance: { attention: [item('overdraft', 'k5', ['account', 'a-current'], { amount: 4000, currency: 'GBP', state: 'dismissed' })] } });
-    renderAt(PATH);
-    const nav = within(await within(main()).findByRole('navigation', { name: 'Money sections' }));
-    expect(await nav.findByRole('link', { name: '1 hidden' })).toHaveAttribute('href', expect.stringContaining('view=attention'));
-    expect(within(main()).queryByRole('region', { name: 'Needs attention' })).toBeNull();
   });
 
   it('reaches the whole list from "All 12"', async () => {

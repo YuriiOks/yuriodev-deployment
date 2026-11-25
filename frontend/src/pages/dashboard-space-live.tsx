@@ -22,6 +22,7 @@ import { useToday } from '../hooks/useToday';
 import { useNow } from '../hooks/useNow';
 import { fill } from '../services/dashboards/calendarLabels';
 import type { LiveArea, LiveTask } from '../services/dashboards/liveApi';
+import { patchTask } from '../services/dashboards/liveApi';
 import { liveHero } from '../services/dashboards/liveLabels';
 import { withoutCopies } from '../services/dashboards/liveEvents';
 import { localDate, splitIso } from '../services/dashboards/liveTime';
@@ -56,7 +57,7 @@ const openTasks = (groups: TaskGroups): LiveTask[] => [...groups.priority, ...gr
  * and each row opens its editor. Each request has its own loading and error state, so one failure leaves the
  * rest of the page working.
  */
-const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
+const LiveSpaceFull = ({ space, areas }: LiveSpaceProps) => {
   const { t, text } = useDashboardLang();
   const tasks = useLiveTasks(space);
   const summary = useLiveSummary();
@@ -82,7 +83,6 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
   const [showReviewed, setShowReviewed] = useState(false);
 
   const current = selected;
-  const today_ = useToday(space, current === 'today');
   const areaList = space === 'personal' ? areas : null;
   // The events of the next days: today's meetings for the overview of a space that has collected tasks (the work spaces), and
   // the next event of the strip, put through the calendar's rule for copies of work meetings.
@@ -138,24 +138,6 @@ const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
       link={space === 'personal' ? { to: pagePath('dashboards-money'), label: t.money.navLink, after: 'areas' } : undefined}
     />
   );
-  if (current === 'today') {
-    return (
-      <div role="tabpanel" id={`${space}-panel`} aria-labelledby={`${space}-tab-today`}>
-        <SpaceToday
-          space={space}
-          data={today_.value}
-          failed={today_.status === 'error' || today_.refreshFailed}
-          areas={areaList ?? []}
-          nav={sourceTabs}
-          onMarkDone={(id) => tasks.toggle(id)}
-          onOpenTab={setSelected}
-          onReload={() => void today_.reload()}
-          doneCount={tasks.tasks.filter((task) => task.status === 'done').length}
-        />
-      </div>
-    );
-  }
-
   let body: ReactNode;
   let split: 'main' | 'even' | 'flow' | false = false;
   let wideFirst = false;
@@ -363,5 +345,50 @@ function areaName(areas: readonly LiveArea[], id: string): { ru: string; en: str
   const found = areas.find((candidate) => candidate.id === id);
   return found ? { ru: found.nameRu, en: found.nameEn } : { ru: id, en: id };
 }
+
+/** The tabs of a space: Today first, then the sample space's own (the personal one has the life areas, and its Payments tab is the Money page). */
+function tabsOf(space: SpaceId): readonly TabId[] {
+  const base = space === 'personal' ? getSpace(space).tabs.filter((tab) => tab !== 'payments') : getSpace(space).tabs;
+  return ['today', ...base];
+}
+
+/**
+ * The Today tab of a space: the server's one Today answer and nothing else (the task lists, the summary and the events are loaded only when another tab
+ * is opened), so the first view of a space is a handful of requests. A task ticked off here is one PATCH, then the answer is asked again.
+ */
+const TodayTab = ({ space, areas, onSelect }: LiveSpaceProps & { onSelect: (tab: TabId) => void }) => {
+  const { t } = useDashboardLang();
+  const today = useToday(space, true);
+  const nav = <SourceTabs tabs={tabsOf(space)} current="today" counts={{}} onSelect={onSelect} idPrefix={space} link={space === 'personal' ? { to: pagePath('dashboards-money'), label: t.money.navLink, after: 'areas' } : undefined} />;
+  return (
+    <div role="tabpanel" id={`${space}-panel`} aria-labelledby={`${space}-tab-today`}>
+      <SpaceToday
+        space={space}
+        data={today.value}
+        failed={today.status === 'error' || today.refreshFailed}
+        areas={areas}
+        nav={nav}
+        onMarkDone={(id) => void patchTask(id, { status: 'done' }).then(() => today.reload(), () => undefined)}
+        onOpenTab={onSelect}
+        onReload={() => void today.reload()}
+        doneCount={0}
+      />
+    </div>
+  );
+};
+
+/** A space on real data: its Today tab (the default), or the rest of the page for any other tab. The tab is kept in the address (`?tab=`). */
+const LiveSpace = ({ space, areas }: LiveSpaceProps) => {
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab');
+  const select = (tab: TabId) => {
+    const next = new URLSearchParams(params);
+    if (tab === 'today') next.delete('tab');
+    else next.set('tab', tab);
+    setParams(next, { replace: true });
+  };
+  const other = (tabsOf(space) as readonly string[]).includes(asked ?? '') && asked !== 'today';
+  return other ? <LiveSpaceFull space={space} areas={areas} /> : <TodayTab space={space} areas={areas} onSelect={select} />;
+};
 
 export default LiveSpace;
