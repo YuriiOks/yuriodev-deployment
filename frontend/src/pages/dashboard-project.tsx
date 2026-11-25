@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
+import { useLimit } from '../hooks/useLimit';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
 import IconPicker from '../components/dashboards/IconPicker/IconPicker';
@@ -54,6 +55,7 @@ interface BoardProps {
 /** A project's page on real data: its name with Rename and Archive, quick-add, the task groups and Done. */
 const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
   const { t } = useDashboardLang();
+  const nameMax = useLimit('project', 'name', 80);
   usePageTitle(project.name);
   const tasks = useLiveTasks({ project: project.id });
   const today = localDate(useNow());
@@ -192,7 +194,7 @@ const ProjectBoard = ({ project, rename, archive, setIcon }: BoardProps) => {
                 className={styles.input}
                 aria-label={t.projectName}
                 value={name}
-                maxLength={80}
+                maxLength={nameMax}
                 onChange={(event) => setName(event.target.value)}
               />
               <button type="submit" className={styles.save} disabled={busy}>

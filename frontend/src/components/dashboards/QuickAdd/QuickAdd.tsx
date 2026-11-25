@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import InlineError from '../InlineError/InlineError';
 import styles from './QuickAdd.module.css';
 
@@ -15,6 +16,7 @@ export interface QuickAddProps {
 /** The quick-add field. Plain text becomes the title; no parsing. With `onSubmit` Enter creates the task. */
 const QuickAdd: React.FC<QuickAddProps> = ({ placeholder, onSubmit }) => {
   const { t } = useDashboardLang();
+  const titleMax = useLimit('task', 'title', 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ const QuickAdd: React.FC<QuickAddProps> = ({ placeholder, onSubmit }) => {
           placeholder={placeholder}
           className={styles.input}
           value={value}
-          maxLength={300}
+          maxLength={titleMax}
           onChange={(event) => {
             setValue(event.target.value);
             if (error) setError(null);

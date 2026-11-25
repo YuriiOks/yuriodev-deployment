@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { createManualAccount, createManualConnection, type ManualAccountKind } from '../../../services/dashboards/manualApi';
 import { refusal } from '../../../services/dashboards/recurringApi';
@@ -12,6 +13,7 @@ const CUSTOM = '__custom';
 /** The fields of one new account: its name and type, currency, balance (a card: its limit and what is owed), last four digits and the day it is as of. */
 const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: AccountFields) => void; idBase: string }> = ({ fields, onChange, idBase }) => {
   const { t } = useDashboardLang();
+  const nameMax = useLimit('account', 'name', 120);
   const x = t.money.manual;
   const set = <K extends keyof AccountFields>(key: K, value: AccountFields[K]) => onChange({ ...fields, [key]: value });
   const card = fields.kind === 'credit_card';
@@ -22,7 +24,7 @@ const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: Accoun
         <label className={styles.fieldLabel} htmlFor={`${idBase}-name`}>
           {x.fAccountName}
         </label>
-        <input id={`${idBase}-name`} className={styles.input} value={fields.name} maxLength={120} onChange={(event) => set('name', event.target.value)} />
+        <input id={`${idBase}-name`} className={styles.input} value={fields.name} maxLength={nameMax} onChange={(event) => set('name', event.target.value)} />
       </div>
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor={`${idBase}-kind`}>
@@ -145,6 +147,7 @@ export interface AddBankFormProps {
 export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onDone }) => {
   const { t } = useDashboardLang();
   const x = t.money.manual;
+  const bankNameMax = useLimit('connection', 'display_name', 60);
   const id = useId();
   const problemText = useProblemText();
   const [choice, setChoice] = useState(candidates[0]?.id ?? CUSTOM);
@@ -221,7 +224,7 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
               <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
                 {x.fBankName}
               </label>
-              <input id={`${id}-name`} className={styles.input} value={name} maxLength={60} disabled={made !== null} onChange={(event) => setName(event.target.value)} />
+              <input id={`${id}-name`} className={styles.input} value={name} maxLength={bankNameMax} disabled={made !== null} onChange={(event) => setName(event.target.value)} />
             </div>
             <div className={styles.field}>
               <label className={styles.fieldLabel} htmlFor={`${id}-bg`}>
