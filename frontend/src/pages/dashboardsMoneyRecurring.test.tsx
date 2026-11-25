@@ -661,9 +661,13 @@ describe('the Money page: upcoming payments', () => {
     renderAt(ALL);
     const panel = within(await within(main()).findByRole('region', { name: 'Upcoming payments' }));
     const gym = (await panel.findByText('Gym')).closest('li') as HTMLElement;
-    const image = gym.querySelector('img') as HTMLImageElement;
-    // The picture is given its address once it has had its turn at the loader (after a render).
-    await waitFor(() => expect(image).toHaveAttribute('src', '/api/dashboards/v1/finance/recurring/r-2/icon?v=0a1b2c3d'));
+    // The picture is drawn once it has had its turn at the loader (after a render), with its address from the start.
+    const image = await waitFor(() => {
+      const found = gym.querySelector('img');
+      expect(found).not.toBeNull();
+      return found as HTMLImageElement;
+    });
+    expect(image).toHaveAttribute('src', '/api/dashboards/v1/finance/recurring/r-2/icon?v=0a1b2c3d');
     expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
     fireEvent.error(image);
     expect(gym.querySelector('img')).toBeNull();
