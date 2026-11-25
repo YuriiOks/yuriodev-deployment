@@ -21,13 +21,13 @@ from src.core.errors import install_exception_handlers
 from src.core.http import resolve_host
 from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
+from src.dashboards.assistant.service import Assistant
 from src.dashboards.collectors.manager import (
     FINANCE_LOCK_KEY,
     CollectorManager,
     build_collectors,
     build_finance_collectors,
 )
-from src.dashboards.assistant.service import Assistant
 from src.dashboards.finance.icons import IconWorker
 from src.dashboards.finance.maintenance import (
     PAIRING_PROVIDERS,

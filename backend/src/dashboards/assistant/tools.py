@@ -349,7 +349,7 @@ async def _display(session: Any, ctx: Ctx) -> Any:
 async def _accounts(ctx: Ctx, _: dict[str, Any]) -> Any:
     async with session_scope(ctx.runtime) as session:
         display = await _display(session, ctx)
-        accounts, links, oldest = await finance_service.list_accounts(session)
+        accounts, _links, oldest = await finance_service.list_accounts(session)
         shown = [AccountOut.from_row(a, oldest.get(a.id), display) for a in accounts]
     return {
         "accounts": [a.model_dump(mode="json") for a in shown],
@@ -445,7 +445,7 @@ async def _attention_action(ctx: Ctx, args: dict[str, Any]) -> Any:
     wanted = _checked(AttentionActionArgs, args)
     async with session_scope(ctx.runtime) as session:
         display = await _display(session, ctx)
-        items, missing, accepted = await recurring_service.set_attention_states(
+        _items, missing, accepted = await recurring_service.set_attention_states(
             session, ctx.now, ctx.zone, display, [wanted.key], wanted.action, wanted.days
         )
     if missing:
