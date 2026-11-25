@@ -124,8 +124,8 @@ describe('the Today view of the spaces', () => {
     expect(breakdown.getByText('Gone stale: Money')).toBeInTheDocument();
     expect(breakdown.getByText(/4 tasks without a date are older than 30 days/)).toBeInTheDocument();
     expect(within(main()).getByRole('region', { name: 'Today' })).toHaveTextContent('Language lesson');
-    // Not served by the backend: not drawn.
-    expect(within(main()).queryByText('Ask Claude')).toBeNull();
+    // The server says the assistant exists for this page: the Ask card is there.
+    expect(within(main()).getByRole('region', { name: 'Ask Claude' })).toBeInTheDocument();
   });
 
   it('ticks a task off from its card, and opens a pull request at its own address', async () => {
@@ -157,7 +157,19 @@ describe('the Today view of the spaces', () => {
     const breakdown = within(within(main()).getByRole('region', { name: 'Meetings by day' }));
     expect(breakdown).toHaveTextContent('1 h 30 min');
     expect(breakdown.getByText(/No meetings on/)).toBeInTheDocument();
-    expect(within(main()).queryByText(/Ask/)).toBeNull();
+    expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
+  });
+
+  it('never draws the Ask card on Work 2 even if the server says the assistant is enabled, and not when it is disabled elsewhere', async () => {
+    setup({ today: { 'work-2': { ...work2, assistant: { enabled: true } } } });
+    const view = renderAt('/dashboards/work-2');
+    await within(main()).findByText(/3 open tasks, 1 priority\./);
+    expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
+    view.unmount();
+    setup({ today: { personal: { ...personal, assistant: { enabled: false } } } });
+    renderAt('/dashboards/personal');
+    await within(main()).findByText(/12 open tasks/);
+    expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
   });
 
   it('keeps the existing views behind their tabs and says so when the answer cannot be read', async () => {

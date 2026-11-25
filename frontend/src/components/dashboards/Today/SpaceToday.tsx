@@ -10,6 +10,7 @@ import type { SpaceTodayStrings } from '../../../services/dashboards/spaceTodayS
 import type { SpaceId, TabId } from '../../../services/dashboards/types';
 import AreaIcon from '../AreaIcon/AreaIcon';
 import SpaceTile from '../SpaceTile/SpaceTile';
+import AskCard from './AskCard';
 import StreakCard from './StreakCard';
 import { partOfDay } from '../Money/todayModel';
 import TodayLayout, { SideCard, SideRow, TodayCard, TodaySoonRow, type TodayAction } from './TodayLayout';
@@ -221,6 +222,8 @@ const SpaceToday: React.FC<SpaceTodayProps> = ({ space, data, failed, areas, nav
       side={
         <>
           {failed && <p role="alert">{s.failed}</p>}
+          {/* Ask is drawn only when the server says the assistant exists for this page, and never on Work 2 (its data is not sent anywhere). */}
+          {data?.assistantEnabled && space !== 'work-2' && <AskCard scope={space} />}
           <SideCard title={s.todayTitle} linkLabel={s.todayLink} linkTo={pagePath('dashboards-calendar')}>
             {events.length === 0 ? <p>{s.todayEmpty}</p> : events.map((event, index) => <SideRow key={`${event.subject.id ?? index}`} when={eventTime(event)} what={event.facts.busy_only === true ? s.busy : (event.subject.name ?? '')} />)}
           </SideCard>
