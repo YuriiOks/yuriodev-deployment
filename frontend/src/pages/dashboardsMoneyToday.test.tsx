@@ -349,5 +349,26 @@ describe('the Money page: Today', () => {
     expect(banks.getByText(/needs a look/)).toBeInTheDocument();
     expect(banks.getAllByText(/updated 4 minutes ago/).length).toBeGreaterThan(0);
   });
-});
 
+  it('keeps a quiet "N hidden" link when nothing is waiting but something is hidden, from the server\'s own count', async () => {
+    setup({ today: { money: moneyToday({ queue: [], queue_total: 0, summary: { code: 'money', facts: { currency: 'GBP', total: 150000, complete: true, hidden_attention: 1 } } }) } });
+    renderAt(PATH);
+    const nav = within(await within(main()).findByRole('navigation', { name: 'Money sections' }));
+    expect(await nav.findByRole('link', { name: '1 hidden' })).toHaveAttribute('href', expect.stringContaining('view=attention'));
+  });
+
+  it('wears the same header row on every tab: the mark, the name and the tabs stay where they are, and the totals strip is in the Wallet view', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt(PATH);
+    const row = () => screen.getByRole('heading', { level: 1, name: 'Money' }).closest('header') as HTMLElement;
+    await within(main()).findByRole('heading', { level: 1, name: 'Money' });
+    await user.click(within(row()).getByRole('link', { name: 'Wallet' }));
+    const wallet = await within(main()).findByRole('region', { name: 'Wallet' });
+    // The same header (the tabs inside it, the controls at its right), and the totals inside the Wallet view's own body.
+    expect(within(row()).getByRole('navigation', { name: 'Money sections' })).toBeInTheDocument();
+    expect(within(row()).getByRole('link', { name: 'Back to Personal' })).toBeInTheDocument();
+    expect(within(row()).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+    expect(within(wallet).getAllByText(/£/).length).toBeGreaterThan(0);
+  });
+});
