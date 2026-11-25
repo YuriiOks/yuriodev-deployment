@@ -101,7 +101,8 @@ async def test_a_rule_the_service_words_carries_a_field_and_a_reason(db_url, mak
             },
         )
 
-    assert nothing.json()["reason"] == nothing_account.json()["reason"] == "nothing_to_change"
+    assert issue_of(nothing.json(), "body")["code"] == "nothing_to_change"
+    assert nothing_account.json()["reason"] == "nothing_to_change"
     assert area.json()["reason"] == "unknown_value"
     assert issue_of(area.json(), "area_id")["code"] == "unknown_value"
     # A request model's own validator: the table names the field and the rule.

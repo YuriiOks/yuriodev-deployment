@@ -196,6 +196,8 @@ def _issue(problem: Mapping[str, Any]) -> dict[str, Any]:
     limit = _number((problem.get("ctx") or {}).get(key)) if key else None
     field = _field(tuple(problem.get("loc", ())))
     code = _CODES_BY_TYPE.get(kind, "invalid")
+    if kind == "json_invalid":
+        field = "body"  # the location is a character offset: not a field
     if kind == "value_error":
         # A validator of ours raised `ValueError("<fixed sentence>")`: the table names the rule.
         rule = value_rule(str((problem.get("ctx") or {}).get("error", "")))
