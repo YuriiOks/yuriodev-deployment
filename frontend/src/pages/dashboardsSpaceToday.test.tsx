@@ -154,9 +154,9 @@ describe('the Today view of the spaces', () => {
     renderAt('/dashboards/work-2');
     expect(await within(main()).findByText(/3 open tasks, 1 priority\./)).toBeInTheDocument();
     expect(within(main()).getByText('Nothing to decide.')).toBeInTheDocument();
-    const breakdown = within(within(main()).getByRole('region', { name: 'Meetings by day' }));
-    expect(breakdown).toHaveTextContent('1 h 30 min');
-    expect(breakdown.getByText(/No meetings on/)).toBeInTheDocument();
+    const meetings = within(main()).getByRole('region', { name: 'Meetings by day' });
+    expect(meetings).toHaveTextContent('1 h 30 min');
+    expect(within(meetings).getByText(/No meetings on/)).toBeInTheDocument();
     expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
   });
 
