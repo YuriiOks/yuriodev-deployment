@@ -267,7 +267,8 @@ def _add_mcp(app: FastAPI) -> None:
         return cast(DashboardsRuntime | None, app.state.dashboards)
 
     currency = app.state.settings.finance_display_currency
-    server = build_mcp_server(runtime, app.state.clock, app.state.zone, currency)
+    owner = app.state.settings.owner_name
+    server = build_mcp_server(runtime, app.state.clock, app.state.zone, currency, owner)
     app.state.mcp = server
     endpoint = McpEndpoint(server.session_manager, runtime)
     app.router.routes.append(Route(MCP_PATH, endpoint, methods=["POST"]))

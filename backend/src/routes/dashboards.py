@@ -72,6 +72,7 @@ async def bootstrap(request: Request, settings: SettingsDep, clock: ClockDep) ->
         spaces=[SpaceRef(id=s, name=names.get(s, s), icon=icons.get(s)) for s in spaces],
         areas=[AreaOut.model_validate(area) for area in areas],
         server_time=now,
+        owner_name=settings.owner_name,
     )
 
 
@@ -93,6 +94,7 @@ async def today_page(
         zone,
         settings.finance_display_currency,
         assistant_enabled=settings.assistant_enabled(scope),
+        owner_name=settings.owner_name,
     )
 
 
