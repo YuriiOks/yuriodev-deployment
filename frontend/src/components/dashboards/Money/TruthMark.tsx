@@ -12,11 +12,22 @@ import styles from './Recurring.module.css';
  * last matched date), "no charge seen" (its paying account is collected and nothing matched) or "from your list, not checked" (no account
  * of ours pays it, so it is only the owner's note).
  */
-const TruthMark: React.FC<{ evidence: Evidence | null }> = ({ evidence }) => {
+const TruthMark: React.FC<{ evidence: Evidence | null; compact?: boolean }> = ({ evidence, compact = false }) => {
   const { t, lang } = useDashboardLang();
   const x = t.money.rec.truth;
   const truth = truthOf(evidence);
   const words = truth === 'confirmed' ? (evidence?.lastMatchedOn ? fill(x.confirmedOn, { date: dayLabel(evidence.lastMatchedOn, lang) }) : x.confirmed) : truth === 'none_seen' ? x.noneSeen : x.unchecked;
+  // Compact: one small quiet mark (a hollow dot when it is only the owner's note, a check when a statement confirmed it), the words as its name and tooltip;
+  // the block's footer says the sentence once.
+  if (compact) {
+    return (
+      <span className={styles.truthMark} data-truth={truth} role="img" aria-label={words} title={words}>
+        {truth === 'confirmed' && <DashIcon name="check" size={14} />}
+        {truth === 'none_seen' && <DashIcon name="alert" size={14} />}
+        {truth === 'unchecked' && <span aria-hidden="true" className={styles.truthDot} />}
+      </span>
+    );
+  }
   return (
     <span className={styles.truth} data-truth={truth}>
       {truth === 'confirmed' && <DashIcon name="check" size={14} />}

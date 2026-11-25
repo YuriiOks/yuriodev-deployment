@@ -66,7 +66,7 @@ const DashboardsMoney = () => {
   const accounts = useFinanceAccounts(notToday);
   const summary = useFinanceSummary(notToday);
   const spend = useFinanceCategories(shows(['spending', 'transactions', 'all']));
-  const providers = useProviderLogos(shows(['wallet', 'transactions', 'attention', 'all']));
+  const providers = useProviderLogos(shows(['wallet', 'payments', 'transactions', 'attention', 'all']));
   const logos = providers.value ?? NO_LOGOS;
   const [selected, setSelected] = useState<string | null>(null);
   // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
@@ -190,7 +190,7 @@ const DashboardsMoney = () => {
             <UpcomingToolbar days={days} onDays={setDays} />
             {upcoming.status === 'loading' && <LoadingBlock rows={3} />}
             {upcoming.status === 'error' && <InlineError message={m.rec.upcomingFailed} onRetry={upcoming.reload} />}
-            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} mode={mode} />}
+            {upcoming.value && <MoneyUpcoming data={upcoming.value} days={days} accounts={accounts.value?.accounts ?? []} recurring={recurring.value?.recurring ?? []} logos={logos} mode={mode} />}
           </section>
   );
   const debtsSection = (

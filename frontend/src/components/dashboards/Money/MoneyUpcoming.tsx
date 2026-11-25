@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import type { FinanceAccount } from '../../../services/dashboards/financeApi';
+import type { FinanceAccount, ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import type { Evidence, Recurring, Upcoming, UpcomingItem } from '../../../services/dashboards/recurringApi';
@@ -22,14 +22,16 @@ function coverWords(item: UpcomingItem, lang: string, r: ReturnType<typeof useDa
   return r.coverUnknown;
 }
 
-const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; accounts: readonly FinanceAccount[]; mode: MoneyDisplay }> = ({ item, evidence, accounts, mode }) => {
+const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; accounts: readonly FinanceAccount[]; logos: Readonly<Record<string, ProviderLogo>>; mode: MoneyDisplay }> = ({ item, evidence, accounts, logos, mode }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
   const account = item.accountId ? accounts.find((row) => row.id === item.accountId) : undefined;
+  // A payment with no picture of its own and no colour of its own wears its paying bank's colour pair, when the server gives one.
+  const pair = !item.iconUrl && !item.color && account ? (logos[account.provider]?.colors ?? null) : null;
   const payer = account ? fill(r.paidFrom, { account: account.name }) : item.paymentMethod;
   return (
     <li className={styles.due} data-covered={item.covered === null ? 'unknown' : String(item.covered)} data-overdue={item.overdue ? 'true' : undefined}>
-      <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} />
+      <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} pair={pair} />
       <span className={styles.dueMain}>
         <span className={styles.dueLine}>
           <strong className={styles.dueName}>{item.name}</strong>
@@ -41,7 +43,7 @@ const UpcomingRow: React.FC<{ item: UpcomingItem; evidence: Evidence | null; acc
         )}
       </span>
       <span className={styles.dueEnd}>
-        <TruthMark evidence={evidence} />
+        <TruthMark evidence={evidence} compact />
         <strong className={styles.dueAmount}>
           <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} />
         </strong>
@@ -91,11 +93,13 @@ export interface MoneyUpcomingProps {
   accounts: readonly FinanceAccount[];
   /** The payments, for how far each is verified and which plans have ended by their schedule. */
   recurring: readonly Recurring[];
+  /** The banks' logos answer: its colours tint a payment's letter tile. */
+  logos: Readonly<Record<string, ProviderLogo>>;
   mode: MoneyDisplay;
 }
 
 /** The "Upcoming payments" body: the window switch, the payments grouped by day, and the totals the server added up. */
-const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, recurring, mode }) => {
+const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, recurring, logos, mode }) => {
   const { t, lang } = useDashboardLang();
   const r = t.money.rec;
   // By default the next 7 days, at most 8 rows (when nothing falls in the week, the first few that follow); "Show all" opens the whole window.
@@ -131,7 +135,7 @@ const MoneyUpcoming: React.FC<MoneyUpcomingProps> = ({ data, days, accounts, rec
                 <h3 className={styles.dayHead}>{dayHeading(group.date, group.daysUntil, lang, r, group.overdue)}</h3>
                 <ul className={styles.dueList}>
                   {group.items.map((item, index) => (
-                    <UpcomingRow key={`${item.recurringId}-${index}`} item={item} evidence={byId.get(item.recurringId)?.evidence ?? null} accounts={accounts} mode={mode} />
+                    <UpcomingRow key={`${item.recurringId}-${index}`} item={item} evidence={byId.get(item.recurringId)?.evidence ?? null} accounts={accounts} logos={logos} mode={mode} />
                   ))}
                 </ul>
               </li>

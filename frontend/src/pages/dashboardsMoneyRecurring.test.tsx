@@ -944,6 +944,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
     });
     setup({
       finance: {
+        providers: [{ id: 'acme-bank', name: 'Acme Bank', colors: { background: '#123456', foreground: '#ffffff' }, logo: { on_light: null, on_dark: null, mark: null } }],
         recurring: [
           rec('r-1', 'Streaming', { account_id: 'a-current', evidence: evidence(3, 3, '2026-11-05'), schedule_state: 'on_track' }),
           rec('r-2', 'Gym', { account_id: 'a-current', evidence: evidence(0, 3), schedule_state: 'on_track' }),
@@ -954,7 +955,7 @@ describe('the Money page: what is verified and what is only on the list', () => 
         upcoming: {
           from_date: '2026-11-23',
           to_date: '2026-12-07',
-          items: [day('r-1', 'Streaming', 0, 1000), day('r-2', 'Gym', 1, 2500), day('r-3', 'Phone plan', 2, 500), day('r-4', 'Finished plan', 3, 7000)],
+          items: [day('r-1', 'Streaming', 0, 1000, { account_id: 'a-current' }), day('r-2', 'Gym', 1, 2500), day('r-3', 'Phone plan', 2, 500), day('r-4', 'Finished plan', 3, 7000)],
           totals: [{ currency: 'GBP', amount: 11000, display_amount: null, converted: false }],
           display: { currency: 'GBP', rates: {}, missing: [], complete: true, total: 11000 },
         },
@@ -966,9 +967,15 @@ describe('the Money page: what is verified and what is only on the list', () => 
     await panel.findByText('Streaming');
     expect(panel.queryByText('Finished plan')).toBeNull();
     const row = (name: string) => within(panel.getByText(name).closest('li') as HTMLElement);
-    expect(row('Streaming').getByText('confirmed by the bank · last Nov 5, 2026')).toBeInTheDocument();
-    expect(row('Gym').getByText('no charge seen')).toBeInTheDocument();
-    expect(row('Phone plan').getByText('from your list, not checked')).toBeInTheDocument();
+    // In the rows one small mark says it, its words are its name; the footer says each sentence once.
+    expect(row('Streaming').getByRole('img', { name: 'confirmed by the bank · last Nov 5, 2026' })).toBeInTheDocument();
+    expect(row('Gym').getByRole('img', { name: 'no charge seen' })).toBeInTheDocument();
+    expect(row('Phone plan').getByRole('img', { name: 'from your list, not checked' })).toHaveAttribute('title', 'from your list, not checked');
+    expect(row('Phone plan').queryByText('from your list, not checked')).toBeNull();
+    // A payment with no picture and no colour of its own wears the colour pair of the bank that pays it.
+    const tile = row('Streaming').getByText('S').closest('span') as HTMLElement;
+    expect(tile.style.getPropertyValue('--tile-bg')).toBe('#123456');
+    expect(tile.style.getPropertyValue('--tile-fg')).toBe('#ffffff');
     expect(panel.getByText('Confirmed by the bank: £10.00')).toBeInTheDocument();
     expect(panel.getByText('No charge seen: £25.00')).toBeInTheDocument();
     expect(panel.getByText('From your list, not checked: £5.00')).toBeInTheDocument();
