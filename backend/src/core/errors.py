@@ -1,6 +1,5 @@
 """One JSON error shape, {error, message, request_id}, for every error the app answers itself."""
 
-import json
 import re
 from collections.abc import Mapping
 from decimal import Decimal
@@ -67,10 +66,10 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
 
 async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
     app_exc = cast(AppError, exc)  # registered for this type only
-    response = error_response(app_exc.status, app_exc.code, app_exc.message)
     if app_exc.reason is None:
-        return response
-    content = json.loads(response.body) | {"reason": app_exc.reason}
+        return error_response(app_exc.status, app_exc.code, app_exc.message)
+    body = ErrorBody(error=app_exc.code, message=app_exc.message, request_id=get_request_id())
+    content = body.model_dump() | {"reason": app_exc.reason}
     if app_exc.status == 422 and app_exc.field is not None:
         content["fields"] = [app_exc.field]
         content["issues"] = [
@@ -83,7 +82,7 @@ async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
                 "reason": app_exc.message,
             }
         ]
-    return JSONResponse(content, status_code=app_exc.status, headers=response.headers)
+    return JSONResponse(content, status_code=app_exc.status)
 
 
 _PLACES = frozenset({"body", "query", "path", "header", "cookie"})
