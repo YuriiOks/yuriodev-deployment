@@ -15,7 +15,6 @@ from src.dashboards.finance import service as finance_service
 from src.dashboards.finance.icons import MAX_ICON_BYTES
 from src.dashboards.finance.manual import AccountIn, ConnectionIn
 from src.dashboards.schemas import ProjectCreate, TaskCreate
-from src.routes import assistant, finance_recurring
 
 
 def _constraints(annotation: object) -> typing.Iterator[object]:
@@ -36,6 +35,9 @@ def _bound(model: type[BaseModel], name: str, attr: str) -> int:
 
 
 def limits() -> dict[str, Any]:
+    # The routes import the dashboards router, which serves these: imported here, not at the top.
+    from src.routes import assistant, finance_recurring
+
     return {
         "task": {
             "title": _bound(TaskCreate, "title", "max_length"),
