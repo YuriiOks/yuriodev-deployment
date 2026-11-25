@@ -503,7 +503,7 @@ describe('the Money page: account kinds, goals and categories', () => {
     expect(over).toHaveTextContent('overdrawn -£747.82');
     expect(over).toHaveTextContent('your limit · 74% of the £1,000.00 overdraft used · £252.18 free');
     const trip = opened().getByText('Trip').closest('li') as HTMLElement;
-    expect(trip).toHaveTextContent('25% of the £1,000.00 goal');
+    expect(trip).toHaveTextContent('25% of £1,000.00');
     expect(trip.querySelector('[aria-hidden="true"] > div')).toHaveStyle({ width: '25%' });
     // A pot with no goal has no bar.
     expect((opened().getByText('Rainy day').closest('li') as HTMLElement).textContent).not.toMatch(/goal/);
