@@ -289,7 +289,7 @@ describe('the Money page: Today', () => {
     renderAt(PATH);
     const banks = within(await within(main()).findByRole('region', { name: 'Banks today' }));
     expect(await banks.findByText(/updated 5 minutes ago/)).toBeInTheDocument();
-    expect(banks.getByText(/Acme bank · £1,500\.00/)).toBeInTheDocument();
+    expect(banks.getByText(/Acme Bank · £1,500\.00/)).toBeInTheDocument();
     expect(banks.getByRole('link', { name: 'Wallet →' })).toHaveAttribute('href', expect.stringContaining('view=wallet'));
   });
 

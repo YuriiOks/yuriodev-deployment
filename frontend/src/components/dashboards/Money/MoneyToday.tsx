@@ -3,7 +3,7 @@ import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath } from '../../../data/site';
 import { useStoredImages } from '../../../hooks/useImageBundles';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import { converted, isCategory, type Category } from '../../../services/dashboards/financeApi';
+import { converted, isCategory, type Category, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import { ATTENTION_KINDS, markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type AttentionKind } from '../../../services/dashboards/recurringApi';
 import type { TodayData, TodayQueueEntry, TodaySoonEntry } from '../../../services/dashboards/todayApi';
@@ -21,6 +21,8 @@ import { partOfDay } from './todayModel';
 
 const DUE_DAYS = 14;
 
+const EMPTY_LOGO: ProviderLogo = { onLight: null, onDark: null, mark: null, name: null, colors: null, entry: null, reconnect: null, reconnectPath: null };
+const isColors = (value: unknown): value is { background: string; foreground: string } => typeof value === 'object' && value !== null && typeof (value as { background?: unknown }).background === 'string' && typeof (value as { foreground?: unknown }).foreground === 'string';
 const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 const text = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
 
@@ -249,8 +251,11 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
                 const lead = balances.find((balance) => typeof balance.currency === 'string' && typeof balance.amount === 'number');
                 const base = f.manual === true ? (lastOk ? fill(td.bank.byHand, { date: dayLabel(lastOk, lang) }) : td.bank.never) : lastOk ? fill(td.bank.updated, { when: ago(lastOk, lang) }) : td.bank.never;
                 const amount = lead ? formatMinor(lead.amount as number, lead.currency as string, lang) : '';
-                const name = row.subject.name ?? bankLabel(provider, images.logos[provider]);
-                return <SideRow key={row.subject.id ?? provider} icon={<BankMark provider={provider} logo={images.logos[provider]} />} when={look ? `${td.bank.look} · ${base}` : base} what={`${name}${amount ? ` · ${amount}` : ''}`} />;
+                // The row carries the bank's own colours and name, so its mark needs no logo to be drawn.
+                const colors = isColors(f.colors) ? f.colors : null;
+                const logo = images.logos[provider] ?? (colors ? { ...EMPTY_LOGO, colors } : undefined);
+                const name = row.subject.name ?? text(f.provider_name) ?? bankLabel(provider, logo);
+                return <SideRow key={row.subject.id ?? provider} icon={<BankMark provider={provider} logo={logo} />} when={look ? `${td.bank.look} · ${base}` : base} what={`${name}${amount ? ` · ${amount}` : ''}`} />;
               })
             )}
           </SideCard>

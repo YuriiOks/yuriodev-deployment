@@ -358,11 +358,12 @@ const RETRY_AFTER_429_MS = [2000, 5000] as const;
 let inFlight = 0;
 const waiting: (() => void)[] = [];
 
-function acquire(signal?: AbortSignal): Promise<void> {
+/** Takes a slot at once when one is free (so a request starts in the same turn, as it always did), else a promise that resolves when it is this one's turn. */
+function acquire(signal?: AbortSignal): Promise<void> | null {
   if (signal?.aborted) return Promise.reject(new ApiError('network', 0, 'aborted'));
-  if (inFlight < MAX_IN_FLIGHT) {
+  if (inFlight < MAX_IN_FLIGHT && waiting.length === 0) {
     inFlight += 1;
-    return Promise.resolve();
+    return null;
   }
   return new Promise((resolve, reject) => {
     const turn = () => {
@@ -415,7 +416,8 @@ function retryAfterOf(header: string | null): number | null {
 /** One JSON request: resolves with the parsed body (null for 204), rejects with an ApiError. Goes through the gate above. */
 export async function request(path: string, options: RequestOptions = {}): Promise<unknown> {
   for (let attempt = 0; ; attempt += 1) {
-    await acquire(options.signal);
+    const turn = acquire(options.signal);
+    if (turn) await turn;
     let wait: number;
     try {
       return await send(path, options);
