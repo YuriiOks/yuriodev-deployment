@@ -5,6 +5,7 @@ import { useStoredImages } from '../../../hooks/useImageBundles';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import { converted, isCategory, type Category, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
+import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { ATTENTION_KINDS, markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type AttentionKind } from '../../../services/dashboards/recurringApi';
 import type { TodayData, TodayQueueEntry, TodaySoonEntry } from '../../../services/dashboards/todayApi';
 import DashIcon from '../DashIcon/DashIcon';
@@ -66,12 +67,12 @@ function itemOf(entry: TodayQueueEntry, displayCurrency: string | null): Attenti
 }
 
 /** One decision of the queue: what the item asks, phrased as a question, one line of fact, and exactly two actions. Everything it needs came with the answer. */
-const QueueCard: React.FC<{ entry: TodayQueueEntry; displayCurrency: string | null; images: ReturnType<typeof useStoredImages>; onChanged: () => Promise<void> }> = ({ entry, displayCurrency, images, onChanged }) => {
+const QueueCard: React.FC<{ entry: TodayQueueEntry; displayCurrency: string | null; mode: MoneyDisplay; images: ReturnType<typeof useStoredImages>; onChanged: () => Promise<void> }> = ({ entry, displayCurrency, mode, images, onChanged }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const td = t.money.today;
   const item = itemOf(entry, displayCurrency);
-  const fact = useCardFact(item ?? FALLBACK_ITEM, 'base');
+  const fact = useCardFact(item ?? FALLBACK_ITEM, mode);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!item) return null;
@@ -110,7 +111,7 @@ const QueueCard: React.FC<{ entry: TodayQueueEntry; displayCurrency: string | nu
 const FALLBACK_ITEM: AttentionItem = { key: '', kind: 'overdraft', severity: 'info', title: '', subjectType: 'account', subjectId: '', subjectName: null, provider: null, dueDate: null, amount: null, currency: null, display: null, converted: false, facts: {}, state: 'active', snoozedUntil: null };
 
 /** One row of "due soon": the payment, its amount and when, and one action: "Paid". */
-const SoonRow: React.FC<{ entry: TodaySoonEntry; displayCurrency: string | null; images: ReturnType<typeof useStoredImages>; onChanged: () => Promise<void> }> = ({ entry, displayCurrency, images, onChanged }) => {
+const SoonRow: React.FC<{ entry: TodaySoonEntry; displayCurrency: string | null; mode: MoneyDisplay; images: ReturnType<typeof useStoredImages>; onChanged: () => Promise<void> }> = ({ entry, displayCurrency, mode, images, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const td = t.money.today;
   const [busy, setBusy] = useState(false);
@@ -133,7 +134,7 @@ const SoonRow: React.FC<{ entry: TodaySoonEntry; displayCurrency: string | null;
   const amount = num(f.amount);
   const code = text(f.currency);
   const shown = converted(f.display_amount, displayCurrency);
-  const amountText = f.converted === true && shown ? `≈ ${formatMinor(shown.amount, shown.currency, lang)}` : amount !== null && code ? formatMinor(amount, code, lang) : '';
+  const amountText = mode === 'base' && f.converted === true && shown ? `≈ ${formatMinor(shown.amount, shown.currency, lang)}` : amount !== null && code ? formatMinor(amount, code, lang) : '';
   const when = days <= 1 ? dueWhen(days, t.money.rec) : dayLabel(due, lang);
   return <TodaySoonRow item={{ key: entry.key, icon: <RecurringIcon name={entry.subject.name ?? ''} iconUrl={id ? (images.icons[id] ?? null) : null} color={null} />, name: entry.subject.name ?? '', chips: [amountText, when].filter(Boolean), action: { label: td.paid, onClick: () => void paid(), busy } }} />;
 };
@@ -149,6 +150,8 @@ export interface MoneyTodayProps {
   controls: React.ReactNode;
   /** The answer is asked again. */
   onChanged: () => Promise<void>;
+  /** Pounds, or each account's own currency (the page's switch). */
+  mode: MoneyDisplay;
 }
 
 /**
@@ -157,7 +160,7 @@ export interface MoneyTodayProps {
  * attention list), what is due soon, two figures, where the money went with its finding, the banks with how fresh each one's data is, the streak
  * and Ask. Nothing else is fetched for it (the lists load only when their tab is opened); pictures are drawn from the stored bundles.
  */
-const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, onChanged }) => {
+const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, onChanged, mode }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const td = m.today;
@@ -228,12 +231,12 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
         count: data?.queueTotal ?? 0,
         countLabel: fill(td.queueOpen, { n: data?.queueTotal ?? 0 }),
         countTo: '?view=attention',
-        cards: queue.map((entry) => <QueueCard key={entry.key} entry={entry} displayCurrency={displayCurrency} images={images} onChanged={onChanged} />),
+        cards: queue.map((entry) => <QueueCard key={entry.key} entry={entry} displayCurrency={displayCurrency} mode={mode} images={images} onChanged={onChanged} />),
         shown: queue.length,
         empty: td.queueEmpty,
         oneAtATime: (data?.queueTotal ?? 0) > 1 ? { label: td.oneAtATime, to: '?view=attention&walk=1' } : null,
       }}
-      soon={{ title: td.soonTitle, linkLabel: td.soonLink, linkTo: '?view=payments', rows: soon.map((entry) => <SoonRow key={entry.key} entry={entry} displayCurrency={displayCurrency} images={images} onChanged={onChanged} />), shown: soon.length, empty: td.soonEmpty }}
+      soon={{ title: td.soonTitle, linkLabel: td.soonLink, linkTo: '?view=payments', rows: soon.map((entry) => <SoonRow key={entry.key} entry={entry} displayCurrency={displayCurrency} mode={mode} images={images} onChanged={onChanged} />), shown: soon.length, empty: td.soonEmpty }}
       stats={stats}
       breakdown={{ title: td.breakdown.title, period: month ? monthName(month, lang) : '', rows: rows.map((row) => ({ key: row.key, icon: <CategoryMark category={row.key as Category} />, name: m.categories[row.key as Category], value: formatMinor(row.value, text(row.facts.currency) ?? spentCode, lang), width: largest > 0 ? Math.round((row.value / largest) * 100) : 0 })), insight, empty: td.breakdown.empty }}
       side={

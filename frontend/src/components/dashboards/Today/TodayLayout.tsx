@@ -115,6 +115,38 @@ const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'q
   );
 };
 
+type HeaderProps = Pick<TodayProps, 'mark' | 'place' | 'placeIsHeading' | 'nav' | 'controls' | 'markTo'>;
+
+/** The header row every view of a page wears: the mark (the way back) and the name, the section tabs, and the quiet controls at the far right. */
+export const TodayHeader: React.FC<HeaderProps> = ({ mark, place, placeIsHeading = false, nav, controls, markTo }) => (
+  <header className={styles.top}>
+    <div className={styles.space}>
+      {markTo ? (
+        <Link className={styles.markLink} to={markTo.to} aria-label={markTo.label}>
+          <span aria-hidden="true" className={styles.mark}>
+            {mark}
+          </span>
+        </Link>
+      ) : (
+        <span aria-hidden="true" className={styles.mark}>
+          {mark}
+        </span>
+      )}
+      {placeIsHeading ? <h1 className={styles.place}>{place}</h1> : <strong className={styles.place}>{place}</strong>}
+    </div>
+    {nav}
+    {controls && <div className={styles.controls}>{controls}</div>}
+  </header>
+);
+
+/** The same header row over a page's other views, so switching tabs never moves the tabs. */
+export const TodayFrame: React.FC<HeaderProps & { children: React.ReactNode }> = ({ children, ...header }) => (
+  <div className={styles.today}>
+    <TodayHeader {...header} />
+    {children}
+  </div>
+);
+
 /**
  * The Today view of a space: the same structure on every page. Top: the space's mark and name, its section tabs, a greeting and one sentence
  * that says what matters now. Left: "First this" (at most three decisions, each with exactly two actions, and a way to walk through them one
@@ -123,24 +155,7 @@ const Action: React.FC<{ action: TodayAction; kind: 'primary' | 'secondary' | 'q
  */
 const TodayLayout: React.FC<TodayProps> = ({ mark, place, placeIsHeading = false, nav, controls, markTo, hello, summary, queue, soon, stats, breakdown, side }) => (
   <div className={styles.today}>
-    <header className={styles.top}>
-      <div className={styles.space}>
-        {markTo ? (
-          <Link className={styles.markLink} to={markTo.to} aria-label={markTo.label}>
-            <span aria-hidden="true" className={styles.mark}>
-              {mark}
-            </span>
-          </Link>
-        ) : (
-          <span aria-hidden="true" className={styles.mark}>
-            {mark}
-          </span>
-        )}
-        {placeIsHeading ? <h1 className={styles.place}>{place}</h1> : <strong className={styles.place}>{place}</strong>}
-      </div>
-      {nav}
-      {controls && <div className={styles.controls}>{controls}</div>}
-    </header>
+    <TodayHeader mark={mark} place={place} placeIsHeading={placeIsHeading} nav={nav} controls={controls} markTo={markTo} />
     <div className={styles.intro}>
       <h2 className={styles.hello}>
         <span aria-hidden="true" className={styles.hash}>

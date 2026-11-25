@@ -130,7 +130,9 @@ describe('the Money page: totals and the wallet', () => {
     setup();
     renderAt(ALL);
     await banksReady();
-    const blocks = within(main().querySelector('header') as HTMLElement).getAllByRole('listitem');
+    // The totals strip is at the top of the Wallet view's body.
+    const strip = (await screen.findByText(/GBP · accounts: 9/)).closest('ul')?.parentElement as HTMLElement;
+    const blocks = within(strip).getAllByRole('listitem');
     // GBP: the open accounts of two banks (an overdraft counts as negative); archived accounts are left out.
     expect(blocks.map((block) => block.textContent)).toEqual([
       expect.stringContaining('GBP · accounts: 9'),
@@ -142,7 +144,7 @@ describe('the Money page: totals and the wallet', () => {
     expect(blocks[0]).toHaveTextContent('this month: spent £30.00 · received £1,500.00');
     expect(blocks[1]).toHaveTextContent('-₴67,826.00');
     expect(blocks[2]).toHaveTextContent('€0.21');
-    expect(main().querySelector('header')).not.toHaveTextContent(/UAH [\d.,]+|EUR [\d.,]+/);
+    expect(strip).not.toHaveTextContent(/UAH [\d.,]+|EUR [\d.,]+/);
   });
 
   it('stacks every bank as a card with its money, opens the first, and opens another on a click', async () => {
@@ -629,7 +631,7 @@ describe('the Money page: pounds by default, originals beside', () => {
     const choice = within(main()).getByRole('group', { name: 'Amounts' });
     expect(within(choice).getByRole('button', { name: 'in pounds' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(choice).getByRole('button', { name: 'in account currency' })).toHaveAttribute('aria-pressed', 'false');
-    const header = main().querySelector('header') as HTMLElement;
+    const header = (await within(main()).findByText('in all')).closest('div')?.parentElement as HTMLElement;
     expect(header).toHaveTextContent('in all');
     expect(header).toHaveTextContent('≈ £743.50');
     // The rate's time is the oldest of the rates used (08:00, not 09:30).

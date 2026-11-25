@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AttentionItem } from '../services/dashboards/recurringApi';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useDashboardLang } from '../context/useDashboardLang';
 import InlineError from '../components/dashboards/InlineError/InlineError';
 import LoadingBlock from '../components/dashboards/LoadingBlock/LoadingBlock';
@@ -9,6 +9,7 @@ import AttentionScroller from '../components/dashboards/Money/AttentionScroller'
 import AttentionSheet from '../components/dashboards/Money/AttentionSheet';
 import MoneyAttentionView from '../components/dashboards/Money/MoneyAttentionView';
 import MoneyToday from '../components/dashboards/Money/MoneyToday';
+import { TodayFrame } from '../components/dashboards/Today/TodayLayout';
 import MoneyViewSwitch from '../components/dashboards/Money/MoneyViewSwitch';
 import { MONEY_VIEWS, type MoneyView } from '../components/dashboards/Money/moneyViews';
 import { orderedActive } from '../components/dashboards/Money/attentionModel';
@@ -144,6 +145,10 @@ const DashboardsMoney = () => {
     writeMoneyDisplay(next);
   };
   const converted = accounts.value ? hasConversion(accounts.value.accounts) : false;
+  // Today holds no accounts: the switch is offered when a row of its one answer was converted.
+  const todayConverted = [...(todayData.value?.soon ?? []), ...(todayData.value?.queue ?? [])].some((entry) => entry.facts.converted === true);
+  const hiddenFact = todayData.value?.summary.facts.hidden_attention;
+  const hiddenAttention = typeof hiddenFact === 'number' && hiddenFact > 0 ? hiddenFact : 0;
   const banks = accounts.value ? groupBanks(accounts.value.accounts, accounts.value.connections) : [];
   // "Updated" says the newest balance read, not the oldest; a bank read by its own API that has gone quiet is warned about apart.
   const newest = view === 'today' ? (todayData.value?.generatedAt ?? null) : (summary.value?.asOfNewest ?? summary.value?.asOf ?? null);
@@ -163,6 +168,7 @@ const DashboardsMoney = () => {
   // The sections of the page: each is a view of its own (Wallet, Payments, Spending, Transactions); `all` shows them together.
   const walletSection = (
     <section aria-labelledby="money-wallet-title" className={money.panel}>
+            {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
             <div className={money.head}>
               <h2 id="money-wallet-title" className={money.title}>
                 {m.walletTitle}
@@ -239,45 +245,25 @@ const DashboardsMoney = () => {
     </>
   );
 
-  return (
+  const showSwitch = live && (view === 'today' ? todayConverted : converted);
+  const modeSwitch = showSwitch ? (
+    <div role="group" aria-label={m.displayLabel} className={money.display}>
+      {(['base', 'native'] as const).map((choice) => (
+        <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
+          {choice === 'base' ? m.displayBase : m.displayNative}
+        </button>
+      ))}
+    </div>
+  ) : null;
+  const controls = (
     <>
-      {view !== 'today' && (
-      <header className={styles.header}>
-        <div className={styles.titles}>
-          <h1 className={styles.title}>{m.title}</h1>
-          <p className={styles.sub}>
-            <Link to={pagePath('dashboards-personal')} className={styles.back}>
-              {m.back}
-            </Link>
-            {asOf && <> · {fill(m.updated, { when: asOf })}</>}
-            {live && (
-              <>
-                {' · '}
-                <button type="button" className={styles.refresh} disabled={refreshing} onClick={() => void refresh()}>
-                  {refreshing ? m.refreshing : m.refresh}
-                </button>
-              </>
-            )}
-            {staleSince && (
-              <>
-                {' · '}
-                <span className={styles.stale}>{fill(m.staleBanks, { when: whenLabel(staleSince, lang) })}</span>
-              </>
-            )}
-          </p>
-          {live && converted && (
-            <div role="group" aria-label={m.displayLabel} className={money.display}>
-              {(['base', 'native'] as const).map((choice) => (
-                <button key={choice} type="button" className={money.displayChoice} aria-pressed={mode === choice} onClick={() => choose(choice)}>
-                  {choice === 'base' ? m.displayBase : m.displayNative}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {live && accounts.value && <MoneyTotals accounts={accounts.value.accounts} summary={summary.value} mode={mode} />}
-      </header>
-      )}
+      <span className={styles.todayFresh}>{freshness}</span>
+      {modeSwitch}
+    </>
+  );
+
+  const body = (
+    <>
       {consent && (
         <div role={consent === 'connected' ? 'status' : 'alert'} className={styles.consent} data-result={consent}>
           <span>{m.consent[consent]}</span>
@@ -288,7 +274,6 @@ const DashboardsMoney = () => {
       )}
       {live && summary.status === 'error' && <InlineError message={m.summaryFailed} onRetry={summary.reload} />}
       {live && outdated.length > 0 && <InlineError message={m.refreshFailed} onRetry={retryOutdated} />}
-      {live && view !== 'today' && <MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
       {live && view === 'all' && attention.status === 'loading' && (
         <p role="status" className={money.none}>
           {m.checkingAttention}
@@ -323,15 +308,12 @@ const DashboardsMoney = () => {
             </>
           ) : view === 'today' ? (
             <MoneyToday
-              nav={<MoneyViewSwitch view={view} attention={todayData.value?.queueTotal ?? 0} hidden={0} />}
+              nav={<MoneyViewSwitch view={view} attention={todayData.value?.queueTotal ?? 0} hidden={hiddenAttention} />}
               data={todayData.value}
               failed={todayData.status === 'error' || todayData.refreshFailed}
               onChanged={changed}
-              controls={
-                <>
-                  <span className={styles.todayFresh}>{freshness}</span>
-                </>
-              }
+              controls={controls}
+              mode={mode}
             />
           ) : view === 'wallet' ? (
             walletSection
@@ -359,6 +341,15 @@ const DashboardsMoney = () => {
         <AttentionSheet item={sheetItem} recurring={recurring.value?.recurring ?? []} accounts={accounts.value?.accounts ?? []} logos={logos} mode={mode} opener={sheet.opener} onClose={() => setSheet(null)} onActed={acted} onRefresh={changed} onOpenBank={setSelected} />
       )}
     </>
+  );
+  // Every view wears the same header row (the mark, the name and the tabs at the left; when it was read, Refresh and the display switch at the right):
+  // Today draws it itself, the others sit under it, so switching tabs never moves them.
+  return view === 'today' ? (
+    body
+  ) : (
+    <TodayFrame mark="£" place={m.title} placeIsHeading markTo={{ to: pagePath('dashboards-personal'), label: m.back }} controls={controls} nav={<MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}>
+      {body}
+    </TodayFrame>
   );
 };
 

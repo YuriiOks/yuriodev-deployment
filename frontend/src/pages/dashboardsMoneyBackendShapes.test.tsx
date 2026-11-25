@@ -250,7 +250,7 @@ describe('the Money page: when the data was read', () => {
     });
     const user = userEvent.setup();
     renderAt(ALL);
-    const sub = (await screen.findByRole('heading', { level: 1 })).parentElement as HTMLElement;
+    const sub = (await screen.findByRole('heading', { level: 1 })).closest('header') as HTMLElement;
     await waitFor(() => expect(sub).toHaveTextContent(/updated Nov 24/));
     expect(sub).not.toHaveTextContent(/updated Nov 20/);
     expect(sub).toHaveTextContent('A bank has not been read since Nov 20');
