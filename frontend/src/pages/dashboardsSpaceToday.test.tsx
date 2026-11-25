@@ -173,7 +173,7 @@ describe('the Today view of the spaces', () => {
     setup({ lang: 'ru', today: { personal } });
     renderAt('/dashboards/personal');
     expect(await within(main()).findByText(/Открыто задач: 12, из них в приоритете 3, просрочено 2\./)).toBeInTheDocument();
-    expect(within(main()).getByText('Готово ли «File the form»?')).toBeInTheDocument();
+    expect(within(main()).getByText('File the form')).toBeInTheDocument();
   });
 
   const week = (states: string[]) => states.map((state, index) => ({ date: `2026-11-${String(23 + index).padStart(2, '0')}`, state }));
