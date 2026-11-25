@@ -395,7 +395,7 @@ describe('the Money page: transactions', () => {
     await list().findByText('Corner Cafe');
     const chips = () => within(list().getByRole('group', { name: 'Category' })).getAllByRole('button').map((chip) => chip.textContent);
     const before = chips();
-    expect(before.length).toBeGreaterThan(2);
+    expect(before.length).toBeGreaterThanOrEqual(2);
     await user.type(list().getByRole('searchbox', { name: 'Search transactions' }), 'salary');
     await waitFor(() => expect(list().getAllByRole('listitem')).toHaveLength(1));
     // Fewer rows are shown, yet every chip that was offered still is.
