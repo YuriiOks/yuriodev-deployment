@@ -113,6 +113,10 @@ export interface RecurringStrings {
   readonly alreadyMoved: string;
   readonly noDataSentence: string;
   readonly noDataFact: string;
+  /** When an item's facts cannot be told in words: the page's own line, never the server's English title. */
+  readonly needsLook: string;
+  readonly needsLookShort: string;
+  readonly unnamed: string;
   readonly upcomingTitle: string;
   readonly upcomingFailed: string;
   readonly upcomingNone: string;
@@ -333,6 +337,9 @@ export const RECURRING_RU: RecurringStrings = {
   alreadyMoved: 'Платёж уже изменился: данные обновлены, проверьте ещё раз.',
   noDataSentence: 'По {bank} данных ещё нет: задайте баланс или загрузите выписку.',
   noDataFact: 'данных ещё нет',
+  needsLook: '{name}: требует внимания',
+  needsLookShort: 'требует внимания',
+  unnamed: 'Этот пункт',
   upcomingTitle: 'Ближайшие платежи',
   upcomingFailed: 'Не удалось загрузить ближайшие платежи.',
   upcomingNone: 'В ближайшие {days} дн. платежей нет.',
@@ -563,6 +570,9 @@ export const RECURRING_EN: RecurringStrings = {
   alreadyMoved: 'The payment has already changed: the data was refreshed, check it again.',
   noDataSentence: 'No data yet for {bank}: set a balance or upload a statement.',
   noDataFact: 'no data yet',
+  needsLook: '{name} needs a look',
+  needsLookShort: 'needs a look',
+  unnamed: 'This item',
   upcomingTitle: 'Upcoming payments',
   upcomingFailed: 'Could not load the upcoming payments.',
   upcomingNone: 'Nothing is due in the next {days} days.',

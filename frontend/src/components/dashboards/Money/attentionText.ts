@@ -12,11 +12,12 @@ export const num = (value: unknown): number | null => (typeof value === 'number'
 
 /** The item's subject: the payment, the account or the bank it is about. */
 export function useSubject(item: AttentionItem, recurring: readonly Recurring[], accounts: readonly FinanceAccount[], logos: Readonly<Record<string, ProviderLogo>>) {
+  const { t } = useDashboardLang();
   const payment = item.subjectType === 'recurring' ? recurring.find((row) => row.id === item.subjectId) : undefined;
   const account = item.subjectType === 'account' ? accounts.find((row) => row.id === item.subjectId) : undefined;
   // The item names its subject and provider itself; the lists are only for what needs the whole row (the payment to act on, the account to edit).
   const provider = item.provider ?? account?.provider ?? (typeof item.facts.provider === 'string' ? item.facts.provider : null);
-  return { payment, account, provider, name: item.subjectName ?? payment?.name ?? account?.name ?? (provider ? bankLabel(provider, logos[provider]) : item.title) };
+  return { payment, account, provider, name: item.subjectName ?? payment?.name ?? account?.name ?? (provider ? bankLabel(provider, logos[provider]) : t.money.rec.unnamed) };
 }
 
 /** The facts behind an item as one plain sentence in the page's language; the server's English title only when a fact is missing. */
@@ -31,38 +32,38 @@ export function useSentence(item: AttentionItem, name: string, mode: MoneyDispla
   switch (item.kind) {
     case 'due_not_covered': {
       const days = num(f.due_in_days);
-      if (days === null || native === null) return item.title;
+      if (days === null || native === null) return fill(r.needsLook, { name });
       const shortfall = money(num(f.shortfall), typeof f.account_currency === 'string' ? f.account_currency : null);
       return shortfall ? fill(r.sentence.due_not_covered, { name, when: dueWhen(days, r), amount: native, short: shortfall }) : fill(r.sentenceShort, { name, when: dueWhen(days, r), amount: native });
     }
     case 'missed_payment': {
       const days = num(f.days_overdue);
-      return days === null || own === null ? item.title : fill(r.sentence.missed_payment, { name, days, amount: own });
+      return days === null || own === null ? fill(r.needsLook, { name }) : fill(r.sentence.missed_payment, { name, days, amount: own });
     }
     case 'amount_changed': {
       const recorded = money(num(f.recorded_amount), item.currency);
-      return recorded === null || native === null ? item.title : fill(r.sentence.amount_changed, { name, charged: native, recorded });
+      return recorded === null || native === null ? fill(r.needsLook, { name }) : fill(r.sentence.amount_changed, { name, charged: native, recorded });
     }
     case 'credit_high': {
       const percent = num(f.used_percent);
       const owed = money(num(f.owed), item.currency);
       const limit = money(num(f.credit_limit), item.currency);
-      return percent === null || !owed || !limit ? item.title : fill(r.sentence.credit_high, { name, percent, owed, limit });
+      return percent === null || !owed || !limit ? fill(r.needsLook, { name }) : fill(r.sentence.credit_high, { name, percent, owed, limit });
     }
     case 'overdraft':
-      return own === null ? item.title : fill(r.sentence.overdraft, { name, over: own });
+      return own === null ? fill(r.needsLook, { name }) : fill(r.sentence.overdraft, { name, over: own });
     case 'overdrawn':
-      return own === null ? item.title : fill(r.sentence.overdrawn, { name, over: own });
+      return own === null ? fill(r.needsLook, { name }) : fill(r.sentence.overdrawn, { name, over: own });
     case 'reconsent':
       return fill(r.sentence.reconsent, { bank: name });
     case 'stale_statement': {
       if (f.no_data === true) return fill(r.noDataSentence, { bank: name });
       const days = num(f.days_old);
-      return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.sentence.stale_statement, { bank: name, days, date: dayLabel(f.as_of, lang) });
+      return days === null || typeof f.as_of !== 'string' ? fill(r.needsLook, { name }) : fill(r.sentence.stale_statement, { bank: name, days, date: dayLabel(f.as_of, lang) });
     }
     case 'stale_connection': {
       const hours = num(f.hours_old);
-      return hours === null || typeof f.since !== 'string' ? item.title : fill(r.sentence.stale_connection, { bank: name, hours, date: dayLabel(f.since, lang) });
+      return hours === null || typeof f.since !== 'string' ? fill(r.needsLook, { name }) : fill(r.sentence.stale_connection, { bank: name, hours, date: dayLabel(f.since, lang) });
     }
   }
 }
@@ -79,36 +80,36 @@ export function useFact(item: AttentionItem, mode: MoneyDisplay): string {
   switch (item.kind) {
     case 'due_not_covered': {
       const days = num(f.due_in_days);
-      if (days === null || native === null) return item.title;
+      if (days === null || native === null) return r.needsLookShort;
       const shortfall = money(num(f.shortfall), typeof f.account_currency === 'string' ? f.account_currency : null);
       return shortfall ? fill(r.fact.due_not_covered, { amount: native, when: dueWhen(days, r), short: shortfall }) : `${native} ${dueWhen(days, r)} · ${r.notCovered}`;
     }
     case 'missed_payment': {
       const days = num(f.days_overdue);
-      return days === null || own === null ? item.title : fill(r.fact.missed_payment, { amount: own, days });
+      return days === null || own === null ? r.needsLookShort : fill(r.fact.missed_payment, { amount: own, days });
     }
     case 'amount_changed': {
       const recorded = money(num(f.recorded_amount), item.currency);
-      return recorded === null || native === null ? item.title : fill(r.fact.amount_changed, { charged: native, recorded });
+      return recorded === null || native === null ? r.needsLookShort : fill(r.fact.amount_changed, { charged: native, recorded });
     }
     case 'credit_high': {
       const percent = num(f.used_percent);
-      return percent === null ? item.title : fill(r.fact.credit_high, { percent });
+      return percent === null ? r.needsLookShort : fill(r.fact.credit_high, { percent });
     }
     case 'overdraft':
-      return own === null ? item.title : fill(r.fact.overdraft, { over: own });
+      return own === null ? r.needsLookShort : fill(r.fact.overdraft, { over: own });
     case 'overdrawn':
-      return own === null ? item.title : fill(r.fact.overdrawn, { over: own });
+      return own === null ? r.needsLookShort : fill(r.fact.overdrawn, { over: own });
     case 'reconsent':
       return r.fact.reconsent;
     case 'stale_statement': {
       if (f.no_data === true) return r.noDataFact;
       const days = num(f.days_old);
-      return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.fact.stale_statement, { date: dayLabel(f.as_of, lang), days });
+      return days === null || typeof f.as_of !== 'string' ? r.needsLookShort : fill(r.fact.stale_statement, { date: dayLabel(f.as_of, lang), days });
     }
     case 'stale_connection': {
       const hours = num(f.hours_old);
-      return hours === null ? item.title : fill(r.fact.stale_connection, { hours });
+      return hours === null ? r.needsLookShort : fill(r.fact.stale_connection, { hours });
     }
   }
 }
@@ -126,24 +127,24 @@ export function useCardFact(item: AttentionItem, mode: MoneyDisplay): string {
   switch (item.kind) {
     case 'due_not_covered': {
       const days = num(f.due_in_days);
-      if (days === null) return item.title;
+      if (days === null) return r.needsLookShort;
       const shortfall = money(num(f.shortfall), typeof f.account_currency === 'string' ? f.account_currency : null);
       return shortfall ? fill(r.card.due_not_covered, { when: dueWhen(days, r), short: shortfall }) : `${dueWhen(days, r)}, ${r.notCovered}`;
     }
     case 'missed_payment': {
       const days = num(f.days_overdue);
-      return days === null || own === null ? item.title : fill(r.card.missed_payment, { days, amount: own });
+      return days === null || own === null ? r.needsLookShort : fill(r.card.missed_payment, { days, amount: own });
     }
     case 'amount_changed': {
       const recorded = money(num(f.recorded_amount), item.currency);
-      return recorded === null || native === null ? item.title : fill(r.card.amount_changed, { charged: native, recorded });
+      return recorded === null || native === null ? r.needsLookShort : fill(r.card.amount_changed, { charged: native, recorded });
     }
     case 'credit_high': {
       const percent = num(f.used_percent);
-      return percent === null ? item.title : fill(r.card.credit_high, { percent });
+      return percent === null ? r.needsLookShort : fill(r.card.credit_high, { percent });
     }
     case 'overdraft':
-      return own === null ? item.title : fill(r.card.overdraft, { over: own });
+      return own === null ? r.needsLookShort : fill(r.card.overdraft, { over: own });
     case 'overdrawn':
       return r.card.overdrawn;
     case 'reconsent':
@@ -151,11 +152,11 @@ export function useCardFact(item: AttentionItem, mode: MoneyDisplay): string {
     case 'stale_statement': {
       if (f.no_data === true) return r.noDataFact;
       const days = num(f.days_old);
-      return days === null || typeof f.as_of !== 'string' ? item.title : fill(r.card.stale_statement, { date: dayLabel(f.as_of, lang), days });
+      return days === null || typeof f.as_of !== 'string' ? r.needsLookShort : fill(r.card.stale_statement, { date: dayLabel(f.as_of, lang), days });
     }
     case 'stale_connection': {
       const hours = num(f.hours_old);
-      return hours === null ? item.title : fill(r.card.stale_connection, { hours });
+      return hours === null ? r.needsLookShort : fill(r.card.stale_connection, { hours });
     }
   }
 }

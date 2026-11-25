@@ -25,6 +25,10 @@ export interface ManualStrings {
   readonly checkNote: string;
   readonly importedNote: string;
   readonly layoutLine: string;
+  /** The statement layout the server found, in words: its own id is never shown (except for a bank with no readable name). */
+  readonly layoutGeneric: string;
+  readonly layoutOfx: string;
+  readonly layoutBank: string;
   readonly parsedLine: string;
   readonly createdLine: string;
   readonly duplicatesLine: string;
@@ -98,6 +102,9 @@ export const MANUAL_RU: ManualStrings = {
   checkNote: 'Пока ничего не сохранено: сверьте цифры с выпиской банка.',
   importedNote: 'Загружено.',
   layoutLine: 'Формат: {layout}',
+  layoutGeneric: 'CSV, общие столбцы',
+  layoutOfx: 'OFX/QFX',
+  layoutBank: 'CSV-выгрузка {bank}',
   parsedLine: 'Строк прочитано: {n}',
   createdLine: 'Новых: {n}',
   duplicatesLine: 'Уже были: {n}',
@@ -171,6 +178,9 @@ export const MANUAL_EN: ManualStrings = {
   checkNote: 'Nothing is saved yet: check these against your bank\'s own statement.',
   importedNote: 'Imported.',
   layoutLine: 'Format: {layout}',
+  layoutGeneric: 'CSV, generic columns',
+  layoutOfx: 'OFX/QFX',
+  layoutBank: '{bank} CSV export',
   parsedLine: 'Lines read: {n}',
   createdLine: 'New: {n}',
   duplicatesLine: 'Already there: {n}',

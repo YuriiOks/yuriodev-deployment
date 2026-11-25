@@ -215,10 +215,11 @@ describe('the Money page: the row of attention cards', () => {
     expect(card).toHaveAttribute('data-severity', 'info');
   });
 
-  it('falls back to the server\'s title on a card when a fact is missing', async () => {
+  it('falls back to the page\'s own line on a card when a fact is missing, never the server\'s English title', async () => {
     setup({ finance: { recurring: mixedPayments(), attention: [item('missed_payment', 'k', ['recurring', 'r-2'], { title: 'The fallback title', amount: 2500, currency: 'GBP' })] } });
     renderAt(ALL);
-    expect(await (await attentionPanel()).findByText('The fallback title')).toBeInTheDocument();
+    expect(await (await attentionPanel()).findByText('needs a look')).toBeInTheDocument();
+    expect(screen.queryByText('The fallback title')).toBeNull();
   });
 });
 

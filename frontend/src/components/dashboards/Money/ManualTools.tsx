@@ -1,6 +1,8 @@
 import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import { fill } from '../../../services/dashboards/calendarLabels';
+import { providerName } from './providers';
 import type { FinanceAccount } from '../../../services/dashboards/financeApi';
 import { setManualBalance, updateManualAccount, uploadStatement, type ManualAccountKind, type ManualAccountPatch, type StatementResult } from '../../../services/dashboards/manualApi';
 import { formatMinor, minorToInput, parseMinor } from '../../../services/dashboards/money';
@@ -101,7 +103,7 @@ const Summary: React.FC<{ result: StatementResult; currency: string }> = ({ resu
         </>
       ) : (
         <ul className={styles.summaryList}>
-          {result.layout && <li>{fill(x.layoutLine, { layout: result.layout })}</li>}
+          {result.layout && <li>{fill(x.layoutLine, { layout: result.layout === 'generic' ? x.layoutGeneric : result.layout === 'ofx' ? x.layoutOfx : fill(x.layoutBank, { bank: providerName(result.layout) }) })}</li>}
           <li>{fill(x.parsedLine, { n: result.parsed })}</li>
           <li>{fill(x.createdLine, { n: result.created })}</li>
           <li>{fill(x.duplicatesLine, { n: result.duplicates })}</li>
@@ -239,6 +241,7 @@ const KINDS: readonly ManualAccountKind[] = ['current', 'savings', 'business', '
 /** Changes the name and the type of an account entered by hand, and a card's limit ("this is a credit card", with its limit). Sends only what changed. */
 const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boolean) => void }> = ({ account, onDone }) => {
   const { t } = useDashboardLang();
+  const nameMax = useLimit('account', 'name', 120);
   const x = t.money.manual;
   const id = useId();
   const startKind: ManualAccountKind = KINDS.includes(account.kind as ManualAccountKind) ? (account.kind as ManualAccountKind) : 'current';
@@ -280,7 +283,7 @@ const EditAccountForm: React.FC<{ account: FinanceAccount; onDone: (saved: boole
           <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
             {x.fAccountName}
           </label>
-          <input id={`${id}-name`} className={styles.input} value={name} maxLength={120} onChange={(event) => setName(event.target.value)} />
+          <input id={`${id}-name`} className={styles.input} value={name} maxLength={nameMax} onChange={(event) => setName(event.target.value)} />
         </div>
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor={`${id}-kind`}>

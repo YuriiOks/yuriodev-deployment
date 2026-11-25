@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import CategoryMark from './CategoryMark';
 import { CATEGORIES, setInternalTransfer, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
@@ -121,6 +122,7 @@ export interface MoneyTransactionsProps {
 const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled }) => {
   const { t } = useDashboardLang();
   const m = t.money;
+  const searchMax = useLimit('transactions', 'search', 200);
   const id = useId();
   const [provider, setProvider] = useState<string | null>(null);
   const [account, setAccount] = useState<string | null>(null);
@@ -230,7 +232,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
               type="search"
               className={styles.input}
               value={typed}
-              maxLength={200}
+              maxLength={searchMax}
               placeholder={m.searchPlaceholder}
               onChange={(event) => setTyped(event.target.value)}
             />

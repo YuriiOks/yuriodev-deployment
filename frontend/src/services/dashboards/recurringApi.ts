@@ -468,8 +468,37 @@ export async function updateRecurring(id: string, body: RecurringBody): Promise<
   return parsed;
 }
 
-/** Why the server refused a change as a mistake of the request (a 4xx), in the page's own words for its error code, or null: a server failure, a lost connection or a code the page has no words for is told as the plain failure. The server's own text is never shown. */
+const has = (record: Readonly<Record<string, string>>, key: string): boolean => Object.prototype.hasOwnProperty.call(record, key);
+
+/** The words for each broken rule of a 422 (`issues`), each under its field's own name ("amount: at least 1"); at most the first three. */
+export function refusalIssues(error: unknown, words: RefusalStrings): string[] {
+  if (!(error instanceof ApiError) || !isObject(error.body) || !Array.isArray(error.body.issues)) return [];
+  const lines: string[] = [];
+  for (const raw of error.body.issues.slice(0, 3)) {
+    if (!isObject(raw) || typeof raw.code !== 'string') continue;
+    const bound = raw.bound === 'min' || raw.bound === 'max' ? raw.bound : null;
+    const key = raw.code === 'out_of_range' && bound ? `out_of_range_${bound}` : raw.code;
+    const sentence = (has(words.issues, key) ? words.issues[key] : words.issues.invalid).replace('{limit}', typeof raw.limit === 'number' ? String(raw.limit) : '');
+    const field = typeof raw.field === 'string' ? (raw.field.split('.').pop() ?? '') : '';
+    lines.push(has(words.fields, field) ? `${words.fields[field]}: ${sentence}` : sentence);
+  }
+  return lines;
+}
+
+/**
+ * Why the server refused a change as a mistake of the request (a 4xx), in the page's own words: each broken rule under its field's name for a 422
+ * that names them, else the words for the refusal's finer code (`reason`) or its family code (`error`). null: a server failure, a lost connection
+ * or a code the page has no words for is told as the plain failure. The server's own text is never shown.
+ */
 export function refusal(error: unknown, words: RefusalStrings): string | null {
   if (!(error instanceof ApiError) || error.status < 400 || error.status >= 500) return null;
-  return Object.prototype.hasOwnProperty.call(words.codes, error.code) ? words.codes[error.code] : null;
+  const lines = refusalIssues(error, words);
+  if (lines.length > 0) return lines.join('; ');
+  const reason = isObject(error.body) && typeof error.body.reason === 'string' ? error.body.reason : null;
+  for (const key of [reason, error.code]) {
+    if (key === null) continue;
+    if (has(words.codes, key)) return words.codes[key];
+    if (key.endsWith('_not_found')) return words.codes.not_found;
+  }
+  return null;
 }

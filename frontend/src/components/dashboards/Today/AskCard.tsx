@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { formatDate } from '../../../services/dashboards/dateFormat';
 import { useDashboardLang } from '../../../context/useDashboardLang';
+import { useLimit } from '../../../hooks/useLimit';
 import { useAssistant } from '../../../hooks/useAssistant';
 import type { AssistantConfirm, AssistantScope } from '../../../services/dashboards/assistantApi';
 import { fill } from '../../../services/dashboards/calendarLabels';
@@ -80,6 +81,7 @@ const Confirm: React.FC<{ confirm: AssistantConfirm; busy: boolean; onDecide: (d
  */
 const AskCard: React.FC<{ scope: AssistantScope }> = ({ scope }) => {
   const { t } = useDashboardLang();
+  const limit = useLimit('assistant', 'question', LIMIT);
   const s = t.assistant;
   const assistant = useAssistant(scope);
   const [draft, setDraft] = useState('');
@@ -152,7 +154,7 @@ const AskCard: React.FC<{ scope: AssistantScope }> = ({ scope }) => {
           id={`${id}-ask`}
           className={styles.input}
           rows={2}
-          maxLength={LIMIT}
+          maxLength={limit}
           placeholder={s.placeholder}
           value={draft}
           disabled={locked}
@@ -174,7 +176,7 @@ const AskCard: React.FC<{ scope: AssistantScope }> = ({ scope }) => {
           </button>
         )}
       </form>
-      {draft.length >= SHOW_LIMIT_FROM && <span className={styles.note}>{draft.length} / {LIMIT}</span>}
+      {draft.length >= SHOW_LIMIT_FROM && <span className={styles.note}>{draft.length} / {limit}</span>}
       {assistant.turns.length === 0 ? (
         <div className={styles.suggestions}>
           {s.suggestions[scope].map((text) => (
