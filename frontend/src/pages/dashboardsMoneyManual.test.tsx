@@ -50,8 +50,8 @@ function finance(overrides: Partial<FinanceData> = {}): FinanceData {
       acct('h-card', 'Plastic card', 70000, { provider: 'hand-bank', connection_id: 'c-2', kind: 'credit_card', type: 'credit', credit_limit: 100000, own_balance_minor: -30000 }),
     ],
     connections: [
-      { provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z', manual: false, display_name: null },
-      { provider: 'hand-bank', status: 'ok', last_ok_at: '2026-11-01T12:00:00Z', manual: true, display_name: 'Hand Bank' },
+      { id: 'c-1', provider: 'acme-bank', status: 'ok', last_ok_at: '2026-11-23T09:00:00Z', manual: false, display_name: null },
+      { id: 'c-2', provider: 'hand-bank', status: 'ok', last_ok_at: '2026-11-01T12:00:00Z', manual: true, display_name: 'Hand Bank' },
     ],
     transactions: [],
     summary: { month: '2026-11', as_of: '2026-11-23T09:00:00Z', currencies: [{ currency: 'GBP', accounts: 3, balance: 138506, own_balance: 138506, spent: 0, received: 0 }] },

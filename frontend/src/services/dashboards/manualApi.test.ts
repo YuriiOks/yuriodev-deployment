@@ -15,7 +15,7 @@ function answer(status: number, body: unknown) {
 
 describe('the manual bank API', () => {
   it('reads a statement answer: the totals, the dates and each bad line, and refuses an answer without its numbers', () => {
-    expect(parseStatementResult(result())).toEqual({ layout: 'csv', dryRun: true, parsed: 3, created: 2, duplicates: 1, firstDate: '2026-10-01', lastDate: '2026-10-31', moneyIn: 150000, moneyOut: 4550, balanceApplied: false, errors: [] });
+    expect(parseStatementResult(result())).toEqual({ layout: 'csv', dryRun: true, parsed: 3, created: 2, duplicates: 1, firstDate: '2026-10-01', lastDate: '2026-10-31', moneyIn: 150000, moneyOut: 4550, balanceApplied: false, balance: null, balanceDate: null, balanceWouldApply: false, errors: [] });
     expect(parseStatementResult(result({ errors: [{ row: 4, field: 'amount', message: 'not a number' }, { row: 'x' }, { row: 9, field: null, message: 'bad date' }] }))?.errors).toEqual([
       { row: 4, field: 'amount', message: 'not a number' },
       { row: 9, field: null, message: 'bad date' },
