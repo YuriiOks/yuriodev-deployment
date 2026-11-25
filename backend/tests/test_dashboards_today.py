@@ -391,3 +391,31 @@ async def test_the_same_page_comes_from_the_mcp_tool(db_url, make_dashboards_app
     answer = json.loads(result.content[0].text)
     assert titles(answer["queue"]) == titles(rest["queue"]) == ["Late"]
     assert "spaces" in json.loads(old.content[0].text)  # the older call is unchanged
+
+
+async def test_the_owner_name_is_in_the_bootstrap_and_every_headline_when_set(
+    db_url, make_dashboards_app
+):
+    named = make_dashboards_app(db_url, dashboards_owner_name="  Sam \n Example  ")
+    async with running(named, AUTH) as client:
+        bootstrap = (await client.get(f"{BASE}/bootstrap")).json()
+        facts = {s: (await page(client, s))["summary"]["facts"] for s in ("personal", "money")}
+
+    assert bootstrap["owner_name"] == "Sam Example"
+    assert {f["owner_name"] for f in facts.values()} == {"Sam Example"}
+
+
+async def test_without_an_owner_name_the_field_is_null(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        bootstrap = (await client.get(f"{BASE}/bootstrap")).json()
+        body = await page(client, "work-1")
+
+    assert bootstrap["owner_name"] is None
+    assert body["summary"]["facts"]["owner_name"] is None
+
+
+def test_the_owner_name_is_one_short_printable_line(make_settings):
+    assert make_settings(dashboards_owner_name="  ").owner_name is None
+    assert make_settings().owner_name is None
+    assert make_settings(dashboards_owner_name="A\x07B" + "x" * 80).owner_name == "AB" + "x" * 58

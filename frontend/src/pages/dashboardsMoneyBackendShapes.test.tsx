@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
 import { resetBootstrap } from '../services/dashboards/bootstrapStore';
+import { iconBundles, logoBundles } from '../services/dashboards/imageBundles';
 import { parseRecurring, parseUpcoming } from '../services/dashboards/recurringApi';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
@@ -364,7 +365,7 @@ describe('the Money page: what the backend added after the audit', () => {
     renderAt(`${PATH}?view=recurring`);
     const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
     const streaming = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
-    // The picture is given its address once it has its turn at the loader: waited for, never read at once.
+    // The picture is given its address once it has its turn at the loader (after a render): waited for, never read at once.
     await waitFor(() => expect(streaming.querySelector('img')).toHaveAttribute('src', ICON));
     const gym = panel.getByText('Gym').closest('li') as HTMLElement;
     expect(gym.querySelector('img')).toBeNull();
@@ -488,5 +489,62 @@ describe('the Money page: the recurring list is dense', () => {
     await user.keyboard('{Escape}');
     expect(within(row).queryByRole('menu')).toBeNull();
     expect(opener).toHaveFocus();
+  });
+});
+
+describe('the Money page: logos and icons from the bundles', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  const SVG = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+  const V = 'e6140d0d0a1b2c3d';
+  const path = '/api/dashboards/v1/finance/providers/acme-bank/logo/on_dark?v=e6140d0d';
+
+  afterEach(() => {
+    logoBundles.reset();
+    iconBundles.reset();
+  });
+
+  it('draws a bank\'s logo from the logo bundle in one request, never from its own address', async () => {
+    logoBundles.reset();
+    const api = setup({
+        finance: {
+          providers: [{ id: 'acme-bank', name: 'Acme Bank', logo: { on_light: path, on_dark: path, mark: path } }],
+          logosBundle: { version: V, logos: { 'acme-bank': { on_light: SVG, on_dark: SVG, mark: PNG } } },
+        },
+      });
+    renderAt(`${PATH}?view=wallet`);
+    const wallet = within(await within(main()).findByRole('region', { name: 'Wallet' }));
+    // Every picture of the card ends up drawn from a data URI of the bundle (the listing's own addresses are replaced, not requested).
+    await waitFor(() => {
+      const images = Array.from(wallet.getByRole('button', { name: /Acme Bank/ }).querySelectorAll('img'));
+      expect(images.length).toBeGreaterThan(0);
+      for (const image of images) expect(image.getAttribute('src')).toMatch(/^data:image\//);
+    });
+    expect(api.callsTo('GET', '/finance/providers/logos')).toHaveLength(1);
+  });
+
+  it('draws a payment\'s icon from the icon bundle, and an icon the bundle lacks from its own address', async () => {
+    const own = '/api/dashboards/v1/finance/recurring/r-2/icon?v=0a1b2c3d';
+    const api = setup({
+      finance: {
+        recurring: [payment('r-1', 'Streaming', { icon_url: null, icon_state: 'ok' }), payment('r-2', 'Gym', { icon_url: own, icon_state: 'ok' })],
+        iconsBundle: { version: V, icons: { 'r-1': PNG } },
+      },
+    });
+    renderAt(`${PATH}?view=recurring`);
+    const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
+    const streaming = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
+    await waitFor(() => expect(streaming.querySelector('img')).toHaveAttribute('src', PNG));
+    const gym = panel.getByText('Gym').closest('li') as HTMLElement;
+    await waitFor(() => expect(gym.querySelector('img')).toHaveAttribute('src', own));
+    expect(api.callsTo('GET', '/finance/recurring/icons')).toHaveLength(1);
+  });
+
+  it('keeps today\'s behaviour when the server names no version', async () => {
+    const api = setup({ finance: { providers: [{ id: 'acme-bank', name: 'Acme Bank', logo: { on_light: SVG, on_dark: SVG } }] } });
+    renderAt(`${PATH}?view=wallet`);
+    const wallet = within(await within(main()).findByRole('region', { name: 'Wallet' }));
+    await waitFor(() => expect(wallet.getByRole('button', { name: /Acme Bank/ }).querySelector('img')).not.toBeNull());
+    expect(api.callsTo('GET', '/finance/providers/logos')).toHaveLength(0);
+    expect(api.callsTo('GET', '/finance/recurring/icons')).toHaveLength(0);
   });
 });

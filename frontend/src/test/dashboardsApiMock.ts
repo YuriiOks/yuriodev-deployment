@@ -116,6 +116,10 @@ export interface FinanceData {
   display?: Record<string, unknown>;
   /** GET /finance/providers: the banks' logos (default: none). */
   providers?: Record<string, unknown>[];
+  /** The logo bundle: `logos_version` on the providers answer and what GET /finance/providers/logos answers (default: neither, as an older server). */
+  logosBundle?: { version: string; logos: Record<string, unknown> };
+  /** The icon bundle: `icons_version` on the recurring and upcoming answers and what GET /finance/recurring/icons answers. */
+  iconsBundle?: { version: string; icons: Record<string, unknown> };
   /** GET /finance/recurring (default: none). Writes change this list in place. */
   recurring?: Record<string, unknown>[];
   /** GET /finance/upcoming (default: nothing due). */
@@ -181,12 +185,12 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
       if (api.fail.has('financeAccounts')) return failure();
       return json({ accounts: api.finance.accounts, connections: api.finance.connections, ...(api.finance.display ? { display: api.finance.display } : {}) });
     }
-    if (path === '/finance/recurring' || /^\/finance\/recurring\/[\w-]+(\/paid|\/icon\/refresh|\/icon)?$/.test(path)) {
+    if (path === '/finance/recurring' || (path !== '/finance/recurring/icons' && /^\/finance\/recurring\/[\w-]+(\/paid|\/icon\/refresh|\/icon)?$/.test(path))) {
       const list = (api.finance.recurring ??= []);
       if (path === '/finance/recurring' && method === 'GET') {
         if (api.fail.has('financeRecurring')) return failure();
         const kind = url.searchParams.get('kind');
-        return json({ recurring: list.filter((row) => !kind || row.kind === kind), display: api.finance.display ?? { currency: 'GBP', rates: {}, missing: [] } });
+        return json({ ...(api.finance.iconsBundle ? { icons_version: api.finance.iconsBundle.version } : {}), recurring: list.filter((row) => !kind || row.kind === kind), display: api.finance.display ?? { currency: 'GBP', rates: {}, missing: [] } });
       }
       if (api.fail.has('recurringWrite')) return json({ error: 'validation_error', message: 'amount must be positive', request_id: 'test' }, 422);
       if (path === '/finance/recurring') {
@@ -219,7 +223,7 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
     }
     if (path === '/finance/upcoming') {
       if (api.fail.has('financeUpcoming')) return failure();
-      return json({ from_date: '2026-11-23', to_date: '2026-12-07', items: [], totals: [], display: { currency: 'GBP', rates: {}, missing: [], complete: true, total: 0 }, ...api.finance.upcoming });
+      return json({ ...(api.finance.iconsBundle ? { icons_version: api.finance.iconsBundle.version } : {}), from_date: '2026-11-23', to_date: '2026-12-07', items: [], totals: [], display: { currency: 'GBP', rates: {}, missing: [], complete: true, total: 0 }, ...api.finance.upcoming });
     }
     if (path === '/finance/attention' && method === 'GET') {
       if (api.fail.has('financeAttention')) return failure();
@@ -303,9 +307,17 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
       const configured = api.finance.manualStatement ?? { status: 200, body: { layout: 'csv', parsed: 3, created: 3, duplicates: 0, first_date: '2026-10-01', last_date: '2026-10-31', money_in: 150000, money_out: 4550, balance_applied: false, errors: [] } };
       return json({ ...configured.body, dry_run: url.searchParams.get('dry_run') === 'true' }, configured.status);
     }
+    if (path === '/finance/providers/logos') {
+      if (!api.finance.logosBundle) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      return json(api.finance.logosBundle);
+    }
     if (path === '/finance/providers') {
       if (api.fail.has('financeProviders')) return failure();
-      return json({ providers: api.finance.providers ?? [] });
+      return json({ providers: api.finance.providers ?? [], ...(api.finance.logosBundle ? { logos_version: api.finance.logosBundle.version } : {}) });
+    }
+    if (path === '/finance/recurring/icons') {
+      if (!api.finance.iconsBundle) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      return json(api.finance.iconsBundle);
     }
     if (path === '/finance/categories') {
       if (api.fail.has('financeCategories')) return failure();

@@ -44,6 +44,7 @@ export const iconUrl = (value: unknown): string | null => {
   if (value.length <= 500 && ICON_URL.test(value)) return value;
   return value.length <= ICON_DATA_MAX && ICON_DATA.test(value) ? value : null;
 };
+const iconsVersion = (value: unknown): string | null => (typeof value === 'string' && /^[0-9a-f]{16}$/.test(value) ? value : null);
 const color = (value: unknown): string | null => (typeof value === 'string' && COLOR.test(value) ? value : null);
 
 /** What the owner's own list says about a payment: on track, ended by its schedule (the last date or count is behind it), or not to be worked out. Null for a payment switched off. */
@@ -167,6 +168,8 @@ export function parseRecurring(raw: unknown, displayCurrency: string | null = nu
 }
 
 export interface RecurringList {
+  /** The version of the payment-icon bundle this answer expects (null from an older server). */
+  readonly iconsVersion: string | null;
   readonly recurring: readonly Recurring[];
   readonly display: DisplayInfo | null;
 }
@@ -175,6 +178,7 @@ export function parseRecurringList(body: unknown): RecurringList | null {
   if (!isObject(body) || !Array.isArray(body.recurring)) return null;
   const display = parseDisplayInfo(body.display);
   return {
+    iconsVersion: iconsVersion(body.icons_version),
     recurring: body.recurring.flatMap((raw) => {
       const row = parseRecurring(raw, display?.currency ?? null);
       return row ? [row] : [];
@@ -216,6 +220,7 @@ export interface UpcomingTotal {
 }
 
 export interface Upcoming {
+  readonly iconsVersion: string | null;
   readonly from: string;
   readonly to: string;
   readonly items: readonly UpcomingItem[];
@@ -271,6 +276,7 @@ export function parseUpcoming(body: unknown): Upcoming | null {
     : [];
   const total = isObject(body.display) ? int(body.display.total) : null;
   return {
+    iconsVersion: iconsVersion(body.icons_version),
     from: date(body.from_date) ?? '',
     to: date(body.to_date) ?? '',
     items,

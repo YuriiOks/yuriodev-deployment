@@ -21,6 +21,7 @@ from src.core.errors import install_exception_handlers
 from src.core.http import resolve_host
 from src.core.logging import configure_logging
 from src.core.middleware import RequestContextMiddleware
+from src.dashboards.assistant.service import Assistant
 from src.dashboards.collectors.manager import (
     FINANCE_LOCK_KEY,
     CollectorManager,
@@ -39,6 +40,7 @@ from src.dashboards.projects import upgrade_projects
 from src.dashboards.runtime import DashboardsRuntime
 from src.feed.service import FeedService
 from src.routes import (
+    assistant,
     dashboards,
     finance,
     finance_manual,
@@ -210,6 +212,15 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.state.icon_transport = None
     app.state.icon_resolver = resolve_host
     app.state.icon_autostart = True
+    # The assistant (off without ANTHROPIC_API_KEY); `assistant_transport` is the test seam.
+    app.state.assistant_transport = None
+    app.state.assistant = Assistant(
+        settings,
+        lambda: app.state.dashboards,
+        app.state.clock,
+        app.state.zone,
+        lambda: app.state.assistant_transport,
+    )
     app.state.icons = IconWorker(
         settings,
         lambda: app.state.dashboards.sessions,
@@ -241,6 +252,7 @@ def create_app(settings: Settings | None = None, *, clock: Clock | None = None) 
     app.include_router(finance.router)
     app.include_router(finance_recurring.router)
     app.include_router(finance_manual.router)
+    app.include_router(assistant.router)
     if settings.dashboards_enabled:
         _add_mcp(app)
     if docs:
@@ -255,7 +267,8 @@ def _add_mcp(app: FastAPI) -> None:
         return cast(DashboardsRuntime | None, app.state.dashboards)
 
     currency = app.state.settings.finance_display_currency
-    server = build_mcp_server(runtime, app.state.clock, app.state.zone, currency)
+    owner = app.state.settings.owner_name
+    server = build_mcp_server(runtime, app.state.clock, app.state.zone, currency, owner)
     app.state.mcp = server
     endpoint = McpEndpoint(server.session_manager, runtime)
     app.router.routes.append(Route(MCP_PATH, endpoint, methods=["POST"]))

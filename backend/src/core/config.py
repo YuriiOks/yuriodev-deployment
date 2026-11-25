@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     # and read through `space_names`: a malformed value must never stop the app, so it is not
     # parsed (or echoed) by pydantic.
     dashboards_space_names: str | None = None
+    # How the page greets the owner (a first name). In the untracked secrets file: the repository
+    # is public. Read through `owner_name`, never a startup error, never logged.
+    dashboards_owner_name: str | None = None
     # Icons of the spaces, a JSON object keyed by space id whose values are small base64 data URIs
     # (png, svg, ico, webp, at most 48 KiB each), so real logos can live in the untracked secrets
     # file. Text like the names, read through `space_icons`, never a startup error.
@@ -153,6 +156,15 @@ class Settings(BaseSettings):
     finance_poll_interval_seconds: int = Field(90, ge=60, le=3600)
     # The currency the Money page shows every amount in (beside the original, at the latest rate).
     finance_display_currency: str = Field("GBP", pattern=r"^[A-Z]{3}$")
+    # The assistant ("Ask Claude" on a page): off without the key, which the owner enters himself in
+    # the secrets file. Data of a page leaves the server for the Claude API only for the scopes in
+    # `assistant_scopes` (work-2 never: it is refused whatever this says).
+    anthropic_api_key: SecretStr | None = None
+    assistant_model: str = Field("claude-opus-5-5", pattern=r"^[a-z0-9.-]{3,60}$")
+    assistant_scopes: str = "personal,money"
+    assistant_daily_requests: int = Field(30, ge=1, le=1000)
+    assistant_daily_tokens: int = Field(400_000, ge=1000, le=20_000_000)
+    assistant_max_rounds: int = Field(6, ge=1, le=12)
     # Monzo: the OAuth client registered in Monzo's developer portal (a confidential one, so it
     # gets a refresh token). Both in the secrets file; unset means no Monzo.
     monzo_client_id: SecretStr | None = None
@@ -165,6 +177,24 @@ class Settings(BaseSettings):
     @property
     def dashboards_enabled(self) -> bool:
         return self.database_url is not None
+
+    @property
+    def assistant_scope_set(self) -> frozenset[str]:
+        """The pages the assistant may be asked on: the setting's, never `work-2`."""
+        wanted = {part.strip() for part in self.assistant_scopes.split(",")}
+        return frozenset(wanted & {"personal", "work-1", "money"})
+
+    def assistant_enabled(self, scope: str) -> bool:
+        return self.anthropic_api_key is not None and scope in self.assistant_scope_set
+
+    @property
+    def owner_name(self) -> str | None:
+        """The owner's name for the greeting: one printable line of at most 60 characters."""
+        text = self.dashboards_owner_name
+        if text is None:
+            return None
+        line = "".join(ch for ch in " ".join(text.split()) if ch.isprintable())[:60].strip()
+        return line or None
 
     @property
     def space_names(self) -> dict[str, str]:

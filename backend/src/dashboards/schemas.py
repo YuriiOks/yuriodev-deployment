@@ -231,6 +231,7 @@ class BootstrapOut(BaseModel):
     projects: list[ProjectRef]
     areas: list[AreaOut]
     server_time: datetime
+    owner_name: str | None = None  # how to greet the owner (DASHBOARDS_OWNER_NAME), when set
 
 
 class NextEvent(BaseModel):
