@@ -682,6 +682,14 @@ def provider_colors(provider: str | None, link: Any = None) -> dict[str, str]:
     return {"background": pair.background, "foreground": pair.foreground}
 
 
+def provider_name(provider: str | None, link: Any = None) -> str | None:
+    """The bank's name in effect: the owner's for the connection, else the brand's, else null."""
+    if link is not None and link.display_name:
+        return str(link.display_name)
+    brand = BRANDS.get(provider or "")
+    return None if brand is None else brand.name
+
+
 def money_queue(items: Sequence[Any], links: Sequence[Any] = ()) -> list[QueueItem]:
     """The first three attention items, as the attention list already orders them. An item that
     names a bank carries its `provider` and the colour tile (`colors`)."""
@@ -702,6 +710,7 @@ def money_queue(items: Sequence[Any], links: Sequence[Any] = ()) -> list[QueueIt
         if item.provider is not None:
             link = by_id.get(str(item.subject_id)) if item.subject_type == "connection" else None
             facts["colors"] = provider_colors(item.provider, link)
+            facts["provider_name"] = provider_name(item.provider, link)
         queue.append(
             QueueItem(
                 key=item.key,
@@ -724,8 +733,10 @@ def money_queue(items: Sequence[Any], links: Sequence[Any] = ()) -> list[QueueIt
     return queue
 
 
-def money_soon(upcoming: Any) -> list[SoonItem]:
-    """The next payments due (not the ones already overdue: those are attention items)."""
+def money_soon(upcoming: Any, accounts: Sequence[Any] = ()) -> list[SoonItem]:
+    """The next payments due (not the ones already overdue: those are attention items). A payment
+    from an account of ours names its `provider` and `account_id`."""
+    provider_of = {a.id: a.provider for a in accounts}
     items = [i for i in upcoming.items if not i.overdue]
     return [
         SoonItem(
@@ -741,6 +752,8 @@ def money_soon(upcoming: Any) -> list[SoonItem]:
                 "converted": i.converted,
                 "covered": i.covered,
                 "frequency_kind": i.kind,
+                "account_id": None if i.account_id is None else str(i.account_id),
+                "provider": provider_of.get(i.account_id),
             },
         )
         for i in items[:SOON_MAX]
@@ -841,6 +854,7 @@ def _connection_rows(
                 else link.last_ok_at.astimezone(UTC).isoformat(),
                 "stale": stale,
                 "colors": provider_colors(link.provider, link),
+                "provider_name": provider_name(link.provider, link),
                 "balances": [
                     {"currency": c, "amount": a} for c, a in sorted(held[link.id].items())
                 ],
@@ -889,7 +903,7 @@ async def _money(
         "logos_version": logos,
         "icons_version": await icons_version(session),
         "queue_total": len(attention.items),
-        "soon": money_soon(upcoming),
+        "soon": money_soon(upcoming, accounts),
         "stats": [
             Stat(
                 code="spent_month_to_date",
