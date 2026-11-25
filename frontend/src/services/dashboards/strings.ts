@@ -247,6 +247,11 @@ export interface Strings {
     readonly markInternal: string;
     readonly unmarkInternal: string;
     readonly internalFailed: string;
+    /** The row's "⋯" menu: its name, the category choice, the way back to the automatic category and the failure. */
+    readonly rowActions: string;
+    readonly categoryChange: string;
+    readonly categoryAuto: string;
+    readonly categoryFailed: string;
     readonly originalAmount: string;
   };
   /** The server did not answer (never the sample data), and the demo banner for a server with no database. */
@@ -577,6 +582,10 @@ export const STRINGS: Record<Lang, Strings> = {
       markInternal: 'Отметить как перевод между моими счетами',
       unmarkInternal: 'Это не перевод между моими счетами',
       internalFailed: 'Не удалось изменить отметку.',
+      rowActions: 'Действия со строкой: {name}',
+      categoryChange: 'Категория',
+      categoryAuto: 'Автоматически',
+      categoryFailed: 'Не удалось сменить категорию.',
       originalAmount: 'в оригинале {amount}',
     },
     unreachableTitle: 'Нет связи с сервером',
@@ -905,6 +914,10 @@ export const STRINGS: Record<Lang, Strings> = {
       markInternal: 'Mark as a move between my accounts',
       unmarkInternal: 'Not a move between my accounts',
       internalFailed: 'Could not change the mark.',
+      rowActions: 'Actions for this line: {name}',
+      categoryChange: 'Category',
+      categoryAuto: 'Automatic',
+      categoryFailed: 'Could not change the category.',
       originalAmount: 'originally {amount}',
     },
     unreachableTitle: 'Cannot reach the server',

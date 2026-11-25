@@ -418,6 +418,11 @@ export async function setInternalTransfer(id: string, value: boolean): Promise<v
   await request(`/finance/transactions/${encodeURIComponent(id)}`, { method: 'PATCH', body: { internal_transfer: value } });
 }
 
+/** The owner's category for one line (null: back to the automatic one); a note on our own copy, kept on re-import. */
+export async function setTransactionCategory(id: string, category: Category | null): Promise<void> {
+  await request(`/finance/transactions/${encodeURIComponent(id)}`, { method: 'PATCH', body: { category } });
+}
+
 export async function fetchTransactions(query: TransactionQuery, signal?: AbortSignal): Promise<TransactionsPage> {
   const parsed = parseTransactions(await request(transactionsPath(query), { signal }));
   if (!parsed) throw BAD('transactions');
