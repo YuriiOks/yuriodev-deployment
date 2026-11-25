@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.errors import AppError
 from src.dashboards.finance import recurring_service as service
+from src.dashboards.finance.bundles import cached, icons_bundle, icons_version
 from src.dashboards.finance.fx import Display
 from src.dashboards.finance.icons import MAX_ICON_BYTES, to_data_uri
 from src.dashboards.finance.rawbody import require_file_type
@@ -72,6 +73,7 @@ async def list_recurring(
         recurring=listed,
         debts=debt_total(listed),
         display=DisplayOut(**display_fields(display, {row.currency for row in rows})),
+        icons_version=await icons_version(session),
     )
 
 
@@ -198,6 +200,16 @@ async def refresh_icon(
     icons_later(request)
     display = await _display(session, settings, clock)
     return RecurringOut.from_row(row, display, _today(clock, zone))
+
+
+@router.get("/recurring/icons")
+async def icons_bundle_route(request: Request, session: SessionDep) -> Response:
+    """Every payment's icon as a data URI in ONE answer (`{version, icons: {payment id: data
+    URI}}`): icons over 64 KiB and what would pass 2 MiB are left out and stay reachable by their
+    own address. `ETag` is the version, `Cache-Control: private, max-age=86400`, 304 on a match;
+    `icons_version` of the list and upcoming answers says when to fetch it again."""
+    version, icons = await icons_bundle(session)
+    return cached(request, version, {"icons": icons})
 
 
 @router.get("/recurring/{recurring_id}/icon")

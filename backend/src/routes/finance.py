@@ -22,6 +22,7 @@ from src.core.errors import AppError
 from src.core.http import UpstreamError
 from src.dashboards.finance import manual, monzo_auth, service
 from src.dashboards.finance.brands import BRANDS, COLLECTOR_PROVIDERS, NEUTRAL, RECONNECT
+from src.dashboards.finance.bundles import cached, logos_bundle
 from src.dashboards.finance.categories import Category
 from src.dashboards.finance.logos import VARIANTS
 from src.dashboards.finance.logos import aspect as logo_aspect
@@ -229,7 +230,22 @@ async def providers(session: SessionDep, settings: SettingsDep) -> ProvidersOut:
                 reconnect_path=reconnect[1] if reconnect else None,
             )
         )
-    return ProvidersOut(providers=found)
+    version, _ = logos_bundle(logos, connected)
+    return ProvidersOut(providers=found, logos_version=version)
+
+
+@router.get("/providers/logos")
+async def provider_logos(
+    request: Request, session: SessionDep, settings: SettingsDep
+) -> Response:
+    """Every logo variant of the providers that have a connection, as data URIs in ONE answer
+    (`{version, logos: {provider: {on_light, on_dark, mark}}}`, a variant that is not set is
+    null), so a page does not request each image on its own. `ETag` is the version, `Cache-Control:
+    private, max-age=86400`, 304 on a match; `logos_version` of `/providers` says when to fetch
+    it again."""
+    connected = set(await service.provider_ids(session))
+    version, bundle = logos_bundle(settings.provider_logos, connected)
+    return cached(request, version, {"logos": bundle})
 
 
 def _etag(uri: str) -> str:
