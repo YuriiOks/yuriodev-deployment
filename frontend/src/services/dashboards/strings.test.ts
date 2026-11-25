@@ -39,7 +39,9 @@ describe('dashboard strings', () => {
   it('the languages differ where they should (the words, not just the brand names)', () => {
     const same = leaves(STRINGS.ru).filter((key) => at(STRINGS.ru, key) === at(STRINGS.en, key));
     // Tool names (GitHub, Slack ...) are the same in both; the sentences are not.
-    expect(same.every((key) => key.startsWith('tabs.'))).toBe(true);
+    // The assistant's date placeholder and its dash for "no value" carry no words.
+    const neutral = new Set(['assistant.confirm.dateTime', 'assistant.confirm.noValue']);
+    expect(same.filter((key) => !neutral.has(key)).every((key) => key.startsWith('tabs.'))).toBe(true);
     expect(STRINGS.ru.countdownMin).not.toBe(STRINGS.en.countdownMin);
   });
 
