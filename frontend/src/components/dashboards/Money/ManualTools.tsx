@@ -245,7 +245,7 @@ const StatementUpload: React.FC<{ account: FinanceAccount; onDone: (saved: boole
         <span>{x.applyBalance}</span>
       </label>
       )}
-      {stage.kind === 'checked' && <Summary result={stage.result} currency={account.currency} current={account.ownBalance} applyBalance={applyBalance} done={stage.kind === 'done'} />}
+      {stage.kind === 'checked' && <Summary result={stage.result} currency={account.currency} current={account.ownBalance} applyBalance={applyBalance} done={false} />}
       {stage.kind === 'checked' && stage.result.errors.length === 0 && <p className={styles.note}>{x.checkNote}</p>}
       {stage.kind === 'done' && (
         <>
