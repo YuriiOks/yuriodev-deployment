@@ -895,6 +895,7 @@ async def _money(
                 "total": summary.display.own_balance,
                 "complete": summary.display.complete,
                 "queue_total": len(attention.items),
+                "hidden_attention": attention.hidden,
                 "large_payment": large,
                 "days_to_large_payment": None if large is None else large["days_until"],
             },

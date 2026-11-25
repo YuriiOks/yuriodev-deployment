@@ -503,3 +503,21 @@ async def test_the_money_page_carries_the_image_versions_and_the_bank_colours(
     assert row["facts"]["provider"] == "sample"
     assert set(row["facts"]["colors"]) == {"background", "foreground"}
     assert row["facts"]["provider_name"] is None  # an invented provider has no brand name
+
+
+async def test_the_money_headline_counts_the_hidden_attention_items(db_url, make_dashboards_app):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await seed_rates(app)
+        before = await page(client, "money")
+        keys = [item["key"] for item in before["queue"]]
+        if keys:
+            await client.post(
+                f"{BASE}/finance/attention/bulk", json={"keys": keys, "action": "dismiss"}
+            )
+        after = await page(client, "money")
+        listing = (await client.get(f"{BASE}/finance/attention")).json()
+
+    assert before["summary"]["facts"]["hidden_attention"] == 0
+    assert after["summary"]["facts"]["hidden_attention"] == listing["hidden"] == len(keys)
