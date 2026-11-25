@@ -334,6 +334,8 @@ async def test_the_money_page_is_the_attention_items_the_next_payments_and_the_b
     assert body["queue_total"] == summary["facts"]["queue_total"]
     assert len(body["queue"]) <= 3
     assert titles(body["soon"]) == ["Big Rent"]
+    assert body["soon"][0]["facts"]["provider"] == "sample"
+    assert body["soon"][0]["facts"]["account_id"] == "00000000-0000-0000-0000-00000000000a"
     spent, due = body["stats"]
     assert (spent["code"], spent["compare"]["code"]) == ("spent_month_to_date", "previous_to_date")
     assert (due["code"], due["facts"]["count"]) == ("due_in_14_days", 1)
@@ -480,3 +482,24 @@ async def test_the_banks_are_ordered_by_need_then_by_when_they_were_read_or_ente
         "Zed Manual Old",
     ]
     assert few["today_total"] == 3
+
+
+async def test_the_money_page_carries_the_image_versions_and_the_bank_colours(
+    db_url, make_dashboards_app
+):
+    app = make_dashboards_app(db_url)
+    async with running(app, AUTH) as client:
+        await seed(app)
+        await seed_rates(app)
+        body = await page(client, "money")
+        providers = (await client.get(f"{BASE}/finance/providers")).json()
+        recurring = (await client.get(f"{BASE}/finance/recurring")).json()
+        elsewhere = await page(client, "personal")
+
+    assert body["logos_version"] == providers["logos_version"]
+    assert body["icons_version"] == recurring["icons_version"]
+    assert (elsewhere["logos_version"], elsewhere["icons_version"]) == (None, None)
+    (row,) = body["today"]
+    assert row["facts"]["provider"] == "sample"
+    assert set(row["facts"]["colors"]) == {"background", "foreground"}
+    assert row["facts"]["provider_name"] is None  # an invented provider has no brand name
