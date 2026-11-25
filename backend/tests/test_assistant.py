@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from src.dashboards.assistant.claude_api import MessageBuilder
-from src.dashboards.assistant.tools import render, scrub, tools_for
+from src.dashboards.assistant.tools import Ctx, render, scrub, tools_for
 from src.dashboards.models import Task
 from tests.dashboards_support import AUTH, execute, running, scalar
 from tests.finance_support import seed
@@ -241,9 +241,10 @@ async def test_a_write_waits_for_the_owner_and_then_runs_or_not(db_url, make_das
     assert reused.json()["error"] == "assistant_confirmation_gone"
     assert declined[-1][1]["stop"] == "end_turn"
     assert final == 1  # declined: still one
-    results = [r["body"]["messages"][-1]["content"][0]["content"] for r in api.requests]
-    assert '"title":"Call the dentist"' in results[1]
-    assert "declined" in results[3]
+    approved_result = api.requests[1]["body"]["messages"][-1]["content"][0]["content"]
+    declined_result = api.requests[3]["body"]["messages"][-1]["content"][0]["content"]
+    assert '"title":"Call the dentist"' in approved_result
+    assert "declined" in declined_result
 
 
 async def test_an_event_is_confirmed_with_exactly_what_will_be_stored(
@@ -474,3 +475,16 @@ def test_the_message_builder_adds_events_up_to_blocks_usage_and_a_stop_reason():
     assert kinds == ["thinking", "text", "tool_use"]
     assert builder.content()[1]["text"] == "Hello world"
     assert builder.content()[2]["input"] == {"a": 1}
+
+
+async def test_every_read_tool_answers_with_json_on_its_own_page(
+    db_url, make_dashboards_app, clock
+):
+    app = make_app(make_dashboards_app, db_url, FakeApi(), clock)
+    async with running(app, AUTH):
+        await seed(app)
+        for scope in ("personal", "work-1", "money"):
+            ctx = Ctx(app.state.dashboards, scope, NOW, app.state.zone, "GBP")
+            for tool in tools_for(scope).values():
+                if not tool.write:
+                    assert json.loads(render(await tool.run(ctx, {}))) is not None, tool.name
