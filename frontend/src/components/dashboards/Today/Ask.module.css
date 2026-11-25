@@ -1,0 +1,162 @@
+/* "Ask Claude": a card of the Today views' right column. */
+.card {
+  composes: glassDash from '../../../assets/styles/recipes.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--dash-r-card);
+}
+
+.title {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-t1);
+  font-size: var(--dash-fs-title);
+  font-weight: 700;
+}
+
+.title::before,
+.title::after {
+  content: none;
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.question {
+  color: var(--dash-t1);
+}
+
+/* The answer is text: line breaks and lists as typed, never markup. */
+.answer {
+  margin: 0;
+  color: var(--dash-t1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.problem {
+  margin: 0;
+  color: var(--dash-danger);
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+  font: inherit;
+  resize: vertical;
+}
+
+.primary {
+  composes: button buttonPrimary from '../../../assets/styles/dashboard-controls.module.css';
+  border-radius: var(--radius-pill);
+}
+
+.secondary {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  border-radius: var(--radius-pill);
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.suggestion {
+  composes: button buttonSecondary from '../../../assets/styles/dashboard-controls.module.css';
+  border-radius: var(--radius-pill);
+  text-align: left;
+}
+
+.link {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--dash-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--dash-heading-tint);
+  border: 1px solid var(--dash-heading-edge);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+}
+
+.about {
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+}
+
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.change {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.change dt {
+  color: var(--dash-t2);
+}
+
+.change dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.warning {
+  margin: 0;
+  color: var(--dash-warn);
+  font-weight: 700;
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-2);
+}

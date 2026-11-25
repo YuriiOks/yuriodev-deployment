@@ -3,6 +3,7 @@ import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
 import { MANUAL_EN, MANUAL_RU, type ManualStrings } from './manualStrings';
 import { RECURRING_EN, RECURRING_RU, type RecurringStrings } from './recurringStrings';
+import { ASSISTANT_EN, ASSISTANT_RU, type AssistantStrings } from './assistantStrings';
 import { SPACE_TODAY_EN, SPACE_TODAY_RU, type SpaceTodayStrings } from './spaceTodayStrings';
 import { STREAK_EN, STREAK_RU, type StreakStrings } from './streakStrings';
 import { TODAY_EN, TODAY_RU, type TodayStrings } from './todayStrings';
@@ -323,6 +324,8 @@ export interface Strings {
   readonly spaceToday: SpaceTodayStrings;
   /** The "Queue cleared" card of the Today views. */
   readonly streak: StreakStrings;
+  /** The "Ask Claude" card of the Today views. */
+  readonly assistant: AssistantStrings;
   readonly actions: Record<ActionVerb, string>;
 }
 
@@ -630,6 +633,7 @@ export const STRINGS: Record<Lang, Strings> = {
     monthsOf: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
     spaceToday: SPACE_TODAY_RU,
     streak: STREAK_RU,
+    assistant: ASSISTANT_RU,
     tabs: {
       today: 'Сегодня',
       overview: 'Обзор',
@@ -953,6 +957,7 @@ export const STRINGS: Record<Lang, Strings> = {
     monthsOf: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     spaceToday: SPACE_TODAY_EN,
     streak: STREAK_EN,
+    assistant: ASSISTANT_EN,
     tabs: {
       today: 'Today',
       overview: 'Overview',
