@@ -715,7 +715,7 @@
   width: 0.5rem;
   height: 0.5rem;
   border: 1.5px solid currentColor;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 /* Plans its own schedule has finished, apart and collapsed. */
