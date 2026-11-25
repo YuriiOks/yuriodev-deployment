@@ -364,7 +364,8 @@ describe('the Money page: what the backend added after the audit', () => {
     renderAt(`${PATH}?view=recurring`);
     const panel = within(await within(main()).findByRole('region', { name: 'Recurring payments' }));
     const streaming = (await panel.findByText('Streaming')).closest('li') as HTMLElement;
-    expect(streaming.querySelector('img')).toHaveAttribute('src', ICON);
+    // The picture is given its address once it has its turn at the loader (after a render): waited for, never read at once.
+    await waitFor(() => expect(streaming.querySelector('img')).toHaveAttribute('src', ICON));
     const gym = panel.getByText('Gym').closest('li') as HTMLElement;
     expect(gym.querySelector('img')).toBeNull();
     expect(gym).toHaveTextContent('G');
