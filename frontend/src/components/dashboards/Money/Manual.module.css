@@ -13,6 +13,7 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--dash-well);
+  border: 1px solid var(--dash-edge);
   border-radius: var(--dash-r-surface);
 }
 
@@ -104,8 +105,50 @@
   list-style: none;
 }
 
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+/* The two colour wells on one row, square, with the preview beside them. */
+.colours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-4);
+}
+
+.colours .field {
+  flex: 0 0 auto;
+}
+
+.previewBox .swatch {
+  flex: 0 0 auto;
+}
+
+.previewBox {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .colorInput {
-  width: 100%;
+  width: var(--dash-h-input);
   height: var(--dash-h-input);
   padding: 0 var(--space-1);
   box-sizing: border-box;

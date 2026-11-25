@@ -74,6 +74,29 @@ export interface ManualStrings {
   readonly createRefused: string;
   readonly accountAfterBank: string;
   readonly defaultAccountName: string;
+  /** The account's default name follows its kind until the owner types one. */
+  readonly defaultNameByKind: Readonly<Record<'current' | 'savings' | 'business' | 'credit_card', string>>;
+  /** The two parts of the new-bank form. */
+  readonly sectionBank: string;
+  readonly sectionAccount: string;
+  readonly previewLabel: string;
+  readonly contrastIs: string;
+  /** A balance with a date: the day the account stands at now, the warning for an older one and the way to go on. */
+  readonly currentAsOf: string;
+  readonly olderThanBalance: string;
+  readonly saveAnyway: string;
+  /** The statement: a card's balance is set by what is owed; the balance in the file and what importing it does; nothing new. */
+  readonly cardBalanceNote: string;
+  readonly balanceInFile: string;
+  readonly balanceReplaces: string;
+  readonly balanceNotUsed: string;
+  readonly balanceNotApplied: string;
+  readonly nothingNew: string;
+  /** Editing a bank entered by hand (its name and colours) and an account (last four digits, archiving). */
+  readonly editBank: string;
+  readonly saveBank: string;
+  readonly archiveAccount: string;
+  readonly archiveConfirm: string;
 }
 
 export const MANUAL_RU: ManualStrings = {
@@ -150,6 +173,24 @@ export const MANUAL_RU: ManualStrings = {
   createRefused: 'Не удалось добавить: {why}',
   accountAfterBank: 'Банк добавлен, а счёт нет: {why}. Попробуйте добавить счёт ещё раз.',
   defaultAccountName: 'Текущий счёт',
+  defaultNameByKind: { current: 'Текущий счёт', savings: 'Накопительный счёт', business: 'Бизнес-счёт', credit_card: 'Кредитная карта' },
+  sectionBank: 'Банк',
+  sectionAccount: 'Первый счёт',
+  previewLabel: 'Как будет выглядеть',
+  contrastIs: 'Контраст {ratio} к 1 (нужно не меньше 4.5)',
+  currentAsOf: 'Сейчас на счёте данные на {date}',
+  olderThanBalance: 'Эта дата раньше текущего баланса счёта ({date}). Сохранить всё равно?',
+  saveAnyway: 'Сохранить всё равно',
+  cardBalanceNote: 'Баланс карты задаётся тем, сколько на ней долга: измените его кнопкой «Обновить баланс».',
+  balanceInFile: 'Баланс в файле: {amount} на {date}',
+  balanceReplaces: 'заменит {old}',
+  balanceNotUsed: 'не будет использован',
+  balanceNotApplied: 'Баланс не изменён: на счёте уже есть более свежий.',
+  nothingNew: 'В этом файле нет ничего нового.',
+  editBank: 'Изменить банк',
+  saveBank: 'Сохранить банк',
+  archiveAccount: 'В архив',
+  archiveConfirm: 'Убрать счёт в архив?',
 };
 
 export const MANUAL_EN: ManualStrings = {
@@ -226,4 +267,22 @@ export const MANUAL_EN: ManualStrings = {
   createRefused: 'Could not add it: {why}',
   accountAfterBank: 'The bank was added but its account was not: {why}. Try adding the account again.',
   defaultAccountName: 'Current account',
+  defaultNameByKind: { current: 'Current account', savings: 'Savings account', business: 'Business account', credit_card: 'Credit card' },
+  sectionBank: 'Bank',
+  sectionAccount: 'First account',
+  previewLabel: 'How it will look',
+  contrastIs: 'Contrast {ratio} to 1 (at least 4.5 is needed)',
+  currentAsOf: 'The account now stands as of {date}',
+  olderThanBalance: 'This date is before the balance the account already has ({date}). Save anyway?',
+  saveAnyway: 'Save anyway',
+  cardBalanceNote: 'A card\'s balance is set by what is owed on it: change it with "Update balance".',
+  balanceInFile: 'Balance in the file: {amount} as of {date}',
+  balanceReplaces: 'will replace {old}',
+  balanceNotUsed: 'will not be used',
+  balanceNotApplied: 'The balance was not set: the account already has a newer one.',
+  nothingNew: 'Nothing new in this file.',
+  editBank: 'Edit bank',
+  saveBank: 'Save bank',
+  archiveAccount: 'Archive',
+  archiveConfirm: 'Archive this account?',
 };

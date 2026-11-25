@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
+import { resetManualCurrencies } from '../hooks/useManualCurrencies';
 import { resetBootstrap } from '../services/dashboards/bootstrapStore';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
@@ -66,6 +67,7 @@ function setup(options: FakeApiOptions = {}): FakeApi {
   localStorage.setItem(LANG_STORAGE_KEY, 'en');
   resetStorageFallback();
   resetBootstrap();
+  resetManualCurrencies();
   return installFakeApi({ ...options, finance: finance(options.finance) });
 }
 
@@ -212,5 +214,53 @@ describe('the Money page: adding an account to a bank entered by hand', () => {
     expect(api.callsTo('POST', '/finance/manual/accounts')[0].body).toEqual({ connection_id: 'c-2', name: 'Holiday', kind: 'current', currency: 'GBP', balance: -1250 });
     expect(api.callsTo('POST', '/finance/manual/connections')).toHaveLength(0);
     expect(await wallet().findByText('Holiday')).toBeInTheDocument();
+  });
+
+  it('is two parts, Bank and First account, shows the new bank\'s colours as they will be with their contrast, and has square colour wells', async () => {
+    setup();
+    const user = userEvent.setup();
+    renderAt(ALL);
+    await ready();
+    const form = await openForm(user);
+    expect(form.getByRole('group', { name: 'Bank' })).toBeInTheDocument();
+    expect(form.getByRole('group', { name: 'First account' })).toBeInTheDocument();
+    await user.selectOptions(form.getByLabelText('Bank'), '__custom');
+    await user.type(form.getByLabelText('Bank name'), 'Corner Credit Union');
+    fireEvent.change(form.getByLabelText('Card colour'), { target: { value: '#000000' } });
+    fireEvent.change(form.getByLabelText('Text colour'), { target: { value: '#ffffff' } });
+    expect(form.getByRole('img', { name: 'How it will look: Corner Credit Union' })).toBeInTheDocument();
+    expect(form.getByText(/Contrast 21\.0 to 1/)).toBeInTheDocument();
+  });
+
+  it('names the first account after its type until a name is typed, and offers the server\'s currencies', async () => {
+    setup({ finance: { manualCurrencies: ['EUR', 'GBP', 'UAH'] } });
+    const user = userEvent.setup();
+    renderAt(ALL);
+    await ready();
+    const form = await openForm(user);
+    expect(form.getByLabelText('Account name')).toHaveValue('Current account');
+    await user.selectOptions(form.getByLabelText('Type'), 'credit_card');
+    expect(form.getByLabelText('Account name')).toHaveValue('Credit card');
+    await user.clear(form.getByLabelText('Account name'));
+    await user.type(form.getByLabelText('Account name'), 'My own name');
+    await user.selectOptions(form.getByLabelText('Type'), 'savings');
+    expect(form.getByLabelText('Account name')).toHaveValue('My own name');
+    // The currency is a choice from the server's list, and the as-of day cannot be in the future.
+    const currency = await form.findByRole('combobox', { name: 'Currency' });
+    expect(within(currency).getAllByRole('option').map((option) => option.textContent)).toEqual(['EUR', 'GBP', 'UAH']);
+    expect(form.getByLabelText('As of (optional)')).toHaveAttribute('max');
+  });
+
+  it('puts the bank in the wallet as soon as it is made, even when its account is refused', async () => {
+    const api = setup({ fail: ['manualAccount'] });
+    const user = userEvent.setup();
+    renderAt(ALL);
+    await ready();
+    const form = await openForm(user);
+    await user.type(form.getByLabelText('Balance'), '10');
+    const before = api.callsTo('GET', '/finance/accounts').length;
+    await user.click(form.getByRole('button', { name: 'Add bank' }));
+    await form.findByRole('alert');
+    await waitFor(() => expect(api.callsTo('GET', '/finance/accounts').length).toBeGreaterThan(before));
   });
 });

@@ -114,6 +114,8 @@ export interface FinanceData {
   categories?: Record<string, unknown>;
   /** The root `display` block of the accounts and transactions answers (default: none, as an older server). */
   display?: Record<string, unknown>;
+  /** GET /finance/manual/currencies: the codes an account entered by hand may be in (default: none, answered 404 as an older server). */
+  manualCurrencies?: string[];
   /** GET /finance/providers: the banks' logos (default: none). */
   providers?: Record<string, unknown>[];
   /** The logo bundle: `logos_version` on the providers answer and what GET /finance/providers/logos answers (default: neither, as an older server). */
@@ -282,6 +284,22 @@ export function installFakeApi({ today = {}, enabled = true, tasks = sampleTasks
         (api.finance.providers ??= []).push({ id: link.provider, name: link.display_name ?? link.provider, entry: 'manual', colors: { background: body.brand_bg, foreground: body.brand_fg }, logo: { on_light: null, on_dark: null, mark: null } });
       }
       return json(link, 201);
+    }
+    if (path === '/finance/manual/currencies') {
+      if (!api.finance.manualCurrencies) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      return json({ currencies: api.finance.manualCurrencies.map((code) => ({ code, exponent: 2 })) });
+    }
+    const connectionPatch = /^\/finance\/manual\/connections\/([\w-]+)$/.exec(path);
+    if (connectionPatch && method === 'PATCH') {
+      const link = api.finance.connections.find((row) => row.id === connectionPatch[1]);
+      if (!link) return json({ error: 'not_found', message: 'x', request_id: 'test' }, 404);
+      if (typeof body?.display_name === 'string') link.display_name = body.display_name;
+      const info = (api.finance.providers ?? []).find((row) => row.id === link.provider);
+      if (info) {
+        if (typeof body?.display_name === 'string') info.name = body.display_name;
+        if (typeof body?.brand_bg === 'string') info.colors = { background: body.brand_bg, foreground: body.brand_fg };
+      }
+      return json(link);
     }
     if (path === '/finance/manual/accounts' && method === 'POST') {
       if (api.fail.has('manualAccount')) return json({ error: 'validation_error', message: 'a credit card needs credit_limit above 0', request_id: 'test' }, 422);

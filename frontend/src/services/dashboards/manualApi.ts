@@ -25,6 +25,10 @@ export interface StatementResult {
   readonly moneyIn: number;
   readonly moneyOut: number;
   readonly balanceApplied: boolean;
+  /** The balance the file states (or its newest line carries) and its day, even on a check; `balanceWouldApply` says importing it with the balance option would set it (no newer balance is on the account). Null for a card. */
+  readonly balance: number | null;
+  readonly balanceDate: string | null;
+  readonly balanceWouldApply: boolean;
   readonly errors: readonly StatementLineError[];
 }
 
@@ -47,6 +51,9 @@ export function parseStatementResult(body: unknown): StatementResult | null {
     moneyIn,
     moneyOut,
     balanceApplied: body.balance_applied === true,
+    balance: int(body.balance),
+    balanceDate: text(body.balance_date),
+    balanceWouldApply: body.balance_would_apply === true,
     errors: body.errors.flatMap((raw): StatementLineError[] => {
       if (!isObject(raw)) return [];
       const row = int(raw.row);
@@ -122,8 +129,34 @@ export interface ManualAccountPatch {
   readonly name?: string;
   readonly kind?: ManualAccountKind;
   readonly credit_limit?: number;
+  readonly mask_last4?: string;
+  readonly archived?: boolean;
 }
 
 export async function updateManualAccount(accountId: string, body: ManualAccountPatch): Promise<void> {
   await request(`/finance/accounts/${encodeURIComponent(accountId)}`, { method: 'PATCH', body });
+}
+
+/** What a bank entered by hand can have changed: its name and its colours (both colours or neither; the server checks their contrast). */
+export interface ManualConnectionPatch {
+  readonly displayName?: string;
+  readonly brandBg?: string;
+  readonly brandFg?: string;
+}
+
+export async function updateManualConnection(connectionId: string, patch: ManualConnectionPatch): Promise<void> {
+  await request(`/finance/manual/connections/${encodeURIComponent(connectionId)}`, {
+    method: 'PATCH',
+    body: { ...(patch.displayName !== undefined ? { display_name: patch.displayName } : {}), ...(patch.brandBg !== undefined ? { brand_bg: patch.brandBg } : {}), ...(patch.brandFg !== undefined ? { brand_fg: patch.brandFg } : {}) },
+  });
+}
+
+/** The currencies an account entered by hand may be in (ISO 4217, with their codes only here); an unreadable answer is an empty list and the form falls back to a code field. */
+export async function fetchManualCurrencies(signal?: AbortSignal): Promise<string[]> {
+  const answer = await request('/finance/manual/currencies', { signal });
+  if (!isObject(answer) || !Array.isArray(answer.currencies)) return [];
+  return answer.currencies.flatMap((raw): string[] => {
+    const code = isObject(raw) ? text(raw.code) : null;
+    return code && /^[A-Z]{3}$/.test(code) ? [code] : [];
+  });
 }

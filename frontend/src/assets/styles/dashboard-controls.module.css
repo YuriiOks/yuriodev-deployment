@@ -81,8 +81,8 @@
 }
 
 .buttonSecondary {
-  background: var(--dash-well);
-  border-color: var(--dash-border);
+  background: var(--dash-chip);
+  border-color: var(--dash-edge);
   color: var(--dash-t1);
 }
 
