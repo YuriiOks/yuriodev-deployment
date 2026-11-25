@@ -106,7 +106,8 @@ export function createBundleStore<T extends { readonly version: string }>(storag
           const bundle = parse(body);
           if (!bundle) return;
           current = bundle;
-          const text = JSON.stringify(bundle);
+          // What is stored is the answer as the server wrote it, so the same parser reads it back.
+          const text = JSON.stringify(body);
           if (text.length <= MAX_STORED_CHARS) writeStorage('local', storageKey, text);
           else removeStorage('local', storageKey);
           for (const listener of listeners) listener();

@@ -55,7 +55,7 @@ describe('the bundle store', () => {
   it('fetches again when the version changes, replaces the stored copy and tells its listeners', async () => {
     const fetchMock = vi.fn(async () => answer({ version: V2, logos: { aqua: { on_light: PNG, on_dark: null, mark: null } } }));
     vi.stubGlobal('fetch', fetchMock);
-    localStorage.setItem('dashboards-finance-logos-bundle', JSON.stringify({ version: V1, logos: { aqua: { onLight: SVG, onDark: null, mark: null } } }));
+    localStorage.setItem('dashboards-finance-logos-bundle', JSON.stringify({ version: V1, logos: { aqua: { on_light: SVG, on_dark: null, mark: null } } }));
     const listener = vi.fn();
     logoBundles.subscribe(listener);
     // The stored copy is what is drawn until the new one arrives.
