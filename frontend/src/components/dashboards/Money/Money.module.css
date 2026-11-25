@@ -33,7 +33,7 @@
 .total {
   display: flex;
   flex-direction: column;
-  min-width: 11rem;
+  min-width: 0;
   padding: var(--space-2) var(--space-3);
   background: var(--dash-chip);
   border: 1px solid var(--dash-line);
@@ -806,26 +806,24 @@
 .grand {
   display: flex;
   flex-direction: column;
-  min-width: 14rem;
   padding: var(--space-2) var(--space-3);
   background: var(--dash-chip);
   border: 1px solid var(--dash-prio-edge);
   border-radius: var(--dash-r-control);
 }
 
+/* The strip: the grand total across the top at hero size, then one grid of equal boxes, one per currency, that fills the row (never ragged or stranded). */
 .totalsBox {
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) 0;
 }
 
-.totalSumSmall {
-  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  color: var(--dash-t1);
-  font-size: var(--dash-fs-title);
-  font-weight: 700;
-  line-height: var(--dash-lh-title);
+.totalsBox > .totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  align-items: stretch;
 }
 
 /* A pot's goal bar. */

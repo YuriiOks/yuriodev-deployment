@@ -5,7 +5,7 @@ import { grandTotal, shownTotals, unconvertedCurrencies } from '../../../service
 import type { FinanceAccount, FinanceSummary } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { ShownAmount } from './Amount';
+import HeroAmount from './HeroAmount';
 import { whenLabel } from './labels';
 import styles from './Money.module.css';
 
@@ -38,7 +38,7 @@ const MoneyTotals: React.FC<MoneyTotalsProps> = ({ accounts, summary, mode }) =>
         <div className={styles.grand}>
           <span className={styles.totalLabel}>{m.grandTotal}</span>
           <span className={styles.totalSum}>
-            <ShownAmount shown={{ amount: grand.amount, currency: grand.currency, approx: grand.approx, originals: [], pots: 0 }} />
+            <HeroAmount amount={grand.amount} currency={grand.currency} approx={grand.approx} />
           </span>
           {rate && <span className={styles.totalNote}>{fill(m.rateAsOf, { when: rate })}</span>}
           {missing.length > 0 && <span className={styles.totalNote}>{fill(m.notConverted, { list: missing.join(', ') })}</span>}
@@ -50,7 +50,7 @@ const MoneyTotals: React.FC<MoneyTotalsProps> = ({ accounts, summary, mode }) =>
           return (
             <li key={total.currency} className={styles.total}>
               <span className={styles.totalLabel}>{fill(m.totalOf, { currency: total.currency, n: counts.get(total.currency) ?? 0 })}</span>
-              <span className={grand ? styles.totalSumSmall : styles.totalSum}>{formatMinor(total.amount, total.currency, lang)}</span>
+              <span className={styles.totalSum}>{formatMinor(total.amount, total.currency, lang)}</span>
               {total.pots !== 0 && <span className={styles.totalNote}>{fill(m.inPots, { amount: formatMinor(total.pots, total.currency, lang) })}</span>}
               {month && (month.spent > 0 || month.received > 0) && (
                 <span className={styles.totalNote}>
