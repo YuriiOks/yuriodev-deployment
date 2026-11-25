@@ -25,7 +25,7 @@ its own tasks and events.
 
 import uuid
 from collections import Counter, defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any, Literal, get_args
 
@@ -36,6 +36,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.errors import AppError
 from src.dashboards.finance import recurring_service
 from src.dashboards.finance import service as finance_service
+from src.dashboards.finance.brands import BRANDS, NEUTRAL
+from src.dashboards.finance.bundles import icons_version, logos_bundle
 from src.dashboards.finance.models import Recurring
 from src.dashboards.finance.schemas import API_STALE_AFTER
 from src.dashboards.models import Area, Event, Task
@@ -179,6 +181,10 @@ class TodayPageOut(BaseModel):
     breakdown: Breakdown
     today: list[TodayRow]
     today_total: int
+    # Money only: the versions of the two image bundles (as on the listing answers), so a page
+    # that reads `/today` knows whether to fetch them. Null on the other pages.
+    logos_version: str | None = None
+    icons_version: str | None = None
     streak: Streak
     assistant: Assistant
 
@@ -666,8 +672,28 @@ ATTENTION_ACTIONS: dict[str, tuple[str, str | None]] = {
 LINK_KINDS = {"recurring": "payment", "account": "account", "connection": "connection"}
 
 
-def money_queue(items: Sequence[Any]) -> list[QueueItem]:
-    """The first three attention items, as the attention list already orders them."""
+def provider_colors(provider: str | None, link: Any = None) -> dict[str, str]:
+    """The colour tile of a bank: the owner's pair for the connection, else the brand's, else the
+    neutral one (the same rule as `ConnectionOut`)."""
+    brand = BRANDS.get(provider or "")
+    if link is not None and link.brand_bg and link.brand_fg:
+        return {"background": link.brand_bg, "foreground": link.brand_fg}
+    pair = brand or NEUTRAL
+    return {"background": pair.background, "foreground": pair.foreground}
+
+
+def provider_name(provider: str | None, link: Any = None) -> str | None:
+    """The bank's name in effect: the owner's for the connection, else the brand's, else null."""
+    if link is not None and link.display_name:
+        return str(link.display_name)
+    brand = BRANDS.get(provider or "")
+    return None if brand is None else brand.name
+
+
+def money_queue(items: Sequence[Any], links: Sequence[Any] = ()) -> list[QueueItem]:
+    """The first three attention items, as the attention list already orders them. An item that
+    names a bank carries its `provider` and the colour tile (`colors`)."""
+    by_id = {str(link.id): link for link in links}
     queue: list[QueueItem] = []
     for item in items[:QUEUE_MAX]:
         primary, secondary = ATTENTION_ACTIONS.get(item.kind, ("open", "snooze"))
@@ -681,6 +707,10 @@ def money_queue(items: Sequence[Any]) -> list[QueueItem]:
             "converted": item.converted,
             "provider": item.provider,
         }
+        if item.provider is not None:
+            link = by_id.get(str(item.subject_id)) if item.subject_type == "connection" else None
+            facts["colors"] = provider_colors(item.provider, link)
+            facts["provider_name"] = provider_name(item.provider, link)
         queue.append(
             QueueItem(
                 key=item.key,
@@ -703,8 +733,10 @@ def money_queue(items: Sequence[Any]) -> list[QueueItem]:
     return queue
 
 
-def money_soon(upcoming: Any) -> list[SoonItem]:
-    """The next payments due (not the ones already overdue: those are attention items)."""
+def money_soon(upcoming: Any, accounts: Sequence[Any] = ()) -> list[SoonItem]:
+    """The next payments due (not the ones already overdue: those are attention items). A payment
+    from an account of ours names its `provider` and `account_id`."""
+    provider_of = {a.id: a.provider for a in accounts}
     items = [i for i in upcoming.items if not i.overdue]
     return [
         SoonItem(
@@ -720,6 +752,8 @@ def money_soon(upcoming: Any) -> list[SoonItem]:
                 "converted": i.converted,
                 "covered": i.covered,
                 "frequency_kind": i.kind,
+                "account_id": None if i.account_id is None else str(i.account_id),
+                "provider": provider_of.get(i.account_id),
             },
         )
         for i in items[:SOON_MAX]
@@ -819,6 +853,8 @@ def _connection_rows(
                 if link.last_ok_at is None
                 else link.last_ok_at.astimezone(UTC).isoformat(),
                 "stale": stale,
+                "colors": provider_colors(link.provider, link),
+                "provider_name": provider_name(link.provider, link),
                 "balances": [
                     {"currency": c, "amount": a} for c, a in sorted(held[link.id].items())
                 ],
@@ -830,7 +866,12 @@ def _connection_rows(
 
 
 async def _money(
-    session: AsyncSession, now: datetime, zone: tzinfo, today: date, display_currency: str
+    session: AsyncSession,
+    now: datetime,
+    zone: tzinfo,
+    today: date,
+    display_currency: str,
+    provider_logos: Mapping[str, Mapping[str, str]] | None,
 ) -> dict[str, Any]:
     display = await finance_service.display_for(session, display_currency, now)
     attention = await recurring_service.attention(session, now, zone, display)
@@ -839,6 +880,11 @@ async def _money(
     summary = await finance_service.summary(session, now, zone, display)
     accounts, links, _ = await finance_service.list_accounts(session)
     rows = _connection_rows(accounts, links, now)
+    logos = (
+        None
+        if provider_logos is None
+        else logos_bundle(provider_logos, set(await finance_service.provider_ids(session)))[0]
+    )
     large = large_payment(upcoming)
     shown = categories.display.categories[:ROWS_MAX]
     return {
@@ -853,9 +899,11 @@ async def _money(
                 "days_to_large_payment": None if large is None else large["days_until"],
             },
         ),
-        "queue": money_queue(attention.items),
+        "queue": money_queue(attention.items, links),
+        "logos_version": logos,
+        "icons_version": await icons_version(session),
         "queue_total": len(attention.items),
-        "soon": money_soon(upcoming),
+        "soon": money_soon(upcoming, accounts),
         "stats": [
             Stat(
                 code="spent_month_to_date",
@@ -934,13 +982,14 @@ async def build(
     display_currency: str = "GBP",
     assistant_enabled: bool = False,
     owner_name: str | None = None,
+    provider_logos: Mapping[str, Mapping[str, str]] | None = None,
 ) -> TodayPageOut:
     """Everything the Today view of one page shows. An unknown scope is 422."""
     if scope not in SCOPES:
         raise invalid_scope()
     today = now.astimezone(zone).date()
     if scope == "money":
-        parts = await _money(session, now, zone, today, display_currency)
+        parts = await _money(session, now, zone, today, display_currency, provider_logos)
     elif scope == "personal":
         parts = await _personal(session, now, zone, today)
     elif scope == "work-1":
