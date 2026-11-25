@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '../context/ThemeContext';
 import App from '../App';
+import { resetManualCurrencies } from '../hooks/useManualCurrencies';
 import { resetBootstrap } from '../services/dashboards/bootstrapStore';
 import { LANG_STORAGE_KEY } from '../services/dashboards/strings';
 import { resetStorageFallback } from '../utils/safeStorage';
@@ -68,6 +69,7 @@ function setup(options: FakeApiOptions = {}): FakeApi {
   localStorage.setItem(LANG_STORAGE_KEY, 'en');
   resetStorageFallback();
   resetBootstrap();
+  resetManualCurrencies();
   return installFakeApi({ ...options, finance: finance(options.finance) });
 }
 
@@ -130,7 +132,11 @@ describe('the Money page: a bank entered by hand', () => {
     await user.clear(amount);
     await user.type(amount, '-250.50');
     await user.type(form.getByLabelText('As of'), '2026-11-20');
+    // A day before the balance the account already has (23 Nov) is asked about once, then saved.
     await user.click(form.getByRole('button', { name: 'Save balance' }));
+    expect(await form.findByText(/before the balance the account already has \(23 Nov 2026\)/)).toBeInTheDocument();
+    expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')).toHaveLength(0);
+    await user.click(form.getByRole('button', { name: 'Save anyway' }));
     await waitFor(() => expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')).toHaveLength(1));
     expect(api.callsTo('POST', '/finance/manual/accounts/h-main/balance')[0].body).toEqual({ balance: -25050, as_of: '2026-11-20' });
     await waitFor(() => expect(wallet().getByRole('article')).toHaveTextContent('balance as of 20 Nov 2026'));
@@ -243,6 +249,70 @@ describe('the Money page: a bank entered by hand', () => {
     await user.upload(group.getByLabelText('Statement file'), new File(['x'], 'any.csv', { type: 'text/csv' }));
     await user.click(group.getByRole('button', { name: 'Check the file' }));
     expect(await group.findByRole('alert')).toHaveTextContent('Could not upload the file');
+  });
+});
+
+describe('the Money page: the tools of a bank entered by hand, the rest', () => {
+  const file = () => new File(['date,description,amount\n2026-10-01,Coffee,-3.50\n'], 'october.csv', { type: 'text/csv' });
+  const body = (extra: Record<string, unknown>) => ({ layout: 'csv', parsed: 3, created: 3, duplicates: 0, first_date: '2026-10-01', last_date: '2026-10-31', money_in: 150000, money_out: 4550, balance_applied: false, errors: [], ...extra });
+
+  it('says a card\'s balance is set by what is owed and offers no balance option for a card\'s statement', async () => {
+    setup();
+    const user = await openHandBank();
+    const card = opened().getByText('Plastic card').closest('li') as HTMLElement;
+    await user.click(within(card).getByRole('button', { name: 'Upload statement' }));
+    const group = within(within(card).getByRole('group', { name: 'Upload statement: Plastic card' }));
+    expect(group.getByText(/A card's balance is set by what is owed/)).toBeInTheDocument();
+    expect(group.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('tells the balance in the file, whether importing it would replace the one the account has, and that a file with nothing new has nothing new', async () => {
+    setup({ finance: finance({ manualStatement: { status: 200, body: body({ balance: 120000, balance_date: '2026-10-31', balance_would_apply: true }) } }) });
+    const user = await openHandBank();
+    const account = opened().getByText('Current account').closest('li') as HTMLElement;
+    await user.click(within(account).getByRole('button', { name: 'Upload statement' }));
+    const group = within(within(account).getByRole('group', { name: 'Upload statement: Current account' }));
+    await user.upload(group.getByLabelText('Statement file'), file());
+    await user.click(group.getByRole('button', { name: 'Check the file' }));
+    // The option is off: the balance in the file is told and not used.
+    expect(await group.findByText(/Balance in the file: £1,200\.00 as of 31 Oct 2026 · will not be used/)).toBeInTheDocument();
+    await user.click(group.getByLabelText('Also set the balance from the file'));
+    await user.click(group.getByRole('button', { name: 'Check the file' }));
+    expect(await group.findByText(/will replace £1,234\.56/)).toBeInTheDocument();
+  });
+
+  it('says so when a file has nothing new', async () => {
+    setup({ finance: finance({ manualStatement: { status: 200, body: body({ created: 0, duplicates: 3 }) } }) });
+    const user = await openHandBank();
+    const account = opened().getByText('Current account').closest('li') as HTMLElement;
+    await user.click(within(account).getByRole('button', { name: 'Upload statement' }));
+    const group = within(within(account).getByRole('group', { name: 'Upload statement: Current account' }));
+    await user.upload(group.getByLabelText('Statement file'), file());
+    await user.click(group.getByRole('button', { name: 'Check the file' }));
+    expect(await group.findByText('Nothing new in this file.')).toBeInTheDocument();
+  });
+
+  it('edits a bank entered by hand: its name and colours, sending only what changed', async () => {
+    const api = setup();
+    const user = await openHandBank();
+    await user.click(opened().getByRole('button', { name: 'Edit bank' }));
+    const form = within(opened().getByRole('form', { name: 'Edit bank' }));
+    await user.clear(form.getByLabelText('Bank name'));
+    await user.type(form.getByLabelText('Bank name'), 'Renamed Bank');
+    await user.click(form.getByRole('button', { name: 'Save bank' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/manual/connections/')).toHaveLength(1));
+    expect(api.callsTo('PATCH', '/finance/manual/connections/')[0].body).toEqual({ display_name: 'Renamed Bank' });
+  });
+
+  it('edits an account\'s last four digits and archives it after a second click', async () => {
+    const api = setup();
+    const user = await openHandBank();
+    const account = opened().getByText('Current account').closest('li') as HTMLElement;
+    await user.click(within(account).getByRole('button', { name: 'Edit account' }));
+    const form = within(within(account).getByRole('form', { name: 'Edit account: Current account' }));
+    await user.type(form.getByLabelText('Last four digits (optional)'), '4321');
+    await user.click(form.getByRole('button', { name: 'Save account' }));
+    await waitFor(() => expect(api.callsTo('PATCH', '/finance/accounts/h-main')[0]?.body).toEqual({ mask_last4: '4321' }));
   });
 });
 

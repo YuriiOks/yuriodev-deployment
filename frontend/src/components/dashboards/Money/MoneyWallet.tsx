@@ -15,7 +15,7 @@ import BankName from './BankName';
 import HeroAmount from './HeroAmount';
 import { dayLabel, freshLabel } from './labels';
 import { AddAccountForm, AddBankForm } from './ManualCreate';
-import ManualTools from './ManualTools';
+import ManualTools, { EditBankForm } from './ManualTools';
 import { bankLabel, reconnectPath } from './providers';
 import styles from './Money.module.css';
 
@@ -229,6 +229,7 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
   const manual = bank.connection?.manual === true;
   const connectionId = bank.connection?.id ?? null;
   const [addingAccount, setAddingAccount] = useState(false);
+  const [editingBank, setEditingBank] = useState(false);
   const id = `money-bank-${bank.provider}`;
 
   return (
@@ -263,6 +264,21 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
             <button type="button" className={styles.addButton} aria-expanded={addingAccount} onClick={() => setAddingAccount((open) => !open)}>
               {m.manual.addAccount}
             </button>
+            <button type="button" className={styles.addButton} aria-expanded={editingBank} onClick={() => setEditingBank((open) => !open)}>
+              {m.manual.editBank}
+            </button>
+            {editingBank && (
+              <EditBankForm
+                connectionId={connectionId}
+                name={bankLabel(bank.provider, logo)}
+                background={logo?.colors?.background ?? null}
+                foreground={logo?.colors?.foreground ?? null}
+                onDone={(saved) => {
+                  setEditingBank(false);
+                  if (saved) onChanged();
+                }}
+              />
+            )}
             {addingAccount && (
               <AddAccountForm
                 connectionId={connectionId}
@@ -382,6 +398,10 @@ const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, 
         <AddBankForm
           candidates={candidates}
           taken={taken}
+          onBankMade={(provider) => {
+            onSelect(provider);
+            onChanged();
+          }}
           onDone={(provider) => {
             setAdding(false);
             if (provider) {

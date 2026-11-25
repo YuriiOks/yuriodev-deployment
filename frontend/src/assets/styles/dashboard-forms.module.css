@@ -99,3 +99,51 @@
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
 }
+
+/* A touch screen zooms into a field set below 16px: there the fields are the title size (16px). */
+@media (pointer: coarse) {
+  .input,
+  .select,
+  .textarea {
+    font-size: var(--dash-fs-title);
+    line-height: var(--dash-lh-title);
+  }
+}
+
+/* The platform's own controls (the file picker, the colour well, the date picker's icon) follow the page's theme, not the browser's. */
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] .select,
+:root[data-theme="dark"] .textarea {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] .input,
+:root[data-theme="light"] .select,
+:root[data-theme="light"] .textarea {
+  color-scheme: light;
+}
+
+.input[type="file"] {
+  padding: 0 var(--space-2);
+  line-height: calc(var(--dash-h-input) - 2px);
+}
+
+.input[type="file"]::file-selector-button {
+  margin-inline-end: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-control);
+  color: var(--dash-t1);
+  font-family: var(--dash-font-ui);
+  font-size: var(--dash-fs-ui);
+  cursor: pointer;
+}
+
+/* A colour well is a square swatch, not a field-wide bar. */
+.input[type="color"] {
+  width: var(--dash-h-input);
+  min-width: var(--dash-h-input);
+  padding: var(--space-1);
+  cursor: pointer;
+}

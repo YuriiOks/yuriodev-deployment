@@ -1,6 +1,9 @@
 import React, { useId, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { useLimit } from '../../../hooks/useLimit';
+import { contrastRatio } from '../../../services/dashboards/providerBrand';
+import { useManualCurrencies } from '../../../hooks/useManualCurrencies';
+import { todayIso } from './recurringLabels';
 import FieldIssue from './FieldIssue';
 import { issueProps, NO_ISSUES, splitRefusal, type FieldIssues } from './fieldIssues';
 import { fill } from '../../../services/dashboards/calendarLabels';
@@ -20,8 +23,14 @@ const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: Accoun
   const { t } = useDashboardLang();
   const nameMax = useLimit('account', 'name', 120);
   const x = t.money.manual;
+  const currencies = useManualCurrencies();
   const set = <K extends keyof AccountFields>(key: K, value: AccountFields[K]) => onChange({ ...fields, [key]: value });
   const card = fields.kind === 'credit_card';
+  // The account's name follows its kind until the owner types a name of their own.
+  const setKind = (kind: ManualAccountKind) => {
+    const followed = fields.name.trim() === '' || Object.values(x.defaultNameByKind).includes(fields.name.trim());
+    onChange({ ...fields, kind, ...(followed ? { name: x.defaultNameByKind[kind] } : {}) });
+  };
   // The server's names for the fields, as this form's inputs are named (a card's limit and a balance share the amount input).
   const view: FieldIssues = { name: issues.name, kind: issues.kind, currency: issues.currency, amount: issues.balance ?? issues.credit_limit, owed: issues.owed, last4: issues.mask_last4, asof: issues.as_of } as FieldIssues;
   const kindLabel: Record<ManualAccountKind, string> = { current: x.kindCurrent, savings: x.kindSavings, business: x.kindBusiness, credit_card: x.kindCard };
@@ -38,7 +47,7 @@ const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: Accoun
         <label className={styles.fieldLabel} htmlFor={`${idBase}-kind`}>
           {x.fKind}
         </label>
-        <select id={`${idBase}-kind`} className={styles.select} {...issueProps(view, 'kind', idBase)} value={fields.kind} onChange={(event) => set('kind', event.target.value as ManualAccountKind)}>
+        <select id={`${idBase}-kind`} className={styles.select} {...issueProps(view, 'kind', idBase)} value={fields.kind} onChange={(event) => setKind(event.target.value as ManualAccountKind)}>
           {KINDS.map((kind) => (
             <option key={kind} value={kind}>
               {kindLabel[kind]}
@@ -51,7 +60,17 @@ const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: Accoun
         <label className={styles.fieldLabel} htmlFor={`${idBase}-currency`}>
           {x.fCurrency}
         </label>
-        <input id={`${idBase}-currency`} className={styles.input} {...issueProps(view, 'currency', idBase)} value={fields.currency} maxLength={3} onChange={(event) => set('currency', event.target.value.toUpperCase())} />
+        {currencies.length > 0 ? (
+          <select id={`${idBase}-currency`} className={styles.select} {...issueProps(view, 'currency', idBase)} value={fields.currency} onChange={(event) => set('currency', event.target.value)}>
+            {(currencies.includes(fields.currency) ? currencies : [fields.currency, ...currencies]).map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input id={`${idBase}-currency`} className={styles.input} {...issueProps(view, 'currency', idBase)} value={fields.currency} maxLength={3} onChange={(event) => set('currency', event.target.value.toUpperCase())} />
+        )}
         <FieldIssue issues={view} field="currency" id={idBase} />
       </div>
       <div className={styles.field}>
@@ -81,7 +100,7 @@ const AccountFieldset: React.FC<{ fields: AccountFields; onChange: (next: Accoun
         <label className={styles.fieldLabel} htmlFor={`${idBase}-asof`}>
           {x.fAsOfOptional}
         </label>
-        <input id={`${idBase}-asof`} className={styles.input} {...issueProps(view, 'asof', idBase)} type="date" value={fields.asOf} onChange={(event) => set('asOf', event.target.value)} />
+        <input id={`${idBase}-asof`} className={styles.input} {...issueProps(view, 'asof', idBase)} type="date" max={todayIso()} value={fields.asOf} onChange={(event) => set('asOf', event.target.value)} />
         <FieldIssue issues={view} field="asof" id={idBase} />
       </div>
     </div>
@@ -154,6 +173,8 @@ export interface AddBankFormProps {
   taken: ReadonlySet<string>;
   /** Done: the new bank's provider id, or null when closed without adding. */
   onDone: (provider: string | null) => void;
+  /** The bank exists as soon as its connection is made (before its first account): the wallet reloads and opens it however the form is closed. */
+  onBankMade?: (provider: string) => void;
 }
 
 /**
@@ -161,7 +182,7 @@ export interface AddBankFormProps {
  * and its text held to the contrast the server asks for). The bank is made first and then its account; if only the account is refused the
  * bank stays made and a second try only adds the account.
  */
-export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onDone }) => {
+export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onDone, onBankMade }) => {
   const { t } = useDashboardLang();
   const x = t.money.manual;
   const bankNameMax = useLimit('connection', 'display_name', 60);
@@ -200,6 +221,7 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
       try {
         connectionId = await createManualConnection(custom ? { provider, displayName: name.trim(), brandBg: background, brandFg: foreground } : { provider });
         setMade({ id: connectionId, provider });
+        onBankMade?.(provider);
       } catch (error) {
         const split = splitRefusal(error, t.money.refusal, BANK_FIELDS);
         setIssues(split.issues);
@@ -227,22 +249,23 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
 
   return (
     <form className={styles.form} onSubmit={submit} aria-label={x.addBank}>
-      <div className={styles.fields}>
-        <div className={styles.field}>
-          <label className={styles.fieldLabel} htmlFor={`${id}-bank`}>
-            {x.fBank}
-          </label>
-          <select id={`${id}-bank`} className={styles.select} value={choice} disabled={made !== null} onChange={(event) => setChoice(event.target.value)}>
-            {candidates.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.name}
-              </option>
-            ))}
-            <option value={CUSTOM}>{x.otherBank}</option>
-          </select>
-        </div>
-        {custom && (
-          <>
+      <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>{x.sectionBank}</legend>
+        <div className={styles.fields}>
+          <div className={styles.field}>
+            <label className={styles.fieldLabel} htmlFor={`${id}-bank`}>
+              {x.fBank}
+            </label>
+            <select id={`${id}-bank`} className={styles.select} value={choice} disabled={made !== null} onChange={(event) => setChoice(event.target.value)}>
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name}
+                </option>
+              ))}
+              <option value={CUSTOM}>{x.otherBank}</option>
+            </select>
+          </div>
+          {custom && (
             <div className={styles.field}>
               <label className={styles.fieldLabel} htmlFor={`${id}-name`}>
                 {x.fBankName}
@@ -250,30 +273,43 @@ export const AddBankForm: React.FC<AddBankFormProps> = ({ candidates, taken, onD
               <input id={`${id}-name`} className={styles.input} {...issueProps(bankIssues, 'name', id)} value={name} maxLength={bankNameMax} disabled={made !== null} onChange={(event) => setName(event.target.value)} />
               <FieldIssue issues={bankIssues} field="name" id={id} />
             </div>
-            <div className={styles.field}>
-              <label className={styles.fieldLabel} htmlFor={`${id}-bg`}>
-                {x.fBgColor}
-              </label>
-              <input id={`${id}-bg`} className={styles.colorInput} type="color" value={background} disabled={made !== null} onChange={(event) => setBackground(event.target.value)} />
+          )}
+        </div>
+        {custom && (
+          <>
+            <div className={styles.colours}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel} htmlFor={`${id}-bg`}>
+                  {x.fBgColor}
+                </label>
+                <input id={`${id}-bg`} className={styles.colorInput} type="color" value={background} disabled={made !== null} onChange={(event) => setBackground(event.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel} htmlFor={`${id}-fg`}>
+                  {x.fFgColor}
+                </label>
+                <input id={`${id}-fg`} className={styles.colorInput} type="color" value={foreground} disabled={made !== null} onChange={(event) => setForeground(event.target.value)} />
+              </div>
+              <div className={styles.previewBox}>
+                <span className={styles.fieldLabel}>{x.previewLabel}</span>
+                <div className={styles.swatch} style={{ background, color: foreground }} role="img" aria-label={`${x.previewLabel}: ${name.trim() || x.fBankName}`}>
+                  {name.trim() || x.fBankName}
+                </div>
+                <span className={styles.note}>{fill(x.contrastIs, { ratio: contrastRatio(background, foreground).toFixed(1) })}</span>
+              </div>
             </div>
-            <div className={styles.field}>
-              <label className={styles.fieldLabel} htmlFor={`${id}-fg`}>
-                {x.fFgColor}
-              </label>
-              <input id={`${id}-fg`} className={styles.colorInput} type="color" value={foreground} disabled={made !== null} onChange={(event) => setForeground(event.target.value)} />
-            </div>
-            <div className={styles.swatch} style={{ background, color: foreground }} aria-hidden="true">
-              {name.trim() || x.fBankName}
-            </div>
+            {!contrastOk && (
+              <p role="alert" className={styles.error}>
+                {x.contrastLow}
+              </p>
+            )}
           </>
         )}
-      </div>
-      {custom && !contrastOk && (
-        <p role="alert" className={styles.error}>
-          {x.contrastLow}
-        </p>
-      )}
-      <AccountFieldset fields={fields} onChange={setFields} idBase={`${id}-account`} issues={issues} />
+      </fieldset>
+      <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>{x.sectionAccount}</legend>
+        <AccountFieldset fields={fields} onChange={setFields} idBase={`${id}-account`} issues={issues} />
+      </fieldset>
       {problem && (
         <p role="alert" className={styles.error}>
           {problem}
