@@ -3,9 +3,11 @@
 import json
 
 import pytest
+from sqlalchemy import update
 
 from src.dashboards.finance.bundles import MAX_BUNDLE_ICON, logos_bundle
-from tests.dashboards_support import AUTH, execute, running
+from src.dashboards.finance.models import Recurring
+from tests.dashboards_support import AUTH, running
 from tests.finance_support import seed
 from tests.test_finance_icons import PNG, add, png_uri
 from tests.test_finance_logos import GOOD_PNG, GOOD_SVG
@@ -71,12 +73,13 @@ async def test_no_logos_is_an_empty_bundle_with_a_version(db_url, make_dashboard
     assert listing["logos_version"] == body["version"]
 
 
-async def put_icon(db_url, name, data, manual=True):
-    await execute(
-        db_url,
-        f"UPDATE finance.recurring SET icon_data = '{data}', icon_manual = {str(manual).lower()} "
-        f"WHERE name = '{name}'",
-    )
+async def put_icon(app, name, data, manual=True, checked=None):
+    async with app.state.dashboards.sessions() as session, session.begin():
+        await session.execute(
+            update(Recurring)
+            .where(Recurring.name == name)
+            .values(icon_data=data, icon_manual=manual, icon_checked_url=checked)
+        )
 
 
 async def test_the_icons_come_in_one_answer_and_the_big_ones_stay_out(db_url, make_dashboards_app):
@@ -86,15 +89,15 @@ async def test_the_icons_come_in_one_answer_and_the_big_ones_stay_out(db_url, ma
         big = await add(client, name="Big")
         plain = await add(client, name="Plain")
         empty = (await client.get(f"{FINANCE}/recurring/icons")).json()
-        await put_icon(db_url, "Small", png_uri())
-        await put_icon(db_url, "Big", "data:image/png;base64," + "A" * (MAX_BUNDLE_ICON + 10))
+        await put_icon(app, "Small", png_uri())
+        await put_icon(app, "Big", "data:image/png;base64," + "A" * (MAX_BUNDLE_ICON + 10))
         response = await client.get(f"{FINANCE}/recurring/icons")
         tag = response.headers["etag"]
         again = await client.get(f"{FINANCE}/recurring/icons", headers={"If-None-Match": tag})
         listing = (await client.get(f"{FINANCE}/recurring")).json()
         upcoming = (await client.get(f"{FINANCE}/upcoming?days=60")).json()
         one = await client.get(f"{FINANCE}/recurring/{small['id']}/icon")
-        await put_icon(db_url, "Plain", png_uri(PNG + b"\x03"))
+        await put_icon(app, "Plain", png_uri(PNG + b"\x03"))
         changed = (await client.get(f"{FINANCE}/recurring/icons")).json()
 
     body = response.json()
@@ -115,15 +118,11 @@ async def test_an_icon_for_another_address_is_not_in_the_bundle(db_url, make_das
     app = make_dashboards_app(db_url)
     async with running(app, AUTH) as client:
         made = await add(client, name="Moved", icon_url="https://icons.example.test/a.png")
-        await execute(
-            db_url,
-            f"UPDATE finance.recurring SET icon_data = '{png_uri()}', "
-            "icon_checked_url = 'https://icons.example.test/old.png', icon_manual = false",
-        )
+        old = "https://icons.example.test/old.png"
+        await put_icon(app, "Moved", png_uri(), manual=False, checked=old)
         stale = (await client.get(f"{FINANCE}/recurring/icons")).json()
-        await execute(
-            db_url,
-            "UPDATE finance.recurring SET icon_checked_url = 'https://icons.example.test/a.png'",
+        await put_icon(
+            app, "Moved", png_uri(), manual=False, checked="https://icons.example.test/a.png"
         )
         current = (await client.get(f"{FINANCE}/recurring/icons")).json()
 
