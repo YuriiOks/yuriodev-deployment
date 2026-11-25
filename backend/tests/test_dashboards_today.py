@@ -334,6 +334,8 @@ async def test_the_money_page_is_the_attention_items_the_next_payments_and_the_b
     assert body["queue_total"] == summary["facts"]["queue_total"]
     assert len(body["queue"]) <= 3
     assert titles(body["soon"]) == ["Big Rent"]
+    assert body["soon"][0]["facts"]["provider"] == "sample"
+    assert body["soon"][0]["facts"]["account_id"] == "00000000-0000-0000-0000-00000000000a"
     spent, due = body["stats"]
     assert (spent["code"], spent["compare"]["code"]) == ("spent_month_to_date", "previous_to_date")
     assert (due["code"], due["facts"]["count"]) == ("due_in_14_days", 1)
@@ -500,3 +502,4 @@ async def test_the_money_page_carries_the_image_versions_and_the_bank_colours(
     (row,) = body["today"]
     assert row["facts"]["provider"] == "sample"
     assert set(row["facts"]["colors"]) == {"background", "foreground"}
+    assert row["facts"]["provider_name"] is None  # an invented provider has no brand name
