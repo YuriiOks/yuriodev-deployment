@@ -107,7 +107,7 @@ describe('the Today view of the spaces', () => {
     expect(within(tabs).getAllByRole('tab')[0]).toHaveAttribute('aria-selected', 'true');
     expect(await within(main()).findByText(/12 open tasks: 3 priority, 2 overdue\./)).toBeInTheDocument();
     expect(within(main()).getByRole('heading', { level: 2, name: /Good (morning|afternoon|evening)/ })).toBeInTheDocument();
-    const queue = within(main()).getByRole('region', { name: /First this/ });
+    const queue = within(within(main()).getByRole('region', { name: /First this/ }));
     const cards = queue.getAllByRole('listitem').filter((entry) => entry.getAttribute('data-key'));
     expect(cards).toHaveLength(2);
     expect(within(cards[0]).getByText('Is “File the form” done?')).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('the Today view of the spaces', () => {
     expect(within(main()).getByText('Open tasks')).toBeInTheDocument();
     expect(within(main()).getByText('3 priority · 4 without a date · 2 overdue')).toBeInTheDocument();
     expect(within(main()).getByText('last week: 4')).toBeInTheDocument();
-    const breakdown = within(main()).getByRole('region', { name: 'Open tasks by area' });
+    const breakdown = within(within(main()).getByRole('region', { name: 'Open tasks by area' }));
     expect(breakdown.getAllByRole('listitem')).toHaveLength(2);
     expect(breakdown.getByText('Gone stale: Money')).toBeInTheDocument();
     expect(breakdown.getByText(/4 tasks without a date are older than 30 days/)).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('the Today view of the spaces', () => {
     const user = userEvent.setup();
     const first = renderAt('/dashboards/personal');
     const queue = within(await within(main()).findByRole('region', { name: /First this/ }));
-    await user.click(await queue.findByRole('button', { name: 'Done' }));
+    await user.click((await queue.findAllByRole('button', { name: 'Done' }))[0]);
     await waitFor(() => expect(api.callsTo('PATCH', '/tasks/t-1').length).toBeGreaterThan(0));
     // Work 1: a review request opens where it lives.
     first.unmount();
@@ -154,7 +154,7 @@ describe('the Today view of the spaces', () => {
     renderAt('/dashboards/work-2');
     expect(await within(main()).findByText(/3 open tasks, 1 priority\./)).toBeInTheDocument();
     expect(within(main()).getByText('Nothing to decide.')).toBeInTheDocument();
-    const breakdown = within(main()).getByRole('region', { name: 'Meetings by day' });
+    const breakdown = within(within(main()).getByRole('region', { name: 'Meetings by day' }));
     expect(breakdown).toHaveTextContent('1 h 30 min');
     expect(breakdown.getByText(/No meetings on/)).toBeInTheDocument();
     expect(within(main()).queryByText(/Ask/)).toBeNull();

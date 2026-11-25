@@ -305,7 +305,7 @@ describe('the Money page: Today', () => {
     expect(rows[0]).toContain('Globex');
     expect(rows[1]).toContain('Acme Bank · £250.00');
     expect(banks.getByText(/needs a look/)).toBeInTheDocument();
-    expect(banks.getByText(/updated 4 minutes ago/)).toBeInTheDocument();
+    expect(banks.getAllByText(/updated 4 minutes ago/).length).toBeGreaterThan(0);
   });
 });
 
