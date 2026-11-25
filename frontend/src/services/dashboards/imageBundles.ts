@@ -13,6 +13,8 @@ import { iconUrl } from './recurringApi';
 const VERSION = /^[0-9a-f]{16}$/;
 /** A bundle bigger than this is kept in memory only (localStorage is about 5 MB for the whole site). */
 const MAX_STORED_CHARS = 2_000_000;
+/** How long a failed bundle waits before its one retry. */
+const RETRY_BUNDLE_MS = 3000;
 
 /** A version as the server writes it (16 hex), or null. */
 export const bundleVersion = (value: unknown): string | null => (typeof value === 'string' && VERSION.test(value) ? value : null);
@@ -74,6 +76,9 @@ export function createBundleStore<T extends { readonly version: string }>(storag
   let current: T | null = null;
   let loaded = false;
   let inflight: string | null = null;
+  /** Versions already asked for again after a failure: a bundle is asked for at most twice in a page view. */
+  const retried = new Set<string>();
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   const listeners = new Set<() => void>();
 
   const get = (): T | null => {
@@ -97,7 +102,7 @@ export function createBundleStore<T extends { readonly version: string }>(storag
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    ensure: (version) => {
+    ensure: function ensure(version) {
       if (!version || get()?.version === version || inflight === version) return;
       inflight = version;
       request(address).then(
@@ -113,7 +118,15 @@ export function createBundleStore<T extends { readonly version: string }>(storag
           for (const listener of listeners) listener();
         },
         () => {
+          // A failed bundle is asked for once more after a pause (the page draws tiles meanwhile, never one request per picture); then it is left.
           inflight = null;
+          if (retried.has(version)) return;
+          retried.add(version);
+          if (retryTimer !== null) clearTimeout(retryTimer);
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            ensure(version);
+          }, RETRY_BUNDLE_MS);
         },
       );
     },
@@ -121,6 +134,9 @@ export function createBundleStore<T extends { readonly version: string }>(storag
       current = null;
       loaded = false;
       inflight = null;
+      retried.clear();
+      if (retryTimer !== null) clearTimeout(retryTimer);
+      retryTimer = null;
     },
   };
 }

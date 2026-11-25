@@ -25,9 +25,12 @@ export class ApiError extends Error {
   readonly code: ApiErrorCode | string;
   /** The parsed JSON body of an error answer (a refused upload lists every bad line in it), or null. */
   readonly body: unknown;
+  /** How long the server asked to wait before asking again (Retry-After), when it said. */
+  readonly retryAfterMs: number | null;
 
-  constructor(code: ApiErrorCode | string, status: number, message: string, body: unknown = null) {
+  constructor(code: ApiErrorCode | string, status: number, message: string, body: unknown = null, retryAfterMs: number | null = null) {
     super(message);
+    this.retryAfterMs = retryAfterMs;
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
@@ -345,8 +348,90 @@ interface RequestOptions {
   readonly timeoutMs?: number;
 }
 
-/** One JSON request: resolves with the parsed body (null for 204), rejects with an ApiError. */
-export async function request(path: string, { method = 'GET', body, raw, signal, timeoutMs = API_TIMEOUT_MS }: RequestOptions = {}): Promise<unknown> {
+/*
+ * One gate for every call to the API from the page: at most MAX_IN_FLIGHT at once (the CDN in front of the site limits what one visitor may send), and a
+ * 429 (the CDN's refusal) is waited out (Retry-After when it says, else 2 s, then 5 s) and asked again up to twice before it is reported, so a burst
+ * that is refused once comes back quietly behind the page's placeholder instead of as an error.
+ */
+const MAX_IN_FLIGHT = 4;
+const RETRY_AFTER_429_MS = [2000, 5000] as const;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+
+/** Takes a slot at once when one is free (so a request starts in the same turn, as it always did), else a promise that resolves when it is this one's turn. */
+function acquire(signal?: AbortSignal): Promise<void> | null {
+  if (signal?.aborted) return Promise.reject(new ApiError('network', 0, 'aborted'));
+  if (inFlight < MAX_IN_FLIGHT && waiting.length === 0) {
+    inFlight += 1;
+    return null;
+  }
+  return new Promise((resolve, reject) => {
+    const turn = () => {
+      signal?.removeEventListener('abort', leave);
+      inFlight += 1;
+      resolve();
+    };
+    const leave = () => {
+      const index = waiting.indexOf(turn);
+      if (index >= 0) waiting.splice(index, 1);
+      reject(new ApiError('network', 0, 'aborted'));
+    };
+    signal?.addEventListener('abort', leave, { once: true });
+    waiting.push(turn);
+  });
+}
+
+function release(): void {
+  inFlight = Math.max(0, inFlight - 1);
+  const next = waiting.shift();
+  if (next) next();
+}
+
+function pause(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new ApiError('network', 0, 'aborted'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    const stop = () => {
+      clearTimeout(timer);
+      reject(new ApiError('network', 0, 'aborted'));
+    };
+    signal?.addEventListener('abort', stop, { once: true });
+  });
+}
+
+/** Retry-After as milliseconds (seconds, or a date), capped so a page never waits for long. */
+function retryAfterOf(header: string | null): number | null {
+  if (!header) return null;
+  const seconds = Number(header);
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header) - Date.now();
+  return Number.isFinite(ms) ? Math.min(Math.max(ms, 0), 10000) : null;
+}
+
+/** One JSON request: resolves with the parsed body (null for 204), rejects with an ApiError. Goes through the gate above. */
+export async function request(path: string, options: RequestOptions = {}): Promise<unknown> {
+  for (let attempt = 0; ; attempt += 1) {
+    const turn = acquire(options.signal);
+    if (turn) await turn;
+    let wait: number;
+    try {
+      return await send(path, options);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 429 || attempt >= RETRY_AFTER_429_MS.length) throw error;
+      wait = error.retryAfterMs ?? RETRY_AFTER_429_MS[attempt];
+    } finally {
+      release();
+    }
+    await pause(wait, options.signal);
+  }
+}
+
+async function send(path: string, { method = 'GET', body, raw, signal, timeoutMs = API_TIMEOUT_MS }: RequestOptions = {}): Promise<unknown> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) throw new ApiError('network', 0, 'aborted');
@@ -383,7 +468,7 @@ export async function request(path: string, { method = 'GET', body, raw, signal,
       } catch {
         // An error page that is not JSON: keep the generic code.
       }
-      throw new ApiError(code, response.status, message, details);
+      throw new ApiError(code, response.status, message, details, retryAfterOf(response.headers.get('Retry-After')));
     }
     if (response.status === 204) return null;
     try {

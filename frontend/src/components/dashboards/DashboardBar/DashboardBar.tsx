@@ -3,7 +3,6 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath, projectPath, type PageId } from '../../../data/site';
 import { useBarData } from '../../../hooks/useBarData';
-import { useProjects } from '../../../hooks/useProjects';
 import { useSpaceNames } from '../../../hooks/useSpaceNames';
 import { promptPlace } from '../../../services/dashboards/promptPlace';
 import { SPACES, SPACE_PAGE } from '../../../services/dashboards/spaces';
@@ -44,7 +43,7 @@ export interface DashboardBarProps {
 const DashboardBar: React.FC<DashboardBarProps> = ({ phone = false }) => {
   const { t } = useDashboardLang();
   const { nameOf, serverNameOf } = useSpaceNames();
-  useProjects(); // asks for the shared list (live data only); the pills themselves come from useBarData
+  // The pills come from useBarData: the bootstrap answer already lists the projects, so the bar asks for nothing of its own.
   const { phase, projects: active, stale } = useBarData();
   const currentRef = useRef<HTMLAnchorElement>(null);
   const navRef = useRef<HTMLElement>(null);

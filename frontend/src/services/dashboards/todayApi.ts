@@ -1,4 +1,5 @@
 import { isObject } from './financeApi';
+import { bundleVersion } from './imageBundles';
 import { request } from './liveApi';
 
 /** The pages that have a Today view served by the API (`GET /today?scope=`). */
@@ -70,6 +71,8 @@ export interface TodayStreak {
 export interface TodayData {
   readonly scope: TodayScope;
   readonly date: string;
+  /** When the server worked the answer out. */
+  readonly generatedAt: string | null;
   readonly summary: { readonly code: string; readonly facts: Facts };
   readonly queue: readonly TodayQueueEntry[];
   readonly queueTotal: number;
@@ -77,6 +80,9 @@ export interface TodayData {
   readonly stats: readonly TodayStatEntry[];
   readonly breakdown: { readonly code: string; readonly rows: readonly TodayRowEntry[]; readonly insight: TodayInsight | null };
   readonly today: readonly TodayEvent[];
+  /** The versions of the image bundles the answer expects, when it names them (null today: the stored copies are drawn). */
+  readonly logosVersion: string | null;
+  readonly iconsVersion: string | null;
   /** The seven days of this week (Monday to Sunday) and the run of cleared days; null from an older server. */
   readonly streak: TodayStreak | null;
   /** The server says the assistant exists for this page (the page shows an Ask card only then, and never on Work 2). */
@@ -118,6 +124,7 @@ export function parseToday(body: unknown): TodayData | null {
   return {
     scope,
     date: str(body.date) ?? '',
+    generatedAt: str(body.generated_at),
     summary: { code: str(summary.code) ?? '', facts: facts(summary.facts) },
     queue: list(body.queue).flatMap((raw): TodayQueueEntry[] => {
       if (!isObject(raw)) return [];
@@ -153,6 +160,8 @@ export function parseToday(body: unknown): TodayData | null {
       insight: isObject(breakdown.insight) && str(breakdown.insight.code) ? { code: str(breakdown.insight.code) ?? '', facts: facts(breakdown.insight.facts) } : null,
     },
     today: list(body.today).flatMap((raw): TodayEvent[] => (isObject(raw) ? [{ kind: str(raw.kind) ?? '', startsAt: str(raw.starts_at), endsAt: str(raw.ends_at), subject: subject(raw.subject), facts: facts(raw.facts) }] : [])),
+    logosVersion: bundleVersion(body.logos_version),
+    iconsVersion: bundleVersion(body.icons_version),
     streak: parseStreak(body.streak),
     assistantEnabled: isObject(body.assistant) && body.assistant.enabled === true,
   };
