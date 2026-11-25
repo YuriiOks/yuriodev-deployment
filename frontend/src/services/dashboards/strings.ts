@@ -2,6 +2,7 @@ import type { ActionVerb, Lang, Localized, SpaceId, TabId } from './types';
 import type { Category } from './financeApi';
 import type { ProjectIconKey } from './projectIcons';
 import { MANUAL_EN, MANUAL_RU, type ManualStrings } from './manualStrings';
+import { REFUSAL_EN, REFUSAL_RU, type RefusalStrings } from './refusalStrings';
 import { RECURRING_EN, RECURRING_RU, type RecurringStrings } from './recurringStrings';
 import { ASSISTANT_EN, ASSISTANT_RU, type AssistantStrings } from './assistantStrings';
 import { SPACE_TODAY_EN, SPACE_TODAY_RU, type SpaceTodayStrings } from './spaceTodayStrings';
@@ -140,6 +141,7 @@ export interface Strings {
     readonly rec: RecurringStrings;
     readonly today: TodayStrings;
     readonly manual: ManualStrings;
+    readonly refusal: RefusalStrings;
     readonly navLink: string;
     readonly title: string;
     readonly back: string;
@@ -452,6 +454,7 @@ export const STRINGS: Record<Lang, Strings> = {
       rec: RECURRING_RU,
       today: TODAY_RU,
       manual: MANUAL_RU,
+      refusal: REFUSAL_RU,
       navLink: 'Деньги',
       title: 'Деньги',
       back: 'К личному',
@@ -777,6 +780,7 @@ export const STRINGS: Record<Lang, Strings> = {
       rec: RECURRING_EN,
       today: TODAY_EN,
       manual: MANUAL_EN,
+      refusal: REFUSAL_EN,
       navLink: 'Money',
       title: 'Money',
       back: 'Back to Personal',

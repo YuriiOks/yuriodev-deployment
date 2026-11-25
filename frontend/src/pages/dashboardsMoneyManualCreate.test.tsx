@@ -189,7 +189,7 @@ describe('the Money page: adding a bank entered by hand', () => {
     const form = await openForm(user);
     await user.type(form.getByLabelText('Balance'), '10');
     await user.click(form.getByRole('button', { name: 'Add bank' }));
-    expect(await form.findByRole('alert')).toHaveTextContent('Could not add it: that bank is already entered');
+    expect(await form.findByRole('alert')).toHaveTextContent('Could not add it: check the values you entered');
     expect(api.callsTo('POST', '/finance/manual/accounts')).toHaveLength(0);
   });
 });
