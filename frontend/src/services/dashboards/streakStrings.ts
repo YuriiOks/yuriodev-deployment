@@ -11,20 +11,20 @@ export interface StreakStrings {
 
 export const STREAK_RU: StreakStrings = {
   title: 'Разбор очереди',
-  subtitle: 'дни, когда список был закрыт',
+  subtitle: 'закрытые дни',
   row: '{n} дн. подряд',
   week: '{cleared} из {total} дней на этой неделе',
-  none: 'на этой неделе очередь ещё не закрывалась',
+  none: 'Пока нет закрытых дней',
   states: { cleared: 'очередь закрыта', open: 'очередь не закрыта', future: 'ещё впереди', no_data: 'нет данных' },
   dayLetters: ['П', 'В', 'С', 'Ч', 'П', 'С', 'В'],
 };
 
 export const STREAK_EN: StreakStrings = {
   title: 'Queue cleared',
-  subtitle: 'days the list was closed',
+  subtitle: 'closed days',
   row: '{n} d in a row',
   week: '{cleared} of {total} days this week',
-  none: 'the queue has not been cleared this week yet',
+  none: 'No cleared days yet',
   states: { cleared: 'queue cleared', open: 'queue not cleared', future: 'still ahead', no_data: 'no data' },
   dayLetters: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
 };

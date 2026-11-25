@@ -9,6 +9,7 @@ import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { ATTENTION_KINDS, markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type AttentionKind } from '../../../services/dashboards/recurringApi';
 import type { TodayData, TodayQueueEntry, TodaySoonEntry } from '../../../services/dashboards/todayApi';
 import DashIcon from '../DashIcon/DashIcon';
+import AskCard from '../Today/AskCard';
 import StreakCard from '../Today/StreakCard';
 import TodayLayout, { SideCard, SideRow, TodayCard, TodaySoonRow, type TodayAction } from '../Today/TodayLayout';
 import BankMark from './BankMark';
@@ -241,6 +242,7 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, on
       side={
         <>
           {failed && <p role="alert">{td.failed}</p>}
+          {serverToday.value?.assistantEnabled && <AskCard scope="money" />}
           <SideCard title={td.banksTitle} linkLabel={td.banksLink} linkTo="?view=wallet">
             {connections.length === 0 ? (
               <p>{td.banksEmpty}</p>
