@@ -1,6 +1,6 @@
 import type { Converted, FinanceAccount, FinanceSummary } from './financeApi';
 import type { MoneyDisplay } from './preferences';
-import { isPot } from './wallet';
+import { isPot, type Bank } from './wallet';
 
 /** One figure on screen: an amount in a currency; `approx` when it was converted (shown with "≈"), with the originals it stands for. */
 export interface Shown {
@@ -72,7 +72,27 @@ export function shownTotals(accounts: readonly FinanceAccount[], mode: MoneyDisp
       rest.push({ amount: entry.amount, currency, approx: false, originals: [], pots: entry.pots, potsApprox: false });
     }
   }
+  // The display currency first (the converted accounts are one figure in it), then the currencies that could not be converted, in the order they came.
   return [...fromConverted, ...rest];
+}
+
+/**
+ * The banks in the order the stack shows them: a link that needs approving again first, then by the size of the bank's money (the absolute
+ * converted figure, so a debt counts as much as a balance), and a bank with nothing in it last. The order is the same on every render, so
+ * choosing a bank never moves the cards.
+ */
+export function sortBanks(banks: readonly Bank[]): Bank[] {
+  const rank = (bank: Bank) => {
+    const open = bank.accounts.filter((account) => !account.archived);
+    const empty = open.every((account) => account.balance === 0 && account.ownBalance === 0);
+    // The size is told in the display currency (what the server converted); an account it could not convert has no size to compare.
+    const size = open.reduce((sum, account) => sum + (account.display?.amount ?? 0), 0);
+    return [bank.connection?.status === 'needs_reconsent' ? 0 : 1, empty ? 1 : 0, -Math.abs(size)] as const;
+  };
+  return banks
+    .map((bank, index) => ({ bank, index, key: rank(bank) }))
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.index - b.index)
+    .map(({ bank }) => bank);
 }
 
 /** The grand total in the display currency: the server's when it sends one, else the converted accounts' sum; null when nothing was converted. */

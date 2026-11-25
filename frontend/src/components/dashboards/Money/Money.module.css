@@ -123,6 +123,22 @@
   margin-top: 0;
 }
 
+/* A bank with nothing in it is quieter and sits last. */
+.bank[data-empty="true"] {
+  filter: saturate(0.6);
+}
+
+/* On a phone the opened bank's panel sits right under its card, inside the stack. */
+@media (max-width: 63.99rem) {
+  .stack > .detail {
+    margin: var(--space-2) 0 var(--space-4);
+  }
+
+  .stack > .detail + .bank {
+    margin-top: 0;
+  }
+}
+
 /* The whole top of the card is one button: the name or wordmark at the left, the balance at the right. The bottom 16px are the part the
    next card covers, so the content sits in the visible 80px. */
 .bankHead {

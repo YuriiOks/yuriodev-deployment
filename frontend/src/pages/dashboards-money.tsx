@@ -34,10 +34,14 @@ import { useOnResume } from '../hooks/useOnResume';
 import { useAttention, useRecurring, useUpcoming } from '../hooks/useRecurring';
 import { useToday } from '../hooks/useToday';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { readStorage, writeStorage } from '../utils/safeStorage';
 import styles from './dashboards-money.module.css';
 
 /** No logos (until the server sends them, or when it cannot): the text names show. */
 /** An API bank whose balances are older than this is called out (the same two hours the server calls a connection stale after). */
+/** Where the last opened bank is remembered (the wallet opens it again next time). */
+const BANK_KEY = 'dashboards-money-bank';
+
 const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 /** A tab that was hidden for this long asks again for the payments and what needs attention when it comes back. */
@@ -68,7 +72,22 @@ const DashboardsMoney = () => {
   const spend = useFinanceCategories(shows(['spending', 'transactions', 'all']));
   const providers = useProviderLogos(shows(['wallet', 'payments', 'transactions', 'attention', 'all']));
   const logos = providers.value ?? NO_LOGOS;
-  const [selected, setSelected] = useState<string | null>(null);
+  // The opened bank is kept in the address (?bank=), and the last one opened is remembered for the next visit; with neither, the wallet opens its first bank (the one that needs attention, else the biggest).
+  const selected = params.get('bank') ?? readStorage('local', BANK_KEY);
+  const setSelected = (provider: string) => {
+    const next = new URLSearchParams(params);
+    next.set('bank', provider);
+    setParams(next, { replace: true });
+    writeStorage('local', BANK_KEY, provider);
+  };
+  // The transactions' bank filter lives in the address too (?txbank=): the opened bank's "Transactions" pill sets it.
+  const txBank = params.get('txbank');
+  const setTxBank = (provider: string | null) => {
+    const next = new URLSearchParams(params);
+    if (provider) next.set('txbank', provider);
+    else next.delete('txbank');
+    setParams(next, { replace: true });
+  };
   // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
   const [showHidden, setShowHidden] = useState(false);
   const [days, setDays] = useState(14);
@@ -229,7 +248,7 @@ const DashboardsMoney = () => {
                 {m.transactionsTitle}
               </h2>
             </div>
-            <MoneyTransactions refresh={txKey} onCategoriesChanged={() => void spend.reload()} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
+            <MoneyTransactions bank={txBank} onBank={setTxBank} refresh={txKey} onCategoriesChanged={() => void spend.reload()} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
   );
   // How fresh the data is, Refresh, and the pounds / account currency switch: quiet controls (Today's header row, and the other views' header).

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { grandTotal, hasConversion, shownTotals, unconvertedCurrencies } from './display';
+import { grandTotal, hasConversion, shownTotals, sortBanks, unconvertedCurrencies } from './display';
+import type { Bank } from './wallet';
 import type { FinanceAccount, FinanceSummary } from './financeApi';
 
 const acct = (id: string, currency: string, own: number, display: FinanceAccount['display'], extra: Partial<FinanceAccount> = {}): FinanceAccount => ({
@@ -87,5 +88,18 @@ describe('display', () => {
     expect(shownTotals(mixed, 'base')[0]).toMatchObject({ approx: true, pots: 12500, potsApprox: true });
     const plain = [acct('pot', 'GBP', 5000, gbp(5000), { type: 'pot', kind: 'pot' }), acct('ua', 'UAH', 650000, gbp(12500))];
     expect(shownTotals(plain, 'base')[0]).toMatchObject({ approx: true, pots: 5000, potsApprox: false });
+  });
+
+  it('puts the banks in a fixed order: a link that needs approving first, then by the size of the money (a debt counts as much as a balance), a bank with nothing last', () => {
+    const gbp = (amount: number) => ({ amount, currency: 'GBP' });
+    const bank = (provider: string, accounts: FinanceAccount[], status = 'ok'): Bank => ({ provider, accounts, connection: { status } as Bank['connection'] });
+    const small = bank('small', [acct('s', 'GBP', 1000, gbp(1000))]);
+    const big = bank('big', [acct('b', 'GBP', 90000, gbp(90000))]);
+    const debt = bank('debt', [acct('d', 'GBP', -200000, gbp(-200000))]);
+    const nothing = bank('nothing', [acct('n', 'GBP', 0, gbp(0))]);
+    const broken = bank('broken', [acct('x', 'GBP', 5, gbp(5))], 'needs_reconsent');
+    expect(sortBanks([nothing, small, big, debt, broken]).map((entry) => entry.provider)).toEqual(['broken', 'debt', 'big', 'small', 'nothing']);
+    // The same input in another order gives the same stack.
+    expect(sortBanks([broken, debt, small, nothing, big]).map((entry) => entry.provider)).toEqual(['broken', 'debt', 'big', 'small', 'nothing']);
   });
 });

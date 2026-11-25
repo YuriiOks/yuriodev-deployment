@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useNarrow } from '../../../hooks/useNarrow';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import type { FinanceAccount, FinanceAccounts, ProviderLogo } from '../../../services/dashboards/financeApi';
 import { APPROX, formatMinor } from '../../../services/dashboards/money';
-import { shownTotals } from '../../../services/dashboards/display';
+import { shownTotals, sortBanks } from '../../../services/dashboards/display';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import { creditUse, groupBanks, potParts, sharedNames, splitBank, type Bank } from '../../../services/dashboards/wallet';
 import { cx } from '../../../utils/cx';
@@ -34,7 +36,9 @@ function useLinkLine(bank: Bank): string {
 /** The quiet facts of a bank's main account: its overdraft or credit limit, and its last four digits. */
 function useBankFacts(bank: Bank): { limit: string; last4: string | null } {
   const { t, lang } = useDashboardLang();
-  const main = splitBank(bank).accounts[0] ?? bank.accounts[0];
+  // The facts are the bank's main account's: an open one that is not a pot, in a fixed priority (current, business, savings, card), never an archived account.
+  const priority: Record<string, number> = { current: 0, business: 1, savings: 2, credit_card: 3 };
+  const main = [...bank.accounts].filter((account) => !account.archived && account.kind !== 'pot').sort((a, b) => (priority[a.kind] ?? 9) - (priority[b.kind] ?? 9))[0];
   if (!main) return { limit: '', last4: null };
   const m = t.money;
   const overdraft = main.overdraftLimit ?? 0;
@@ -47,7 +51,7 @@ function useBankFacts(bank: Bank): { limit: string; last4: string | null } {
  * balance the hero at the right. The selected card is the last of the stack and taller: a quiet line of facts, the link's state, and its
  * actions as pills. A card that needs attention carries a small warning mark.
  */
-const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected: boolean; first: boolean; mode: MoneyDisplay; onSelect: () => void }> = ({ bank, logo, selected, first, mode, onSelect }) => {
+const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected: boolean; first: boolean; narrow: boolean; mode: MoneyDisplay; onSelect: () => void }> = ({ bank, logo, selected, first, narrow, mode, onSelect }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const line = useLinkLine(bank);
@@ -56,9 +60,8 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
   const [lead, ...rest] = totals;
   const warn = bank.connection?.status === 'needs_reconsent';
   const reconnect = warn ? reconnectPath(logo) : null;
-  const id = `money-bank-${bank.provider}`;
   return (
-    <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider, logo)}>
+    <div className={cx(styles.bank, first && styles.bankFirst, selected && styles.bankSelected)} style={brandStyle(bank.provider, logo)} data-empty={totals.length === 0 || bank.accounts.filter((account) => !account.archived).every((account) => account.balance === 0 && account.ownBalance === 0) ? 'true' : undefined}>
       <button type="button" className={styles.bankHead} aria-pressed={selected} onClick={onSelect}>
         <span className={styles.bankName}>
           <BankName provider={bank.provider} logo={logo} />
@@ -93,15 +96,13 @@ const BankCard: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; selected:
               {facts.last4 && facts.limit ? ' \u00b7 ' : ''}
               {facts.limit}
             </span>
-            <span>{line}</span>
+            {/* The opened bank's panel beside the stack says the link's state; on a phone it is under the card, where this line stays. */}
+            {narrow && <span>{line}</span>}
           </div>
           <div className={styles.bankActions}>
-            <a className={styles.pill} href={`#${id}-name`}>
-              {m.actionAccounts}
-            </a>
-            <a className={styles.pill} href="#money-transactions-title">
+            <Link className={styles.pill} to={`?view=transactions&bank=${encodeURIComponent(bank.provider)}&txbank=${encodeURIComponent(bank.provider)}`}>
               {m.actionTransactions}
-            </a>
+            </Link>
             {reconnect && (
               <a className={styles.pill} href={reconnect}>
                 {m.reconnect}
@@ -212,7 +213,7 @@ const PotTile: React.FC<{ account: FinanceAccount; mode: MoneyDisplay }> = ({ ac
 };
 
 /** The opened bank: its header in the brand colours, the main accounts as cards, the pots as tiles, the empty ones folded. */
-const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: MoneyDisplay; onChanged: () => void }> = ({ bank, logo, mode, onChanged }) => {
+const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: MoneyDisplay; compact?: boolean; onChanged: () => void }> = ({ bank, logo, mode, compact = false, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const [showEmpty, setShowEmpty] = useState(false);
@@ -234,10 +235,10 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
 
   return (
     <article aria-labelledby={`${id}-name`} className={styles.detail} style={brandStyle(bank.provider, logo)}>
-      <header className={styles.detailHead} style={brandStyle(bank.provider, logo)}>
+      <header className={compact ? 'sr-only' : styles.detailHead} style={brandStyle(bank.provider, logo)}>
         <div className={styles.detailTitle}>
           <div className={styles.detailTitleText}>
-            <h3 id={`${id}-name`} className={styles.detailName}>
+            <h3 id={`${id}-name`} className={styles.detailName} tabIndex={-1}>
               <BankName provider={bank.provider} logo={logo} />
             </h3>
             <span className={styles.detailState}>
@@ -247,7 +248,8 @@ const BankDetail: React.FC<{ bank: Bank; logo: ProviderLogo | undefined; mode: M
           </div>
         </div>
         <div className={styles.detailSums}>
-          <span className={styles.detailState}>{m.ownMoney}</span>
+          {totals.length > 0 && <span className={styles.detailState}>{m.ownMoney}</span>}
+          {totals.length === 0 && <span className={styles.detailState}>{m.noOpenAccounts}</span>}
           {totals.map((total) => (
             <React.Fragment key={total.currency}>
               <strong className={styles.detailSum}>
@@ -381,8 +383,9 @@ export interface MoneyWalletProps {
 /** The wallet: every bank as a coloured card in a stack, and the selected bank opened beside it (below it on a phone). */
 const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, onSelect, onChanged }) => {
   const { t } = useDashboardLang();
+  const narrow = useNarrow();
   const [adding, setAdding] = useState(false);
-  const banks = groupBanks(data.accounts, data.connections);
+  const banks = sortBanks(groupBanks(data.accounts, data.connections));
   // The banks the server lists as ones to enter by hand and that are not in the wallet yet, then "another bank".
   const taken = new Set([...banks.map((bank) => bank.provider), ...Object.keys(logos)]);
   const candidates = Object.entries(logos)
@@ -413,6 +416,21 @@ const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, 
       )}
     </div>
   );
+  // After the owner chooses a bank on a phone, its panel (under its card) is scrolled into view and its name takes focus; never on the first paint.
+  const chosen = useRef(false);
+  // With none chosen, the biggest bank that works opens (a bank that needs approving again is first in the stack with its warning, but is not the page's default).
+  const fallback = banks.find((bank) => bank.connection?.status !== 'needs_reconsent') ?? banks[0];
+  const currentProvider = (banks.find((bank) => bank.provider === selected) ?? fallback)?.provider ?? null;
+  useEffect(() => {
+    if (!chosen.current) {
+      chosen.current = true;
+      return;
+    }
+    if (!narrow || !currentProvider) return;
+    const heading = document.getElementById(`money-bank-${currentProvider}-name`);
+    heading?.scrollIntoView?.({ block: 'start' });
+    heading?.focus({ preventScroll: true });
+  }, [currentProvider, narrow]);
   if (banks.length === 0) {
     return (
       <>
@@ -421,19 +439,22 @@ const MoneyWallet: React.FC<MoneyWalletProps> = ({ data, selected, mode, logos, 
       </>
     );
   }
-  const current = banks.find((bank) => bank.provider === selected) ?? banks[0];
-  // The open bank sits at the bottom of the stack, fully shown; the others keep their order above it.
-  const stacked = [...banks.filter((bank) => bank !== current), current];
+  const current = banks.find((bank) => bank.provider === selected) ?? fallback;
+  // The banks keep their order whichever is open (the open card grows in place), so choosing one never moves the cards or the focus.
+  const stacked = banks;
   return (
     <>
       {tools}
       <div className={styles.wallet}>
         <div role="group" aria-label={t.money.walletLabel} className={styles.stack}>
           {stacked.map((bank, index) => (
-            <BankCard key={bank.provider} bank={bank} logo={logos[bank.provider]} first={index === 0} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
+            <React.Fragment key={bank.provider}>
+              <BankCard bank={bank} logo={logos[bank.provider]} first={index === 0} narrow={narrow} selected={bank.provider === current.provider} mode={mode} onSelect={() => onSelect(bank.provider)} />
+              {narrow && bank.provider === current.provider && <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} compact onChanged={onChanged} />}
+            </React.Fragment>
           ))}
         </div>
-        <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} onChanged={onChanged} />
+        {!narrow && <BankDetail key={current.provider} bank={current} logo={logos[current.provider]} mode={mode} onChanged={onChanged} />}
       </div>
     </>
   );

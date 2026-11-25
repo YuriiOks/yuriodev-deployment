@@ -97,7 +97,6 @@ describe('the Money page: a bank entered by hand', () => {
     await openHandBank();
     expect(bankCard('Hand Bank').getAttribute('style')).toContain('--bank-bg: #aa2244');
     expect(bankCard('Acme Bank').getAttribute('style')).toContain('--bank-bg: #0b3d91');
-    expect(bankCard('Hand Bank')).toHaveTextContent('balance as of 1 Nov 2026');
     expect(bankCard('Hand Bank')).not.toHaveTextContent(/connected|updated/);
     expect(opened().getByRole('heading', { level: 3, name: 'Hand Bank' })).toBeInTheDocument();
     expect(wallet().getByRole('article')).toHaveTextContent('balance as of 1 Nov 2026');
