@@ -31,6 +31,7 @@ import { useDashboardMode } from '../hooks/useDashboardMode';
 import { useFinanceAccounts, useFinanceCategories, useFinanceSummary, useProviderLogos } from '../hooks/useFinance';
 import { useOnResume } from '../hooks/useOnResume';
 import { useAttention, useRecurring, useUpcoming } from '../hooks/useRecurring';
+import { useToday } from '../hooks/useToday';
 import { usePageTitle } from '../hooks/usePageTitle';
 import styles from './dashboards-money.module.css';
 
@@ -55,24 +56,29 @@ const DashboardsMoney = () => {
   usePageTitle(t.titles.money);
   const { mode: dataMode } = useDashboardMode();
   const live = dataMode === 'live';
-  const accounts = useFinanceAccounts(live);
-  const summary = useFinanceSummary(live);
-  const spend = useFinanceCategories(live);
-  const providers = useProviderLogos(live);
-  const logos = providers.value ?? NO_LOGOS;
-  const [selected, setSelected] = useState<string | null>(null);
-  // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
   const [params, setParams] = useSearchParams();
   const viewParam = params.get('view');
   const view: MoneyView = (MONEY_VIEWS as readonly string[]).includes(viewParam ?? '') ? (viewParam as MoneyView) : 'today';
+  // Each list is asked for only when a view that shows it is open, and an answer held is kept across tab switches (the Today view needs none of them: it is one answer).
+  const shows = (views: readonly MoneyView[]) => live && views.includes(view);
+  const notToday = live && view !== 'today';
+  const accounts = useFinanceAccounts(notToday);
+  const summary = useFinanceSummary(notToday);
+  const spend = useFinanceCategories(shows(['spending', 'transactions', 'all']));
+  const providers = useProviderLogos(shows(['wallet', 'transactions', 'attention', 'all']));
+  const logos = providers.value ?? NO_LOGOS;
+  const [selected, setSelected] = useState<string | null>(null);
+  // Stage 2: what needs attention (with the snoozed and dismissed ones on request), the next 14 or 30 days, and the recurring payments (the debts, the management view).
   const [showHidden, setShowHidden] = useState(false);
   const [days, setDays] = useState(14);
-  const attention = useAttention(showHidden, live);
-  const upcoming = useUpcoming(days, live);
-  const recurring = useRecurring(live);
+  const attention = useAttention(showHidden, shows(['attention', 'all']));
+  const upcoming = useUpcoming(days, shows(['payments', 'all']));
+  const recurring = useRecurring(shows(['payments', 'attention', 'recurring', 'all']));
+  // The Today view: the server's one answer for the page.
+  const todayData = useToday('money', shows(['today']));
   // Resolves when the new answers are in, so a button stays busy until the list it acted on is current.
   const changed = async () => {
-    await Promise.all([attention.reload(), upcoming.reload(), recurring.reload()]);
+    await Promise.all([todayData.reload(), attention.reload(), upcoming.reload(), recurring.reload()]);
   };
   // The bank's consent page sends the owner back with ?monzo=<status>: the result is shown once and the address is cleaned.
   const consentParam = params.get('monzo');
@@ -93,7 +99,7 @@ const DashboardsMoney = () => {
     if (away >= RESUME_AFTER_MS || staleDay) void changed();
   });
   // Something that was read before could not be read again: the last answer stays, and this says it may be out of date.
-  const outdated = [accounts, summary, spend, providers, recurring, upcoming, attention].filter((slot) => slot.refreshFailed);
+  const outdated = [accounts, summary, spend, providers, recurring, upcoming, attention, todayData].filter((slot) => slot.refreshFailed);
   const retryOutdated = () => {
     for (const slot of outdated) void slot.reload();
   };
@@ -110,6 +116,17 @@ const DashboardsMoney = () => {
   // The item whose details are open (a sheet), and the card that opened it.
   const [sheet, setSheet] = useState<{ key: string; opener: HTMLElement | null } | null>(null);
   const ordered = attention.value ? orderedActive(attention.value.items) : [];
+  // "One at a time" from Today leads here with ?walk=1: the details sheet opens on the first item, and the address is cleaned.
+  const walk = params.get('walk');
+  useEffect(() => {
+    if (view !== 'attention' || !walk || ordered.length === 0) return;
+    setSheet({ key: ordered[0].key, opener: null });
+    const next = new URLSearchParams(params);
+    next.delete('walk');
+    setParams(next, { replace: true });
+    // Once per arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, walk, ordered.length]);
   const sheetItem = sheet ? (ordered.find((entry) => entry.key === sheet.key) ?? null) : null;
   /** An item was dealt with: the sheet moves to the next one (or the one before the last) and closes when none is left. */
   const acted = async (done: AttentionItem) => {
@@ -129,7 +146,7 @@ const DashboardsMoney = () => {
   const converted = accounts.value ? hasConversion(accounts.value.accounts) : false;
   const banks = accounts.value ? groupBanks(accounts.value.accounts, accounts.value.connections) : [];
   // "Updated" says the newest balance read, not the oldest; a bank read by its own API that has gone quiet is warned about apart.
-  const newest = summary.value?.asOfNewest ?? summary.value?.asOf ?? null;
+  const newest = view === 'today' ? (todayData.value?.generatedAt ?? null) : (summary.value?.asOfNewest ?? summary.value?.asOf ?? null);
   const asOf = newest ? whenLabel(newest, lang) : '';
   const oldest = summary.value?.asOfOldest ?? null;
   const staleSince = (accounts.value?.connections ?? []).flatMap((link) => (link.stale && link.staleSince ? [link.staleSince] : [])).sort()[0] ?? (oldest && Date.now() - Date.parse(oldest) > STALE_AFTER_MS ? oldest : null);
@@ -209,7 +226,6 @@ const DashboardsMoney = () => {
             <MoneyTransactions key={txKey} banks={banks} logos={logos} categories={spend.value?.currencies.flatMap((block) => block.categories.filter((row) => row.spent > 0).map((row) => row.category)) ?? []} mode={mode} enabled={live} />
           </section>
   );
-  const todayFailed = [attention, upcoming, spend, accounts].some((slot) => slot.status === 'error');
   // How fresh the data is, Refresh, and the pounds / account currency switch: quiet controls, in the Today row and in the other views' header.
   const freshness = (
     <>
@@ -317,23 +333,13 @@ const DashboardsMoney = () => {
             </>
           ) : view === 'today' ? (
             <MoneyToday
-              nav={<MoneyViewSwitch view={view} attention={ordered.length} hidden={attention.value?.hidden ?? 0} />}
-              ordered={ordered}
-              recurring={recurring.value?.recurring ?? []}
-              accounts={accounts.value?.accounts ?? []}
-              logos={logos}
-              mode={mode}
-              upcoming={upcoming.value}
-              spend={spend.value}
-              summary={summary.value}
-              bankData={accounts.value}
-              failed={todayFailed}
-              onOpenSheet={(entry, trigger) => setSheet({ key: entry.key, opener: trigger })}
+              nav={<MoneyViewSwitch view={view} attention={todayData.value?.queueTotal ?? 0} hidden={0} />}
+              data={todayData.value}
+              failed={todayData.status === 'error' || todayData.refreshFailed}
               onChanged={changed}
               controls={
                 <>
                   <span className={styles.todayFresh}>{freshness}</span>
-                  {modeSwitch}
                 </>
               }
             />

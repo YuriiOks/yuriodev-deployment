@@ -1,50 +1,79 @@
 import React, { useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath } from '../../../data/site';
-import { useToday } from '../../../hooks/useToday';
+import { useStoredImages } from '../../../hooks/useImageBundles';
 import { fill } from '../../../services/dashboards/calendarLabels';
-import { grandTotal, shownTotals } from '../../../services/dashboards/display';
-import type { FinanceAccount, FinanceAccounts, FinanceCategories, FinanceSummary, ProviderLogo } from '../../../services/dashboards/financeApi';
+import { converted, isCategory, type Category } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
-import type { MoneyDisplay } from '../../../services/dashboards/preferences';
-import { markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type Recurring, type Upcoming, type UpcomingItem } from '../../../services/dashboards/recurringApi';
-import { groupBanks } from '../../../services/dashboards/wallet';
+import { ATTENTION_KINDS, markPaid, movedOn, snoozeAttention, updateRecurring, type AttentionItem, type AttentionKind } from '../../../services/dashboards/recurringApi';
+import type { TodayData, TodayQueueEntry, TodaySoonEntry } from '../../../services/dashboards/todayApi';
 import DashIcon from '../DashIcon/DashIcon';
 import StreakCard from '../Today/StreakCard';
 import TodayLayout, { SideCard, SideRow, TodayCard, TodaySoonRow, type TodayAction } from '../Today/TodayLayout';
 import BankMark from './BankMark';
 import CategoryMark from './CategoryMark';
 import RecurringIcon from './RecurringIcon';
-import { useCardFact, useSubject } from './attentionText';
-import { splitDue, truthOf } from './evidenceModel';
+import { useCardFact } from './attentionText';
 import { dayLabel, monthName } from './labels';
-import { biggestRise, nextPayment, partOfDay, spendView, topCategories } from './todayModel';
 import { bankLabel } from './providers';
-import { amountText, dueWhen } from './recurringLabels';
+import { dueWhen } from './recurringLabels';
+import { partOfDay } from './todayModel';
 
-/** How many decisions the queue shows, and how many days the "due" figure covers. */
-const QUEUE_SIZE = 3;
 const DUE_DAYS = 14;
-const SOON_ROWS = 3;
 
-interface Context {
-  recurring: readonly Recurring[];
-  accounts: readonly FinanceAccount[];
-  logos: Readonly<Record<string, ProviderLogo>>;
-  mode: MoneyDisplay;
+const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+const text = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
+
+/** How long ago a moment was, in the page's language ("5 minutes ago"). */
+function ago(iso: string, lang: string): string {
+  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  const formatter = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  if (minutes < 60) return formatter.format(-minutes, 'minute');
+  if (minutes < 60 * 24) return formatter.format(-Math.round(minutes / 60), 'hour');
+  return formatter.format(-Math.round(minutes / (60 * 24)), 'day');
 }
 
-/** One decision of the queue: what the item asks, phrased as a question, one line of fact, and exactly two actions. */
-const QueueCard: React.FC<Context & { item: AttentionItem; onOpenSheet: (item: AttentionItem, trigger: HTMLElement | null) => void; onChanged: () => Promise<void> }> = ({ item, onOpenSheet, onChanged, ...context }) => {
+/** An attention item rebuilt from a queue entry of the Today answer, so the wording of the attention list (the fact line of a card) is the same everywhere. */
+function itemOf(entry: TodayQueueEntry, displayCurrency: string | null): AttentionItem | null {
+  const kind = ATTENTION_KINDS.find((candidate): candidate is AttentionKind => candidate === entry.kind);
+  if (!kind) return null;
+  const f = entry.facts;
+  const severity = f.severity === 'high' || f.severity === 'medium' || f.severity === 'info' ? f.severity : 'medium';
+  const type = entry.subject.type === 'payment' ? 'recurring' : entry.subject.type === 'account' ? 'account' : 'connection';
+  const facts: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(f)) if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') facts[key] = value;
+  return {
+    key: entry.key,
+    kind,
+    severity,
+    title: '',
+    subjectType: type,
+    subjectId: entry.subject.id ?? '',
+    subjectName: entry.subject.name,
+    provider: text(f.provider),
+    dueDate: text(f.due_date),
+    amount: num(f.amount),
+    currency: text(f.currency),
+    display: converted(f.display_amount, displayCurrency),
+    converted: f.converted === true,
+    facts,
+    state: 'active',
+    snoozedUntil: null,
+  };
+}
+
+/** One decision of the queue: what the item asks, phrased as a question, one line of fact, and exactly two actions. Everything it needs came with the answer. */
+const QueueCard: React.FC<{ entry: TodayQueueEntry; displayCurrency: string | null; images: ReturnType<typeof useStoredImages>; onChanged: () => Promise<void> }> = ({ entry, displayCurrency, images, onChanged }) => {
   const { t } = useDashboardLang();
   const r = t.money.rec;
   const td = t.money.today;
-  const subject = useSubject(item, context.recurring, context.accounts, context.logos);
-  const fact = useCardFact(item, context.mode);
+  const item = itemOf(entry, displayCurrency);
+  const fact = useCardFact(item ?? FALLBACK_ITEM, 'base');
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const payment = subject.payment;
-  const provider = subject.provider;
+  if (!item) return null;
+  const id = entry.subject.id;
+  const name = entry.subject.name ?? '';
   const act = async (action: () => Promise<unknown>) => {
     setBusy(true);
     setNote(null);
@@ -58,32 +87,39 @@ const QueueCard: React.FC<Context & { item: AttentionItem; onOpenSheet: (item: A
       setBusy(false);
     }
   };
-  const details: TodayAction = { label: td.actions.details, onClick: () => onOpenSheet(item, null), busy };
-  const snooze: TodayAction = { label: td.actions.snooze, onClick: () => void act(() => snoozeAttention(item.key, 7)), busy };
-  const charged = item.kind === 'amount_changed' && payment && item.amount !== null && item.amount > 0 && item.currency === payment.currency ? item.amount : null;
-  let primary = details;
+  const list: TodayAction = { label: td.actions.details, to: '?view=attention' };
+  const snooze: TodayAction = { label: td.actions.snooze, onClick: () => void act(() => snoozeAttention(entry.key, 7)), busy };
+  const charged = num(entry.facts.charged_amount);
+  let primary = list;
   let secondary = snooze;
-  if (charged !== null && payment) {
-    primary = { label: td.actions.accept, onClick: () => void act(() => updateRecurring(payment.id, { amount: charged })), busy };
-    secondary = { label: td.actions.openPayment, to: `?view=recurring&edit=${encodeURIComponent(payment.id)}` };
-  } else if ((item.kind === 'missed_payment' || item.kind === 'due_not_covered') && payment) {
-    primary = { label: td.actions.markPaid, onClick: () => void act(() => markPaid(payment.id, item.dueDate ?? payment.nextDate)), busy };
-    secondary = details;
+  if (entry.kind === 'amount_changed' && id && charged !== null && charged > 0) {
+    primary = { label: td.actions.accept, onClick: () => void act(() => updateRecurring(id, { amount: charged })), busy };
+    secondary = { label: td.actions.openPayment, to: `?view=recurring&edit=${encodeURIComponent(id)}` };
+  } else if ((entry.kind === 'missed_payment' || entry.kind === 'due_not_covered') && id) {
+    primary = { label: td.actions.markPaid, onClick: () => void act(() => markPaid(id, item.dueDate)), busy };
+    secondary = list;
   }
-  const icon = payment ? <RecurringIcon name={payment.name} iconUrl={payment.iconUrl} color={payment.color} /> : provider ? <BankMark provider={provider} logo={context.logos[provider]} /> : <DashIcon name="alert" size={16} />;
-  return <TodayCard item={{ key: item.key, icon, title: fill(td.decision[item.kind], { name: subject.name }), fact: note ? `${fact} · ${note}` : `${r.severityWord[item.severity]} · ${fact}`, primary, secondary, severity: item.severity }} />;
+  const provider = item.provider;
+  const icon = entry.subject.type === 'payment' && id ? <RecurringIcon name={name} iconUrl={images.icons[id] ?? null} color={null} /> : provider ? <BankMark provider={provider} logo={images.logos[provider]} /> : <DashIcon name="alert" size={16} />;
+  return <TodayCard item={{ key: entry.key, icon, title: fill(td.decision[item.kind], { name }), fact: note ? `${fact} · ${note}` : `${r.severityWord[item.severity]} · ${fact}`, primary, secondary, severity: item.severity }} />;
 };
 
+const FALLBACK_ITEM: AttentionItem = { key: '', kind: 'overdraft', severity: 'info', title: '', subjectType: 'account', subjectId: '', subjectName: null, provider: null, dueDate: null, amount: null, currency: null, display: null, converted: false, facts: {}, state: 'active', snoozedUntil: null };
+
 /** One row of "due soon": the payment, its amount and when, and one action: "Paid". */
-const SoonRow: React.FC<{ item: UpcomingItem; mode: MoneyDisplay; onChanged: () => Promise<void> }> = ({ item, mode, onChanged }) => {
+const SoonRow: React.FC<{ entry: TodaySoonEntry; displayCurrency: string | null; images: ReturnType<typeof useStoredImages>; onChanged: () => Promise<void> }> = ({ entry, displayCurrency, images, onChanged }) => {
   const { t, lang } = useDashboardLang();
-  const r = t.money.rec;
   const td = t.money.today;
   const [busy, setBusy] = useState(false);
+  const f = entry.facts;
+  const due = text(f.due_date) ?? '';
+  const days = num(f.days_until) ?? 0;
+  const id = entry.subject.id;
   const paid = async () => {
+    if (!id) return;
     setBusy(true);
     try {
-      await markPaid(item.recurringId, item.dueDate);
+      await markPaid(id, due);
       await onChanged();
     } catch (error) {
       if (movedOn(error)) await onChanged().catch(() => undefined);
@@ -91,111 +127,89 @@ const SoonRow: React.FC<{ item: UpcomingItem; mode: MoneyDisplay; onChanged: () 
       setBusy(false);
     }
   };
-  const when = item.overdue ? `${td.overdueChip} · ${dayLabel(item.dueDate, lang)}` : item.daysUntil <= 1 ? dueWhen(item.daysUntil, r) : dayLabel(item.dueDate, lang);
-  return <TodaySoonRow item={{ key: `${item.recurringId}-${item.dueDate}`, icon: <RecurringIcon name={item.name} iconUrl={item.iconUrl} color={item.color} />, name: item.name, chips: [amountText(item.amount, item.currency, item.display, mode, lang), when], action: { label: td.paid, onClick: () => void paid(), busy }, late: item.overdue }} />;
+  const amount = num(f.amount);
+  const code = text(f.currency);
+  const shown = converted(f.display_amount, displayCurrency);
+  const amountText = f.converted === true && shown ? `≈ ${formatMinor(shown.amount, shown.currency, lang)}` : amount !== null && code ? formatMinor(amount, code, lang) : '';
+  const when = days <= 1 ? dueWhen(days, t.money.rec) : dayLabel(due, lang);
+  return <TodaySoonRow item={{ key: entry.key, icon: <RecurringIcon name={entry.subject.name ?? ''} iconUrl={id ? (images.icons[id] ?? null) : null} color={null} />, name: entry.subject.name ?? '', chips: [amountText, when].filter(Boolean), action: { label: td.paid, onClick: () => void paid(), busy } }} />;
 };
 
-/** How long ago a moment was, in the page's language ("5 minutes ago"). */
-function ago(iso: string, lang: string): string {
-  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
-  const formatter = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
-  if (minutes < 60) return formatter.format(-minutes, 'minute');
-  if (minutes < 60 * 24) return formatter.format(-Math.round(minutes / 60), 'hour');
-  return formatter.format(-Math.round(minutes / (60 * 24)), 'day');
-}
-
-export interface MoneyTodayProps extends Context {
+export interface MoneyTodayProps {
+  /** The server's one Today answer for Money (`GET /today?scope=money`): everything below is read from it, no other list is loaded. */
+  data: TodayData | null;
+  /** The answer could not be read (and there is none to show). */
+  failed: boolean;
   /** The section tabs, as the page builds them. */
   nav: React.ReactNode;
-  /** What needs attention, in the order to show it (all of it: the queue takes the first three, "One at a time" walks them all). */
-  ordered: readonly AttentionItem[];
-  upcoming: Upcoming | null;
-  spend: FinanceCategories | null;
-  summary: FinanceSummary | null;
-  bankData: FinanceAccounts | null;
-  /** Some of what it shows could not be loaded. */
-  failed: boolean;
-  onOpenSheet: (item: AttentionItem, trigger: HTMLElement | null) => void;
-  /** The attention, payments and upcoming lists are asked again. */
-  onChanged: () => Promise<void>;
   /** How fresh the data is, Refresh and the display switch: quiet controls at the far right of the header row. */
   controls: React.ReactNode;
+  /** The answer is asked again. */
+  onChanged: () => Promise<void>;
 }
 
 /**
- * The Today view of the Money page, on the shared Today structure: one sentence of what matters now, the queue ("First this": at most three
- * decisions, each with two actions, and "One at a time" to walk through all of them), what is due soon, two figures (spent this month against
- * the same day last month; due in the next two weeks and how much of it the bank confirmed), where the money went with its finding, and the
- * banks with how fresh each one's data is. Everything is the server's data; nothing is invented.
+ * The Today view of the Money page, on the shared Today structure, from one answer (`GET /today?scope=money`): one sentence of what matters
+ * now, the queue ("First this": at most three decisions, each with two actions, and "One at a time" which walks through all of them in the
+ * attention list), what is due soon, two figures, where the money went with its finding, the banks with how fresh each one's data is, the streak
+ * and Ask. Nothing else is fetched for it (the lists load only when their tab is opened); pictures are drawn from the stored bundles.
  */
-const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, summary, bankData, failed, onOpenSheet, onChanged, controls, ...context }) => {
+const MoneyToday: React.FC<MoneyTodayProps> = ({ data, failed, nav, controls, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const td = m.today;
-  const { mode } = context;
-  const queue = ordered.slice(0, QUEUE_SIZE);
+  const images = useStoredImages(data?.logosVersion ?? null, data?.iconsVersion ?? null);
+  const facts = data?.summary.facts ?? {};
+  const displayCurrency = text(facts.currency);
+  const totalMinor = num(facts.total);
+  const queue = data?.queue ?? [];
+  const soon = data?.soon ?? [];
 
   // The one sentence.
-  const total = grandTotal(context.accounts, summary);
-  const natives = shownTotals(context.accounts, 'native');
-  const totalText = mode === 'base' && total ? `${total.approx ? '≈ ' : ''}${formatMinor(total.amount, total.currency, lang)}` : natives.length === 1 ? formatMinor(natives[0].amount, natives[0].currency, lang) : null;
-  const ahead = upcoming ? nextPayment(upcoming.items) : null;
-  const lateCount = upcoming ? upcoming.items.filter((item) => item.overdue).length : 0;
+  const next = soon[0];
   const parts = [
-    totalText ? fill(td.summary.total, { amount: totalText }) : '',
-    ordered.length > 0 ? fill(td.summary.waiting, { n: ordered.length }) : td.summary.nothingWaiting,
-    lateCount > 0 ? fill(td.summary.overdue, { n: lateCount }) : '',
-    ahead ? fill(td.summary.nextPayment, { when: dueWhen(ahead.days, m.rec) }) : '',
+    totalMinor !== null && displayCurrency ? fill(td.summary.total, { amount: `${facts.complete === false ? '≈ ' : ''}${formatMinor(totalMinor, displayCurrency, lang)}` }) : '',
+    (data?.queueTotal ?? 0) > 0 ? fill(td.summary.waiting, { n: data?.queueTotal ?? 0 }) : data ? td.summary.nothingWaiting : '',
+    next ? fill(td.summary.nextPayment, { when: dueWhen(num(next.facts.days_until) ?? 0, m.rec) }) : '',
   ].filter(Boolean);
 
-  // Due soon and the figure for the next two weeks.
-  const byId = new Map(context.recurring.map((row) => [row.id, row]));
-  const items = (upcoming?.items ?? []).filter((item) => byId.get(item.recurringId)?.scheduleState !== 'ended_by_schedule');
-  const soon = items.slice(0, SOON_ROWS);
-  const window = items.filter((item) => item.daysUntil < DUE_DAYS);
-  const dueSums = new Map<string, { amount: number; approx: boolean }>();
-  for (const item of window) {
-    const shown = mode === 'base' && item.display && item.display.currency !== item.currency ? { amount: item.display.amount, currency: item.display.currency, approx: true } : { amount: item.amount, currency: item.currency, approx: false };
-    const before = dueSums.get(shown.currency);
-    dueSums.set(shown.currency, { amount: (before?.amount ?? 0) + shown.amount, approx: (before?.approx ?? false) || shown.approx });
-  }
-  const dueText = window.length === 0 ? td.stats.dueEmpty : [...dueSums.entries()].map(([code, sum]) => `${sum.approx ? '≈ ' : ''}${formatMinor(sum.amount, code, lang)}`).join(' · ');
-  const confirmed = splitDue(window, (id) => truthOf(byId.get(id)?.evidence ?? null), mode).confirmed;
-  const confirmedText = confirmed.length === 0 ? formatMinor(0, [...dueSums.keys()][0] ?? 'GBP', lang) : confirmed.map((sum) => `${sum.approx ? '≈ ' : ''}${formatMinor(sum.amount, sum.currency, lang)}`).join(' · ');
-
-  // This month's spending.
-  const view = spend ? spendView(spend, mode) : null;
-  const month = spend ? monthName(spend.month, lang) : '';
+  // The two figures.
+  const spentStat = data?.stats.find((stat) => stat.code === 'spent_month_to_date');
+  const dueStat = data?.stats.find((stat) => stat.code === 'due_in_14_days');
+  const spentCode = text(spentStat?.facts.currency) ?? displayCurrency ?? 'GBP';
+  const month = text(spentStat?.facts.month) ?? '';
+  const previousDay = text(spentStat?.facts.previous_to_date_day);
+  const before = spentStat?.compare?.value ?? null;
   let spentNote = td.stats.spentFirst;
-  if (view && view.previousToDate !== null && view.previousToDate > 0 && view.previousDay) {
-    const percent = Math.round((Math.abs(view.spent - view.previousToDate) / view.previousToDate) * 100);
-    const date = dayLabel(view.previousDay, lang);
-    spentNote = percent === 0 ? fill(td.stats.spentSame, { date }) : fill(view.spent < view.previousToDate ? td.stats.spentLess : td.stats.spentMore, { percent, date });
+  if (spentStat && before !== null && before > 0 && previousDay && spentStat.value !== null) {
+    const percent = Math.round((Math.abs(spentStat.value - before) / before) * 100);
+    const date = dayLabel(previousDay, lang);
+    spentNote = percent === 0 ? fill(td.stats.spentSame, { date }) : fill(spentStat.value < before ? td.stats.spentLess : td.stats.spentMore, { percent, date });
   }
-  const rows = view ? topCategories(view.categories) : [];
-  const largest = rows[0]?.spent ?? 0;
-  const rise = view ? biggestRise(view.categories) : null;
+  const dueCode = text(dueStat?.facts.currency) ?? displayCurrency ?? 'GBP';
+  const dueCount = num(dueStat?.facts.count) ?? 0;
+  const approx = (stat: typeof spentStat) => (stat?.facts.complete === false ? '≈ ' : '');
+  const stats = [
+    { key: 'spent', label: fill(td.stats.spentIn, { month: month ? monthName(month, lang) : '' }), value: spentStat?.value != null ? `${approx(spentStat)}${formatMinor(spentStat.value, spentCode, lang)}` : '—', note: spentStat ? spentNote : '' },
+    { key: 'due', label: fill(td.stats.dueIn, { days: DUE_DAYS }), value: dueStat?.value != null && dueCount > 0 ? `${approx(dueStat)}${formatMinor(dueStat.value, dueCode, lang)}` : td.stats.dueEmpty, note: fill(td.stats.dueConfirmed, { amount: formatMinor(num(dueStat?.facts.confirmed_by_bank) ?? 0, dueCode, lang) }) },
+  ];
+
+  // Where the money went, and what rose.
+  const rows = (data?.breakdown.rows ?? []).filter((row) => isCategory(row.key) && row.value > 0);
+  const largest = rows[0]?.value ?? 0;
+  const found = data?.breakdown.insight;
   let insight: { title: string; text: string } | null = null;
-  if (view && rise && view.previousDay) {
-    insight = {
-      title: fill(td.insight.rose, { category: m.categories[rise.category.category] }),
-      text: fill(td.insight.roseText, { date: dayLabel(view.previousDay, lang), previous: formatMinor(rise.category.previousToDate ?? 0, view.currency, lang), spent: formatMinor(rise.category.spent, view.currency, lang) }),
-    };
-  } else if (view && rows[0]) {
-    insight = { title: fill(td.insight.top, { category: m.categories[rows[0].category] }), text: fill(td.insight.topText, { percent: Math.round((rows[0].spent / Math.max(view.spent, 1)) * 100) }) };
+  if (found?.code === 'category_rise' && isCategory(found.facts.category) && previousDay) {
+    const category: Category = found.facts.category;
+    const code = text(found.facts.currency) ?? spentCode;
+    insight = { title: fill(td.insight.rose, { category: m.categories[category] }), text: fill(td.insight.roseText, { date: dayLabel(previousDay, lang), previous: formatMinor(num(found.facts.before) ?? 0, code, lang), spent: formatMinor(num(found.facts.spent) ?? 0, code, lang) }) };
+  } else if (rows[0] && spentStat?.value) {
+    insight = { title: fill(td.insight.top, { category: m.categories[rows[0].key as Category] }), text: fill(td.insight.topText, { percent: Math.round((rows[0].value / Math.max(spentStat.value, 1)) * 100) }) };
   }
 
-  // The banks, the stalest first.
-  const banks = bankData ? groupBanks(bankData.accounts, bankData.connections).filter((bank) => bank.accounts.length > 0) : [];
-  const stamp = (iso: string | null | undefined) => (iso ? Date.parse(iso) : 0);
-  const freshest = [...banks].sort((a, b) => stamp(a.connection?.lastOkAt) - stamp(b.connection?.lastOkAt)).slice(0, 3);
-  const hour = new Date().getHours();
-  // The banks as the server orders them (the ones that need a look first); without its answer, from the accounts.
-  const serverToday = useToday('money', true);
-  const connectionRows = (serverToday.value?.today ?? []).filter((row) => row.kind === 'connection');
-  const ownerFact = serverToday.value?.summary.facts.owner_name;
-  const ownerName = typeof ownerFact === 'string' && ownerFact !== '' ? ownerFact : null;
-
+  const owner = text(facts.owner_name);
+  const greeting = td.greeting[partOfDay(new Date().getHours())];
+  const connections = (data?.today ?? []).filter((row) => row.kind === 'connection');
   return (
     <TodayLayout
       mark="£"
@@ -204,59 +218,43 @@ const MoneyToday: React.FC<MoneyTodayProps> = ({ nav, ordered, upcoming, spend, 
       markTo={{ to: pagePath('dashboards-personal'), label: m.back }}
       controls={controls}
       nav={nav}
-      hello={ownerName ? `${td.greeting[partOfDay(hour)]}, ${ownerName}` : td.greeting[partOfDay(hour)]}
+      hello={owner ? `${greeting}, ${owner}` : greeting}
       summary={parts.join(' ')}
       queue={{
         title: td.queueTitle,
-        count: ordered.length,
-        countLabel: fill(td.queueOpen, { n: ordered.length }),
+        count: data?.queueTotal ?? 0,
+        countLabel: fill(td.queueOpen, { n: data?.queueTotal ?? 0 }),
         countTo: '?view=attention',
-        cards: queue.map((item) => <QueueCard key={item.key} item={item} onOpenSheet={onOpenSheet} onChanged={onChanged} {...context} />),
+        cards: queue.map((entry) => <QueueCard key={entry.key} entry={entry} displayCurrency={displayCurrency} images={images} onChanged={onChanged} />),
         shown: queue.length,
         empty: td.queueEmpty,
-        oneAtATime: ordered.length > 1 ? { label: td.oneAtATime, onClick: () => onOpenSheet(ordered[0], null) } : null,
+        oneAtATime: (data?.queueTotal ?? 0) > 1 ? { label: td.oneAtATime, to: '?view=attention&walk=1' } : null,
       }}
-      soon={{ title: td.soonTitle, linkLabel: td.soonLink, linkTo: '?view=payments', rows: soon.map((item) => <SoonRow key={`${item.recurringId}-${item.dueDate}`} item={item} mode={mode} onChanged={onChanged} />), shown: soon.length, empty: td.soonEmpty }}
-      stats={[
-        { key: 'spent', label: fill(td.stats.spentIn, { month }), value: view ? `${view.approx ? '≈ ' : ''}${formatMinor(view.spent, view.currency, lang)}` : '—', note: view ? spentNote : '' },
-        { key: 'due', label: fill(td.stats.dueIn, { days: DUE_DAYS }), value: dueText, note: fill(td.stats.dueConfirmed, { amount: confirmedText }) },
-      ]}
-      breakdown={{
-        title: td.breakdown.title,
-        period: month,
-        rows: rows.map((row) => ({ key: row.category, icon: <CategoryMark category={row.category} />, name: m.categories[row.category], value: formatMinor(row.spent, view?.currency ?? 'GBP', lang), width: largest > 0 ? Math.round((row.spent / largest) * 100) : 0 })),
-        insight,
-        empty: td.breakdown.empty,
-      }}
+      soon={{ title: td.soonTitle, linkLabel: td.soonLink, linkTo: '?view=payments', rows: soon.map((entry) => <SoonRow key={entry.key} entry={entry} displayCurrency={displayCurrency} images={images} onChanged={onChanged} />), shown: soon.length, empty: td.soonEmpty }}
+      stats={stats}
+      breakdown={{ title: td.breakdown.title, period: month ? monthName(month, lang) : '', rows: rows.map((row) => ({ key: row.key, icon: <CategoryMark category={row.key as Category} />, name: m.categories[row.key as Category], value: formatMinor(row.value, text(row.facts.currency) ?? spentCode, lang), width: largest > 0 ? Math.round((row.value / largest) * 100) : 0 })), insight, empty: td.breakdown.empty }}
       side={
         <>
           {failed && <p role="alert">{td.failed}</p>}
           <SideCard title={td.banksTitle} linkLabel={td.banksLink} linkTo="?view=wallet">
-            {connectionRows.length > 0 ? (
-              connectionRows.map((row) => {
+            {connections.length === 0 ? (
+              <p>{td.banksEmpty}</p>
+            ) : (
+              connections.map((row) => {
                 const f = row.facts;
-                const provider = typeof f.provider === 'string' ? f.provider : '';
-                const lastOk = typeof f.last_ok_at === 'string' ? f.last_ok_at : null;
+                const provider = text(f.provider) ?? '';
+                const lastOk = text(f.last_ok_at);
                 const look = f.stale === true || (typeof f.status === 'string' && f.status !== 'ok');
                 const balances = Array.isArray(f.balances) ? (f.balances as { currency?: unknown; amount?: unknown }[]) : [];
                 const lead = balances.find((balance) => typeof balance.currency === 'string' && typeof balance.amount === 'number');
                 const base = f.manual === true ? (lastOk ? fill(td.bank.byHand, { date: dayLabel(lastOk, lang) }) : td.bank.never) : lastOk ? fill(td.bank.updated, { when: ago(lastOk, lang) }) : td.bank.never;
                 const amount = lead ? formatMinor(lead.amount as number, lead.currency as string, lang) : '';
-                const name = row.subject.name ?? bankLabel(provider, context.logos[provider]);
-                return <SideRow key={row.subject.id ?? provider} icon={<BankMark provider={provider} logo={context.logos[provider]} />} when={look ? `${td.bank.look} · ${base}` : base} what={`${name}${amount ? ` · ${amount}` : ''}`} />;
-              })
-            ) : freshest.length === 0 ? (
-              <p>{td.banksEmpty}</p>
-            ) : (
-              freshest.map((bank) => {
-                const lead = shownTotals(bank.accounts, mode)[0];
-                const when = bank.connection?.manual ? (bank.connection.lastOkAt ? fill(td.bank.byHand, { date: dayLabel(bank.connection.lastOkAt, lang) }) : td.bank.never) : bank.connection?.lastOkAt ? fill(td.bank.updated, { when: ago(bank.connection.lastOkAt, lang) }) : td.bank.never;
-                const amount = lead ? `${lead.approx ? '≈ ' : ''}${formatMinor(lead.amount, lead.currency, lang)}` : '';
-                return <SideRow key={bank.provider} icon={<BankMark provider={bank.provider} logo={context.logos[bank.provider]} />} when={when} what={`${bankLabel(bank.provider, context.logos[bank.provider])}${amount ? ` · ${amount}` : ''}`} />;
+                const name = row.subject.name ?? bankLabel(provider, images.logos[provider]);
+                return <SideRow key={row.subject.id ?? provider} icon={<BankMark provider={provider} logo={images.logos[provider]} />} when={look ? `${td.bank.look} · ${base}` : base} what={`${name}${amount ? ` · ${amount}` : ''}`} />;
               })
             )}
           </SideCard>
-          {serverToday.value?.streak && <StreakCard streak={serverToday.value.streak} today={serverToday.value.date} />}
+          {data?.streak && <StreakCard streak={data.streak} today={data.date} />}
         </>
       }
     />

@@ -20,12 +20,23 @@ export function useOnce<T>(load: (signal: AbortSignal) => Promise<T>, enabled: b
     waiters.current = [];
     for (const resolve of pending) resolve();
   }, []);
+  // The question and the address it was last answered for: an answer held is not asked for again when the panel is shown again (a tab switch).
+  const answered = useRef<{ token: number; load: typeof load } | null>(null);
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled) {
+      // Nothing is asked while it is not shown; a reload asked for now is answered when it is next shown, and nobody waits for it.
+      settle();
+      return undefined;
+    }
+    if (answered.current?.token === token && answered.current.load === load) {
+      settle();
+      return undefined;
+    }
     const controller = new AbortController();
     load(controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
+        answered.current = { token, load };
         setSlot({ token, value });
         settle();
       },
