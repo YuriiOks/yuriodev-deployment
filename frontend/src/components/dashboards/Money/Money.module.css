@@ -572,7 +572,7 @@
   min-height: var(--dash-h-control);
   padding: 0 var(--space-3);
   background: transparent;
-  border: 1px solid var(--dash-border);
+  border: 1px solid var(--dash-edge);
   border-radius: var(--radius-pill);
   color: var(--dash-t2);
   font-family: var(--dash-font-ui);
@@ -581,9 +581,23 @@
   cursor: pointer;
 }
 
+.chip:hover {
+  background: var(--dash-chip);
+  color: var(--dash-t1);
+}
+
+/* One anatomy for every bank chip: a 20px mark and the name. */
+.chip .bankMark,
+.chip .bankIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: var(--dash-fs-meta);
+}
+
 .chipOn {
   background: var(--dash-heading-tint);
   border-color: var(--dash-heading-edge);
+  outline: 1px solid var(--dash-heading-edge);
   color: var(--dash-heading);
   font-weight: 700;
 }
@@ -617,9 +631,36 @@
   list-style: none;
 }
 
+/* A day's heading in the list: it stays under the bar while that day's rows scroll past. */
+.dayHead {
+  position: sticky;
+  top: var(--dash-h-bar);
+  z-index: var(--z-raised);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  background: var(--dash-surface);
+}
+
+.dayTitle {
+  margin: 0;
+  padding: 0;
+  color: var(--dash-heading);
+  font-size: var(--dash-fs-ui);
+  font-weight: 700;
+  line-height: var(--dash-lh-ui);
+}
+
+.dayTitle::before,
+.dayTitle::after {
+  content: none;
+}
+
+/* A line, on a phone: the mark, the payee and the amount and the menu on the first line, one meta line under them. */
 .tx {
   display: grid;
-  grid-template-columns: 1.25rem 1.75rem minmax(0, 1fr) auto;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto 2rem;
+  grid-template-areas:
+    "mark main amount menu"
+    ". meta meta meta";
   align-items: center;
   column-gap: var(--space-3);
   min-height: var(--dash-h-row);
@@ -627,15 +668,17 @@
   border-top: 1px solid var(--dash-line);
 }
 
-.list > .tx:first-child {
+.dayHead + .tx {
   border-top: 0;
 }
 
-.arrow {
-  color: var(--dash-t2);
+.txMark {
+  grid-area: mark;
+  display: inline-flex;
 }
 
 .main {
+  grid-area: main;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -648,21 +691,76 @@
   white-space: nowrap;
 }
 
+/* The line's own text under the payee, one ellipsised line; the search's match is marked. */
+.txDetail {
+  overflow: hidden;
+  color: var(--dash-t2);
+  font-size: var(--dash-fs-meta);
+  line-height: var(--dash-lh-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hit {
+  background: var(--dash-heading-tint);
+  border-radius: var(--dash-r-tag);
+  color: inherit;
+  font-weight: 700;
+}
+
 .meta {
+  grid-area: meta;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0 var(--space-2);
   color: var(--dash-t2);
   font-size: var(--dash-fs-meta);
   line-height: var(--dash-lh-meta);
 }
 
+.txTime:empty {
+  display: none;
+}
+
+.txTags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+}
+
+.amount {
+  grid-area: amount;
+  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
+  color: var(--dash-t1);
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Money in is in the "ok" colour; a move between the owner's own accounts and a declined line are muted. */
+.tx[data-direction="in"] .amount {
+  color: var(--dash-ok);
+}
+
+.tx[data-internal="true"] .amount,
+.tx[data-declined="true"] .what,
+.tx[data-declined="true"] .amount {
+  color: var(--dash-t2);
+}
+
+.tx[data-pending="true"] {
+  font-style: italic;
+}
+
 .markMove {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--dash-t2);
+  color: var(--dash-t1);
   font: inherit;
+  text-align: left;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -681,26 +779,86 @@
   color: var(--dash-t1);
 }
 
-.amount {
-  composes: dashNum from '../../../assets/styles/dashboard-type.module.css';
-  color: var(--dash-t1);
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
+/* The row's "⋯" menu: a quiet button at the row's end and a small panel under it. */
+.rowMenu {
+  grid-area: menu;
+  position: relative;
+  justify-self: end;
 }
 
-.tx[data-declined="true"] .what,
-.tx[data-declined="true"] .amount {
+.rowMenuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--dash-r-control);
   color: var(--dash-t2);
-  text-decoration: line-through;
+  font-size: var(--dash-fs-title);
+  line-height: 1;
+  cursor: pointer;
 }
 
-.tx[data-pending="true"] {
-  font-style: italic;
+.rowMenuButton:hover,
+.rowMenuButton[aria-expanded="true"] {
+  background: var(--dash-chip);
+  color: var(--dash-t1);
 }
 
-.tx[data-internal="true"] .arrow {
-  color: var(--dash-t3);
+.rowMenuPanel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: var(--z-decor);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 14rem;
+  padding: var(--space-3);
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-surface);
+  box-shadow: var(--dash-glass-shadow);
+}
+
+.rowMenuField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* From 64rem a line is a table row: mark, payee, time, bank and account, category and marks, amount, menu. */
+@media (min-width: 64rem) {
+  .tx {
+    grid-template-columns: 1.75rem minmax(0, 2fr) 3.5rem minmax(0, 1.5fr) minmax(0, 1.5fr) 9rem 2rem;
+    grid-template-areas: "mark main time bank tags amount menu";
+  }
+
+  .meta {
+    display: contents;
+  }
+
+  .txTime {
+    grid-area: time;
+  }
+
+  .txBank {
+    grid-area: bank;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .txTags {
+    grid-area: tags;
+  }
+
+  .tx:hover {
+    background: var(--dash-chip);
+  }
 }
 
 .more {
@@ -717,16 +875,6 @@
 .moreFailed {
   color: var(--dash-danger);
   font-size: var(--dash-fs-meta);
-}
-
-@media (max-width: 47.99rem) {
-  .tx {
-    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
-  }
-
-  .tx .arrow {
-    display: none;
-  }
 }
 
 /* An amount converted into pounds: the original stands small beside it. */

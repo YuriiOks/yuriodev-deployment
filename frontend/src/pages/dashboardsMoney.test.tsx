@@ -298,7 +298,7 @@ describe('the Money page: transactions', () => {
   /** The region exists once the bootstrap has answered. */
   const ready = () => within(main()).findByRole('region', { name: 'Transactions' });
 
-  it('lists them newest first with a bank mark, the bank and account, a sign, an arrow and a word for money in and out, and the marks', async () => {
+  it('lists them newest first with a bank mark, the bank and account, a sign and a word for money in and out (no arrow: the sign and the colour say it), and the marks', async () => {
     setup();
     renderAt(ALL);
     await ready();
@@ -309,10 +309,12 @@ describe('the Money page: transactions', () => {
     expect(rows[0]).toHaveTextContent(/Money out: −£4\.50/);
     expect(rows[0]).toHaveTextContent('pending');
     expect(rows[0].getAttribute('data-direction')).toBe('out');
-    expect(rows[0].querySelector('svg[data-icon="arrow-up-right"]')).not.toBeNull();
+    expect(rows[0].querySelector('svg[data-icon]')).toBeNull();
     expect(rows[0].querySelector('[aria-hidden="true"]:not(svg)')).toBeTruthy();
     expect(rows[1]).toHaveTextContent(/Money in: \+£1,500\.00/);
-    expect(rows[1].querySelector('svg[data-icon="arrow-down-left"]')).not.toBeNull();
+    expect(rows[1].getAttribute('data-direction')).toBe('in');
+    // A picture is never rendered without its address (an <img> with no src is a request for the page itself).
+    expect(main().querySelectorAll('img:not([src]), img[src=""]')).toHaveLength(0);
     expect(rows[2]).toHaveTextContent('Monzo · Main');
     expect(rows[2]).toHaveTextContent('declined');
     expect(rows[2].getAttribute('data-declined')).toBe('true');
@@ -329,7 +331,8 @@ describe('the Money page: transactions', () => {
     await ready();
     await list().findByText('Corner Cafe');
     const chips = list().getByRole('group', { name: 'Bank' });
-    expect(within(chips).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['All banks', 'Acme bank', 'Monzo', 'Monobank']);
+    // Each bank chip is its mark and its name, and the name is its tooltip too.
+    expect(within(chips).getAllByRole('button').map((chip) => chip.title || chip.textContent)).toEqual(['All banks', 'Acme bank', 'Monzo', 'Monobank']);
     expect(within(chips).getByRole('button', { name: 'All banks' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(within(chips).getByRole('button', { name: 'Monzo' }));
     expect(within(chips).getByRole('button', { name: 'Monzo' })).toHaveAttribute('aria-pressed', 'true');

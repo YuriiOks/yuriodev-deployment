@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import CategoryMark from './CategoryMark';
-import { CATEGORIES, setInternalTransfer, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
+import { CATEGORIES, setInternalTransfer, setTransactionCategory, type Category, type FinanceAccount, type FinanceTransaction, type ProviderLogo } from '../../../services/dashboards/financeApi';
 import { formatMinor } from '../../../services/dashboards/money';
 import type { MoneyDisplay } from '../../../services/dashboards/preferences';
 import Amount from './Amount';
@@ -11,10 +11,8 @@ import type { Bank } from '../../../services/dashboards/wallet';
 import { cx } from '../../../utils/cx';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
-import ProjectIcon from '../ProjectIcon/ProjectIcon';
 import BankMark from './BankMark';
-import BankName from './BankName';
-import { dayLabel, whenLabel } from './labels';
+import { dayTitle, localDay, timeLabel } from './labels';
 import { bankLabel } from './providers';
 import styles from './Money.module.css';
 
@@ -23,22 +21,108 @@ const SEARCH_DELAY_MS = 300;
 const WANTED_ROWS = 15;
 const MAX_AUTO_PAGES = 6;
 
-/** One transaction: an arrow and a sign for money in or out (and a word for a screen reader), what it was, when, which bank and account, and its marks. */
-const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay; onChanged: () => void }> = ({ item, account, logo, mode, onChanged }) => {
+/** The text with the part the search matched marked (case does not matter). */
+const Highlight: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  const at = query === '' ? -1 : text.toLowerCase().indexOf(query.toLowerCase());
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className={styles.hit}>{text.slice(at, at + query.length)}</mark>
+      {text.slice(at + query.length)}
+    </>
+  );
+};
+
+/**
+ * The row's "⋯" menu: the owner's category for the line (a choice, and the way back to the automatic one) and, for a line that can be marked,
+ * the move between their own accounts. Closed by Escape, by a click outside or by choosing; focus goes back to its button.
+ */
+const RowMenu: React.FC<{ item: FinanceTransaction; name: string; canMark: boolean; busy: boolean; failed: string | null; onToggleInternal: () => void; onCategory: (category: Category | null) => void }> = ({ item, name, canMark, busy, failed, onToggleInternal, onCategory }) => {
+  const { t } = useDashboardLang();
+  const m = t.money;
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const holder = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (event: PointerEvent) => {
+      if (holder.current && !holder.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, [open]);
+  const close = () => {
+    setOpen(false);
+    button.current?.focus();
+  };
+  return (
+    <span className={styles.rowMenu} ref={holder} onKeyDown={(event) => event.key === 'Escape' && open && close()}>
+      <button ref={button} type="button" className={styles.rowMenuButton} aria-expanded={open} aria-controls={open ? id : undefined} aria-label={fill(m.rowActions, { name })} title={fill(m.rowActions, { name })} onClick={() => setOpen((on) => !on)}>
+        <span aria-hidden="true">⋯</span>
+      </button>
+      {open && (
+        <div id={id} role="group" aria-label={fill(m.rowActions, { name })} className={styles.rowMenuPanel}>
+          <label className={styles.rowMenuField}>
+            <span className={styles.fieldLabel}>{m.categoryChange}</span>
+            <select
+              className={styles.select}
+              value={item.categoryOverridden ? item.category : ''}
+              onChange={(event) => {
+                onCategory(event.target.value === '' ? null : (event.target.value as Category));
+                setOpen(false);
+              }}
+            >
+              <option value="">{item.categoryOverridden ? m.categoryAuto : `${m.categoryAuto}: ${m.categories[item.category]}`}</option>
+              {CATEGORIES.map((candidate) => (
+                <option key={candidate} value={candidate}>
+                  {m.categories[candidate]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {canMark && (
+            <button
+              type="button"
+              className={styles.markMove}
+              disabled={busy}
+              onClick={() => {
+                onToggleInternal();
+                setOpen(false);
+              }}
+            >
+              {item.internalTransfer ? m.unmarkInternal : m.markInternal}
+            </button>
+          )}
+          {failed && <span role="alert">{failed}</span>}
+        </div>
+      )}
+    </span>
+  );
+};
+
+/**
+ * One transaction. Phone: two lines (the payee and the amount, then one line of when, which bank and account, and its marks). From 64rem it is a
+ * table row: mark, payee (with the line's own text under it), time, bank and account, category and marks, amount, menu. The day is the group's
+ * heading, so a row tells only the time (and none when the bank gave only a day). Money in is in the "ok" colour and a move between the owner's
+ * own accounts is muted; a declined line stays in the list, muted, with its word.
+ */
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay; query: string; onChanged: () => void }> = ({ item, account, logo, mode, query, onChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   // A line the owner has not marked can be marked as a move between their own accounts; the owner's own mark can be undone (a mark the server set cannot be undone from here).
   const canMark = !item.declined && (!item.internalTransfer || item.internalTransferByOwner);
-  const toggleInternal = async () => {
+  const change = async (action: () => Promise<void>, why: string) => {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
-      await setInternalTransfer(item.id, !item.internalTransfer);
+      await action();
       onChanged();
     } catch {
-      setFailed(true);
+      setFailed(why);
     } finally {
       setBusy(false);
     }
@@ -57,21 +141,25 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
       data-internal={item.internalTransfer ? 'true' : undefined}
       data-direction={item.amount === 0 ? undefined : incoming ? 'in' : 'out'}
     >
-      <span aria-hidden="true" className={styles.arrow}>
-        {item.amount !== 0 && <ProjectIcon name={incoming ? 'arrow-down-left' : 'arrow-up-right'} size={16} />}
-      </span>
-      {account && <BankMark provider={account.provider} logo={logo} />}
+      <span className={styles.txMark}>{account && <BankMark provider={account.provider} logo={logo} />}</span>
       <span className={styles.main}>
         <span className={styles.what} title={detail ? `${what}: ${detail}` : what}>
-          {what}
+          <Highlight text={what} query={query} />
         </span>
-        <span className={styles.meta}>
-          <span>{item.timeKnown ? whenLabel(item.bookedAt, lang) : dayLabel(item.bookedAt, lang)}</span>
-          {account && (
-            <span>
-              {bankLabel(account.provider, logo)} · {account.name}
-            </span>
-          )}
+        {detail && (
+          <span className={styles.txDetail}>
+            <Highlight text={detail} query={query} />
+          </span>
+        )}
+      </span>
+      <span className={styles.meta}>
+        <span className={styles.txTime}>{item.timeKnown ? timeLabel(item.bookedAt, lang) : ''}</span>
+        {account && (
+          <span className={styles.txBank}>
+            {bankLabel(account.provider, logo)} · {account.name}
+          </span>
+        )}
+        <span className={styles.txTags}>
           <span className={styles.tag} data-category={item.category}>
             <CategoryMark category={item.category} />
             {m.categories[item.category]}
@@ -79,12 +167,6 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
           {item.internalTransfer && <span className={styles.tag}>{m.internal}</span>}
-          {canMark && (
-            <button type="button" className={styles.markMove} disabled={busy} onClick={() => void toggleInternal()}>
-              {item.internalTransfer ? m.unmarkInternal : m.markInternal}
-            </button>
-          )}
-          {failed && <span role="alert">{m.internalFailed}</span>}
           {!exactOriginal && item.originalAmount !== null && item.originalCurrency && item.originalCurrency !== item.currency && (
             <span>{fill(m.originalAmount, { amount: formatMinor(Math.abs(item.originalAmount), item.originalCurrency, lang) })}</span>
           )}
@@ -100,6 +182,15 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           <Amount amount={item.amount} currency={item.currency} display={item.display} mode={mode} signed />
         )}
       </span>
+      <RowMenu
+        item={item}
+        name={what}
+        canMark={canMark}
+        busy={busy}
+        failed={failed}
+        onToggleInternal={() => void change(() => setInternalTransfer(item.id, !item.internalTransfer), m.internalFailed)}
+        onCategory={(category) => void change(() => setTransactionCategory(item.id, category), m.categoryFailed)}
+      />
     </li>
   );
 };
@@ -119,7 +210,7 @@ export interface MoneyTransactionsProps {
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
 const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled }) => {
-  const { t } = useDashboardLang();
+  const { t, lang } = useDashboardLang();
   const m = t.money;
   const id = useId();
   const [provider, setProvider] = useState<string | null>(null);
@@ -178,16 +269,11 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
                 type="button"
                 className={cx(styles.chip, provider === candidate.provider && styles.chipOn)}
                 aria-pressed={provider === candidate.provider}
+                title={bankLabel(candidate.provider, logos[candidate.provider])}
                 onClick={() => chooseBank(candidate.provider)}
               >
-                {logos[candidate.provider]?.mark ? (
-                  <>
-                    <span className="sr-only">{bankLabel(candidate.provider, logos[candidate.provider])}</span>
-                    <BankMark provider={candidate.provider} logo={logos[candidate.provider]} />
-                  </>
-                ) : (
-                  <BankName provider={candidate.provider} logo={logos[candidate.provider]} size="chip" />
-                )}
+                <BankMark provider={candidate.provider} logo={logos[candidate.provider]} />
+                {bankLabel(candidate.provider, logos[candidate.provider])}
               </button>
             ))}
         </div>
@@ -242,9 +328,20 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
       {list.status === 'ready' && shown.length === 0 && !loadingMore && !wantMore && <p className={styles.none}>{m.empty}</p>}
       {list.status === 'ready' && shown.length > 0 && (
         <ul className={styles.list}>
-          {shown.map((item) => (
-            <TransactionRow key={item.id} item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} onChanged={list.reload} />
-          ))}
+          {shown.map((item, index) => {
+            const day = localDay(item.bookedAt);
+            const head = index === 0 || localDay(shown[index - 1].bookedAt) !== day;
+            return (
+              <React.Fragment key={item.id}>
+                {head && (
+                  <li role="presentation" className={styles.dayHead}>
+                    <h3 className={styles.dayTitle}>{dayTitle(item.bookedAt, lang)}</h3>
+                  </li>
+                )}
+                <TransactionRow item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} query={query} onChanged={list.reload} />
+              </React.Fragment>
+            );
+          })}
         </ul>
       )}
       {list.status === 'ready' && list.hasMore && (

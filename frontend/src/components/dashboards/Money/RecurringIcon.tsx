@@ -12,7 +12,7 @@ const RecurringIcon: React.FC<{ name: string; iconUrl: string | null; color: str
   if (iconUrl && !image.failed) {
     return (
       <span ref={image.ref} aria-hidden="true" className={styles.icon}>
-        <img key={image.attempt} src={image.ready ? iconUrl : undefined} alt="" referrerPolicy="no-referrer" decoding="async" draggable={false} onLoad={image.onLoad} onError={image.onError} />
+        {image.ready && <img key={image.attempt} src={iconUrl} alt="" referrerPolicy="no-referrer" decoding="async" draggable={false} onLoad={image.onLoad} onError={image.onError} />}
       </span>
     );
   }
