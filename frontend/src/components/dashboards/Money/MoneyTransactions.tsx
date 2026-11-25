@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { fill } from '../../../services/dashboards/calendarLabels';
 import CategoryMark from './CategoryMark';
@@ -136,6 +136,17 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
   const byId = new Map(allAccounts.map((item) => [item.id, item]));
   const bank = banks.find((candidate) => candidate.provider === provider) ?? null;
   const list = useTransactions(account, category, query, enabled);
+  // A chip group that scrolls sideways keeps the pressed chip in view when the choice changes.
+  const bankChips = useRef<HTMLDivElement>(null);
+  const categoryChips = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    for (const group of [bankChips.current, categoryChips.current]) group?.querySelector<HTMLElement>('[aria-pressed="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [provider, category]);
   const chipCategories = CATEGORIES.filter((candidate) => candidate === category || categories.includes(candidate) || list.transactions.some((item) => item.category === candidate));
   const inBank = bank ? new Set(bank.accounts.map((item) => item.id)) : null;
   const shown = list.transactions.filter((item) => !inBank || inBank.has(item.accountId));
@@ -155,7 +166,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
   return (
     <>
       <div className={styles.tools}>
-        <div role="group" aria-label={m.bankFilter} className={styles.chips}>
+        <div role="group" aria-label={m.bankFilter} className={styles.chips} ref={bankChips}>
           <button type="button" className={cx(styles.chip, provider === null && styles.chipOn)} aria-pressed={provider === null} onClick={() => chooseBank(null)}>
             {m.allBanks}
           </button>
@@ -181,7 +192,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
             ))}
         </div>
         {chipCategories.length > 0 && (
-          <div role="group" aria-label={m.categoryFilter} className={styles.chips}>
+          <div role="group" aria-label={m.categoryFilter} className={styles.chips} ref={categoryChips}>
             <button type="button" className={cx(styles.chip, category === null && styles.chipOn)} aria-pressed={category === null} onClick={() => setCategory(null)}>
               {m.allCategories}
             </button>
