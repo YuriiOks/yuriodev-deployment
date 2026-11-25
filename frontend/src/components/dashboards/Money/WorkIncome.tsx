@@ -2,14 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useDashboardLang } from '../../../context/useDashboardLang';
 import { pagePath } from '../../../data/site';
-import { useFinanceAccounts } from '../../../hooks/useFinance';
+import { useFinanceAccounts, useProviderLogos } from '../../../hooks/useFinance';
 import { useIncome } from '../../../hooks/useIncome';
 import { formatMinor } from '../../../services/dashboards/money';
 import InlineError from '../InlineError/InlineError';
 import LoadingBlock from '../LoadingBlock/LoadingBlock';
 import BankMark from './BankMark';
 import { whenLabel } from './labels';
-import { providerName } from './providers';
+import { bankLabel } from './providers';
 import styles from './Money.module.css';
 
 /**
@@ -22,6 +22,8 @@ const WorkIncome: React.FC = () => {
   const m = t.money;
   const income = useIncome(true);
   const accounts = useFinanceAccounts(true);
+  const providers = useProviderLogos(true);
+  const logos = providers.value ?? {};
   const byId = new Map((accounts.value?.accounts ?? []).map((account) => [account.id, account]));
 
   return (
@@ -60,8 +62,7 @@ const WorkIncome: React.FC = () => {
               const account = byId.get(item.accountId);
               return (
                 <li key={item.id} className={styles.tx} data-direction="in">
-                  <span aria-hidden="true" className={styles.arrow} />
-                  {account ? <BankMark provider={account.provider} /> : <span aria-hidden="true" />}
+                  <span className={styles.txMark}>{account && <BankMark provider={account.provider} logo={logos[account.provider]} />}</span>
                   <span className={styles.main}>
                     <span className={styles.what} title={item.description}>
                       {item.counterparty ?? (item.description || '—')}
@@ -70,7 +71,7 @@ const WorkIncome: React.FC = () => {
                       <span>{whenLabel(item.bookedAt, lang)}</span>
                       {account && (
                         <span>
-                          {providerName(account.provider)} · {account.name}
+                          {bankLabel(account.provider, logos[account.provider])} · {account.name}
                         </span>
                       )}
                       {item.pending && <span className={styles.tag}>{m.pending}</span>}

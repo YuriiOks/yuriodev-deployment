@@ -235,6 +235,11 @@ export interface Strings {
     readonly search: string;
     readonly searchPlaceholder: string;
     readonly empty: string;
+    /** No line fits the filters (named), none among the lines read so far while more can be read, and the way to clear the filters. */
+    readonly emptyFiltered: string;
+    readonly emptySoFar: string;
+    readonly clearFilters: string;
+    readonly categoryByYou: string;
     readonly failed: string;
     readonly loadMore: string;
     readonly loadingMore: string;
@@ -570,6 +575,10 @@ export const STRINGS: Record<Lang, Strings> = {
       search: 'Поиск по операциям',
       searchPlaceholder: 'Описание или получатель',
       empty: 'Операций не найдено.',
+      emptyFiltered: 'Нет операций по фильтрам: {filters}.',
+      emptySoFar: 'Среди уже загруженных ({n}) таких нет: загрузите ещё.',
+      clearFilters: 'Сбросить фильтры',
+      categoryByYou: 'категория задана вами',
       failed: 'Не удалось загрузить операции.',
       loadMore: 'Загрузить ещё',
       loadingMore: 'Загрузка…',
@@ -902,6 +911,10 @@ export const STRINGS: Record<Lang, Strings> = {
       search: 'Search transactions',
       searchPlaceholder: 'Description or payee',
       empty: 'No transactions found.',
+      emptyFiltered: 'No transactions for these filters: {filters}.',
+      emptySoFar: 'None among the {n} read so far: load more.',
+      clearFilters: 'Clear filters',
+      categoryByYou: 'category set by you',
       failed: 'Could not load the transactions.',
       loadMore: 'Load more',
       loadingMore: 'Loading…',

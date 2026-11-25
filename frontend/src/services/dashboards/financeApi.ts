@@ -400,13 +400,16 @@ export interface TransactionQuery {
   readonly limit?: number;
 }
 
+export const TRANSACTION_SEARCH_MAX = 200;
+
 /** The query string of a transactions request: only what is set. */
 export function transactionsPath({ account, category, from, q, cursor, limit = 25 }: TransactionQuery): string {
   const params = new URLSearchParams();
   if (account) params.set('account', account);
   if (category) params.set('category', category);
   if (from) params.set('from', from);
-  const query = q?.trim();
+  // The server holds a search to its own length (`limits.transactions.search`, 200 unless it says otherwise): longer text is cut here, not refused there.
+  const query = q?.trim().slice(0, TRANSACTION_SEARCH_MAX);
   if (query) params.set('q', query);
   if (cursor) params.set('cursor', cursor);
   params.set('limit', String(Math.min(Math.max(1, limit), 100)));

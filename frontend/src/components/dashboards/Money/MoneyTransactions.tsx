@@ -109,19 +109,20 @@ const RowMenu: React.FC<{ item: FinanceTransaction; name: string; canMark: boole
  * heading, so a row tells only the time (and none when the bank gave only a day). Money in is in the "ok" colour and a move between the owner's
  * own accounts is muted; a declined line stays in the list, muted, with its word.
  */
-const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay; query: string; onChanged: () => void }> = ({ item, account, logo, mode, query, onChanged }) => {
+const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccount | undefined; logo: ProviderLogo | undefined; mode: MoneyDisplay; query: string; onChanged: () => void; onCategoryChanged?: () => void }> = ({ item, account, logo, mode, query, onChanged, onCategoryChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   // A line the owner has not marked can be marked as a move between their own accounts; the owner's own mark can be undone (a mark the server set cannot be undone from here).
   const canMark = !item.declined && (!item.internalTransfer || item.internalTransferByOwner);
-  const change = async (action: () => Promise<void>, why: string) => {
+  const change = async (action: () => Promise<void>, why: string, category = false) => {
     setBusy(true);
     setFailed(null);
     try {
       await action();
       onChanged();
+      if (category) onCategoryChanged?.();
     } catch {
       setFailed(why);
     } finally {
@@ -161,9 +162,10 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
           </span>
         )}
         <span className={styles.txTags}>
-          <span className={styles.tag} data-category={item.category}>
+          <span className={styles.tag} data-category={item.category} data-overridden={item.categoryOverridden ? 'true' : undefined} title={item.categoryOverridden ? m.categoryByYou : undefined}>
             <CategoryMark category={item.category} />
             {m.categories[item.category]}
+            {item.categoryOverridden && <span className="sr-only">, {m.categoryByYou}</span>}
           </span>
           {item.pending && <span className={styles.tag}>{m.pending}</span>}
           {item.declined && <span className={styles.tag}>{m.declined}</span>}
@@ -191,7 +193,7 @@ const TransactionRow: React.FC<{ item: FinanceTransaction; account: FinanceAccou
         busy={busy}
         failed={failed}
         onToggleInternal={() => void change(() => setInternalTransfer(item.id, !item.internalTransfer), m.internalFailed)}
-        onCategory={(category) => void change(() => setTransactionCategory(item.id, category), m.categoryFailed)}
+        onCategory={(category) => void change(() => setTransactionCategory(item.id, category), m.categoryFailed, true)}
       />
     </li>
   );
@@ -205,13 +207,17 @@ export interface MoneyTransactionsProps {
   /** The banks' wordmarks by provider id: the bank chips show them when there is one. */
   logos: Readonly<Record<string, ProviderLogo>>;
   enabled: boolean;
+  /** A counter the page raises to ask for the lines again (a bank's data changed): the rows stay, dimmed, until the new ones are here. */
+  refresh?: number;
+  /** The owner's category of a line changed: the spending report is asked again. */
+  onCategoriesChanged?: () => void;
 }
 
 /**
  * The transactions, newest first: the bank as chips (all banks, or one), then, inside a bank, an account choice; a text search
  * (applied after a short pause in typing) and "Load more" by the server's cursor. Each row names its bank and account.
  */
-const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled }) => {
+const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories, mode, logos, enabled, refresh = 0, onCategoriesChanged }) => {
   const { t, lang } = useDashboardLang();
   const m = t.money;
   const searchMax = useLimit('transactions', 'search', 200);
@@ -229,7 +235,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
   const allAccounts = banks.flatMap((bank) => bank.accounts);
   const byId = new Map(allAccounts.map((item) => [item.id, item]));
   const bank = banks.find((candidate) => candidate.provider === provider) ?? null;
-  const list = useTransactions(account, category, query, enabled);
+  const list = useTransactions(account, category, query, enabled, refresh);
   // A chip group that scrolls sideways keeps the pressed chip in view when the choice changes.
   const bankChips = useRef<HTMLDivElement>(null);
   const categoryChips = useRef<HTMLDivElement>(null);
@@ -241,7 +247,12 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
     }
     for (const group of [bankChips.current, categoryChips.current]) group?.querySelector<HTMLElement>('[aria-pressed="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }, [provider, category]);
-  const chipCategories = CATEGORIES.filter((candidate) => candidate === category || categories.includes(candidate) || list.transactions.some((item) => item.category === candidate));
+  // The category chips are the ones the spending report names and the ones seen in any rows so far: the set only grows, so a filter never makes a chip vanish.
+  const seen = useRef(new Set<Category>());
+  for (const item of list.transactions) seen.current.add(item.category);
+  for (const candidate of categories) seen.current.add(candidate);
+  if (category) seen.current.add(category);
+  const chipCategories = CATEGORIES.filter((candidate) => seen.current.has(candidate));
   const inBank = bank ? new Set(bank.accounts.map((item) => item.id)) : null;
   const shown = list.transactions.filter((item) => !inBank || inBank.has(item.accountId));
 
@@ -252,6 +263,15 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
     if (wantMore) loadMore();
   }, [wantMore, loadMore, pages]);
 
+  // The filters that are on, in words (for the empty state), and the way to clear them all.
+  const filtersText = [bank ? bankLabel(bank.provider, logos[bank.provider]) : '', account ? (byId.get(account)?.name ?? '') : '', category ? m.categories[category] : '', query ? `“${query}”` : ''].filter(Boolean).join(', ');
+  const clearFilters = () => {
+    setProvider(null);
+    setAccount(null);
+    setCategory(null);
+    setTyped('');
+    setQuery('');
+  };
   const chooseBank = (next: string | null) => {
     setProvider(next);
     setAccount(null);
@@ -328,9 +348,18 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
       </div>
       {list.status === 'loading' && <LoadingBlock rows={4} />}
       {list.status === 'error' && <InlineError message={m.failed} onRetry={list.reload} />}
-      {list.status === 'ready' && shown.length === 0 && !loadingMore && !wantMore && <p className={styles.none}>{m.empty}</p>}
+      {list.status === 'ready' && shown.length === 0 && !loadingMore && !wantMore && !list.refreshing && (
+        <div className={styles.none}>
+          <p role="status">{filtersText ? (list.hasMore ? fill(m.emptySoFar, { n: list.transactions.length }) : fill(m.emptyFiltered, { filters: filtersText })) : list.hasMore ? fill(m.emptySoFar, { n: list.transactions.length }) : m.empty}</p>
+          {filtersText && (
+            <button type="button" className={styles.markMove} onClick={clearFilters}>
+              {m.clearFilters}
+            </button>
+          )}
+        </div>
+      )}
       {list.status === 'ready' && shown.length > 0 && (
-        <ul className={styles.list}>
+        <ul className={styles.list} aria-busy={list.refreshing} data-refreshing={list.refreshing ? 'true' : undefined}>
           {shown.map((item, index) => {
             const day = localDay(item.bookedAt);
             const head = index === 0 || localDay(shown[index - 1].bookedAt) !== day;
@@ -341,7 +370,7 @@ const MoneyTransactions: React.FC<MoneyTransactionsProps> = ({ banks, categories
                     <h3 className={styles.dayTitle}>{dayTitle(item.bookedAt, lang)}</h3>
                   </li>
                 )}
-                <TransactionRow item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} query={query} onChanged={list.reload} />
+                <TransactionRow item={item} account={byId.get(item.accountId)} logo={logos[byId.get(item.accountId)?.provider ?? '']} mode={mode} query={query} onChanged={list.reload} onCategoryChanged={onCategoriesChanged} />
               </React.Fragment>
             );
           })}
