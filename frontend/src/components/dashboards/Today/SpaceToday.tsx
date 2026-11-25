@@ -9,9 +9,13 @@ import { splitIso } from '../../../services/dashboards/liveTime';
 import type { SpaceTodayStrings } from '../../../services/dashboards/spaceTodayStrings';
 import type { SpaceId, TabId } from '../../../services/dashboards/types';
 import AreaIcon from '../AreaIcon/AreaIcon';
+import ProjectIcon from '../ProjectIcon/ProjectIcon';
+import { areaIconName } from '../../../services/dashboards/areaIcons';
 import SpaceTile from '../SpaceTile/SpaceTile';
+import AskCard from './AskCard';
 import StreakCard from './StreakCard';
 import { partOfDay } from '../Money/todayModel';
+import styles from './Today.module.css';
 import TodayLayout, { SideCard, SideRow, TodayCard, TodaySoonRow, type TodayAction } from './TodayLayout';
 
 const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -55,9 +59,25 @@ function factLine(entry: TodayQueueEntry, s: SpaceTodayStrings, lang: string): s
   return source === 'urgent' || source === 'high' ? `${s.fact[source]} · ${line}` : line;
 }
 
+/** A queue item's heading: its own title; a pull request's collector already wrote "Review " in front of it, so that is cut. */
+function headingOf(entry: TodayQueueEntry): string {
+  const name = entry.subject.name ?? '';
+  return entry.kind === 'pull_request' ? name.replace(/^review\s+/i, '') : name;
+}
+
+/** The same 40px tile the Money cards have: the area's drawing for a task, the source's for a pull request or an issue. */
+const QueueMark: React.FC<{ entry: TodayQueueEntry }> = ({ entry }) => {
+  const source = text(entry.facts.source);
+  const drawing = entry.kind === 'pull_request' || source === 'github' ? 'code' : entry.kind === 'issue' || source === 'linear' ? 'flag' : text(entry.facts.area_id) ? areaIconName(text(entry.facts.area_id)) : 'document';
+  return (
+    <span aria-hidden="true" className={styles.markTile}>
+      <ProjectIcon name={drawing} size={20} />
+    </span>
+  );
+};
+
 const QueueCard: React.FC<{ entry: TodayQueueEntry; strings: SpaceTodayStrings; lang: string; onMarkDone: (id: string) => void; onOpenTab: (tab: TabId) => void }> = ({ entry, strings, lang, onMarkDone, onOpenTab }) => {
   const reason = text(entry.facts.reason) ?? 'priority';
-  const name = entry.subject.name ?? '';
   const act = (code: string | null): TodayAction => {
     const label = strings.actions[code ?? 'open'] ?? strings.actions.open;
     if (code === 'mark_done' && entry.subject.id) {
@@ -69,7 +89,7 @@ const QueueCard: React.FC<{ entry: TodayQueueEntry; strings: SpaceTodayStrings; 
     return { label, onClick: () => onOpenTab('overview') };
   };
   const severity = reason === 'overdue' || reason === 'review_waiting' ? 'high' : reason === 'issue_idle' ? 'medium' : 'info';
-  return <TodayCard item={{ key: entry.key, icon: <span aria-hidden="true">{Array.from(name)[0]?.toLocaleUpperCase() ?? '•'}</span>, title: fill(strings.decision[reason] ?? strings.decision.priority, { name }), fact: factLine(entry, strings, lang), primary: act(entry.primary), secondary: act(entry.secondary), severity }} />;
+  return <TodayCard item={{ key: entry.key, icon: <QueueMark entry={entry} />, title: headingOf(entry), fact: factLine(entry, strings, lang), primary: act(entry.primary), secondary: act(entry.secondary), severity }} />;
 };
 
 const SoonRow: React.FC<{ entry: TodaySoonEntry; strings: SpaceTodayStrings; lang: string; onOpenTab: (tab: TabId) => void }> = ({ entry, strings, lang, onOpenTab }) => {
@@ -221,6 +241,8 @@ const SpaceToday: React.FC<SpaceTodayProps> = ({ space, data, failed, areas, nav
       side={
         <>
           {failed && <p role="alert">{s.failed}</p>}
+          {/* Ask is drawn only when the server says the assistant exists for this page, and never on Work 2 (its data is not sent anywhere). */}
+          {data?.assistantEnabled && space !== 'work-2' && <AskCard scope={space} />}
           <SideCard title={s.todayTitle} linkLabel={s.todayLink} linkTo={pagePath('dashboards-calendar')}>
             {events.length === 0 ? <p>{s.todayEmpty}</p> : events.map((event, index) => <SideRow key={`${event.subject.id ?? index}`} when={eventTime(event)} what={event.facts.busy_only === true ? s.busy : (event.subject.name ?? '')} />)}
           </SideCard>

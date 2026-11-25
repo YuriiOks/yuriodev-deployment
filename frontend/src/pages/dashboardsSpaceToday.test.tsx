@@ -110,10 +110,10 @@ describe('the Today view of the spaces', () => {
     const queue = within(within(main()).getByRole('region', { name: /First this/ }));
     const cards = queue.getAllByRole('listitem').filter((entry) => entry.getAttribute('data-key'));
     expect(cards).toHaveLength(2);
-    expect(within(cards[0]).getByText('Is “File the form” done?')).toBeInTheDocument();
+    expect(within(cards[0]).getByText('File the form')).toBeInTheDocument();
     expect(within(cards[0]).getByText('3 d overdue')).toBeInTheDocument();
     expect(within(cards[0]).getByRole('button', { name: 'Done' })).toBeInTheDocument();
-    expect(within(cards[1]).getByText('Take up “Book the dentist” next?')).toBeInTheDocument();
+    expect(within(cards[1]).getByText('Book the dentist')).toBeInTheDocument();
     // The count is how many qualify, not how many are shown.
     expect(queue.getByText('5')).toBeInTheDocument();
     expect(within(main()).getByText('Open tasks')).toBeInTheDocument();
@@ -124,8 +124,8 @@ describe('the Today view of the spaces', () => {
     expect(breakdown.getByText('Gone stale: Money')).toBeInTheDocument();
     expect(breakdown.getByText(/4 tasks without a date are older than 30 days/)).toBeInTheDocument();
     expect(within(main()).getByRole('region', { name: 'Today' })).toHaveTextContent('Language lesson');
-    // Not served by the backend: not drawn.
-    expect(within(main()).queryByText('Ask Claude')).toBeNull();
+    // The server says the assistant exists for this page: the Ask card is there.
+    expect(within(main()).getByRole('region', { name: 'Ask Claude' })).toBeInTheDocument();
   });
 
   it('ticks a task off from its card, and opens a pull request at its own address', async () => {
@@ -139,7 +139,7 @@ describe('the Today view of the spaces', () => {
     first.unmount();
     renderAt('/dashboards/work-1');
     const reviews = within(await within(main()).findByRole('region', { name: /First this/ }));
-    await waitFor(() => expect(reviews.getByText('Review “Fix the parser”?')).toBeInTheDocument());
+    await waitFor(() => expect(reviews.getByText('Fix the parser')).toBeInTheDocument());
     expect(reviews.getByText('waiting 3 d')).toBeInTheDocument();
     expect(reviews.getByRole('link', { name: 'Open' })).toHaveAttribute('href', 'https://github.example.com/acme/repo/pull/7');
     expect(within(main()).getByText(/2 reviews waiting, 4 issues in progress, 1 urgent\./)).toBeInTheDocument();
@@ -157,7 +157,19 @@ describe('the Today view of the spaces', () => {
     const meetings = within(main()).getByRole('region', { name: 'Meetings by day' });
     expect(meetings).toHaveTextContent('1 h 30 min');
     expect(within(meetings).getByText(/No meetings on/)).toBeInTheDocument();
-    expect(within(main()).queryByText(/Ask/)).toBeNull();
+    expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
+  });
+
+  it('never draws the Ask card on Work 2 even if the server says the assistant is enabled, and not when it is disabled elsewhere', async () => {
+    setup({ today: { 'work-2': { ...work2, assistant: { enabled: true } } } });
+    const view = renderAt('/dashboards/work-2');
+    await within(main()).findByText(/3 open tasks, 1 priority\./);
+    expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
+    view.unmount();
+    setup({ today: { personal: { ...personal, assistant: { enabled: false } } } });
+    renderAt('/dashboards/personal');
+    await within(main()).findByText(/12 open tasks/);
+    expect(within(main()).queryByRole('region', { name: 'Ask Claude' })).toBeNull();
   });
 
   it('keeps the existing views behind their tabs and says so when the answer cannot be read', async () => {
@@ -173,7 +185,7 @@ describe('the Today view of the spaces', () => {
     setup({ lang: 'ru', today: { personal } });
     renderAt('/dashboards/personal');
     expect(await within(main()).findByText(/Открыто задач: 12, из них в приоритете 3, просрочено 2\./)).toBeInTheDocument();
-    expect(within(main()).getByText('Готово ли «File the form»?')).toBeInTheDocument();
+    expect(within(main()).getByText('File the form')).toBeInTheDocument();
   });
 
   const week = (states: string[]) => states.map((state, index) => ({ date: `2026-11-${String(23 + index).padStart(2, '0')}`, state }));

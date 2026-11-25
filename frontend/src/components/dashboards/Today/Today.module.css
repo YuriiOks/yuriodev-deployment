@@ -209,8 +209,25 @@
 }
 
 .cardTitle {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--dash-t1);
   font-size: var(--dash-fs-ui);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+/* A space's queue mark: a drawing in the same 40px tile the bank marks and payment pictures have. */
+.markTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--dash-chip);
+  border: 1px solid var(--dash-edge);
+  border-radius: var(--dash-r-tag);
+  color: var(--dash-t1);
 }
 
 .cardFact {
