@@ -196,6 +196,7 @@ class RecurringListOut(BaseModel):
     recurring: list[RecurringOut]
     debts: DebtTotal
     display: DisplayOut
+    icons_version: str  # the version of `GET /recurring/icons`: fetch the bundle when it changes
 
 
 def shown_icon(row: Any) -> str | None:
@@ -306,6 +307,7 @@ class UpcomingOut(BaseModel):
     items: list[UpcomingItem]
     totals: list[UpcomingTotal]
     display: UpcomingDisplay
+    icons_version: str  # the version of `GET /recurring/icons`: fetch the bundle when it changes
 
 
 class AttentionItem(BaseModel):

@@ -30,6 +30,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.errors import AppError
+from src.dashboards.finance.bundles import icons_version
 from src.dashboards.finance.fx import Display
 from src.dashboards.finance.models import (
     Account,
@@ -775,6 +776,7 @@ async def upcoming(
         items=items,
         totals=totals,
         display=UpcomingDisplay(**fields, complete=not fields["missing"], total=grand),
+        icons_version=await icons_version(session),
     )
 
 
